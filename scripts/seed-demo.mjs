@@ -1,0 +1,1341 @@
+#!/usr/bin/env node
+/**
+ * Seed perusahaan demo "PT Demo Sejahtera" berisi data untuk SEMUA modul —
+ * dipakai pemilik untuk mereview aplikasi secara langsung dan sebagai sumber
+ * data screenshot panduan/landing.
+ *
+ * Pemakaian:
+ *   BASE_URL=https://erpindo.example.workers.dev \
+ *   SEED_EMAIL=pemilik@contoh.com SEED_PASSWORD=rahasia \
+ *   node scripts/seed-demo.mjs [--force]
+ *
+ * Alternatif tanpa password (ops): SEED_SESSION=<token sesi mentah> — token
+ * dibuat manual dengan meng-INSERT sha256(token) ke tabel sessions control-plane,
+ * dipakai sekali untuk seeding, lalu barisnya dihapus.
+ *
+ * Alternatif tanpa kredensial sama sekali (ops via runner CI): SEED_REGISTER=1 —
+ * skrip MENDAFTARKAN akun seeder baru dengan email+password acak yang dibuat di
+ * proses ini dan tidak pernah dicetak; setelah seeding, kepemilikan perusahaan
+ * demo dipindahkan ke akun tujuan lewat control-plane dan akun seeder
+ * dinonaktifkan. Email seeder dicetak agar operator bisa menindaklanjuti.
+ *
+ * - Mode default: login memakai akun yang SUDAH terdaftar (tidak membuat akun baru).
+ * - Menolak berjalan bila perusahaan demo sudah ada (idempoten; --force
+ *   membuat salinan baru dengan slug berbeda, hanya untuk uji lokal).
+ * - Gagal keras (exit 1) pada respons tak terduga agar drift skema terlihat.
+ * - Semua tanggal relatif terhadap hari eksekusi (0–60 hari ke belakang)
+ *   sehingga grafik dashboard 30 hari selalu hidup.
+ */
+
+import { randomBytes } from "node:crypto";
+import { bulanRiwayat, tanggalDalamBulan } from "./lib/kalender.mjs";
+
+const BASE = (process.env.BASE_URL ?? "http://127.0.0.1:8787").replace(/\/$/, "");
+const EMAIL = process.env.SEED_EMAIL;
+const PASSWORD = process.env.SEED_PASSWORD;
+const SESSION = process.env.SEED_SESSION;
+const REGISTER = process.env.SEED_REGISTER === "1";
+const FORCE = process.argv.includes("--force");
+const COMPANY = "PT Demo Sejahtera";
+
+/**
+ * Penjaga slot tenant (Fase 23c).
+ *
+ * Seed ini mendaftarkan perusahaan baru, dan di mode pool lokal setiap
+ * perusahaan memakan satu binding `TENANT_DB_*` **permanen** — tidak ada jalur
+ * di aplikasi yang mengembalikannya.
+ *
+ * Ada DUA pendaftaran, dan yang kedua mudah terlewat: "Workspace Seeder" hanya
+ * saat `SEED_REGISTER=1`, tetapi **"Workspace Staf Demo" didaftarkan tanpa
+ * syarat** di blok persetujuan pembelian — jadi seed apa pun ke produksi
+ * memakan slot, termasuk seed yang login dengan akun yang sudah ada. Karena itu
+ * penjaganya di sini, di atas, bukan di dalam `if (REGISTER)`.
+ *
+ * Ini bukan hipotesis: dari 6 slot produksi, 4 dihabiskan skrip uji — dua di
+ * antaranya berasal dari seed ini.
+ */
+/**
+ * Mode probe dikecualikan dari penjaga ini (Fase 25b) — dan pengecualian itu
+ * BUKAN kelonggaran: probe keluar sebelum satu pun langkah menulis, jadi tidak
+ * ada slot yang bisa dimakannya.
+ *
+ * Tanpa pengecualian ini probe **tidak pernah sampai ke login**, sehingga alat
+ * yang dibuat untuk membuktikan kredensial tidak membuktikan apa pun. Itu
+ * bukan hipotesis: run probe pertama di produksi berhenti persis di sini.
+ */
+const PROBE = process.env.SEED_PROBE === "1";
+
+if (!PROBE && !/^https?:\/\/(localhost|127\.0\.0\.1)/.test(BASE) && process.env.IZINKAN_TENANT_BARU !== "1") {
+  console.error(
+    `MENOLAK: seed ke ${BASE} akan mendaftarkan perusahaan baru yang memakan\n` +
+      `slot tenant PERMANEN (mode pool lokal).\n\n` +
+      `Periksa sisa slot di Admin → Infra lebih dulu. Bila memang perlu:\n` +
+      `  IZINKAN_TENANT_BARU=1 BASE_URL=${BASE} node scripts/seed-demo.mjs\n\n` +
+      `Bersihkan sesudahnya: node scripts/bersihkan-tenant.mjs workspace-seeder workspace-staf-demo`,
+  );
+  process.exit(1);
+}
+
+if (!REGISTER && !SESSION && (!EMAIL || !PASSWORD)) {
+  console.error(
+    PROBE
+      ? "PROBE: SEED_EMAIL/SEED_PASSWORD KOSONG — secretnya belum terpasang di repo\n" +
+          "(Settings → Secrets and variables → Actions). JANGAN menghapus demo lama:\n" +
+          "tanpa kredensial ini demo tidak bisa disemai ulang."
+      : "Set SEED_EMAIL + SEED_PASSWORD, SEED_SESSION (token sesi mentah), atau SEED_REGISTER=1.",
+  );
+  process.exit(1);
+}
+
+// --- klien fetch mini dengan cookie jar (pola smoke.mjs) ---------------------
+function makeClient(initialCookie = "") {
+  let cookie = initialCookie;
+  return async function request(method, path, body) {
+    const res = await fetch(`${BASE}${path}`, {
+      method,
+      headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const setCookie = res.headers.get("set-cookie");
+    if (setCookie) cookie = setCookie.split(";")[0];
+    let json = null;
+    try {
+      json = await res.json();
+    } catch {
+      /* bukan JSON */
+    }
+    return { status: res.status, json };
+  };
+}
+
+const api = makeClient(SESSION ? `erpindo_sid=${SESSION}` : "");
+let steps = 0;
+
+/** Jalankan satu langkah; gagal keras bila status tidak sesuai harapan. */
+async function step(name, method, path, body, expect = [200, 201]) {
+  const res = await api(method, path, body);
+  if (!expect.includes(res.status)) {
+    console.error(`✗ ${name} → HTTP ${res.status}\n  ${method} ${path}\n  ${JSON.stringify(res.json)}`);
+    process.exit(1);
+  }
+  steps++;
+  console.log(`  ✓ ${name}`);
+  return res.json;
+}
+
+const day = 86_400_000;
+/** Tanggal ISO n hari yang lalu (n boleh negatif untuk masa depan). */
+const daysAgo = (n) => new Date(Date.now() - n * day).toISOString().slice(0, 10);
+/**
+ * Bulan riwayat dihitung dari KALENDER, bukan dari kelipatan 30 hari (Fase 28).
+ * Helper-nya terpisah di `scripts/lib/kalender.mjs` supaya bisa diuji — alasan
+ * lengkapnya ada di kepala berkas itu dan di blok "6b" di bawah.
+ */
+const RIWAYAT = bulanRiwayat(6);
+const thisMonth = new Date().toISOString().slice(0, 7);
+const _kini = new Date();
+/**
+ * Tanggal `n` hari lalu, tetapi TIDAK PERNAH keluar dari bulan berjalan.
+ *
+ * Siklus grosir "bulan berjalan" di bawah memakai `daysAgo(4..10)`. Pada
+ * tanggal 1–3, semuanya mendarat di bulan LALU — sehingga dasbor demo
+ * menampilkan gaji bulan ini tanpa satu pun penjualannya, dan kartu "Laba
+ * Bulan Ini" kembali merah persis seperti sebelum Fase 19b. Bentuk bugnya sama
+ * dengan aritmetika 30 hari yang dibuang Fase 28 (lihat `lib/kalender.mjs`):
+ * hanya muncul beberapa hari sebulan, jadi tak pernah terlihat di hari biasa.
+ */
+const awalBulanIni = `${thisMonth}-01`;
+const dalamBulanIni = (n) => {
+  const d = daysAgo(n);
+  return d < awalBulanIni ? awalBulanIni : d;
+};
+
+/**
+ * Pertengahan bulan yang SAMA setahun lalu (Fase 21e).
+ *
+ * Perusahaan demo semula hanya punya riwayat ±60 hari, sehingga pembanding
+ * tahun lalu selalu nol dan kartunya tak pernah muncul — fiturnya tak terlihat
+ * justru di tempat calon pelanggan melihatnya. Dihitung lewat `Date.UTC` supaya
+ * lompatan tahun ditangani sendiri oleh Date, bukan aritmetika tangan.
+ */
+const pertengahanTahunLalu = new Date(Date.UTC(_kini.getUTCFullYear() - 1, _kini.getUTCMonth(), 15))
+  .toISOString()
+  .slice(0, 10);
+
+const nextMonth = new Date(Date.now() + 32 * day).toISOString().slice(0, 7);
+
+// Logo demo kecil (SVG kotak "DS" indigo, base64 — jauh di bawah batas 64KB).
+const LOGO_SVG =
+  `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" rx="20" fill="#6366f1"/>` +
+  `<text x="48" y="62" font-family="Arial" font-size="40" font-weight="bold" fill="#fff" text-anchor="middle">DS</text></svg>`;
+const LOGO_DATA_URL = `data:image/svg+xml;base64,${Buffer.from(LOGO_SVG).toString("base64")}`;
+
+console.log(`Seed demo → ${BASE} sebagai ${EMAIL}\n`);
+
+// --- 0. Login/registrasi & buat perusahaan demo --------------------------------
+if (REGISTER) {
+  // Kredensial acak dibuat di proses ini dan TIDAK pernah dicetak.
+  const seederEmail = `seeder-${Date.now()}@demo-seed.example.com`;
+  const seederPass = randomBytes(24).toString("base64url");
+  const reg = await api("POST", "/api/auth/register", {
+    companyName: "Workspace Seeder", name: "Seeder Otomatis", email: seederEmail, password: seederPass,
+  });
+  if (reg.status !== 201) {
+    console.error(`Registrasi seeder gagal (HTTP ${reg.status}): ${JSON.stringify(reg.json)}`);
+    process.exit(1);
+  }
+  console.log(`  ✓ registrasi akun seeder: ${seederEmail}`);
+  console.warn(
+    "    PERINGATAN (Fase 24b): akun acak ini TIDAK ada di COMPED_EMAILS, jadi ia\n" +
+      "    lahir berstatus 'provisioning' dan tidak boleh menambah perusahaan. Mode\n" +
+      "    SEED_REGISTER karena itu hanya bekerja di lingkungan lokal yang dijalankan\n" +
+      "    dengan --var COMPED_EMAILS berisi email ini. Untuk produksi, pakai\n" +
+      "    SEED_EMAIL/SEED_PASSWORD akun comped pemilik.",
+  );
+} else if (!SESSION) {
+  const login = await api("POST", "/api/auth/login", { email: EMAIL, password: PASSWORD });
+  if (login.status !== 200) {
+    console.error(`Login gagal (HTTP ${login.status}): ${JSON.stringify(login.json)}`);
+    console.error("Pastikan akun sudah terdaftar dan password benar. Bila 2FA aktif, seed harus dijalankan sebelum 2FA atau tambahkan totpCode manual.");
+    process.exit(1);
+  }
+  console.log("  ✓ login");
+}
+
+const me = await api("GET", "/api/auth/me");
+if (me.status !== 200) {
+  console.error(`Sesi tidak valid (HTTP ${me.status}). Periksa SEED_SESSION/kredensial.`);
+  process.exit(1);
+}
+console.log(`  ✓ sesi aktif sebagai ${me.json.user.email}`);
+
+/**
+ * Penjaga akun comped (Fase 24b) — REGRESI yang ditemukan saat menguji Fase 24c.
+ *
+ * Sejak Fase 24a, pendaftar biasa lahir berstatus `provisioning`: tanpa
+ * database, dan DILARANG menambah perusahaan (pagar anti-abuse di
+ * `POST /auth/companies`). Skrip ini bekerja dengan cara membuat "PT Demo
+ * Sejahtera" sebagai perusahaan TAMBAHAN — jadi mode `SEED_REGISTER` yang
+ * mendaftarkan akun acak kini selalu mentok:
+ *
+ *   ✗ buat perusahaan PT Demo Sejahtera → HTTP 402 {"detail":"belum-berlangganan"}
+ *
+ * Perusahaan demo memang tidak akan pernah membayar, jadi jalur yang benar
+ * adalah menjalankannya dari akun yang terdaftar di `COMPED_EMAILS`. Kegagalan
+ * itu dulu muncul di tengah jalan sebagai 402 tanpa konteks; sekarang dijelaskan
+ * di depan, sebelum satu langkah pun dikerjakan.
+ */
+const tenantBelumAktif = (me.json?.memberships ?? []).filter((m) => m.tenantStatus === "provisioning");
+if (tenantBelumAktif.length > 0 && (me.json?.memberships ?? []).every((m) => m.tenantStatus === "provisioning")) {
+  console.error(
+    `\nBERHENTI: akun ${me.json.user.email} belum berlangganan (status 'provisioning'),\n` +
+      `sehingga ia tidak boleh menambah perusahaan — termasuk perusahaan demo.\n\n` +
+      `Perusahaan demo tidak pernah membayar, jadi jalankan seed dari akun yang\n` +
+      `terdaftar di COMPED_EMAILS:\n\n` +
+      `  SEED_EMAIL=<email-comped> SEED_PASSWORD=… BASE_URL=${BASE} node scripts/seed-demo.mjs\n\n` +
+      `Alternatif: aktifkan akun ini lewat Admin → Perusahaan (set status 'active'),\n` +
+      `yang sekaligus membuatkan databasenya.\n`,
+  );
+  process.exit(1);
+}
+
+const existingDemo = (me.json?.memberships ?? []).find((m) => (m.tenantSlug ?? "").startsWith("pt-demo-sejahtera"));
+
+/**
+ * Mode probe (Fase 25b) — `SEED_PROBE=1`.
+ *
+ * Membuktikan kredensial seed BEKERJA tanpa menulis apa pun, lalu keluar 0.
+ *
+ * Dibuat karena mengganti demo produksi mengharuskan demo lama dihapus lebih
+ * dulu, sementara tidak ada cara memeriksa apakah secret `SEED_EMAIL`/
+ * `SEED_PASSWORD` benar-benar terpasang — GitHub tidak memperlihatkan
+ * keberadaan secret lewat API. Menghapus demo lalu menemukan kredensialnya
+ * salah berarti demo mati tanpa jalan pulang.
+ *
+ * Penjaga "demo sudah ada" di bawah TIDAK cukup untuk peran ini: ia hanya
+ * berbunyi bila akunnya kebetulan anggota perusahaan demo. Akun yang benar
+ * kredensialnya tetapi bukan anggota justru akan LOLOS penjaga itu dan
+ * membuat demo KEDUA yang memakan dua slot pool. Probe berhenti sebelum
+ * kemungkinan itu ada.
+ */
+if (PROBE) {
+  console.log("\n=== MODE PROBE (SEED_PROBE=1) — tidak ada yang ditulis ===");
+  console.log(`  akun          : ${me.json.user.email}`);
+  // Fase 25c: status comped kini dipantulkan `/auth/me`. Sebelumnya tidak ada
+  // cara melihatnya tanpa membuat perusahaan lebih dulu — dan perusahaan yang
+  // lahir berpaket salah itulah yang menghentikan penyemaian 14 Agustus di
+  // menit ke-9.
+  console.log(`  comped        : ${me.json.user.comped ? "YA" : "TIDAK — perusahaan baru akan lahir paket starter"}`);
+  console.log(`  perusahaan    : ${(me.json?.memberships ?? []).map((m) => `${m.tenantSlug}[${m.tenantStatus}]`).join(", ") || "(tidak ada)"}`);
+  console.log(`  demo sudah ada: ${existingDemo ? `YA (${existingDemo.tenantSlug})` : "TIDAK"}`);
+  console.log(
+    existingDemo
+      ? "\n✓ Kredensial terbukti DAN akun ini anggota perusahaan demo.\n" +
+          "  Aman melanjutkan: hapus demo lama, lalu jalankan ulang tanpa SEED_PROBE.\n"
+      : "\n⚠ Kredensial bekerja, TETAPI akun ini bukan anggota perusahaan demo.\n" +
+          "  Menjalankan seed sekarang akan MEMBUAT demo baru (memakan slot pool),\n" +
+          "  bukan menggantikan yang lama. Periksa SEED_EMAIL sebelum melanjutkan.\n",
+  );
+  process.exit(0);
+}
+
+if (existingDemo && !FORCE) {
+  console.error(`Perusahaan demo sudah ada (${existingDemo.tenantSlug}). Berhenti agar tidak menggandakan data. Pakai --force untuk salinan baru (hanya uji lokal).`);
+  process.exit(1);
+}
+
+const company = await step("buat perusahaan PT Demo Sejahtera", "POST", "/api/auth/companies", { companyName: COMPANY });
+const T = `/api/tenants/${company.tenantId}`;
+
+/**
+ * Penjaga paket (Fase 25b) — perusahaan demo HARUS enterprise.
+ *
+ * `POST /auth/companies` memberi paket `enterprise` hanya bila akunnya ada di
+ * `COMPED_EMAILS`; selain itu `starter`. Di starter, modul CRM ke atas menolak
+ * dengan 403 `plan-upgrade-required` — dan seed ini baru menyentuh CRM setelah
+ * ±9 menit, jadi kegagalannya muncul di tengah jalan dan meninggalkan demo
+ * separuh terisi: penjualan & kasir ada, CRM/HR/proyek/manufaktur/helpdesk dan
+ * perusahaan kedua tidak. Itu terjadi sungguhan 14 Agustus 2026.
+ *
+ * Diperiksa di sini, sebelum satu pun data ditulis, supaya operator tahu apa
+ * yang harus diperbaiki alih-alih menonton seed mati pelan-pelan.
+ */
+const meSetelah = await api("GET", "/api/auth/me");
+const paketDemo = (meSetelah.json?.memberships ?? []).find((m) => m.tenantId === company.tenantId)?.plan;
+if (paketDemo !== "enterprise") {
+  console.error(
+    `\nBERHENTI: perusahaan demo lahir berpaket '${paketDemo}', bukan 'enterprise'.\n\n` +
+      `Modul CRM, HR, proyek, manufaktur, dan helpdesk akan menolak 403 di tengah\n` +
+      `jalan sehingga demo terisi separuh — persis yang ingin dicegah penjaga ini.\n\n` +
+      `Perbaiki salah satu:\n` +
+      `  1. Tambahkan ${me.json.user.email} ke secret COMPED_EMAILS di Cloudflare\n` +
+      `     (perusahaan tambahan milik akun comped lahir enterprise), ATAU\n` +
+      `  2. Naikkan paket tenant ${company.tenantId} ke 'enterprise' di control-plane,\n` +
+      `     lalu jalankan ulang seed ini.\n\n` +
+      `Perusahaan yang terlanjur dibuat perlu dihapus lebih dulu:\n` +
+      `  node scripts/bersihkan-tenant.mjs pt-demo-sejahtera --izinkan-demo --hapus\n`,
+  );
+  process.exit(1);
+}
+
+// --- 1. Pengaturan perusahaan -------------------------------------------------
+await step("pengaturan: alamat, NPWP, logo", "PATCH", `${T}/settings`, {
+  address: "Jl. Merdeka No. 88, Bandung, Jawa Barat 40111",
+  npwp: "01.234.567.8-901.000",
+  logoDataUrl: LOGO_DATA_URL,
+});
+
+// --- 2. Bagan akun: referensi + akun kustom ----------------------------------
+const accountsRes = await step("baca bagan akun", "GET", `${T}/accounts`);
+const acc = (code) => {
+  const a = accountsRes.accounts.find((x) => x.code === code);
+  if (!a) {
+    console.error(`Akun ${code} tidak ditemukan di COA.`);
+    process.exit(1);
+  }
+  return a;
+};
+const kas = acc("1-1000");
+const bank = acc("1-1100");
+const modal = acc("3-1000");
+
+// Setoran modal awal — agar saldo Kas & Bank realistis (tidak negatif) setelah
+// seluruh pembelian, aset, dan gaji dibayarkan.
+//
+// FASE 28: tanggalnya dimundurkan ke SEBELUM bulan riwayat pertama, dan
+// nominalnya dinaikkan. Sebelumnya modal disetor 59 hari lalu sementara
+// penjualan sudah berjalan enam bulan — perusahaan yang berdagang setengah
+// tahun sebelum pemiliknya menyetor sepeser pun. Sekarang aset juga dibeli
+// tujuh bulan lalu dan gaji dibayar tujuh kali, jadi modalnya harus ada lebih
+// dulu dan cukup besar agar kas tidak pernah negatif di bulan mana pun.
+//
+// Tanggalnya 14 bulan ke belakang, bukan 7: printer lama dibeli tunai ±400 hari
+// lalu dan faktur pembanding tahun lalu terbit 12 bulan lalu. Dengan modal di
+// bulan ke-7, kas demo tercatat NEGATIF sepanjang Juli–Agustus tahun lalu —
+// ketahuan justru oleh pemeriksaan saldo berjalan yang ditulis untuk fase ini.
+await step("jurnal setoran modal awal 400 juta", "POST", `${T}/journal-entries`, {
+  entryDate: tanggalDalamBulan(14, 5),
+  memo: "Setoran modal awal pemilik",
+  lines: [
+    { accountId: bank.id, debit: 320_000_000, credit: 0 },
+    { accountId: kas.id, debit: 80_000_000, credit: 0 },
+    { accountId: modal.id, debit: 0, credit: 400_000_000 },
+  ],
+});
+await step("akun kustom: Beban Iklan Digital", "POST", `${T}/accounts`, { code: "6-2100", name: "Beban Iklan Digital", type: "expense" });
+const bebanIklan = (await api("GET", `${T}/accounts`)).json.accounts.find((a) => a.code === "6-2100");
+const bebanListrik = accountsRes.accounts.find((a) => a.name.toLowerCase().includes("listrik")) ?? bebanIklan;
+const penjualanAcc = accountsRes.accounts.find((a) => a.type === "income");
+
+// --- 3. Produk (dagang, jasa, kedaluwarsa, bahan & jadi) -----------------------
+async function product(p) {
+  return step(`produk ${p.sku}`, "POST", `${T}/products`, p);
+}
+const kopi = await product({ sku: "KOPI-250", name: "Kopi Arabika Gayo 250g", unit: "pcs", sellPrice: 85_000, buyPrice: 55_000, minStock: 20, barcode: "8990011112224", uomSecondary: "dus", uomFactor: 20 });
+const teh = await product({ sku: "TEH-100", name: "Teh Melati Premium 100g", unit: "pcs", sellPrice: 45_000, buyPrice: 28_000, minStock: 15, barcode: "8990011113337", uomSecondary: "dus", uomFactor: 24 });
+const gula = await product({ sku: "GULA-1L", name: "Gula Aren Cair 1L", unit: "btl", sellPrice: 60_000, buyPrice: 38_000 });
+const keripik = await product({ sku: "KRPK-200", name: "Keripik Singkong Balado 200g", unit: "pcs", sellPrice: 25_000, buyPrice: 14_000, minStock: 30 });
+const sambal = await product({ sku: "SMBL-140", name: "Sambal Bawang Botol 140g", unit: "btl", sellPrice: 35_000, buyPrice: 20_000, trackExpiry: true });
+const madu = await product({ sku: "MADU-500", name: "Madu Hutan Murni 500ml", unit: "btl", sellPrice: 120_000, buyPrice: 80_000 });
+const sirup = await product({ sku: "SRP-600", name: "Sirup Pandan 600ml", unit: "btl", sellPrice: 40_000, buyPrice: 24_000 });
+const kotak = await product({ sku: "BHN-KOTAK", name: "Kotak Hampers Anyaman", unit: "pcs", sellPrice: 0, buyPrice: 15_000 });
+const pita = await product({ sku: "BHN-PITA", name: "Pita Satin Emas", unit: "roll", sellPrice: 0, buyPrice: 5_000 });
+const hampers = await product({ sku: "HAMPERS-01", name: "Paket Hampers Nusantara", unit: "paket", sellPrice: 250_000, buyPrice: 0 });
+const jasaKirim = await product({ sku: "JASA-KIRIM", name: "Jasa Pengiriman Same-Day", unit: "kali", sellPrice: 25_000, isService: true });
+const jasaKonsul = await product({ sku: "JASA-RACIK", name: "Jasa Racik Hampers Kustom", unit: "jam", sellPrice: 150_000, isService: true });
+// Stok lanjut (Fase 7c): barang bernilai tinggi bernomor seri + barang titik-pesan.
+const mesin = await product({ sku: "MSN-SANGRAI", name: "Mesin Sangrai Kopi 3kg", unit: "unit", sellPrice: 18_500_000, buyPrice: 14_000_000, trackSerial: true, barcode: "8990022220000" });
+await product({ sku: "FLT-V60", name: "Filter Kertas V60 (isi 100)", unit: "pak", sellPrice: 35_000, buyPrice: 20_000, minStock: 40 });
+await step("daftar nomor seri mesin #1", "POST", `${T}/products/${mesin.id}/serials`, { serialNo: "MSN-2026-0001", note: "Garansi 2 tahun" });
+await step("daftar nomor seri mesin #2", "POST", `${T}/products/${mesin.id}/serials`, { serialNo: "MSN-2026-0002", note: "Garansi 2 tahun" });
+
+// --- 4. Kontak ----------------------------------------------------------------
+async function contact(k) {
+  return step(`kontak ${k.name}`, "POST", `${T}/contacts`, k);
+}
+// Grup harga pelanggan (Fase 23a) — disemai lebih dulu supaya kontak di bawah
+// bisa langsung dikaitkan. Sebelum Fase 28 demo TIDAK punya satu pun grup:
+// menunya ada di sidebar, pengunjung mengekliknya, dan layarnya kosong.
+//
+// Catatan yang perlu dibaca sebelum mengira demo ini salah: harga grup
+// DISARANKAN, bukan ditegakkan (keputusan sadar, `priceGroups.ts`). Tidak ada
+// jalur tulis transaksi yang memeriksanya, jadi faktur-faktur di bawah tetap
+// memakai harga dasar — dan itu benar, bukan kelalaian penyemaian.
+const grupGrosir = await step("grup harga Grosir", "POST", `${T}/price-groups`, { name: "Grosir" });
+const grupReseller = await step("grup harga Reseller", "POST", `${T}/price-groups`, { name: "Reseller" });
+// Harga khusus: Grosir ±12% di bawah harga dasar, Reseller ±18%. Tiga produk
+// terlaris saja — daftar harga yang memuat SELURUH katalog tidak menjelaskan
+// apa pun tentang cara kerjanya, dan justru menyembunyikan bahwa harga khusus
+// bersifat per-produk, bukan diskon menyeluruh.
+// SKU ditulis eksplisit di sini: `POST /products` hanya membalas `{ ok, id }`,
+// jadi membaca `produk.sku` akan memberi enam baris log yang seragam dan tak
+// menjelaskan apa pun bila salah satunya gagal.
+for (const { grup, nama, harga } of [
+  { grup: grupGrosir, nama: "Grosir", harga: [["KOPI-250", kopi, 75_000], ["TEH-100", teh, 39_500], ["KRPK-200", keripik, 22_000]] },
+  { grup: grupReseller, nama: "Reseller", harga: [["KOPI-250", kopi, 70_000], ["TEH-100", teh, 37_000], ["KRPK-200", keripik, 20_500]] },
+]) {
+  for (const [sku, produk, unitPrice] of harga) {
+    await step(`harga ${nama}: ${sku}`, "PUT", `${T}/price-groups/${grup.id}/items/${produk.id}`, { unitPrice });
+  }
+}
+
+const custToko = await contact({ type: "customer", name: "Toko Oleh-Oleh Priangan", email: "order@priangan.co.id", phone: "022-555-1234", address: "Jl. Cihampelas No. 20, Bandung", npwp: "12.345.678.9-012.000", priceGroupId: grupGrosir.id });
+const custKafe = await contact({ type: "customer", name: "Kafe Senja Rasa", email: "halo@senjarasa.id", phone: "0812-3456-7890", address: "Jl. Braga No. 5, Bandung" });
+const custHotel = await contact({ type: "customer", name: "Hotel Parahyangan", email: "purchasing@parahyangan.com", phone: "022-777-8899", address: "Jl. Asia Afrika No. 101, Bandung", npwp: "98.765.432.1-098.000" });
+const custUmum = await contact({ type: "customer", name: "Pelanggan Umum", phone: "-" });
+const custKoperasi = await contact({ type: "customer", name: "Koperasi Karyawan Sejahtera", email: "koperasi@sejahtera.or.id", priceGroupId: grupReseller.id });
+const suppKopi = await contact({ type: "supplier", name: "CV Petani Kopi Gayo", email: "sales@kopigayo.co.id", phone: "0651-222-333" });
+const suppKemasan = await contact({ type: "supplier", name: "PT Kemasan Kreatif", email: "cs@kemasankreatif.com", npwp: "11.222.333.4-055.000" });
+const suppAneka = await contact({ type: "both", name: "UD Aneka Pangan", phone: "0813-9999-0000" });
+
+// --- 5. Gudang ------------------------------------------------------------------
+const whs = await step("baca gudang", "GET", `${T}/warehouses`);
+const whUtama = whs.items.find((w) => w.code === "UTAMA");
+const whCabang = await step("gudang CABANG", "POST", `${T}/warehouses`, { code: "CABANG", name: "Gudang Cabang Dago", address: "Jl. Ir. H. Juanda No. 210, Bandung" });
+
+// --- 6. Pembelian (stok masuk; lot utk sambal; diskon; PPN variatif) ------------
+async function purchase(name, p) {
+  return step(name, "POST", `${T}/purchases`, p);
+}
+await purchase("pembelian kopi+teh (55 hari lalu)", {
+  contactId: suppKopi.id, invoiceDate: daysAgo(55), taxRate: 11, warehouseId: whUtama.id,
+  lines: [
+    { productId: kopi.id, qty: 80, unitPrice: 55_000 },
+    { productId: teh.id, qty: 60, unitPrice: 28_000 },
+  ],
+});
+await purchase("pembelian aneka pangan (48 hari lalu, diskon 5%)", {
+  contactId: suppAneka.id, invoiceDate: daysAgo(48), taxRate: 0, warehouseId: whUtama.id,
+  lines: [
+    { productId: gula.id, qty: 40, unitPrice: 38_000, discountPct: 5 },
+    { productId: keripik.id, qty: 120, unitPrice: 14_000 },
+    { productId: sirup.id, qty: 50, unitPrice: 24_000 },
+  ],
+});
+await purchase("pembelian sambal 2 lot kedaluwarsa (40 hari lalu)", {
+  contactId: suppAneka.id, invoiceDate: daysAgo(40), taxRate: 0, warehouseId: whUtama.id,
+  lines: [
+    { productId: sambal.id, qty: 40, unitPrice: 20_000, lotNo: "SB-A", expiryDate: daysAgo(-25) },
+    { productId: sambal.id, qty: 40, unitPrice: 20_000, lotNo: "SB-B", expiryDate: daysAgo(-120) },
+  ],
+});
+await purchase("pembelian madu (35 hari lalu)", {
+  contactId: suppAneka.id, invoiceDate: daysAgo(35), taxRate: 0, warehouseId: whUtama.id,
+  lines: [{ productId: madu.id, qty: 30, unitPrice: 80_000 }],
+});
+const purchKemasan = await purchase("pembelian kemasan hampers (30 hari lalu, PPN 11%)", {
+  contactId: suppKemasan.id, invoiceDate: daysAgo(30), taxRate: 11, warehouseId: whUtama.id, dueDate: daysAgo(0),
+  lines: [
+    { productId: kotak.id, qty: 40, unitPrice: 15_000 },
+    { productId: pita.id, qty: 80, unitPrice: 5_000 },
+  ],
+});
+await purchase("pembelian restock kopi (12 hari lalu)", {
+  contactId: suppKopi.id, invoiceDate: daysAgo(12), taxRate: 11, warehouseId: whUtama.id, dueDate: daysAgo(-18),
+  lines: [{ productId: kopi.id, qty: 40, unitPrice: 56_000, discountPct: 2 }],
+});
+
+// --- 7. Faktur penjualan tersebar 45 hari (PPN & diskon variatif) ---------------
+const soldMix = [
+  { p: kopi, qty: 4, price: 85_000 },
+  { p: teh, qty: 3, price: 45_000 },
+  { p: keripik, qty: 6, price: 25_000 },
+  { p: gula, qty: 2, price: 60_000 },
+  { p: madu, qty: 1, price: 120_000 },
+  { p: sirup, qty: 2, price: 40_000 },
+];
+const customers = [custToko, custKafe, custHotel, custKoperasi, custUmum];
+// --- 6b. Riwayat SETENGAH TAHUN (Fase 24c) -------------------------------------
+//
+// Demo publik menggantikan masa coba gratis: calon pelanggan tidak lagi bisa
+// "mencoba dengan datanya sendiri", jadi demo inilah satu-satunya tempat ia
+// menilai produk. Riwayat ±60 hari membuat separuh aplikasi terlihat kosong —
+// grafik tren, perbandingan periode, umur piutang, dan rasio keuangan semuanya
+// butuh kedalaman waktu untuk berarti.
+//
+// Blok ini mengisi enam bulan penuh SEBELUM bulan berjalan. Pola per bulan
+// sengaja dibuat SEDERHANA dan berulang (belanja → jual → lunasi) — bukan meniru
+// kekayaan dua bulan terakhir, yang memang tempatnya mendemokan tiap modul rinci.
+//
+// SKALANYA HARUS SEPADAN, dan ini bukan soal estetika. Versi pertama blok ini
+// menjual ±550 ribu per bulan pada perusahaan yang menggaji 28 juta sebulan —
+// angka yang mustahil dan langsung terlihat oleh siapa pun yang membaca laporan.
+//
+// FASE 28 — tiga hal diperbaiki di sini sekaligus, seluruhnya terbukti lewat
+// kueri langsung ke database demo produksi pada 15 Agustus 2026:
+//
+// (a) BULAN KALENDER, bukan kelipatan 30 hari. Versi sebelumnya memakai
+//     `daysAgo(m * 30)`. Karena bulan kalender bukan 30 hari, jendelanya
+//     melenceng makin jauh tiap bulan mundur: Februari cuma terisi separuh
+//     (Rp 11,3 jt) dan JULI nyaris tidak kebagian penjualan grosir sama sekali.
+//     Juli justru bulan pertama yang menanggung gaji, sehingga laba-rugi "bulan
+//     lalu" — pilihan paling wajar bagi pengunjung — tampil RUGI Rp 20,7 JUTA.
+//     Bentuk bug yang sama sudah dua kali ditambal di berkas ini (`lastMonth`
+//     dan `dalamBulanIni`, Fase 19b): salah hanya pada sebagian tanggal, jadi
+//     tidak pernah terlihat di hari biasa.
+//
+// (b) VOLUME dinaikkan ±4×. Marjin kotor lama ±38% dari omzet 20,7 jt = 7,9 jt
+//     sebulan, sedangkan gaji 24,4 jt sebulan. Gaji tidak bisa ditambahkan ke
+//     bulan-bulan ini tanpa menaikkan volume — kelimanya akan rugi ±16 jt,
+//     persis kegagalan yang diperingatkan paragraf di atas. Volumenya menanjak
+//     landai menuju bulan berjalan supaya trennya tumbuh, bukan terjun.
+//
+// (c) HUTANG DIBAYAR. Sebelumnya tidak satu pun pembelian riwayat pernah
+//     dilunasi, sehingga Hutang Usaha demo menumpuk sampai Rp 231,8 juta —
+//     perusahaan dengan kas Rp 152 jt yang berhutang Rp 232 jt. Kini SETIAP
+//     bulan riwayat melunasi belanjanya; yang tersisa di Umur Hutang hanyalah
+//     hutang yang memang belum jatuh tempo (alasannya di dekat panggilannya).
+//
+// URUTAN PANGGILAN penting: pembelian tiap bulan dikirim SEBELUM penjualannya,
+// karena stok dihitung dari pergerakan yang sudah terposting. Menjual lebih
+// dulu akan ditolak "stok tidak cukup" walau tanggalnya lebih belakangan.
+// `bulanRiwayat()` mengembalikan bulan terlama lebih dulu justru karena itu.
+for (const [i, bln] of RIWAYAT.entries()) {
+  // Pertumbuhan landai: bulan terlama paling kecil, bulan terbaru tetap DI BAWAH
+  // bulan berjalan. Faktornya dipakai untuk belanja DAN jualan supaya marjin
+  // tetap wajar, bukan naik-turun tanpa sebab.
+  //
+  // Tanjakannya sengaja landai (7,5% sepanjang enam bulan, bukan 22,5%).
+  // Percobaan pertama memakai tanjakan curam dan bulan terakhir riwayat
+  // menembus Rp 106,6 juta — melampaui bulan berjalan yang baru separuh jalan.
+  // Akibatnya dasbor menampilkan "▼19% vs bulan lalu" dan "▼36%" berwarna
+  // merah, dan dasbor itulah gambar produk terbesar di halaman depan.
+  // Perbandingan bulan berjalan (separuh) dengan bulan penuh memang selalu
+  // timpang; yang bisa diatur di sini hanyalah agar puncaknya bukan di masa lalu.
+  const tumbuh = 1 + i * 0.015; // 1,00 → 1,075
+  const bulat = (n) => Math.round((n * tumbuh) / 10) * 10;
+
+  const beli = await purchase(`riwayat ${bln.periode}: belanja stok`, {
+    contactId: (i % 2 === 0 ? suppKopi : suppAneka).id,
+    invoiceDate: bln.hari(3),
+    taxRate: i % 2 === 0 ? 11 : 0,
+    warehouseId: whUtama.id,
+    dueDate: bln.hari(28),
+    lines: [
+      { productId: kopi.id, qty: bulat(630), unitPrice: 54_000 },
+      { productId: teh.id, qty: bulat(320), unitPrice: 27_000 },
+      { productId: keripik.id, qty: bulat(550), unitPrice: 13_500 },
+    ],
+  });
+  // Belanja tiap bulan riwayat dilunasi di bulan yang sama.
+  //
+  // Percobaan pertama menyisakan bulan TERAKHIR terhutang "supaya Umur Hutang
+  // tidak kosong". Hasilnya hutang usaha tetap Rp 141 juta — karena satu bulan
+  // belanja di skala baru sendirian bernilai Rp 64,7 juta. Ternyata laporan itu
+  // sudah punya isi tanpa perlu dikorbankan: enam pembelian ritel lama (blok 6)
+  // dan belanja grosir bulan berjalan (blok 7b) memang belum jatuh tempo, dan
+  // itulah bentuk hutang yang wajar untuk ditampilkan.
+  await step(`riwayat ${bln.periode}: bayar hutang belanja`, "POST", `${T}/payments`, {
+    refType: "purchase",
+    refId: beli.id,
+    accountId: bank.id,
+    amount: beli.total,
+    paymentDate: bln.hari(27),
+  });
+
+  // Empat faktur per bulan, pelanggan & bauran produk berganti supaya laporan
+  // "pelanggan terbesar" dan "produk terlaris" punya sebaran, bukan satu nama.
+  const borongan = [
+    { p: kopi, qty: bulat(340), price: 85_000 },
+    { p: teh, qty: bulat(300), price: 45_000 },
+    { p: keripik, qty: bulat(530), price: 25_000 },
+    { p: kopi, qty: bulat(270), price: 85_000 },
+  ];
+  const hariJual = [6, 12, 19, 26];
+  for (let k = 0; k < 4; k++) {
+    const cust = customers[(i + k) % customers.length];
+    const item = borongan[k];
+    const inv = await step(
+      `riwayat ${bln.periode}: faktur #${k + 1}`,
+      "POST",
+      `${T}/invoices`,
+      {
+        contactId: cust.id,
+        invoiceDate: bln.hari(hariJual[k]),
+        dueDate: bln.hari(hariJual[k] + 14),
+        taxRate: k === 0 ? 11 : 0,
+        warehouseId: whUtama.id,
+        lines: [{ productId: item.p.id, qty: item.qty, unitPrice: item.price }],
+      },
+    );
+    // Piutang yang menua hanya disisakan di DUA bulan terakhir; bulan yang
+    // lebih tua dilunasi seluruhnya.
+    //
+    // Percobaan pertama menyisakan satu faktur menunggak di SETIAP bulan, dan
+    // hasilnya perusahaan yang tidak pernah menagih siapa pun: piutang Rp 196
+    // juta dengan tunggakan tertua berumur enam bulan. Laporan Umur Piutang
+    // tetap punya isi di beberapa ember dengan dua bulan saja — dan yang ini
+    // menggambarkan penagihan yang berjalan, bukan yang mandek.
+    const menunggak = k === 3 && i >= RIWAYAT.length - 2;
+    if (!menunggak) {
+      await step(`riwayat ${bln.periode}: pelunasan #${k + 1}`, "POST", `${T}/payments`, {
+        refType: "invoice",
+        refId: inv.invoiceId ?? inv.id,
+        // Tagihan grosir masuk ke BANK; kas dipakai alur ritel (kasir, kas kecil).
+        // Percobaan pertama mengarahkan faktur terbesar ke kas dan hasilnya
+        // neraca yang mustahil: Kas Rp 284,8 juta, Bank Rp 0,1 juta — UKM yang
+        // menyimpan seperempat miliar di laci sementara rekeningnya kosong.
+        accountId: bank.id,
+        amount: inv.total,
+        paymentDate: bln.hari(Math.min(hariJual[k] + 5, 28)),
+      });
+    }
+  }
+
+  // Gaji & penyusutan bulan-bulan ini TIDAK dikerjakan di sini: karyawan
+  // (blok 13) dan aset (blok 14) belum ada pada titik ini. Keduanya menyusuri
+  // `RIWAYAT` yang sama di bloknya masing-masing, jadi tidak ada bulan yang
+  // bisa terlewat — ketidakcocokan antara "bulan yang berjualan" dan "bulan
+  // yang menggaji" persis itulah yang membuat Juli tampil rugi Rp 20,7 juta.
+}
+
+const invoices = [];
+for (let i = 0; i < 22; i++) {
+  const back = 45 - i * 2; // 45,43,...,3 hari lalu
+  const cust = customers[i % customers.length];
+  const l1 = soldMix[i % soldMix.length];
+  const l2 = soldMix[(i + 2) % soldMix.length];
+  const taxRate = i % 3 === 0 ? 11 : 0;
+  const inv = await step(`faktur penjualan #${i + 1} (${back} hari lalu)`, "POST", `${T}/invoices`, {
+    contactId: cust.id,
+    invoiceDate: daysAgo(back),
+    dueDate: daysAgo(back - 14),
+    taxRate,
+    warehouseId: whUtama.id,
+    lines: [
+      { productId: l1.p.id, qty: l1.qty, unitPrice: l1.price, ...(i % 4 === 0 ? { discountPct: 10 } : {}) },
+      { productId: l2.p.id, qty: l2.qty, unitPrice: l2.price },
+    ],
+  });
+  invoices.push({ ...inv, back });
+}
+// Faktur jasa (tanpa stok) + faktur sambal (FEFO lot).
+const invJasa = await step("faktur jasa racik + kirim", "POST", `${T}/invoices`, {
+  contactId: custHotel.id, invoiceDate: dalamBulanIni(8), dueDate: daysAgo(-6), taxRate: 11, warehouseId: whUtama.id,
+  lines: [
+    { productId: jasaKonsul.id, qty: 3, unitPrice: 150_000 },
+    { productId: jasaKirim.id, qty: 2, unitPrice: 25_000 },
+  ],
+});
+await step("faktur sambal (FEFO otomatis)", "POST", `${T}/invoices`, {
+  contactId: custToko.id, invoiceDate: dalamBulanIni(5), dueDate: daysAgo(-9), taxRate: 0, warehouseId: whUtama.id,
+  lines: [{ productId: sambal.id, qty: 10, unitPrice: 35_000 }],
+});
+
+// Riwayat setahun lalu (Fase 21e): satu faktur JASA, sengaja tanpa barang
+// supaya persediaan & HPP bulan berjalan tidak ikut tergeser. Cukup untuk
+// membuat pembanding tahun lalu di kartu KPI punya angka nyata.
+const invTahunLalu = await step("faktur jasa tahun lalu (pembanding YoY)", "POST", `${T}/invoices`, {
+  contactId: custHotel.id, invoiceDate: pertengahanTahunLalu, taxRate: 0, warehouseId: whUtama.id,
+  lines: [{ productId: jasaKonsul.id, qty: 12, unitPrice: 150_000 }],
+});
+await step("pelunasan faktur tahun lalu", "POST", `${T}/payments`, {
+  refType: "invoice", refId: invTahunLalu.invoiceId ?? invTahunLalu.id, accountId: bank.id,
+  amount: invTahunLalu.total, paymentDate: pertengahanTahunLalu,
+});
+
+// --- 7b. Siklus grosir bulan berjalan (Fase 19b) --------------------------------
+//
+// Sebelum ini, demo memperlihatkan perusahaan dengan 4 karyawan bergaji total
+// Rp 24,4 jt/bulan tetapi penjualan hanya ±Rp 18 jt/bulan — mustahil, dan
+// membuat kartu "Laba Bulan Ini" selalu merah. Yang dilihat SETIAP calon
+// pelanggan yang mengeklik "Lihat Demo", bukan cuma di tangkapan layar landing.
+//
+// Ditambahkan satu siklus dagang grosir yang wajar: kulakan lebih dulu, lalu
+// tiga faktur grosir ke pelanggan besar. Kulakan sengaja lebih banyak daripada
+// yang dijual supaya stok tetap sehat dan tidak ada baris yang minus.
+//
+// `taxRate: 0` dipakai untuk seluruh siklus ini secara sengaja: demo sudah
+// punya banyak faktur ber-PPN 11% untuk modul pajak, sementara mengubah total
+// PPN akan menggeser puluhan asersi smoke tanpa menambah nilai demo apa pun.
+await purchase("kulakan grosir bulan ini (12 hari lalu)", {
+  contactId: suppAneka.id, invoiceDate: daysAgo(12), taxRate: 0, warehouseId: whUtama.id,
+  lines: [
+    { productId: kopi.id, qty: 420, unitPrice: 55_000 },
+    { productId: teh.id, qty: 250, unitPrice: 28_000 },
+    { productId: keripik.id, qty: 620, unitPrice: 14_000 },
+    { productId: gula.id, qty: 200, unitPrice: 38_000 },
+    { productId: madu.id, qty: 60, unitPrice: 80_000 },
+    { productId: sirup.id, qty: 250, unitPrice: 24_000 },
+  ],
+});
+for (const [nama, cust, back, lines] of [
+  ["grosir hotel (kopi + madu)", custHotel, 10, [
+    { productId: kopi.id, qty: 150, unitPrice: 85_000 },
+    { productId: madu.id, qty: 40, unitPrice: 120_000 },
+  ]],
+  ["grosir koperasi (keripik + sirup + teh)", custKoperasi, 7, [
+    { productId: keripik.id, qty: 450, unitPrice: 25_000 },
+    { productId: sirup.id, qty: 200, unitPrice: 40_000 },
+    { productId: teh.id, qty: 130, unitPrice: 45_000 },
+  ]],
+  ["grosir kafe (kopi + gula + teh)", custKafe, 4, [
+    { productId: kopi.id, qty: 100, unitPrice: 85_000 },
+    { productId: gula.id, qty: 150, unitPrice: 60_000 },
+    { productId: teh.id, qty: 70, unitPrice: 45_000 },
+  ]],
+  // Faktur keempat ditambahkan Fase 21d: dengan tiga faktur saja, sebulan
+  // penjualan grosir belum menutup sebulan gaji pada tanggal 1 — dasbor demo
+  // tetap merah di hari pertama tiap bulan. Kulakan di atas dinaikkan seiring
+  // ini supaya tidak ada baris stok yang minus.
+  ["grosir kantor (kopi + keripik)", custUmum, 2, [
+    { productId: kopi.id, qty: 100, unitPrice: 85_000 },
+    { productId: keripik.id, qty: 100, unitPrice: 25_000 },
+  ]],
+]) {
+  const invGrosir = await step(`faktur ${nama}`, "POST", `${T}/invoices`, {
+    contactId: cust.id, invoiceDate: dalamBulanIni(back), dueDate: daysAgo(back - 21),
+    taxRate: 0, warehouseId: whUtama.id, lines,
+  });
+  // Dua dari tiga dilunasi; satu sengaja dibiarkan terbuka agar piutang
+  // (dan pengingat penagihan) tetap punya isi yang masuk akal.
+  if (back !== 4) {
+    await step(`pelunasan ${nama}`, "POST", `${T}/payments`, {
+      refType: "invoice", refId: invGrosir.invoiceId ?? invGrosir.id, accountId: bank.id,
+      amount: invGrosir.total, paymentDate: dalamBulanIni(back - 3),
+    });
+  }
+}
+
+// --- 8. Pembayaran: sebagian lunas, sebagian parsial, sisakan yang telat ---------
+for (let i = 0; i < 12; i++) {
+  const inv = invoices[i];
+  await step(`pelunasan faktur #${i + 1}`, "POST", `${T}/payments`, {
+    refType: "invoice", refId: inv.invoiceId ?? inv.id, accountId: i % 2 === 0 ? kas.id : bank.id,
+    amount: inv.total, paymentDate: daysAgo(Math.max(inv.back - 5, 0)),
+  });
+}
+const partial = invoices[13];
+await step("pembayaran parsial faktur #14", "POST", `${T}/payments`, {
+  refType: "invoice", refId: partial.invoiceId ?? partial.id, accountId: bank.id,
+  amount: Math.round(partial.total / 2), paymentDate: daysAgo(Math.max(partial.back - 4, 0)),
+});
+await step("pembayaran hutang kemasan", "POST", `${T}/payments`, {
+  refType: "purchase", refId: purchKemasan.purchaseId ?? purchKemasan.id, accountId: bank.id,
+  amount: purchKemasan.total, paymentDate: daysAgo(20),
+});
+
+// --- 9. Retur & void ------------------------------------------------------------
+const invForReturn = invoices[16];
+await step("retur penjualan 1 pcs", "POST", `${T}/returns`, {
+  refType: "invoice", refId: invForReturn.invoiceId ?? invForReturn.id, warehouseId: whUtama.id,
+  returnDate: daysAgo(Math.max(invForReturn.back - 2, 0)),
+  lines: [{ productId: soldMix[16 % soldMix.length].p.id, qty: 1 }],
+});
+const invForVoid = invoices[18];
+await step("void 1 faktur salah input", "POST", `${T}/invoices/${invForVoid.invoiceId ?? invForVoid.id}/void`);
+
+// --- 10. POS: shift + penjualan tunai + tutup ------------------------------------
+const shift = await step("buka shift kasir", "POST", `${T}/pos/shift/open`, { warehouseId: whUtama.id, openingCash: 500_000 });
+let posCash = 0;
+for (const [i, sale] of [
+  { lines: [{ productId: keripik.id, qty: 3, unitPrice: 25_000 }, { productId: sirup.id, qty: 1, unitPrice: 40_000 }], cash: 150_000 },
+  { lines: [{ productId: kopi.id, qty: 1, unitPrice: 85_000, discountPct: 5 }], cash: 100_000 },
+  { lines: [{ productId: teh.id, qty: 2, unitPrice: 45_000 }], cash: 100_000 },
+].entries()) {
+  const s = await step(`penjualan POS #${i + 1}`, "POST", `${T}/pos/sales`, { shiftId: shift.id, taxRate: 0, cashReceived: sale.cash, lines: sale.lines });
+  posCash += s.total ?? 0;
+}
+// Penjualan split (tunai + QRIS) — hanya porsi tunai yang masuk laci.
+await step("penjualan POS split (tunai+QRIS)", "POST", `${T}/pos/sales`, {
+  shiftId: shift.id, taxRate: 0,
+  payments: [{ method: "tunai", amount: 15_000 }, { method: "qris", amount: 10_000 }],
+  lines: [{ productId: keripik.id, qty: 1, unitPrice: 25_000 }],
+});
+posCash += 15_000; // porsi tunai
+// Satu transaksi ditahan untuk demo (belum dibayar).
+await step("tahan transaksi POS (Meja 5)", "POST", `${T}/pos/held`, {
+  shiftId: shift.id, label: "Meja 5", cart: [{ productId: kopi.id, qty: 2, unitPrice: 85_000 }], taxRate: 0,
+});
+await step("tutup shift kasir", "POST", `${T}/pos/shift/${shift.id}/close`, { closingCash: 500_000 + posCash });
+
+// --- 11. CRM: lead, aktivitas, konversi → penawaran → faktur ----------------------
+const lead1 = await step("lead: Restoran Padang Sabana", "POST", `${T}/leads`, { name: "Restoran Padang Sabana", contactPerson: "Uda Rizal", phone: "0813-1111-2222", estValue: 12_000_000, source: "Referensi" });
+await step("aktivitas lead: telepon", "POST", `${T}/leads/${lead1.id}/activities`, { type: "call", note: "Telepon perkenalan — tertarik paket sambal & keripik bulanan.", activityDate: daysAgo(9) });
+await step("aktivitas lead: meeting", "POST", `${T}/leads/${lead1.id}/activities`, { type: "meeting", note: "Demo produk di lokasi, minta penawaran resmi.", activityDate: daysAgo(6) });
+await step("lead naik tahap qualified", "PATCH", `${T}/leads/${lead1.id}`, { stage: "qualified" });
+const conv = await step("konversi lead → pelanggan", "POST", `${T}/leads/${lead1.id}/convert`);
+const quote = await step("penawaran untuk pelanggan baru", "POST", `${T}/quotations`, {
+  contactId: conv.contactId, quoteDate: daysAgo(4), validUntil: daysAgo(-26), taxRate: 11,
+  lines: [
+    { productId: sambal.id, qty: 12, unitPrice: 33_000 },
+    { productId: keripik.id, qty: 24, unitPrice: 23_000 },
+  ],
+});
+await step("penawaran diterima", "PATCH", `${T}/quotations/${quote.id}/status`, { status: "accepted" });
+await step("konversi penawaran → faktur", "POST", `${T}/quotations/${quote.id}/convert`, { warehouseId: whUtama.id, invoiceDate: dalamBulanIni(2) });
+await step("penawaran kedua (masih berlaku)", "POST", `${T}/quotations`, {
+  contactId: conv.contactId, quoteDate: daysAgo(1), validUntil: daysAgo(-14), taxRate: 11,
+  lines: [{ productId: sambal.id, qty: 30, unitPrice: 32_000 }],
+});
+await step("lead pipeline: Katering Berkah (baru)", "POST", `${T}/leads`, { name: "Katering Berkah Jaya", contactPerson: "Bu Nia", phone: "0812-8888-7777", estValue: 6_000_000, source: "Instagram" });
+const lead3 = await step("lead pipeline: Minimarket Bina Warga", "POST", `${T}/leads`, { name: "Minimarket Bina Warga", contactPerson: "Pak Dedi", estValue: 9_000_000, source: "WhatsApp" });
+await step("lead ketiga → contacted", "PATCH", `${T}/leads/${lead3.id}`, { stage: "contacted" });
+await step("aktivitas lead: follow-up bertenggat", "POST", `${T}/leads/${lead3.id}/activities`, { type: "note", note: "Kirim daftar harga grosir — tunggu keputusan Pak Dedi.", activityDate: daysAgo(1), dueAt: daysAgo(-2) });
+
+// --- 12. Anggaran bulan berjalan (6 baris — Fase 10h) ------------------------------
+await step("anggaran pendapatan bulan ini", "PUT", `${T}/budgets`, { accountId: penjualanAcc.id, period: thisMonth, amount: 30_000_000 });
+await step("anggaran beban iklan bulan ini", "PUT", `${T}/budgets`, { accountId: bebanIklan.id, period: thisMonth, amount: 2_000_000 });
+await step("anggaran beban listrik & air", "PUT", `${T}/budgets`, { accountId: bebanListrik.id, period: thisMonth, amount: 1_500_000 });
+await step("anggaran beban sewa", "PUT", `${T}/budgets`, { accountId: acc("5-3000").id, period: thisMonth, amount: 3_500_000 });
+await step("anggaran beban operasional", "PUT", `${T}/budgets`, { accountId: acc("5-4000").id, period: thisMonth, amount: 2_500_000 });
+await step("anggaran pendapatan bulan depan", "PUT", `${T}/budgets`, { accountId: penjualanAcc.id, period: nextMonth, amount: 35_000_000 });
+
+// --- 13. HR & payroll ---------------------------------------------------------------
+// Struktur organisasi (Fase 8c): departemen bertingkat, karyawan ber-atasan.
+const deptOps = await step("departemen Operasional", "POST", `${T}/departments`, { code: "OPS", name: "Operasional" });
+const deptGudang = await step("departemen Gudang (sub-Operasional)", "POST", `${T}/departments`, { code: "OPS-GDG", name: "Gudang & Logistik", parentId: deptOps.id });
+const deptToko = await step("departemen Toko", "POST", `${T}/departments`, { code: "TOKO", name: "Toko & Kasir" });
+
+const employees = {};
+for (const e of [
+  { name: "Rina Kusuma", position: "Manajer Operasional", ptkpStatus: "K/1", baseSalary: 9_500_000, departmentId: deptOps.id },
+  { name: "Agus Prabowo", position: "Staf Gudang", ptkpStatus: "TK/0", baseSalary: 5_200_000, departmentId: deptGudang.id },
+  { name: "Sari Melati", position: "Kasir", ptkpStatus: "TK/0", baseSalary: 4_900_000, departmentId: deptToko.id },
+  { name: "Budi Santosa", position: "Kurir", ptkpStatus: "K/0", baseSalary: 4_800_000, departmentId: deptGudang.id },
+]) {
+  employees[e.name] = await step(`karyawan ${e.name}`, "POST", `${T}/employees`, e);
+}
+// Rantai atasan: staf gudang & kurir & kasir melapor ke Manajer Operasional.
+for (const name of ["Agus Prabowo", "Sari Melati", "Budi Santosa"]) {
+  const src = { "Agus Prabowo": { position: "Staf Gudang", ptkpStatus: "TK/0", baseSalary: 5_200_000, departmentId: deptGudang.id }, "Sari Melati": { position: "Kasir", ptkpStatus: "TK/0", baseSalary: 4_900_000, departmentId: deptToko.id }, "Budi Santosa": { position: "Kurir", ptkpStatus: "K/0", baseSalary: 4_800_000, departmentId: deptGudang.id } }[name];
+  await step(`atasan ${name} → Rina Kusuma`, "PATCH", `${T}/employees/${employees[name].id}`, { name, ...src, managerId: employees["Rina Kusuma"].id });
+}
+// Gaji tiap bulan dibayar DI bulan itu (Fase 19b).
+//
+// Sebelumnya `paymentDate: daysAgo(3)` — dan karena jurnal penggajian memakai
+// paymentDate sebagai tanggal jurnal (`payroll.ts`), beban gaji bulan lalu ikut
+// jatuh ke bulan BERJALAN. Akibatnya bulan berjalan menanggung dua kali gaji:
+// Rp 24,4 jt × 2 + bonus Rp 2,5 jt = Rp 51,3 jt, tiga perempat dari seluruh
+// bebannya. Itulah sebab utama demo tampil merugi.
+//
+// FASE 28: dijalankan untuk SELURUH bulan riwayat, bukan hanya bulan lalu.
+// Sebelum ini demo memperlihatkan perusahaan berkaryawan empat orang yang tidak
+// menggaji siapa pun selama lima bulan, lalu bulan keenam menanggungnya
+// sendirian dan tampil rugi Rp 20,7 juta. `RIWAYAT` adalah daftar bulan yang
+// SAMA dengan yang dipakai blok penjualan, jadi keduanya mustahil berselisih.
+for (const bln of RIWAYAT) {
+  await step(`payroll periode ${bln.periode}`, "POST", `${T}/payroll-runs`, {
+    period: bln.periode,
+    cashAccountId: bank.id,
+    paymentDate: bln.akhir,
+  });
+}
+
+// Kasbon (dicairkan dari bank; cicilan otomatis memotong gaji tiap run berikutnya).
+await step("kasbon Agus Prabowo", "POST", `${T}/employee-loans`, {
+  employeeId: employees["Agus Prabowo"].id, name: "Kasbon renovasi rumah",
+  principal: 3_000_000, monthlyDeduction: 1_000_000, cashAccountId: bank.id, loanDate: daysAgo(2),
+});
+// Komponen ad-hoc bulan berjalan: bonus untuk manajer, akan ikut saat digaji.
+await step("bonus kinerja Rina", "POST", `${T}/payroll-adjustments`, {
+  period: thisMonth, employeeId: employees["Rina Kusuma"].id, name: "Bonus kinerja triwulan", amount: 2_500_000,
+});
+// Jalankan penggajian bulan berjalan → slip Rina memuat bonus, slip Agus memuat cicilan kasbon.
+await step(`payroll periode ${thisMonth}`, "POST", `${T}/payroll-runs`, { period: thisMonth, cashAccountId: bank.id, paymentDate: daysAgo(0) });
+// Cuti & izin: pengajuan lalu disetujui (memotong saldo cuti Sari).
+const cutiSari = await step("pengajuan cuti tahunan Sari", "POST", `${T}/leave-requests`, {
+  employeeId: employees["Sari Melati"].id, type: "annual", startDate: daysAgo(-7), endDate: daysAgo(-9), note: "Acara keluarga",
+});
+await step("setujui cuti Sari", "PATCH", `${T}/leave-requests/${cutiSari.id}`, { status: "approved" });
+await step("pengajuan izin Budi (menunggu)", "POST", `${T}/leave-requests`, {
+  employeeId: employees["Budi Santosa"].id, type: "permit", startDate: daysAgo(-3), endDate: daysAgo(-3), note: "Urusan keluarga",
+});
+
+// Absensi/kehadiran bulan berjalan: beberapa hari untuk beragam status (rekap kaya).
+const attDays = [`${thisMonth}-02`, `${thisMonth}-03`, `${thisMonth}-04`, `${thisMonth}-05`];
+const attPlan = [
+  ["Rina Kusuma", ["hadir", "hadir", "hadir", "hadir"]],
+  ["Agus Prabowo", ["hadir", "sakit", "hadir", "hadir"]],
+  ["Sari Melati", ["hadir", "hadir", "izin", "hadir"]],
+  ["Budi Santosa", ["hadir", "alfa", "hadir", "hadir"]],
+];
+for (const [name, statuses] of attPlan) {
+  for (let i = 0; i < attDays.length; i++) {
+    const status = statuses[i];
+    await step(`absensi ${name} ${attDays[i]}`, "POST", `${T}/attendance`, {
+      employeeId: employees[name].id,
+      date: attDays[i],
+      status,
+      ...(status === "hadir" ? { clockIn: "08:00", clockOut: "17:00" } : {}),
+    });
+  }
+}
+
+// --- 13b. Pengadaan (procure-to-pay): PR → PO → penerimaan → faktur ------------------
+const req1 = await step("permintaan pembelian bahan baku", "POST", `${T}/requisitions`, {
+  note: "Restok kopi & keripik untuk hampers",
+  lines: [
+    { productId: kopi.id, qty: 20, note: "stok menipis" },
+    { productId: keripik.id, qty: 30 },
+  ],
+});
+await step("setujui permintaan pembelian", "PATCH", `${T}/requisitions/${req1.id}`, { status: "approved" });
+const po1 = await step("pesanan pembelian ke CV Petani Kopi", "POST", `${T}/purchase-orders`, {
+  requisitionId: req1.id, contactId: suppKopi.id, orderDate: daysAgo(9), expectedDate: daysAgo(-2),
+  warehouseId: whUtama.id, taxRate: 11,
+  lines: [
+    { productId: kopi.id, qty: 20, unitPrice: 55_000 },
+    { productId: keripik.id, qty: 30, unitPrice: 14_000 },
+  ],
+});
+const poDetail = await step("ambil pesanan untuk penerimaan", "GET", `${T}/purchase-orders`);
+const po1Full = poDetail.orders.find((o) => o.id === po1.id);
+await step("terima barang PO (faktur + stok masuk)", "POST", `${T}/purchase-orders/${po1.id}/receive`, {
+  receiptDate: daysAgo(7),
+  lines: po1Full.lines.map((l) => ({ poLineId: l.id, qtyReceived: l.qty })),
+});
+// Permintaan menunggu keputusan (untuk demo antrean).
+await step("permintaan pembelian kemasan (menunggu)", "POST", `${T}/requisitions`, {
+  note: "Kotak & pita untuk batch berikutnya",
+  lines: [{ productId: kotak.id, qty: 50 }, { productId: pita.id, qty: 20 }],
+});
+
+// --- 13b2. Penjualan bertahap: SO → uang muka → surat jalan → faktur -----------------
+const soHotel = await step("pesanan penjualan Hotel Parahyangan (SO)", "POST", `${T}/sales-orders`, {
+  contactId: custHotel.id, orderDate: daysAgo(6), expectedDate: daysAgo(-4),
+  warehouseId: whUtama.id, taxRate: 11,
+  note: "Pesanan kopi & teh untuk acara akhir tahun",
+  lines: [
+    { productId: kopi.id, qty: 3, unitPrice: 85_000 },
+    { productId: teh.id, qty: 2, unitPrice: 45_000 },
+  ],
+});
+await step("uang muka pesanan (DP 150rb)", "POST", `${T}/sales-orders/${soHotel.id}/down-payment`, {
+  amount: 150_000, accountId: bank.id, paymentDate: daysAgo(5),
+});
+await step("surat jalan pesanan (stok keluar)", "POST", `${T}/sales-orders/${soHotel.id}/deliver`, {
+  deliveryDate: daysAgo(3),
+});
+await step("faktur dari pesanan terkirim (uang muka terpakai)", "POST", `${T}/sales-orders/${soHotel.id}/invoice`, {
+  invoiceDate: daysAgo(2), dueDate: daysAgo(-28),
+});
+// Pesanan terbuka untuk demo (belum dikirim).
+await step("pesanan penjualan Toko Priangan (menunggu kirim)", "POST", `${T}/sales-orders`, {
+  contactId: custToko.id, orderDate: daysAgo(1), expectedDate: daysAgo(-6),
+  warehouseId: whUtama.id, taxRate: 0,
+  lines: [{ productId: kopi.id, qty: 4, unitPrice: 85_000 }],
+});
+
+// --- 13b3. Pajak UMKM: PPh Final 0,5% + bukti potong PPh 23 -----------------------
+await step(`setor PPh Final 0,5% masa ${thisMonth}`, "POST", `${T}/tax/pph-final`, { period: thisMonth, accountId: bank.id, paidDate: daysAgo(0) });
+const bpJasa = await step("bukti potong PPh 23 jasa audit", "POST", `${T}/tax/pph23`, {
+  contactId: suppKopi.id, taxDate: daysAgo(4), objectType: "jasa", gross: 8_000_000, rate: 2, sourceAccountId: bank.id, note: "Jasa audit tahunan",
+});
+await step("setor PPh 23 ke kas negara", "POST", `${T}/tax/pph23/${bpJasa.id}/deposit`, { accountId: bank.id, depositDate: daysAgo(1) });
+await step("bukti potong PPh 23 sewa gudang (belum setor)", "POST", `${T}/tax/pph23`, {
+  contactId: suppKopi.id, taxDate: daysAgo(2), objectType: "sewa", gross: 5_000_000, rate: 2, sourceAccountId: bank.id, note: "Sewa gudang bulan ini",
+});
+
+// --- 13b4. RBAC granular: peran kustom (izin modul terbatas) ----------------------
+await step("peran kustom: Kasir Toko", "POST", `${T}/roles`, { name: "Kasir Toko", baseRole: "admin", permissions: ["penjualan", "kasir", "stok"] });
+await step("peran kustom: Staf Keuangan", "POST", `${T}/roles`, { name: "Staf Keuangan", baseRole: "admin", permissions: ["keuangan", "laporan", "pajak"] });
+await step("peran kustom: Auditor (baca-saja)", "POST", `${T}/roles`, { name: "Auditor", baseRole: "viewer", permissions: ["keuangan", "laporan", "pajak", "persetujuan"] });
+
+// --- 13b5. Akuntansi dimensi: cost center + jurnal bertag + aturan rekonsiliasi -----
+const ccBdg = await step("cost center: Cabang Bandung", "POST", `${T}/cost-centers`, { code: "CAB-BDG", name: "Cabang Bandung" });
+const ccJkt = await step("cost center: Cabang Jakarta", "POST", `${T}/cost-centers`, { code: "CAB-JKT", name: "Cabang Jakarta" });
+// RBAC berdimensi (Fase 8d): peran yang datanya dibatasi ke satu cabang.
+await step("peran kustom ber-scope: Manajer Cabang Bandung", "POST", `${T}/roles`, {
+  name: "Manajer Cabang Bandung", baseRole: "admin",
+  permissions: ["keuangan", "laporan", "penjualan"], scopeCostCenterIds: [ccBdg.id],
+});
+const bebanOpr = acc("5-4000");
+await step("jurnal beban operasional Cabang Bandung (dimensi)", "POST", `${T}/journal-entries`, {
+  entryDate: daysAgo(6), memo: "Listrik & air Cabang Bandung",
+  lines: [
+    { accountId: bebanOpr.id, debit: 1_200_000, credit: 0, costCenterId: ccBdg.id },
+    { accountId: bank.id, debit: 0, credit: 1_200_000 },
+  ],
+});
+await step("jurnal beban operasional Cabang Jakarta (dimensi)", "POST", `${T}/journal-entries`, {
+  entryDate: daysAgo(5), memo: "Listrik & air Cabang Jakarta",
+  lines: [
+    { accountId: bebanOpr.id, debit: 1_800_000, credit: 0, costCenterId: ccJkt.id },
+    { accountId: bank.id, debit: 0, credit: 1_800_000 },
+  ],
+});
+await step("aturan auto-match rekonsiliasi: biaya administrasi", "POST", `${T}/bank-match-rules`, { accountId: bank.id, keyword: "BIAYA ADM", dateTolerance: 2 });
+
+// --- 13c. Approval workflow engine: aturan berjenjang + alur multi-langkah -----------
+await step("aturan approval: pembelian besar (Admin→Pemilik)", "POST", `${T}/approval-rules`, {
+  name: "Pembelian besar", docType: "pembelian", minAmount: 5_000_000, approverRoles: ["admin", "owner"],
+});
+await step("aturan approval: pengeluaran ≥ 1jt (Pemilik)", "POST", `${T}/approval-rules`, {
+  name: "Pengeluaran kas", docType: "pengeluaran", minAmount: 1_000_000, approverRoles: ["owner"],
+});
+// Alur menunggu (di atas ambang → butuh persetujuan berjenjang).
+await step("ajukan alur: beli laptop tim (8jt)", "POST", `${T}/approval-flows`, {
+  docType: "pembelian", title: "Pembelian 4 laptop tim operasional", amount: 8_000_000,
+});
+// Alur pengeluaran lalu disetujui Pemilik → selesai.
+const flowExp = await step("ajukan alur: sewa gudang (2jt)", "POST", `${T}/approval-flows`, {
+  docType: "pengeluaran", title: "Sewa gudang tambahan bulan ini", amount: 2_000_000,
+});
+await step("Pemilik setujui pengeluaran", "POST", `${T}/approval-flows/${flowExp.id}/steps/decide`, { decision: "approve" });
+// Alur kecil di bawah ambang → otomatis disetujui (tanpa aturan).
+await step("ajukan alur: ATK kantor (300rb, auto)", "POST", `${T}/approval-flows`, {
+  docType: "pengeluaran", title: "Beli ATK kantor", amount: 300_000,
+});
+
+// --- 14. Aset tetap + penyusutan ----------------------------------------------------
+// Fase 22d: kelompok harta pajak & metode diisi di sini supaya kartu
+// "Penyusutan fiskal vs komersial" menampilkan angka nyata di perusahaan demo,
+// bukan deretan nol — fitur yang secara teknis jalan tetapi mati di layar sama
+// saja belum ada (pelajaran Fase 21e).
+//
+// FASE 28: perolehan dimundurkan ke SEBELUM jendela riwayat (±7 bulan), dan
+// penyusutan dijalankan untuk tiap bulan riwayat + bulan berjalan. Sebelum ini
+// hanya satu periode yang pernah dijalankan: akumulasi penyusutan demo Rp 3 juta
+// atas aset Rp 114 juta, dan bulan berjalan tidak punya beban penyusutan sama
+// sekali. Endpoint-nya idempotent dan menghitung bulan-ke dari tanggal
+// perolehan, jadi saldo menurun genset tetap benar untuk tiap periode.
+const perolehanAset = tanggalDalamBulan(7, 10);
+await step("aset: mobil boks", "POST", `${T}/assets`, {
+  name: "Mobil Boks Operasional", category: "Kendaraan", acquisitionDate: perolehanAset,
+  acquisitionCost: 96_000_000, usefulLifeMonths: 48, residualValue: 0, cashAccountId: bank.id,
+  taxGroup: "kel2",
+});
+const genset = await step("aset: genset gudang", "POST", `${T}/assets`, {
+  name: "Genset Gudang 5kVA", category: "Peralatan", acquisitionDate: perolehanAset,
+  acquisitionCost: 18_000_000, usefulLifeMonths: 36, residualValue: 0, cashAccountId: kas.id,
+  depreciationMethod: "saldo_menurun", taxGroup: "kel1",
+});
+for (const bln of RIWAYAT) {
+  await step(`penyusutan periode ${bln.periode}`, "POST", `${T}/assets/depreciation`, {
+    period: bln.periode,
+    date: bln.akhir,
+  });
+}
+await step(`penyusutan periode ${thisMonth}`, "POST", `${T}/assets/depreciation`, { period: thisMonth, date: daysAgo(0) });
+// Pelepasan aset (Fase 10h): jual printer lama → laba/rugi pelepasan terjurnal.
+const printer = await step("aset: printer thermal lama", "POST", `${T}/assets`, {
+  name: "Printer Thermal Kasir (lama)", category: "Peralatan", acquisitionDate: daysAgo(400),
+  acquisitionCost: 2_400_000, usefulLifeMonths: 24, residualValue: 0, cashAccountId: kas.id,
+});
+await step("lepas (jual) printer lama seharga 300rb", "POST", `${T}/assets/${printer.id}/dispose`, {
+  disposalDate: daysAgo(2), proceeds: 300_000, cashAccountId: kas.id,
+});
+
+// --- 15. Proyek -----------------------------------------------------------------------
+const proj = await step("proyek: Hampers Korporat Q3", "POST", `${T}/projects`, { code: "PRJ-HAMPERS", name: "Hampers Korporat Q3", budget: 15_000_000 });
+await step("jurnal termin proyek", "POST", `${T}/journal-entries`, {
+  entryDate: daysAgo(10), memo: "Termin 1 proyek hampers korporat", projectId: proj.id,
+  lines: [
+    { accountId: bank.id, debit: 7_500_000, credit: 0 },
+    { accountId: penjualanAcc.id, debit: 0, credit: 7_500_000 },
+  ],
+});
+await step("tugas proyek: desain kartu ucapan", "POST", `${T}/projects/${proj.id}/tasks`, { name: "Desain kartu ucapan korporat", assigneeId: employees["Rina Kusuma"].id, priority: "high", dueDate: daysAgo(-2) });
+const task2 = await step("tugas proyek: nego vendor kotak", "POST", `${T}/projects/${proj.id}/tasks`, { name: "Negosiasi vendor kotak premium", assigneeId: employees["Agus Prabowo"].id, priority: "medium" });
+await step("tugas kedua selesai", "PATCH", `${T}/projects/${proj.id}/tasks/${task2.id}`, { status: "done" });
+await step("proyek kedua: Booth Pameran UMKM", "POST", `${T}/projects`, { code: "PRJ-EXPO", name: "Booth Pameran UMKM Jabar", budget: 5_000_000 });
+
+// Proyek jasa dengan pelanggan: termin penagihan, RAB, papan tugas, timesheet (Fase 5g).
+const projSvc = await step("proyek jasa: Desain Interior Kafe", "POST", `${T}/projects`, { code: "PRJ-INTERIOR", name: "Desain Interior Kafe Koperasi", contactId: custKoperasi.id, budget: 20_000_000, startDate: daysAgo(20), endDate: daysAgo(-25) });
+await step("RAB material", "POST", `${T}/projects/${projSvc.id}/budgets`, { category: "Material & furnitur", plannedAmount: 12_000_000 });
+await step("RAB tenaga kerja", "POST", `${T}/projects/${projSvc.id}/budgets`, { category: "Tenaga kerja", plannedAmount: 6_000_000 });
+const termin1 = await step("termin uang muka 40%", "POST", `${T}/projects/${projSvc.id}/milestones`, { name: "Uang muka 40%", amount: 8_000_000 });
+await step("faktur dari termin uang muka", "POST", `${T}/projects/${projSvc.id}/milestones/${termin1.id}/invoice`, { invoiceDate: daysAgo(8), taxRate: 0, warehouseId: whUtama.id });
+await step("termin pelunasan 60%", "POST", `${T}/projects/${projSvc.id}/milestones`, { name: "Pelunasan 60%", amount: 12_000_000 });
+await step("tugas: survei lokasi", "POST", `${T}/projects/${projSvc.id}/tasks`, { name: "Survei lokasi & ukur ruang", assigneeId: employees["Agus Prabowo"].id, priority: "medium", dueDate: daysAgo(-1) });
+const projTask2 = await step("tugas: gambar kerja 3D", "POST", `${T}/projects/${projSvc.id}/tasks`, { name: "Buat gambar kerja 3D", assigneeId: employees["Rina Kusuma"].id, priority: "high", dueDate: daysAgo(-5) });
+await step("tugas 3D proses", "PATCH", `${T}/projects/${projSvc.id}/tasks/${projTask2.id}`, { status: "in_progress" });
+const projTask3 = await step("tugas: presentasi konsep", "POST", `${T}/projects/${projSvc.id}/tasks`, { name: "Presentasi konsep ke klien", assigneeId: employees["Rina Kusuma"].id, priority: "high" });
+await step("tugas presentasi selesai", "PATCH", `${T}/projects/${projSvc.id}/tasks/${projTask3.id}`, { status: "done" });
+await step("timesheet Rina", "POST", `${T}/projects/${projSvc.id}/time-entries`, { employeeId: employees["Rina Kusuma"].id, entryDate: daysAgo(6), hours: 8, hourlyRate: 75_000, note: "Survei & konsep desain" });
+await step("timesheet Agus", "POST", `${T}/projects/${projSvc.id}/time-entries`, { employeeId: employees["Agus Prabowo"].id, entryDate: daysAgo(4), hours: 6, hourlyRate: 50_000, note: "Bantu ukur ruang" });
+// Gantt (Fase 7g): jadwal + baseline + dependensi tugas.
+await step("jadwal Gantt: gambar kerja 3D", "PATCH", `${T}/projects/${projSvc.id}/tasks/${projTask2.id}`, { startDate: daysAgo(10), endDate: daysAgo(-3), setBaseline: true });
+await step("jadwal Gantt: presentasi setelah 3D", "PATCH", `${T}/projects/${projSvc.id}/tasks/${projTask3.id}`, { startDate: daysAgo(-2), endDate: daysAgo(-6), predecessorId: projTask2.id, setBaseline: true });
+
+// --- 16. Multi mata uang + faktur valas -------------------------------------------------
+await step("kurs USD 16.200", "PUT", `${T}/currencies`, { code: "USD", name: "Dolar AS", rate: 16_200 });
+await step("faktur ekspor USD", "POST", `${T}/invoices`, {
+  contactId: custHotel.id, invoiceDate: daysAgo(7), dueDate: daysAgo(-23), taxRate: 0,
+  warehouseId: whUtama.id, currency: "USD", exchangeRate: 16_200,
+  lines: [{ productId: kopi.id, qty: 20, unitPrice: 7 }],
+});
+
+// --- 17. Kontrak berulang ----------------------------------------------------------------
+await step("kontrak langganan kafe", "POST", `${T}/contracts`, {
+  code: "LGN-KAFE", contactId: custKafe.id, name: "Langganan Kopi & Teh Bulanan", frequency: "monthly",
+  taxRate: 11, warehouseId: whUtama.id, startDate: daysAgo(25),
+  lines: [
+    { productId: kopi.id, qty: 5, unitPrice: 82_000 },
+    { productId: teh.id, qty: 5, unitPrice: 43_000 },
+  ],
+});
+await step("terbitkan tagihan kontrak jatuh tempo", "POST", `${T}/contracts/run-billing`, { date: daysAgo(0) });
+
+// --- 18. Manufaktur: BoM → produksi → QC --------------------------------------------------
+await step("BoM Paket Hampers", "PUT", `${T}/boms`, {
+  productId: hampers.id, outputQty: 1,
+  lines: [
+    { componentId: kotak.id, qty: 1 },
+    { componentId: pita.id, qty: 2 },
+    { componentId: kopi.id, qty: 1 },
+    { componentId: teh.id, qty: 1 },
+    { componentId: madu.id, qty: 1 },
+  ],
+});
+const prodOrder = await step("perintah produksi 6 hampers", "POST", `${T}/production-orders`, { productId: hampers.id, warehouseId: whUtama.id, qty: 6 });
+await step("produksi selesai", "POST", `${T}/production-orders/${prodOrder.id}/complete`);
+// Routing (Fase 7g): work center + tahapan biaya standar vs aktual.
+const wcRakit = await step("work center: Perakitan Hampers", "POST", `${T}/work-centers`, { code: "WC-RAKIT", name: "Perakitan Hampers", hourlyRate: 40_000 });
+const wcPack = await step("work center: Pengemasan", "POST", `${T}/work-centers`, { code: "WC-PACK", name: "Pengemasan & Pita", hourlyRate: 30_000 });
+const rsRakit = await step("routing: rakit isi hampers", "POST", `${T}/production-orders/${prodOrder.id}/routing`, { workCenterId: wcRakit.id, name: "Rakit isi hampers", standardCost: 240_000 });
+await step("routing rakit selesai (aktual)", "POST", `${T}/production-orders/${prodOrder.id}/routing/${rsRakit.id}/complete`, { actualCost: 265_000 });
+await step("routing: kemas & pita (WIP)", "POST", `${T}/production-orders/${prodOrder.id}/routing`, { workCenterId: wcPack.id, name: "Kemas & pasang pita", standardCost: 180_000 });
+await step("QC lulus", "POST", `${T}/production-orders/${prodOrder.id}/qc`, { result: "passed" });
+await step("jual 3 hampers hasil produksi", "POST", `${T}/invoices`, {
+  contactId: custKoperasi.id, invoiceDate: daysAgo(1), taxRate: 11, warehouseId: whUtama.id,
+  lines: [{ productId: hampers.id, qty: 3, unitPrice: 250_000 }],
+});
+
+// --- 19. Maintenance ------------------------------------------------------------------------
+await step("jadwal servis genset bulanan", "POST", `${T}/maintenance/schedules`, {
+  assetId: genset.id, name: "Servis rutin genset", intervalMonths: 1, startDate: daysAgo(20),
+});
+await step("terbitkan work order jatuh tempo", "POST", `${T}/maintenance/run`, { date: daysAgo(20) });
+const woList = await step("baca work order", "GET", `${T}/maintenance/work-orders`);
+const woOpen = (woList.workOrders ?? []).find((w) => w.status === "open");
+if (woOpen) {
+  await step("selesaikan work order + biaya", "POST", `${T}/maintenance/work-orders/${woOpen.id}/complete`, {
+    completedDate: daysAgo(18), cost: 350_000, cashAccountId: kas.id, notes: "Ganti oli, filter udara, cek beban.",
+  });
+}
+await step("work order ad-hoc terbuka", "POST", `${T}/maintenance/work-orders`, {
+  assetId: genset.id, title: "Cek suara kasar saat start", scheduledDate: daysAgo(-3),
+});
+
+// --- 20. Helpdesk ------------------------------------------------------------------------------
+const tkt1 = await step("tiket prioritas tinggi", "POST", `${T}/tickets`, {
+  contactId: custToko.id, subject: "Kiriman kurang 2 karton keripik", description: "PO minggu lalu diterima kurang 2 karton.", priority: "high",
+});
+await step("balasan tiket", "POST", `${T}/tickets/${tkt1.id}/replies`, { body: "Terima kasih infonya — kami cek surat jalan dan kirim kekurangannya besok.", internal: false });
+await step("catatan internal tiket", "POST", `${T}/tickets/${tkt1.id}/replies`, { body: "Stok gudang cabang aman, kirim dari sana.", internal: true });
+const meUser = await api("GET", "/api/auth/me");
+await step("tugaskan tiket ke pemilik", "PATCH", `${T}/tickets/${tkt1.id}`, { assignedTo: meUser.json.user.id });
+const tkt2 = await step("tiket pertanyaan harga", "POST", `${T}/tickets`, {
+  contactId: custKafe.id, subject: "Minta pricelist grosir terbaru", priority: "medium",
+});
+await step("tiket kedua selesai", "PATCH", `${T}/tickets/${tkt2.id}`, { status: "resolved" });
+const tkt3 = await step("tiket saran produk", "POST", `${T}/tickets`, {
+  contactId: custKoperasi.id, subject: "Usul varian sambal level pedas", priority: "low",
+});
+await step("balasan tiket saran", "POST", `${T}/tickets/${tkt3.id}/replies`, { body: "Ide bagus! Kami masukkan ke rencana produk kuartal depan.", internal: false });
+await step("tiket pengiriman terlambat", "POST", `${T}/tickets`, {
+  contactId: custHotel.id, subject: "Pengiriman acara telat 1 hari", description: "Mohon konfirmasi ekspedisi.", priority: "high",
+});
+
+// --- 20b. Laporan terjadwal (Fase 7h): rekap penjualan bulan ini & bulan lalu ---------------------
+{
+  const now = new Date();
+  const thisMonth = now.toISOString().slice(0, 7);
+  const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  const lastMonth = prev.toISOString().slice(0, 7);
+  await step("rekap penjualan bulan ini (laporan terjadwal)", "POST", `${T}/report-snapshots/run`, { period: thisMonth });
+  await step("rekap penjualan bulan lalu (laporan terjadwal)", "POST", `${T}/report-snapshots/run`, { period: lastMonth });
+}
+
+// --- 21. Opname & transfer gudang -----------------------------------------------------------------
+const stockNow = await api("GET", `${T}/stock`);
+const keripikLevel = stockNow.json.levels.find((l) => l.sku === "KRPK-200" && l.warehouseId === whUtama.id);
+if (keripikLevel && keripikLevel.qty > 2) {
+  await step("opname keripik (susut 2)", "POST", `${T}/stock-adjustments`, {
+    productId: keripik.id, warehouseId: whUtama.id, physicalQty: keripikLevel.qty - 2, note: "Opname bulanan: 2 bungkus rusak",
+  });
+}
+await step("transfer teh ke gudang cabang", "POST", `${T}/stock-transfers`, {
+  productId: teh.id, fromWarehouseId: whUtama.id, toWarehouseId: whCabang.id, qty: 10,
+});
+
+// --- 22. Persetujuan pembelian: ambang + pengajuan pending dari staf admin -------------------------
+await step("ambang persetujuan 5 juta", "POST", `${T}/approval-threshold`, { amount: 5_000_000 });
+const staffEmail = `staf.demo.${Date.now()}@example.com`;
+// Password staf acak & tidak dicetak — akun ini hanya perlu ada sebagai
+// pengaju approval; operator menonaktifkannya setelah seeding produksi.
+const staffPass = randomBytes(24).toString("base64url");
+const staff = makeClient();
+const staffReg = await staff("POST", "/api/auth/register", {
+  companyName: "Workspace Staf Demo", name: "Staf Demo", email: staffEmail, password: staffPass,
+});
+if (staffReg.status === 201) {
+  const invite = await api("POST", `${T}/invites`, { email: staffEmail, role: "admin" });
+  const token = (invite.json?.inviteUrl ?? "").split("token=")[1];
+  if (token) {
+    await staff("POST", "/api/invites/accept", { token });
+    const pending = await staff("POST", `${T}/purchases`, {
+      contactId: suppKopi.id, invoiceDate: daysAgo(1), taxRate: 11, warehouseId: whUtama.id,
+      lines: [{ productId: kopi.id, qty: 120, unitPrice: 55_000 }],
+    });
+    if (pending.status === 201 || pending.status === 202) {
+      steps++;
+      console.log("  ✓ pengajuan pembelian besar menunggu persetujuan owner");
+    } else {
+      console.log(`  ! pengajuan approval dilewati (HTTP ${pending.status})`);
+    }
+  }
+} else {
+  console.log(`  ! seed approval dilewati — registrasi staf gagal (HTTP ${staffReg.status})`);
+}
+
+// --- 23. Jurnal operasional lain-lain ---------------------------------------------------------------
+await step("jurnal beban listrik", "POST", `${T}/journal-entries`, {
+  entryDate: daysAgo(6), memo: "Bayar listrik & air gudang",
+  lines: [
+    { accountId: bebanListrik.id, debit: 750_000, credit: 0 },
+    { accountId: kas.id, debit: 0, credit: 750_000 },
+  ],
+});
+await step("jurnal beban iklan digital", "POST", `${T}/journal-entries`, {
+  entryDate: daysAgo(4), memo: "Iklan Instagram & marketplace",
+  lines: [
+    { accountId: bebanIklan.id, debit: 1_200_000, credit: 0 },
+    { accountId: kas.id, debit: 0, credit: 1_200_000 },
+  ],
+});
+
+// --- Kas kecil sistem dana tetap (Fase 22c) ----------------------------------------------------------
+// Disemai supaya kas kecil TERLIHAT hidup di perusahaan demo. Dana tetap yang
+// masih 0 membuat kartunya tampil sebagai deretan angka nol — fitur yang secara
+// teknis jalan tetapi mati di layar yang dilihat setiap calon pelanggan
+// (pelajaran Fase 21e: pembanding tahun lalu yang tak pernah muncul).
+await step("kas kecil: dana tetap Rp 2.000.000", "PATCH", `${T}/petty-cash`, { danaTetap: 2_000_000 });
+await step("kas kecil: pengisian pertama dari kas", "POST", `${T}/petty-cash/replenish`, {
+  sourceAccountId: kas.id,
+  entryDate: daysAgo(20),
+});
+await step("bon kas kecil: parkir, materai, fotokopi", "POST", `${T}/journal-entries`, {
+  entryDate: daysAgo(12), memo: "Bon kas kecil — parkir, materai, fotokopi",
+  lines: [
+    { accountId: acc("5-4000").id, debit: 335_000, credit: 0 },
+    { accountId: acc("1-1050").id, debit: 0, credit: 335_000 },
+  ],
+});
+await step("bon kas kecil: galon & konsumsi rapat", "POST", `${T}/journal-entries`, {
+  entryDate: daysAgo(5), memo: "Bon kas kecil — galon & konsumsi rapat",
+  lines: [
+    { accountId: acc("5-4000").id, debit: 415_000, credit: 0 },
+    { accountId: acc("1-1050").id, debit: 0, credit: 415_000 },
+  ],
+});
+
+// --- Keuangan lanjut (Fase 5d): template jurnal + rekonsiliasi bank ----------------------------------
+await step("template jurnal berulang: sewa ruko bulanan", "POST", `${T}/journal-templates`, {
+  name: "Sewa ruko bulanan",
+  memo: "Sewa ruko Jl. Merdeka",
+  lines: [
+    { accountId: acc("5-3000").id, debit: 3_500_000, credit: 0 },
+    { accountId: bank.id, debit: 0, credit: 3_500_000 },
+  ],
+  schedule: "monthly",
+  nextRunDate: daysAgo(-20), // terbit otomatis ±20 hari lagi
+});
+await step("jurnal bayar internet kantor (untuk rekonsiliasi)", "POST", `${T}/journal-entries`, {
+  entryDate: daysAgo(2), memo: "Internet kantor",
+  lines: [
+    { accountId: acc("5-4000").id, debit: 350_000, credit: 0 },
+    { accountId: bank.id, debit: 0, credit: 350_000 },
+  ],
+});
+await step("impor mutasi rekening koran (1 cocok otomatis, 2 belum)", "POST", `${T}/bank-recon/import`, {
+  accountId: bank.id,
+  items: [
+    { date: daysAgo(2), description: "PEMBAYARAN INTERNET OFFICE", amount: -350_000 },
+    { date: daysAgo(1), description: "BIAYA ADM", amount: -6_500 },
+    { date: daysAgo(0), description: "SETORAN TUNAI CABANG", amount: 2_000_000 },
+  ],
+});
+
+// --- 24. Perusahaan kedua: CV Demo Cabang → konsolidasi terisi (Fase 10h) ------------
+// Konsolidasi multi-perusahaan menggabungkan tenant milik pemilik yang sama.
+// Perusahaan kedua ini diberi modal + penjualan + beban agar laporan gabungan
+// (Neraca & Laba Rugi konsolidasi) menampilkan dua entitas nyata.
+const company2 = await step("buat perusahaan kedua: CV Demo Cabang", "POST", "/api/auth/companies", { companyName: "CV Demo Cabang" });
+const T2 = `/api/tenants/${company2.tenantId}`;
+await step("cabang: alamat & NPWP", "PATCH", `${T2}/settings`, {
+  address: "Jl. Cihampelas No. 88, Bandung", npwp: "02.345.678.9-012.000", displayName: "CV Demo Cabang",
+});
+const acc2Res = await step("cabang: baca bagan akun", "GET", `${T2}/accounts`);
+const acc2 = (code) => acc2Res.accounts.find((x) => x.code === code);
+const income2 = acc2Res.accounts.find((a) => a.type === "income");
+await step("cabang: setoran modal 80 juta", "POST", `${T2}/journal-entries`, {
+  entryDate: daysAgo(45), memo: "Setoran modal awal cabang",
+  lines: [
+    { accountId: acc2("1-1100").id, debit: 60_000_000, credit: 0 },
+    { accountId: acc2("1-1000").id, debit: 20_000_000, credit: 0 },
+    { accountId: acc2("3-1000").id, debit: 0, credit: 80_000_000 },
+  ],
+});
+await step("cabang: pendapatan jasa tunai", "POST", `${T2}/journal-entries`, {
+  entryDate: daysAgo(10), memo: "Pendapatan jasa cabang",
+  lines: [
+    { accountId: acc2("1-1000").id, debit: 12_000_000, credit: 0 },
+    { accountId: income2.id, debit: 0, credit: 12_000_000 },
+  ],
+});
+await step("cabang: beban operasional", "POST", `${T2}/journal-entries`, {
+  entryDate: daysAgo(6), memo: "Sewa & listrik cabang",
+  lines: [
+    { accountId: acc2("5-3000").id, debit: 4_000_000, credit: 0 },
+    { accountId: acc2("1-1100").id, debit: 0, credit: 4_000_000 },
+  ],
+});
+const consoCompanies = await api("GET", "/api/consolidation/companies");
+const consoCount = consoCompanies.json?.companies?.length ?? consoCompanies.json?.tenants?.length ?? 0;
+console.log(`  ✓ konsolidasi kini memuat ${consoCount} perusahaan milik pemilik`);
+const tb2 = await api("GET", `${T2}/trial-balance`);
+if (tb2.json?.balanced !== true) {
+  console.error("  ! neraca saldo cabang TIDAK seimbang");
+}
+
+// --- Ringkasan akhir ---------------------------------------------------------------------------------
+const dash = await api("GET", `${T}/reports/dashboard`);
+const tb = await api("GET", `${T}/trial-balance`);
+console.log(`\nSelesai: ${steps} langkah seed berhasil.`);
+console.log(`Perusahaan: ${COMPANY} (slug ${company.slug})`);
+console.log(`Neraca saldo seimbang: ${tb.json?.balanced === true ? "YA ✅" : "PERIKSA ❌"}`);
+if (dash.status === 200) console.log("Dashboard terisi — siap direview.");
+process.exit(tb.json?.balanced === true ? 0 : 1);

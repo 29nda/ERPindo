@@ -1,0 +1,68 @@
+# Alat ops: menjalankan scripts/seed-demo.mjs terhadap deployment produksi.
+# Dipicu dengan push ke branch ops/seed-demo-run (integrasi GitHub yang dipakai
+# tidak punya izin workflow_dispatch). Runner GitHub dipakai karena punya akses
+# internet langsung ke *.workers.dev.
+#
+# Fase 24b: mode SEED_REGISTER (akun acak) TIDAK LAGI BISA DIPAKAI. Sejak Fase
+# 24a pendaftar biasa lahir berstatus 'provisioning' — tanpa database dan
+# dilarang menambah perusahaan — sedangkan skrip ini membuat perusahaan demo
+# sebagai perusahaan TAMBAHAN. Akun acak mustahil terdaftar di COMPED_EMAILS,
+# jadi run-nya akan selalu mentok 402 di langkah pertama.
+#
+# Workflow ini karena itu memakai akun comped pemilik lewat secret repo
+# SEED_EMAIL + SEED_PASSWORD. Email itu HARUS ada di COMPED_EMAILS worker —
+# lihat docs/05-runbook-go-live.md.
+name: Seed demo
+
+on:
+  push:
+    branches: [ops/seed-demo-run]
+
+jobs:
+  seed:
+    name: Seed PT Demo Sejahtera
+    runs-on: ubuntu-latest
+    env:
+      BASE_URL: https://erpindo.nurudhuhaalamin.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cek kesehatan API
+        run: curl -sf --max-time 20 "$BASE_URL/api/health"
+
+      # Fase 25b: probe SELALU jalan lebih dulu. Ia login, melaporkan akun +
+      # apakah perusahaan demo sudah ada, lalu keluar TANPA menulis apa pun.
+      # Murah, dan lognya menjadi satu-satunya bukti bahwa secret SEED_* memang
+      # terpasang — GitHub tidak memperlihatkan keberadaan secret lewat API.
+      - name: Probe kredensial seed (tidak menulis apa pun)
+        env:
+          SEED_EMAIL: ${{ secrets.SEED_EMAIL }}
+          SEED_PASSWORD: ${{ secrets.SEED_PASSWORD }}
+          SEED_PROBE: "1"
+        run: node scripts/seed-demo.mjs
+
+      # Commit yang JUDULNYA diawali `[probe]` BERHENTI di sini — dipakai untuk
+      # memastikan kredensialnya benar SEBELUM demo lama dihapus. Menghapus demo
+      # lalu menemukan kredensialnya salah berarti demo mati tanpa jalan pulang.
+      #
+      # `startsWith`, bukan `contains`: versi pertama memakai `contains` atas
+      # SELURUH pesan commit, jadi menyebut kata "[probe]" di badan pesan —
+      # justru saat menjelaskan bahwa commit ini BUKAN probe — ikut mematikan
+      # langkah seed. Itu terjadi sungguhan pada percobaan semai 14 Agustus:
+      # workflow-nya hijau, seed-nya dilewati, dan demo tidak pernah terbuat.
+      #
+      # IZINKAN_TENANT_BARU (Fase 23c): seed ini membuat perusahaan baru, dan
+      # tiap perusahaan memakan satu slot TENANT_DB_* permanen. Izin eksplisit
+      # ada di sini supaya konsekuensinya terbaca oleh siapa pun yang memicu
+      # workflow ini — bukan tersembunyi di dalam skrip.
+      - name: Jalankan seed demo (akun comped pemilik)
+        if: ${{ !startsWith(github.event.head_commit.message, '[probe]') }}
+        env:
+          SEED_EMAIL: ${{ secrets.SEED_EMAIL }}
+          SEED_PASSWORD: ${{ secrets.SEED_PASSWORD }}
+          IZINKAN_TENANT_BARU: "1"
+        run: node scripts/seed-demo.mjs

@@ -1,0 +1,1444 @@
+import type { ApiCommerceDoc, SatuanBaris } from "@erpindo/shared";
+import { useLang, pick } from "../i18n";
+import { useUi } from "../i18n/ui";
+import { useHeading } from "../i18n/pageHeadings";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileText, MessageCircle, Printer, Search } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { api, formatDate, formatIDR } from "../api/client";
+import { hargaBaris, useGrupHarga } from "../lib/hargaGrup";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  ConfirmDialog,
+  EmptyState,
+  Input,
+  Label,
+  SearchSelect,
+  Select,
+  Spinner,
+  useToast,
+} from "../components/ui";
+import { CustomFieldInputs, useFieldKustom } from "../components/customFields";
+import { useWorkspace } from "./app";
+
+type Mode = "sale" | "purchase";
+
+const MODE_CFG = {
+  sale: {
+    title: { id: "Penjualan", en: "Sales" },
+    docLabel: { id: "Faktur penjualan", en: "Sales invoice" },
+    contactLabel: { id: "Pelanggan", en: "Customer" },
+    contactTypes: ["customer", "both"],
+    priceField: "sell_price" as const,
+    queryKey: "invoices" as const,
+    stockHint: {
+      id: "Stok berkurang otomatis; jurnal piutang, pendapatan, PPN & HPP dibuat otomatis.",
+      en: "Stock is deducted automatically; receivable, revenue, PPN & COGS entries are created for you.",
+    },
+  },
+  purchase: {
+    title: { id: "Pembelian", en: "Purchases" },
+    docLabel: { id: "Faktur pembelian", en: "Purchase invoice" },
+    contactLabel: { id: "Pemasok", en: "Supplier" },
+    contactTypes: ["supplier", "both"],
+    priceField: "buy_price" as const,
+    queryKey: "purchases" as const,
+    stockHint: {
+      id: "Stok bertambah otomatis (biaya rata-rata); jurnal persediaan, PPN & hutang dibuat otomatis.",
+      en: "Stock is added automatically (average cost); inventory, PPN & payable entries are created for you.",
+    },
+  },
+};
+
+/** Satu sumber pengambilan stok untuk baris faktur (Fase 20g). */
+type DraftPick = { warehouseId: string; qty: string };
+
+type DraftLine = {
+  productId: string;
+  /** Label produk terpilih (cache dari hasil pencarian) untuk ditampilkan di combobox. */
+  productLabel: string;
+  trackExpiry: boolean;
+  qty: string;
+  unitPrice: string;
+  discountPct: string;
+  lotNo: string;
+  expiryDate: string;
+  /**
+   * Picking multi-gudang (Fase 20g). Kosong = stok diambil seluruhnya dari
+   * gudang faktur, persis seperti sebelum fase ini.
+   *
+   * Qty di sini memakai satuan yang sama dengan barisnya (lihat `uom`).
+   */
+  picks: DraftPick[];
+  /** Satuan pengisian baris (Fase 21c). */
+  uom: SatuanBaris;
+  /** Nama satuan dasar produk (mis. "pcs") — hanya untuk label. */
+  unitDasar: string;
+  /** Nama satuan besar produk (mis. "dus"); kosong = produk tanpa satuan besar. */
+  uomSecondary: string;
+  /** Isi satuan besar (1 dus = `uomFactor` satuan dasar). */
+  uomFactor: number;
+  /**
+   * Harga baris ini sudah diketik manual (Fase 23a).
+   *
+   * Dipakai saat pelanggan diganti: hanya baris yang BELUM disentuh yang
+   * dihitung ulang. Menimpa harga nego yang sudah diketik adalah kehilangan
+   * data yang tidak meninggalkan jejak apa pun di layar.
+   */
+  hargaDisentuh: boolean;
+  /** Harga baris ini berasal dari daftar harga grup pelanggan (Fase 23a). */
+  hargaDariGrup: boolean;
+};
+const emptyLine = (): DraftLine => ({
+  productId: "",
+  productLabel: "",
+  trackExpiry: false,
+  qty: "1",
+  unitPrice: "",
+  discountPct: "",
+  lotNo: "",
+  expiryDate: "",
+  picks: [],
+  uom: "dasar",
+  unitDasar: "",
+  uomSecondary: "",
+  uomFactor: 1,
+  hargaDisentuh: false,
+  hargaDariGrup: false,
+});
+
+/** Qty baris dinyatakan dalam satuan dasar — meniru konversi backend. */
+function qtyDasar(l: DraftLine): number {
+  return (Number(l.qty) || 0) * (l.uom === "besar" ? l.uomFactor : 1);
+}
+
+/** Total qty yang sudah dialokasikan ke gudang-gudang pada satu baris. */
+function totalPicked(l: DraftLine): number {
+  return l.picks.reduce((s, p) => s + (Number(p.qty) || 0), 0);
+}
+
+/**
+ * Baris dengan picking yang jumlahnya belum pas. Backend menolaknya (aturan ada
+ * di skema `createInvoiceSchema`); di sini dipakai untuk mematikan tombol
+ * posting supaya penolakan itu tak pernah sampai ke pengguna.
+ */
+function pickingTimpang(l: DraftLine): boolean {
+  return l.picks.length > 0 && totalPicked(l) !== (Number(l.qty) || 0);
+}
+
+/** Nilai baris setelah diskon — meniru pembulatan backend. */
+function lineAmount(l: { qty: string; unitPrice: string; discountPct: string }): number {
+  const disc = Math.min(Math.max(Number(l.discountPct) || 0, 0), 100);
+  return Math.round((Number(l.qty) || 0) * (Number(l.unitPrice) || 0) * (1 - disc / 100));
+}
+
+type ProductRow = {
+  id: string;
+  sku: string;
+  name: string;
+  unit: string;
+  sell_price: number;
+  buy_price: number;
+  track_expiry: number;
+  uom_secondary: string | null;
+  uom_factor: number;
+};
+type ContactRow = { id: string; name: string; type: string };
+type WarehouseRow = { id: string; name: string };
+
+/** Debounce nilai input (untuk kotak pencarian daftar). */
+export function useDebounced<T>(value: T, ms = 300): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
+
+export function CommercePage({ mode }: { mode: Mode }) {
+  const u = useUi();
+  const lang = useLang();
+  const h = useHeading(mode === "sale" ? "penjualan" : "pembelian");
+  const cfg = MODE_CFG[mode];
+  const { tenant } = useWorkspace();
+  const isAdmin = tenant.role !== "viewer";
+  const toast = useToast();
+  const queryClient = useQueryClient();
+
+  const [docSearch, setDocSearch] = useState("");
+  const docQ = useDebounced(docSearch);
+  const [docLimit, setDocLimit] = useState(100);
+  const docsQuery = useQuery({
+    queryKey: [cfg.queryKey, tenant.tenantId, docQ, docLimit],
+    queryFn: () =>
+      mode === "sale"
+        ? api.invoices(tenant.tenantId, { q: docQ, limit: docLimit })
+        : api.purchases(tenant.tenantId, { q: docQ, limit: docLimit }),
+    placeholderData: (prev) => prev,
+  });
+  const warehousesQuery = useQuery({
+    queryKey: ["warehouses", tenant.tenantId],
+    queryFn: () => api.listItems<WarehouseRow>(tenant.tenantId, "warehouses"),
+  });
+  const projectsQuery = useQuery({
+    queryKey: ["projects", tenant.tenantId],
+    queryFn: () => api.projects(tenant.tenantId),
+  });
+  const activeProjects = (projectsQuery.data?.projects ?? []).filter(
+    (p) => p.status !== "completed"
+  );
+  const currenciesQuery = useQuery({
+    queryKey: ["currencies", tenant.tenantId],
+    queryFn: () => api.currencies(tenant.tenantId),
+  });
+  const currencies = currenciesQuery.data?.currencies ?? [];
+
+  const [contactId, setContactId] = useState("");
+  const [contactLabel, setContactLabel] = useState("");
+  const [warehouseId, setWarehouseId] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [taxRate, setTaxRate] = useState<0 | 11 | 12>(11);
+  const [projectId, setProjectId] = useState("");
+  const [currency, setCurrency] = useState("IDR");
+  const [exchangeRate, setExchangeRate] = useState("");
+  const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
+  const [error, setError] = useState<string | null>(null);
+  const isForeign = currency !== "IDR";
+  // Fase 20j: field kustom faktur. Hanya mode penjualan — modul `invoice`
+  // memang hanya mendefinisikannya untuk faktur keluar.
+  const kustom = useFieldKustom(tenant.tenantId, "invoice");
+
+  const create = useMutation({
+    mutationFn: async (
+      input: Parameters<typeof api.createInvoice>[1]
+    ): Promise<{ total: number; docNo?: string; pendingApproval?: boolean; requestNo?: string }> =>
+      mode === "sale"
+        ? api.createInvoice(tenant.tenantId, input)
+        : api.createPurchase(tenant.tenantId, input),
+    onSuccess: (res) => {
+      if (res.pendingApproval) {
+        toast(
+          "success",
+          `Pengajuan ${res.requestNo} menunggu persetujuan Owner (${formatIDR(res.total)}).`
+        );
+      } else {
+        toast("success", `${cfg.docLabel} ${res.docNo} diposting (${formatIDR(res.total)}).`);
+      }
+      setLines([emptyLine()]);
+      setError(null);
+      kustom.reset();
+      queryClient.invalidateQueries({ queryKey: [cfg.queryKey, tenant.tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["stock", tenant.tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["stock-lots", tenant.tenantId] });
+    },
+    onError: (err) => setError((err as Error).message),
+  });
+
+  const warehouses = (warehousesQuery.data?.items ?? []) as WarehouseRow[];
+
+  // Cache hasil pencarian produk agar pilihan (harga, lacak-exp) tetap tersedia
+  // setelah dropdown ditutup — daftar lengkap tidak pernah dimuat semuanya.
+  const productCache = useRef(new Map<string, ProductRow>());
+
+  // --- Harga bertingkat per grup pelanggan (Fase 23a) ----------------------
+  //
+  // Hanya untuk penjualan: harga beli datang dari negosiasi dengan pemasok,
+  // bukan dari daftar harga milik kita. Pengambilan datanya dan aturannya ada
+  // di `lib/hargaGrup.ts` + `hargaUntukGrup()`; layar ini tidak menyalinnya.
+  const grupHarga = useGrupHarga(tenant.tenantId, mode === "sale");
+
+  /** Harga usulan untuk sebuah produk pada satuan tertentu. */
+  function hargaUsulan(product: ProductRow | undefined, satuan: SatuanBaris, faktor: number) {
+    const dasar = Number(product?.[cfg.priceField]) || 0;
+    if (mode !== "sale" || !product) return { harga: dasar, sumber: "dasar" as const };
+    return hargaBaris(grupHarga.harga, {
+      productId: product.id,
+      hargaDasar: dasar,
+      satuan,
+      faktor,
+    });
+  }
+
+  /**
+   * Ambil daftar harga pelanggan lalu hitung ulang baris yang harganya belum
+   * pernah diketik manual.
+   */
+  async function terapkanGrupHarga(contactIdBaru: string) {
+    if (mode !== "sale") return;
+    // Memakai daftar harga yang BARU dikembalikan, bukan state hook: state
+    // React belum tentu ter-update di titik ini, dan memakai yang lama akan
+    // menghitung ulang baris dengan harga pelanggan sebelumnya.
+    const { harga } = await grupHarga.muat(contactIdBaru);
+
+    setLines((ls) =>
+      ls.map((l) => {
+        if (!l.productId || l.hargaDisentuh) return l;
+        const product = productCache.current.get(l.productId);
+        if (!product) return l;
+        const hasil = hargaBaris(harga, {
+          productId: l.productId,
+          hargaDasar: Number(product[cfg.priceField]) || 0,
+          satuan: l.uom,
+          faktor: l.uomFactor,
+        });
+        return { ...l, unitPrice: String(hasil.harga || ""), hargaDariGrup: hasil.sumber === "grup" };
+      }),
+    );
+  }
+
+  async function fetchProductOptions(q: string) {
+    const res = await api.listItems<ProductRow>(tenant.tenantId, "products", { q, limit: 20 });
+    for (const p of res.items) productCache.current.set(p.id, p);
+    return res.items.map((p) => ({
+      value: p.id,
+      label: `${p.sku} · ${p.name}`,
+      hint: formatIDR(p[cfg.priceField] || 0),
+    }));
+  }
+
+  async function fetchContactOptions(q: string) {
+    const res = await api.listItems<ContactRow>(tenant.tenantId, "contacts", { q, limit: 20 });
+    return res.items
+      .filter((k) => cfg.contactTypes.includes(k.type))
+      .map((k) => ({ value: k.id, label: k.name }));
+  }
+
+  function setLine(i: number, patch: Partial<DraftLine>) {
+    setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  }
+
+  /** Ubah baris `i` dengan daftar picking hasil transformasi (Fase 20g). */
+  function setPicks(i: number, ubah: (picks: DraftPick[], line: DraftLine) => DraftPick[]) {
+    setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, picks: ubah(l.picks, l) } : l)));
+  }
+
+  /**
+   * Nyalakan/matikan picking multi-gudang untuk satu baris. Saat dinyalakan,
+   * seluruh qty langsung ditaruh di gudang faktur supaya jumlahnya sudah pas
+   * dan pengguna tinggal memindah sebagian ke gudang lain.
+   */
+  function togglePicking(i: number) {
+    setPicks(i, (picks, line) =>
+      picks.length > 0
+        ? []
+        : [{ warehouseId: warehouseId || warehouses[0]?.id || "", qty: line.qty }]
+    );
+  }
+
+  /**
+   * Gudang default untuk baris picking BARU: yang pertama belum terpakai di
+   * baris itu. Kalau isian awalnya sama dengan baris di atasnya, layarnya
+   * menyarankan hal yang tak masuk akal — mengambil dua kali dari gudang yang
+   * sama — dan itu yang paling mungkin ter-posting tanpa diperhatikan.
+   */
+  function gudangBerikutnya(picks: DraftPick[]): string {
+    const terpakai = new Set(picks.map((p) => p.warehouseId));
+    return (warehouses.find((w) => !terpakai.has(w.id)) ?? warehouses[0])?.id ?? "";
+  }
+
+  function pickProduct(i: number, opt: { value: string; label: string }) {
+    const product = productCache.current.get(opt.value);
+    const faktor = Number(product?.uom_factor) || 1;
+    setLine(i, {
+      productId: opt.value,
+      productLabel: opt.label,
+      trackExpiry: product?.track_expiry === 1,
+      // Fase 23a: ganti produk selalu mengembalikan baris ke harga usulan —
+      // harga nego milik produk LAMA tidak boleh menempel di produk baru.
+      unitPrice: String(hargaUsulan(product, "dasar", faktor).harga || ""),
+      hargaDisentuh: false,
+      hargaDariGrup: hargaUsulan(product, "dasar", faktor).sumber === "grup",
+      // Ganti produk selalu kembali ke satuan dasar: satuan besar produk lama
+      // tidak berlaku untuk produk baru, dan harga isiannya ikut per satuan dasar.
+      uom: "dasar",
+      unitDasar: product?.unit ?? "",
+      uomSecondary: faktor > 1 ? (product?.uom_secondary ?? "") : "",
+      uomFactor: faktor,
+    });
+  }
+
+  /**
+   * Ganti satuan sebuah baris — sekaligus menskalakan harganya.
+   *
+   * Harga terisi otomatis dari master produk **per satuan dasar**. Kalau satuan
+   * diganti ke dus tanpa harganya ikut dikali isi, faktur beli sedus akan
+   * ditagih seharga sepcs: totalnya masuk akal di layar, hutangnya jauh terlalu
+   * kecil, dan tidak ada satu pun angka yang terlihat aneh.
+   */
+  function gantiSatuan(i: number, line: DraftLine, satuan: SatuanBaris) {
+    if (satuan === line.uom) return;
+    const harga = Number(line.unitPrice) || 0;
+    const skala = satuan === "besar" ? line.uomFactor : 1 / line.uomFactor;
+    setLine(i, {
+      uom: satuan,
+      unitPrice: harga > 0 ? String(Math.round(harga * skala)) : line.unitPrice,
+    });
+  }
+
+  const subtotal = lines.reduce((s, l) => s + lineAmount(l), 0);
+  const taxAmount = Math.round((subtotal * taxRate) / 100);
+
+  // Fase 10c — "Ubah" = void + prefill: isi form dari dokumen yang baru
+  // dibatalkan; posting menghasilkan dokumen BARU bernomor baru (buku besar
+  // immutable). Gudang memakai pilihan form (dokumen tidak menyimpannya).
+  function prefillFromDoc(doc: ApiCommerceDoc) {
+    setContactId(doc.contactId);
+    setContactLabel(doc.contactName);
+    setDate(new Date().toISOString().slice(0, 10));
+    setTaxRate((doc.taxRate === 11 || doc.taxRate === 12 ? doc.taxRate : 0) as 0 | 11 | 12);
+    setLines(
+      doc.lines.map((l) => {
+        // Fase 21c: dokumen menyimpan qty dalam satuan DASAR sedangkan harganya
+        // per satuan yang diinput. Mengisi ulang form tanpa membagi qty dengan
+        // `uomFactor` akan menghasilkan dokumen baru bernilai berlipat-lipat —
+        // dan "Ubah" adalah jalur yang paling sering dipakai.
+        const faktor = l.uomFactor > 1 ? l.uomFactor : 1;
+        return {
+          productId: l.productId,
+          productLabel: l.productName,
+          trackExpiry: false,
+          qty: String(l.qty / faktor),
+          unitPrice: String(l.unitPrice),
+          discountPct: l.discountPct > 0 ? String(l.discountPct) : "",
+          lotNo: "",
+          expiryDate: "",
+          picks: [],
+          uom: (faktor > 1 ? "besar" : "dasar") as SatuanBaris,
+          unitDasar: "",
+          uomSecondary: l.uomName ?? "",
+          uomFactor: faktor,
+          // Harga dokumen lama SELALU dianggap disentuh manual (Fase 23a):
+          // itulah harga yang benar-benar disepakati, dan "Ubah" tidak boleh
+          // diam-diam menggantinya dengan harga daftar hari ini.
+          hargaDisentuh: true,
+          hargaDariGrup: false,
+        };
+      })
+    );
+    setError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function submit() {
+    setError(null);
+    create.mutate({
+      contactId,
+      invoiceDate: date,
+      taxRate,
+      warehouseId: warehouseId || warehouses[0]?.id || "",
+      ...(projectId ? { projectId } : {}),
+      ...(isForeign ? { currency, exchangeRate: Number(exchangeRate) || 0 } : {}),
+      ...(mode === "sale" ? kustom.payload() : {}),
+      lines: lines
+        .filter((l) => l.productId)
+        .map((l) => ({
+          productId: l.productId,
+          qty: Number(l.qty) || 0,
+          unitPrice: Number(l.unitPrice) || 0,
+          ...(l.uom === "besar" ? { uom: "besar" as const } : {}),
+          ...(Number(l.discountPct) > 0 ? { discountPct: Number(l.discountPct) } : {}),
+          ...(mode === "purchase" && l.lotNo ? { lotNo: l.lotNo } : {}),
+          ...(mode === "purchase" && l.expiryDate ? { expiryDate: l.expiryDate } : {}),
+          ...(mode === "sale" && l.picks.length > 0
+            ? { picks: l.picks.map((p) => ({ warehouseId: p.warehouseId, qty: Number(p.qty) || 0 })) }
+            : {}),
+        })),
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold">{h.title}</h1>
+
+      {isAdmin ? (
+        <Card>
+          <CardHeader title={`${pick(cfg.docLabel, lang)} ${lang === "en" ? "— new" : "baru"}`} description={pick(cfg.stockHint, lang)} />
+          <CardBody className="space-y-4">
+            {error ? <Alert tone="error">{error}</Alert> : null}
+            <div className="grid gap-3 sm:grid-cols-4">
+              <div>
+                <Label htmlFor="doc-contact">{pick(cfg.contactLabel, lang)}</Label>
+                <SearchSelect
+                  id="doc-contact"
+                  value={contactId}
+                  valueLabel={contactLabel}
+                  placeholder={`${u("cari")} ${pick(cfg.contactLabel, lang).toLowerCase()}…`}
+                  fetchOptions={fetchContactOptions}
+                  onSelect={(opt) => {
+                    setContactId(opt.value);
+                    setContactLabel(opt.label);
+                    void terapkanGrupHarga(opt.value);
+                  }}
+                />
+              </div>
+              <div>
+                <Label htmlFor="doc-wh">{u("gudang")}</Label>
+                <Select
+                  id="doc-wh"
+                  value={warehouseId}
+                  onChange={(e) => setWarehouseId(e.target.value)}
+                >
+                  {warehouses.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="doc-date">{u("tanggal")}</Label>
+                <Input
+                  id="doc-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="doc-tax">PPN</Label>
+                <Select
+                  id="doc-tax"
+                  value={String(taxRate)}
+                  onChange={(e) => setTaxRate(Number(e.target.value) as 0 | 11 | 12)}
+                >
+                  <option value="0">{u("tanpaPpn")}</option>
+                  <option value="11">PPN 11%</option>
+                  <option value="12">PPN 12%</option>
+                </Select>
+              </div>
+              {activeProjects.length > 0 ? (
+                <div>
+                  <Label htmlFor="doc-project">{u("proyekOpsional")}</Label>
+                  <Select
+                    id="doc-project"
+                    value={projectId}
+                    onChange={(e) => setProjectId(e.target.value)}
+                  >
+                    <option value="">{u("tanpaProyek")}</option>
+                    {activeProjects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.code} · {p.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ) : null}
+              {currencies.length > 1 ? (
+                <div>
+                  <Label htmlFor="doc-currency">{u("mataUang")}</Label>
+                  <Select
+                    id="doc-currency"
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                  >
+                    {currencies.map((cur) => (
+                      <option key={cur.code} value={cur.code}>
+                        {cur.code}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ) : null}
+              {isForeign ? (
+                <div>
+                  <Label htmlFor="doc-rate">
+                    {u("kurs")} (IDR/{currency})
+                  </Label>
+                  <Input
+                    id="doc-rate"
+                    type="number"
+                    min={0}
+                    placeholder={String(
+                      currencies.find((cur) => cur.code === currency)?.rate ?? ""
+                    )}
+                    value={exchangeRate}
+                    onChange={(e) => setExchangeRate(e.target.value)}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <div className="space-y-2">
+              {lines.map((line, i) => {
+                const tracked = mode === "purchase" && line.trackExpiry;
+                return (
+                  <div key={i} className="space-y-2">
+                    {/* Kolom qty dilebarkan dari 5rem (Fase 21c): kolom lama pas
+                        untuk satu kotak angka, tetapi setelah pemilih satuan
+                        ikut di dalamnya kotak qty-nya tergencet jadi sesobek
+                        garis — angkanya tak terbaca dan tak bisa diketik. */}
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_8.5rem_9rem_5.5rem_9rem_2.5rem] sm:items-center">
+                      <SearchSelect
+                        value={line.productId}
+                        valueLabel={line.productLabel}
+                        placeholder={u("cariProdukSkuNama")}
+                        fetchOptions={fetchProductOptions}
+                        onSelect={(opt) => pickProduct(i, opt)}
+                      />
+                      <div className="flex gap-1">
+                        <Input
+                          aria-label={`Qty baris ${i + 1}`}
+                          type="number"
+                          min={1}
+                          className="min-w-0 flex-1"
+                          value={line.qty}
+                          onChange={(e) => setLine(i, { qty: e.target.value })}
+                        />
+                        {line.uomSecondary ? (
+                          <select
+                            aria-label={`${u("satuan")} ${i + 1}`}
+                            data-testid={`satuan-baris-${i}`}
+                            className="w-16 shrink-0 rounded-lg border border-slate-300 bg-white px-1 text-xs dark:border-slate-700 dark:bg-slate-900"
+                            value={line.uom}
+                            onChange={(e) => gantiSatuan(i, line, e.target.value as SatuanBaris)}
+                          >
+                            <option value="dasar">{line.unitDasar || u("satuan").toLowerCase()}</option>
+                            <option value="besar">{line.uomSecondary}</option>
+                          </select>
+                        ) : null}
+                      </div>
+                      <div className="min-w-0">
+                        <Input
+                          aria-label={`Harga baris ${i + 1}`}
+                          type="number"
+                          min={0}
+                          placeholder={u("hargaSatuan")}
+                          value={line.unitPrice}
+                          onChange={(e) =>
+                            setLine(i, { unitPrice: e.target.value, hargaDisentuh: true })
+                          }
+                        />
+                        {/* Fase 23a: tanpa lencana ini, harga yang terisi
+                            sendiri terlihat seperti harga dasar yang salah —
+                            tak ada apa pun di layar yang menjelaskan asalnya. */}
+                        {line.hargaDariGrup && !line.hargaDisentuh && grupHarga.nama ? (
+                          <div className="mt-1" data-testid={`harga-grup-${i}`}>
+                            <Badge tone="green">
+                              {u("ghLencanaHarga")} {grupHarga.nama}
+                            </Badge>
+                          </div>
+                        ) : null}
+                        {line.hargaDisentuh && grupHarga.nama ? (
+                          <div
+                            className="mt-1 text-xs text-slate-500 dark:text-slate-400"
+                            data-testid={`harga-nego-${i}`}
+                          >
+                            {u("ghHargaNego")}
+                          </div>
+                        ) : null}
+                      </div>
+                      <Input
+                        aria-label={`Diskon % baris ${i + 1}`}
+                        type="number"
+                        min={0}
+                        max={100}
+                        placeholder={u("disc")}
+                        value={line.discountPct}
+                        onChange={(e) => setLine(i, { discountPct: e.target.value })}
+                      />
+                      <div className="text-right text-sm tabular-nums">
+                        {formatIDR(lineAmount(line))}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        aria-label={`${u("hapusBaris")} ${i + 1}`}
+                        onClick={() =>
+                          setLines((ls) => (ls.length > 1 ? ls.filter((_, idx) => idx !== i) : ls))
+                        }
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                    {line.uom === "besar" ? (
+                      // Konversi ditampilkan apa adanya: inilah satu-satunya
+                      // tempat pengguna bisa melihat berapa banyak barang yang
+                      // sebenarnya bergerak sebelum dokumennya diposting.
+                      <p
+                        data-testid={`konversi-baris-${i}`}
+                        className="text-xs text-slate-500 tabular-nums dark:text-slate-400"
+                      >
+                        {Number(line.qty) || 0} {line.uomSecondary} = {qtyDasar(line)}{" "}
+                        {line.unitDasar || u("satuan").toLowerCase()}
+                      </p>
+                    ) : null}
+                    {tracked ? (
+                      <div className="grid grid-cols-2 gap-2 rounded-lg bg-amber-50 p-2 sm:grid-cols-[10rem_11rem_1fr] sm:items-center dark:bg-amber-950/40">
+                        <Input
+                          aria-label={`${u("nomorLotBaris")} ${i + 1}`}
+                          placeholder={u("noLotOpsional")}
+                          value={line.lotNo}
+                          onChange={(e) => setLine(i, { lotNo: e.target.value })}
+                        />
+                        <Input
+                          aria-label={`${u("tanggalKedaluwarsaBaris")} ${i + 1}`}
+                          type="date"
+                          value={line.expiryDate}
+                          onChange={(e) => setLine(i, { expiryDate: e.target.value })}
+                        />
+                        <span className="text-xs text-amber-700 dark:text-amber-300">
+                          {u("hintFefo")}
+                        </span>
+                      </div>
+                    ) : null}
+                    {mode === "sale" && warehouses.length > 1 && line.productId ? (
+                      <div className="space-y-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="text-xs"
+                          onClick={() => togglePicking(i)}
+                        >
+                          {line.picks.length > 0 ? u("ambilSatuGudang") : u("ambilBeberapaGudang")}
+                        </Button>
+                        {line.picks.length > 0 ? (
+                          <div className="space-y-2 rounded-lg bg-sky-50 p-2 dark:bg-sky-950/40">
+                            {line.picks.map((p, j) => (
+                              <div
+                                key={j}
+                                className="grid grid-cols-[1fr_5rem_2.5rem] gap-2 sm:items-center"
+                              >
+                                <Select
+                                  aria-label={`${u("gudangBaris")} ${i + 1}-${j + 1}`}
+                                  value={p.warehouseId}
+                                  onChange={(e) =>
+                                    setPicks(i, (picks) =>
+                                      picks.map((q, qj) =>
+                                        qj === j ? { ...q, warehouseId: e.target.value } : q
+                                      )
+                                    )
+                                  }
+                                >
+                                  {warehouses.map((w) => (
+                                    <option key={w.id} value={w.id}>
+                                      {w.name}
+                                    </option>
+                                  ))}
+                                </Select>
+                                <Input
+                                  aria-label={`${u("qtyGudangBaris")} ${i + 1}-${j + 1}`}
+                                  type="number"
+                                  min={1}
+                                  value={p.qty}
+                                  onChange={(e) =>
+                                    setPicks(i, (picks) =>
+                                      picks.map((q, qj) =>
+                                        qj === j ? { ...q, qty: e.target.value } : q
+                                      )
+                                    )
+                                  }
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  aria-label={`${u("hapusGudangPicking")} ${i + 1}-${j + 1}`}
+                                  onClick={() =>
+                                    setPicks(i, (picks) => picks.filter((_, qj) => qj !== j))
+                                  }
+                                >
+                                  ✕
+                                </Button>
+                              </div>
+                            ))}
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="text-xs"
+                                onClick={() =>
+                                  setPicks(i, (picks) => [
+                                    ...picks,
+                                    { warehouseId: gudangBerikutnya(picks), qty: "" },
+                                  ])
+                                }
+                              >
+                                + {u("tambahGudangPicking")}
+                              </Button>
+                              <span
+                                data-testid={`picking-sum-${i}`}
+                                className={
+                                  pickingTimpang(line)
+                                    ? "text-xs text-rose-700 dark:text-rose-300"
+                                    : "text-xs text-sky-700 dark:text-sky-300"
+                                }
+                              >
+                                {totalPicked(line)} / {Number(line.qty) || 0} ·{" "}
+                                {pickingTimpang(line) ? u("hintPickingBeda") : u("hintPickingSama")}
+                              </span>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            {mode === "sale" ? (
+              <CustomFieldInputs
+                defs={kustom.defs}
+                values={kustom.values}
+                onChange={kustom.setValue}
+                idPrefix="faktur"
+              />
+            ) : null}
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setLines((ls) => [...ls, emptyLine()])}
+              >
+                + {u("tambahBarang")}
+              </Button>
+              <div className="text-sm">
+                {isForeign ? (
+                  <>
+                    Total{" "}
+                    <strong className="tabular-nums">
+                      {currency} {(subtotal + taxAmount).toLocaleString("id-ID")}
+                    </strong>
+                    {Number(exchangeRate) > 0 ? (
+                      <span className="text-slate-500 dark:text-slate-400">
+                        {" "}
+                        ≈ {formatIDR(Math.round((subtotal + taxAmount) * Number(exchangeRate)))}
+                      </span>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    {u("subtotal")} <strong className="tabular-nums">{formatIDR(subtotal)}</strong>
+                    {taxRate > 0 ? (
+                      <>
+                        {" "}
+                        · PPN <strong className="tabular-nums">{formatIDR(taxAmount)}</strong>
+                      </>
+                    ) : null}{" "}
+                    · Total{" "}
+                    <strong className="tabular-nums">{formatIDR(subtotal + taxAmount)}</strong>
+                  </>
+                )}
+              </div>
+              <Button
+                onClick={submit}
+                disabled={
+                  create.isPending || !contactId || subtotal === 0 || lines.some(pickingTimpang)
+                }
+              >
+                {create.isPending ? <Spinner /> : null} {u("postingFaktur")}
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      <Card>
+        <CardHeader title={lang === "en" ? `${pick(cfg.title, lang)} list` : `Daftar ${pick(cfg.title, lang).toLowerCase()}`} />
+        <CardBody className="space-y-3">
+          <div className="relative sm:max-w-xs">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+              aria-hidden
+            />
+            <Input
+              aria-label={`${u("cari")} ${pick(cfg.docLabel, lang).toLowerCase()}`}
+              className="pl-9"
+              placeholder={u("cariDokumen")}
+              value={docSearch}
+              onChange={(e) => {
+                setDocSearch(e.target.value);
+                setDocLimit(100);
+              }}
+            />
+          </div>
+          {docsQuery.isLoading ? (
+            <Spinner />
+          ) : (docsQuery.data?.docs.length ?? 0) === 0 ? (
+            <EmptyState
+              icon={<FileText className="size-6" aria-hidden />}
+              title={
+                docQ
+                  ? lang === "en" ? "No matching documents" : "Tidak ada dokumen yang cocok"
+                  : lang === "en" ? `No ${pick(cfg.docLabel, lang).toLowerCase()} yet` : `Belum ada ${pick(cfg.docLabel, lang).toLowerCase()}`
+              }
+              description={
+                docQ
+                  ? u("descCariDokumenKosong")
+                  : u("descBelumAdaDokumen")
+              }
+            />
+          ) : (
+            <>
+              <div className="space-y-3">
+                {docsQuery.data!.docs.map((doc) => (
+                  <DocRow
+                    key={doc.id}
+                    doc={doc}
+                    mode={mode}
+                    isAdmin={isAdmin}
+                    onEdit={prefillFromDoc}
+                  />
+                ))}
+              </div>
+              {(docsQuery.data?.total ?? 0) > (docsQuery.data?.docs.length ?? 0) ? (
+                <div className="flex items-center justify-center gap-3 pt-1">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {u("menampilkan")} {docsQuery.data!.docs.length} {u("dariTotal")}{" "}
+                    {docsQuery.data!.total}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    className="h-8"
+                    onClick={() => setDocLimit((l) => Math.min(l + 100, 500))}
+                  >
+                    {u("muatLebihBanyak")}
+                  </Button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
+function DocRow({
+  doc,
+  mode,
+  isAdmin,
+  onEdit,
+}: {
+  doc: ApiCommerceDoc;
+  mode: Mode;
+  isAdmin: boolean;
+  onEdit?: (doc: ApiCommerceDoc) => void;
+}) {
+  const { tenant } = useWorkspace();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [payOpen, setPayOpen] = useState(false);
+  const u = useUi();
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [paymentsOpen, setPaymentsOpen] = useState(false);
+  const [voidPaymentId, setVoidPaymentId] = useState<string | null>(null);
+  const [returnQty, setReturnQty] = useState<Record<string, string>>({});
+  const [refundAccountId, setRefundAccountId] = useState("");
+  const isVoided = doc.voidedAt !== null;
+  const remaining = doc.total - doc.paidAmount - doc.returnedAmount;
+
+  // Fase 11d — Tagih via WhatsApp: buat link bayar Xendit (bila aktif) lalu
+  // siapkan pesan tagihan di WhatsApp (wa.me — pengguna memilih kontak). Bila
+  // Xendit belum aktif / gagal, pesan tetap terkirim tanpa link bayar.
+  const [tagihBusy, setTagihBusy] = useState(false);
+  async function kirimTagih() {
+    if (tagihBusy) return;
+    setTagihBusy(true);
+    let link: string | null = null;
+    try {
+      const res = await api.createInvoicePaymentLink(tenant.tenantId, doc.id);
+      link = res.redirectUrl;
+    } catch {
+      // Xendit belum dikonfigurasi / peran tak diizinkan → kirim reminder saja.
+    } finally {
+      setTagihBusy(false);
+    }
+    const msg =
+      `Halo ${doc.contactName}, berikut tagihan faktur ${doc.docNo} sebesar ${formatIDR(remaining)}.` +
+      (link ? `\nBayar online: ${link}` : `\nMohon segera diselesaikan. Terima kasih.`);
+    try {
+      await navigator.clipboard?.writeText(msg);
+    } catch {
+      /* clipboard opsional */
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener");
+    toast(
+      "success",
+      link
+        ? "Link bayar dibuat & pesan disiapkan di WhatsApp."
+        : "Pesan tagihan disiapkan di WhatsApp."
+    );
+  }
+
+  const doVoid = useMutation({
+    mutationFn: () =>
+      mode === "sale"
+        ? api.voidInvoice(tenant.tenantId, doc.id)
+        : api.voidPurchase(tenant.tenantId, doc.id),
+    onSuccess: (res) => {
+      toast(
+        "success",
+        `${res.docNo} dibatalkan — jurnal pembalik ${res.reversalEntryNo} diposting, stok dikembalikan.`
+      );
+      setVoidOpen(false);
+      if (editOpen) {
+        setEditOpen(false);
+        onEdit?.(doc);
+      }
+      queryClient.invalidateQueries({
+        queryKey: [mode === "sale" ? "invoices" : "purchases", tenant.tenantId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["stock", tenant.tenantId] });
+    },
+    onError: (err) => {
+      toast("error", (err as Error).message);
+      setVoidOpen(false);
+      setEditOpen(false);
+    },
+  });
+
+  // Fase 10c — daftar pembayaran dokumen ini + void per baris.
+  const paymentsQuery = useQuery({
+    queryKey: ["payments", tenant.tenantId, mode === "sale" ? "invoice" : "purchase", doc.id],
+    queryFn: () =>
+      api.payments(tenant.tenantId, {
+        refType: mode === "sale" ? "invoice" : "purchase",
+        refId: doc.id,
+      }),
+    enabled: paymentsOpen,
+  });
+  const doVoidPayment = useMutation({
+    mutationFn: (paymentId: string) => api.voidPayment(tenant.tenantId, paymentId),
+    onSuccess: (res) => {
+      toast(
+        "success",
+        `Pembayaran ${res.paymentNo} dihapus — jurnal pembalik ${res.reversalEntryNo} diposting.`
+      );
+      setVoidPaymentId(null);
+      queryClient.invalidateQueries({ queryKey: ["payments", tenant.tenantId] });
+      queryClient.invalidateQueries({
+        queryKey: [mode === "sale" ? "invoices" : "purchases", tenant.tenantId],
+      });
+    },
+    onError: (err) => {
+      toast("error", (err as Error).message);
+      setVoidPaymentId(null);
+    },
+  });
+
+  const warehousesQuery = useQuery({
+    queryKey: ["warehouses", tenant.tenantId],
+    queryFn: () => api.listItems<{ id: string }>(tenant.tenantId, "warehouses"),
+    enabled: returnOpen,
+  });
+
+  const doReturn = useMutation({
+    mutationFn: () =>
+      api.createReturn(tenant.tenantId, {
+        refType: mode === "sale" ? "invoice" : "purchase",
+        refId: doc.id,
+        warehouseId: (warehousesQuery.data?.items[0] as { id: string } | undefined)?.id ?? "",
+        returnDate: new Date().toISOString().slice(0, 10),
+        refundAccountId: refundAccountId || undefined,
+        lines: Object.entries(returnQty)
+          .filter(([, q]) => Number(q) > 0)
+          .map(([productId, q]) => ({ productId, qty: Number(q) })),
+      }),
+    onSuccess: (res) => {
+      const refundNote = res.refund > 0 ? `${u("cmRefundTunai")} ${formatIDR(res.refund)}` : "";
+      toast(
+        "success",
+        `Retur ${res.returnNo} diposting (${formatIDR(res.total)}${refundNote}, jurnal ${res.journalNo}).`
+      );
+      setReturnOpen(false);
+      setReturnQty({});
+      setRefundAccountId("");
+      queryClient.invalidateQueries({
+        queryKey: [mode === "sale" ? "invoices" : "purchases", tenant.tenantId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["stock", tenant.tenantId] });
+    },
+    onError: (err) => toast("error", (err as Error).message),
+  });
+
+  const accountsQuery = useQuery({
+    queryKey: ["accounts", tenant.tenantId],
+    queryFn: () => api.accounts(tenant.tenantId),
+    enabled: payOpen || returnOpen,
+  });
+  const cashAccounts = (accountsQuery.data?.accounts ?? []).filter(
+    (a) =>
+      !a.isArchived &&
+      a.type === "asset" &&
+      (a.code.startsWith("1-10") || a.code.startsWith("1-11"))
+  );
+
+  const isForeign = doc.currency !== "IDR";
+  const remainingForeign = doc.exchangeRate > 0 ? Math.round(remaining / doc.exchangeRate) : 0;
+  const [payAccount, setPayAccount] = useState("");
+  const [payAmount, setPayAmount] = useState(String(isForeign ? remainingForeign : remaining));
+  const [payRate, setPayRate] = useState(String(doc.exchangeRate));
+  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const pay = useMutation({
+    mutationFn: () =>
+      api.createPayment(tenant.tenantId, {
+        refType: mode === "sale" ? "invoice" : "purchase",
+        refId: doc.id,
+        accountId: payAccount,
+        paymentDate: payDate,
+        ...(isForeign
+          ? { foreignAmount: Number(payAmount) || 0, exchangeRate: Number(payRate) || 0 }
+          : { amount: Number(payAmount) || 0 }),
+      }),
+    onSuccess: (res) => {
+      const forex =
+        res.forexGain && res.forexGain !== 0
+          ? ` (${u("cmSelisihKurs")} ${res.forexGain > 0 ? u("cmKursLaba") : u("cmKursRugi")} ${formatIDR(Math.abs(res.forexGain))})`
+          : "";
+      toast(
+        "success",
+        (res.settled ? `${doc.docNo} lunas.` : `Pembayaran ${res.paymentNo} dicatat.`) + forex
+      );
+      setPayOpen(false);
+      queryClient.invalidateQueries({
+        queryKey: [mode === "sale" ? "invoices" : "purchases", tenant.tenantId],
+      });
+    },
+    onError: (err) => toast("error", (err as Error).message),
+  });
+
+  return (
+    <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <span className="font-mono text-xs font-semibold">{doc.docNo}</span>
+          <span className="text-slate-500 dark:text-slate-400">{formatDate(doc.date)}</span>
+          <span>{doc.contactName}</span>
+          {isVoided ? (
+            <Badge tone="red">{u("dibatalkan")}</Badge>
+          ) : doc.status === "paid" ? (
+            <Badge tone="green">{u("lunas")}</Badge>
+          ) : (
+            <Badge tone="amber">{u("belumLunas")}</Badge>
+          )}
+          {isForeign ? (
+            <Badge tone="brand">
+              {doc.currency} @ {doc.exchangeRate.toLocaleString("id-ID")}
+            </Badge>
+          ) : null}
+        </div>
+        <span className="text-base font-semibold tabular-nums">
+          {isForeign
+            ? `${doc.currency} ${doc.foreignTotal.toLocaleString("id-ID")}`
+            : formatIDR(doc.total)}
+        </span>
+      </div>
+
+      {mode === "sale" ||
+      doc.paidAmount > 0 ||
+      (isAdmin &&
+        !isVoided &&
+        (remaining > 0 ||
+          doc.status !== "paid" ||
+          (doc.paidAmount === 0 && doc.returnedAmount === 0))) ? (
+        <div className="mt-2.5 flex flex-wrap gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800/60">
+          {mode === "sale" ? (
+            <a
+              href={`/cetak/faktur?tenant=${tenant.tenantId}&id=${doc.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 px-3 text-sm hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+            >
+              <Printer className="size-4" aria-hidden /> {u("cetak")}
+            </a>
+          ) : null}
+          {mode === "sale" && isAdmin && !isVoided && remaining > 0 ? (
+            <Button variant="secondary" className="h-8" onClick={kirimTagih} disabled={tagihBusy}>
+              <span className="inline-flex items-center gap-1.5">
+                <MessageCircle className="size-4" aria-hidden />{" "}
+                {tagihBusy ? "Menyiapkan…" : "Tagih (WA)"}
+              </span>
+            </Button>
+          ) : null}
+          {isAdmin && !isVoided && remaining > 0 ? (
+            <Button variant="secondary" className="h-8" onClick={() => setReturnOpen((o) => !o)}>
+              {u("retur")}
+            </Button>
+          ) : null}
+          {isAdmin && !isVoided && doc.paidAmount === 0 && doc.returnedAmount === 0 ? (
+            <>
+              <Button variant="secondary" className="h-8" onClick={() => setEditOpen(true)}>
+                {u("ubah")}
+              </Button>
+              <Button
+                variant="secondary"
+                className="h-8 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                onClick={() => setVoidOpen(true)}
+              >
+                {u("batalkan")}
+              </Button>
+            </>
+          ) : null}
+          {doc.paidAmount > 0 ? (
+            <Button variant="secondary" className="h-8" onClick={() => setPaymentsOpen((o) => !o)}>
+              {u("pembayaran")}
+            </Button>
+          ) : null}
+          {isAdmin && !isVoided && doc.status !== "paid" ? (
+            <Button className="h-8" onClick={() => setPayOpen((o) => !o)}>
+              {mode === "sale" ? u("terimaPembayaran") : u("bayar")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {paymentsOpen ? (
+        <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+          <div className="text-sm font-medium">{u("pembayaranDokumen")}</div>
+          {paymentsQuery.isLoading ? (
+            <Spinner />
+          ) : (paymentsQuery.data?.payments ?? []).length === 0 ? (
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {u("belumAdaPembayaran")}
+            </p>
+          ) : (
+            (paymentsQuery.data?.payments ?? []).map((p) => (
+              <div key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <span className="font-mono text-xs font-semibold">{p.paymentNo}</span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {formatDate(p.paymentDate)}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">{p.accountName}</span>
+                <span className="tabular-nums font-medium">{formatIDR(p.amount)}</span>
+                {p.voidedAt ? (
+                  <Badge tone="red">DIHAPUS{p.voidJournalNo ? ` · ${p.voidJournalNo}` : ""}</Badge>
+                ) : p.isPos ? (
+                  <span
+                    className="text-xs text-slate-400"
+                    title={u("descPembayaranPos")}
+                  >
+                    via Kasir
+                  </span>
+                ) : isAdmin ? (
+                  <button
+                    className="text-xs font-medium text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                    onClick={() => setVoidPaymentId(p.id)}
+                  >
+                    {u("hapus")}
+                  </button>
+                ) : null}
+              </div>
+            ))
+          )}
+        </div>
+      ) : null}
+
+      <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+        {doc.lines.map((l) => (
+          <div key={l.id} className="flex justify-between">
+            <span>
+              {l.productName} × {l.qty}
+              {l.discountPct > 0 ? (
+                <span className="text-emerald-600 dark:text-emerald-400"> (−{l.discountPct}%)</span>
+              ) : null}
+            </span>
+            <span className="tabular-nums">{formatIDR(l.amount)}</span>
+          </div>
+        ))}
+        {doc.taxAmount > 0 ? (
+          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+            <span>PPN {doc.taxRate}%</span>
+            <span className="tabular-nums">{formatIDR(doc.taxAmount)}</span>
+          </div>
+        ) : null}
+        {doc.paidAmount > 0 && doc.status !== "paid" ? (
+          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+            <span>{u("sudahDibayar")}</span>
+            <span className="tabular-nums">{formatIDR(doc.paidAmount)}</span>
+          </div>
+        ) : null}
+        {doc.returnedAmount > 0 ? (
+          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+            <span>{u("sudahDiretur")}</span>
+            <span className="tabular-nums">− {formatIDR(doc.returnedAmount)}</span>
+          </div>
+        ) : null}
+      </div>
+
+      {returnOpen ? (
+        <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+          <div className="text-sm font-medium">{u("returIsiQty")}</div>
+          {doc.lines.map((l) => (
+            <div key={l.id} className="flex items-center gap-3 text-sm">
+              <span className="flex-1">
+                {l.productName}{" "}
+                <span className="text-slate-400">
+                  ({u("dibeli")} {l.qty})
+                </span>
+              </span>
+              <Input
+                aria-label={`${u("qtyRetur")} ${l.productName}`}
+                type="number"
+                min={0}
+                max={l.qty}
+                className="h-9 w-24"
+                placeholder="0"
+                value={returnQty[l.productId] ?? ""}
+                onChange={(e) => setReturnQty((q) => ({ ...q, [l.productId]: e.target.value }))}
+              />
+            </div>
+          ))}
+          <div>
+            <Label htmlFor="refund-acct" className="text-xs">
+              {u("akunRefundTunai")}
+            </Label>
+            <Select
+              id="refund-acct"
+              className="h-9"
+              value={refundAccountId}
+              onChange={(e) => setRefundAccountId(e.target.value)}
+            >
+              <option value="">{u("tanpaRefundTunai")}</option>
+              {cashAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.code} · {a.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={() => doReturn.mutate()}
+              disabled={doReturn.isPending || !Object.values(returnQty).some((q) => Number(q) > 0)}
+            >
+              {doReturn.isPending ? <Spinner /> : null} {u("postingRetur")}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {payOpen ? (
+        <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+          <div className="grid gap-2 sm:grid-cols-[1fr_10rem_10rem_auto] sm:items-end">
+            <div>
+              <Label htmlFor={`pay-acc-${doc.id}`}>{u("masukKeluarAkun")}</Label>
+              <Select
+                id={`pay-acc-${doc.id}`}
+                value={payAccount}
+                onChange={(e) => setPayAccount(e.target.value)}
+              >
+                <option value="">{u("pilihKasBank")}</option>
+                {cashAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.code} · {a.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor={`pay-amt-${doc.id}`}>
+                {isForeign ? `${u("jumlah")} (${doc.currency})` : u("nominal")}
+              </Label>
+              <Input
+                id={`pay-amt-${doc.id}`}
+                type="number"
+                min={1}
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor={`pay-date-${doc.id}`}>{u("tanggal")}</Label>
+              <Input
+                id={`pay-date-${doc.id}`}
+                type="date"
+                value={payDate}
+                onChange={(e) => setPayDate(e.target.value)}
+              />
+            </div>
+            <Button onClick={() => pay.mutate()} disabled={pay.isPending || !payAccount}>
+              {pay.isPending ? <Spinner /> : null} {u("catat")}
+            </Button>
+          </div>
+          {isForeign ? (
+            <div className="grid gap-2 sm:grid-cols-[10rem_1fr] sm:items-end">
+              <div>
+                <Label htmlFor={`pay-rate-${doc.id}`}>
+                  {u("kursSaatBayar")} (IDR/{doc.currency})
+                </Label>
+                <Input
+                  id={`pay-rate-${doc.id}`}
+                  type="number"
+                  min={0}
+                  value={payRate}
+                  onChange={(e) => setPayRate(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {u("fakturPadaKurs")} {doc.exchangeRate.toLocaleString("id-ID")}
+                {u("descSelisihKurs")}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <ConfirmDialog
+        open={voidOpen}
+        title={`${u("batalkan")} ${doc.docNo}?`}
+        description={
+          <>
+            {u("descBatalkanDokumen1")} <strong>{u("dibatalkan")}</strong>{" "}
+            {u("descBatalkanDokumen2")}
+          </>
+        }
+        confirmLabel={u("yaBatalkanDokumen")}
+        danger
+        busy={doVoid.isPending}
+        onConfirm={() => doVoid.mutate()}
+        onCancel={() => setVoidOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={editOpen}
+        title={`${u("ubah")} ${doc.docNo}?`}
+        description={
+          <>
+            {u("descUbahDokumen1")} <strong>{u("dibatalkan")}</strong> {u("descUbahDokumen2")}{" "}
+            <strong>{u("descUbahDokumen3")}</strong> {u("descUbahDokumen4")}
+          </>
+        }
+        confirmLabel={u("batalkanMuatForm")}
+        busy={doVoid.isPending}
+        onConfirm={() => doVoid.mutate()}
+        onCancel={() => setEditOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={voidPaymentId !== null}
+        title={u("hapusPembayaranIni")}
+        description={
+          <>
+            {u("descHapusPembayaran1")} <strong>{u("dihapus")}</strong>.
+          </>
+        }
+        confirmLabel={u("yaHapusPembayaran")}
+        danger
+        busy={doVoidPayment.isPending}
+        onConfirm={() => voidPaymentId && doVoidPayment.mutate(voidPaymentId)}
+        onCancel={() => setVoidPaymentId(null)}
+      />
+    </div>
+  );
+}
+
+export function SalesPage() {
+  return <CommercePage mode="sale" />;
+}
+
+export function PurchasesPage() {
+  return <CommercePage mode="purchase" />;
+}
+
+// Halaman Stok diekstrak ke ./stok pada Fase 12c; re-export agar impor lama tetap.
+export { StockPage } from "./stok";
