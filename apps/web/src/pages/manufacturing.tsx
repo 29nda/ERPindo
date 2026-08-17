@@ -177,7 +177,7 @@ export function ManufacturingPage() {
         <Factory className="size-6 text-brand-600" aria-hidden />
         <h1 className="text-2xl font-semibold">{h.title}</h1>
       </div>
-      <p className="text-sm text-slate-500 dark:text-slate-400">{h.desc}</p>
+      <p className="text-sm text-ink-muted">{h.desc}</p>
 
       {isAdmin ? (
         <div className="grid gap-6 lg:grid-cols-2">
@@ -250,7 +250,7 @@ export function ManufacturingPage() {
                     {comps.length > 1 ? (
                       <button
                         onClick={() => setComps((cs) => cs.filter((_, j) => j !== i))}
-                        className="text-slate-400 hover:text-red-500"
+                        className="text-ink-muted hover:text-red-500"
                         aria-label={u("hapusKomponen")}
                       >
                         <Trash2 className="size-4" aria-hidden />
@@ -354,7 +354,7 @@ export function ManufacturingPage() {
                 <div className="flex items-end">
                   <p
                     data-testid="hint-biaya-konversi"
-                    className="text-xs text-slate-500 dark:text-slate-400"
+                    className="text-xs text-ink-muted"
                   >
                     {u("descBiayaKonversi")}
                   </p>
@@ -389,15 +389,15 @@ export function ManufacturingPage() {
               {boms.map((b: ApiBom) => (
                 <div
                   key={b.id}
-                  className="rounded-lg border border-slate-200 p-3 dark:border-slate-800"
+                  className="rounded-lg border border-line p-3"
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{b.productName}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                    <span className="text-xs text-ink-muted">
                       {u("hasilSuffix")} {b.outputQty} {u("perResepSuffix")}
                     </span>
                   </div>
-                  <ul className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                  <ul className="mt-1 text-sm text-ink-soft">
                     {b.lines.map((l) => (
                       <li key={l.componentId}>
                         • {l.qty} {l.unit} {l.name}
@@ -465,7 +465,7 @@ export function ManufacturingPage() {
                     </Td>
                     <Td label={u("produk")}>
                       {o.productName}
-                      <span className="block text-xs text-slate-400">{o.warehouseName}</span>
+                      <span className="block text-xs text-ink-muted">{o.warehouseName}</span>
                     </Td>
                     <Td numeric label={u("qtyBarang")}>
                       {o.qty}
@@ -481,7 +481,7 @@ export function ManufacturingPage() {
                     <Td label="QC">
                       <Badge tone={QC_TONE[o.qcStatus]}>{u(QC_LABEL_KEY[o.qcStatus])}</Badge>
                       {o.qcWarehouseName ? (
-                        <span className="block text-xs text-slate-400">→ {o.qcWarehouseName}</span>
+                        <span className="block text-xs text-ink-muted">→ {o.qcWarehouseName}</span>
                       ) : null}
                     </Td>
                     {isAdmin ? (
@@ -521,7 +521,7 @@ export function ManufacturingPage() {
                             </Button>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-400">selesai</span>
+                          <span className="text-xs text-ink-muted">selesai</span>
                         )}
                       </Td>
                     ) : null}
@@ -623,17 +623,17 @@ function WorkCentersCard() {
             {items.map((w) => (
               <li
                 key={w.id}
-                className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-800"
+                className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm"
               >
                 <span>
-                  <span className="font-mono text-xs text-slate-400">{w.code}</span> {w.name}
+                  <span className="font-mono text-xs text-ink-muted">{w.code}</span> {w.name}
                 </span>
-                <span className="tabular-nums text-slate-500">{formatIDR(w.hourlyRate)}/jam</span>
+                <span className="tabular-nums text-ink-muted">{formatIDR(w.hourlyRate)}/jam</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaWorkCenter")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaWorkCenter")}</p>
         )}
       </CardBody>
     </Card>
@@ -759,7 +759,7 @@ function RoutingCard({ orders, isAdmin }: { orders: ApiProductionOrder[]; isAdmi
               </form>
             ) : null}
             {steps.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-ink-muted">
                 {u("belumAdaRouting")}
               </p>
             ) : (
@@ -829,11 +829,11 @@ function RoutingRow({
     // `align-top` supaya baris lain tidak ikut merenggang saat form penyelesaian
     // (input + tombol) muncul di sel aksi — pola yang sama dengan work order 18o.
     <Tr className="align-top">
-      <Td label="#" className="text-slate-400">
+      <Td label="#" className="text-ink-muted">
         {step.stepOrder}
       </Td>
       <Td label={u("mfTahap")}>{step.name}</Td>
-      <Td label="Work center" className="text-slate-500">
+      <Td label="Work center" className="text-ink-muted">
         {step.workCenterName}
       </Td>
       <Td numeric label={u("mfStandar")}>

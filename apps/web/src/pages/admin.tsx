@@ -102,7 +102,7 @@ export function AdminPage() {
             className={`rounded-lg px-3.5 py-2 text-sm font-medium ${
               tab === t
                 ? "bg-brand-600 text-white shadow-sm"
-                : "bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-slate-800"
+                : "bg-surface text-ink-soft ring-1 ring-inset ring-line hover:bg-surface-muted"
             }`}
           >
             {u(TAB_KEY[t])}
@@ -138,12 +138,12 @@ function KartuKuota() {
             {(d.pemakaian ?? []).map((p) => (
               <div key={p.nama}>
                 <div className="flex items-baseline justify-between text-sm">
-                  <span className="text-slate-600 dark:text-slate-300">{p.nama}</span>
-                  <span className="num tabular-nums text-slate-500 dark:text-slate-400">
+                  <span className="text-ink-soft">{p.nama}</span>
+                  <span className="num tabular-nums text-ink-muted">
                     {p.terpakai.toLocaleString("id-ID")} / {p.batas.toLocaleString("id-ID")} ({p.persen}%)
                   </span>
                 </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-surface-active">
                   <div
                     className={`h-full rounded-full ${p.waspada ? "bg-amber-500" : "bg-emerald-500"}`}
                     style={{ width: `${Math.min(p.persen, 100)}%` }}
@@ -184,34 +184,34 @@ function OverviewTab() {
         <CardBody>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <div className="text-sm text-slate-500 dark:text-slate-400">{u("adMrr")}</div>
+              <div className="text-sm text-ink-muted">{u("adMrr")}</div>
               <div className="num mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                 Rp {b.mrr.toLocaleString("id-ID")}
               </div>
-              <div className="text-xs text-slate-400">
+              <div className="text-xs text-ink-muted">
                 {b.pelangganMembayar} × Rp {b.hargaPerBulan.toLocaleString("id-ID")}
               </div>
             </div>
             <div>
-              <div className="text-sm text-slate-500 dark:text-slate-400">{u("adPelangganMembayar")}</div>
+              <div className="text-sm text-ink-muted">{u("adPelangganMembayar")}</div>
               <div className="mt-1 text-2xl font-bold tabular-nums">{b.pelangganMembayar}</div>
-              <div className="text-xs text-slate-400">
+              <div className="text-xs text-ink-muted">
                 {b.berbayar} {u("adAman")} · {b.tenggang} {u("adTenggang")} · {b.comped} {u("adComped")}
               </div>
             </div>
             <div>
-              <div className="text-sm text-slate-500 dark:text-slate-400">{u("adChurn30")}</div>
+              <div className="text-sm text-ink-muted">{u("adChurn30")}</div>
               <div
                 className={`mt-1 text-2xl font-bold tabular-nums ${b.churn30Hari > 0 ? "text-amber-600 dark:text-amber-400" : ""}`}
               >
                 {b.churn30Hari}
               </div>
-              <div className="text-xs text-slate-400">{b.churnPersen}% {u("adDariPelanggan")}</div>
+              <div className="text-xs text-ink-muted">{b.churnPersen}% {u("adDariPelanggan")}</div>
             </div>
             <div>
-              <div className="text-sm text-slate-500 dark:text-slate-400">{u("adUmurLangganan")}</div>
+              <div className="text-sm text-ink-muted">{u("adUmurLangganan")}</div>
               <div className="mt-1 text-2xl font-bold tabular-nums">{b.umurRataHari}</div>
-              <div className="text-xs text-slate-400">{u("adHariRataRata")}</div>
+              <div className="text-xs text-ink-muted">{u("adHariRataRata")}</div>
             </div>
           </div>
         </CardBody>
@@ -221,7 +221,7 @@ function OverviewTab() {
         {stats.map((s) => (
           <Card key={s.label}>
             <CardBody>
-              <div className="text-sm text-slate-500 dark:text-slate-400">{s.label}</div>
+              <div className="text-sm text-ink-muted">{s.label}</div>
               <div className="mt-1 text-2xl font-bold tabular-nums">{s.value}</div>
             </CardBody>
           </Card>
@@ -236,14 +236,14 @@ function OverviewTab() {
           <div className="flex h-32 items-end gap-2">
             {d.growth.map((g) => (
               <div key={g.month} className="flex flex-1 flex-col items-center gap-1">
-                <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                <span className="text-xs tabular-nums text-ink-muted">
                   {g.n}
                 </span>
                 <div
                   className="w-full rounded-t bg-brand-500"
                   style={{ height: `${Math.max((g.n / maxGrowth) * 100, 4)}%` }}
                 />
-                <span className="text-[10px] text-slate-400">{g.month.slice(2)}</span>
+                <span className="text-[10px] text-ink-muted">{g.month.slice(2)}</span>
               </div>
             ))}
           </div>
@@ -278,7 +278,7 @@ function OverviewTab() {
                     </Badge>
                   </Td>
                   <Td label={u("adKolomPaket")}>{PLAN_LABELS[t.plan as Plan] ?? t.plan}</Td>
-                  <Td label={u("adKolomDaftar")} className="text-slate-500 dark:text-slate-400">
+                  <Td label={u("adKolomDaftar")} className="text-ink-muted">
                     {formatDate(t.createdAt.slice(0, 10))}
                   </Td>
                 </Tr>
@@ -350,7 +350,7 @@ function TenantsTab() {
                 <Tr key={t.id}>
                   <Td label={u("adKolomPerusahaan")}>
                     <div className="font-medium">{t.name}</div>
-                    <div className="text-xs text-slate-400">{t.slug}</div>
+                    <div className="text-xs text-ink-muted">{t.slug}</div>
                   </Td>
                   <Td label={u("adKolomPemilik")}>{t.ownerEmail ?? "—"}</Td>
                   <Td label={u("adKolomStatus")}>
@@ -364,7 +364,7 @@ function TenantsTab() {
                   <Td numeric label={u("adKolomAnggota")}>
                     {t.members}
                   </Td>
-                  <Td label={u("adKolomDaftar")} className="text-slate-500 dark:text-slate-400">
+                  <Td label={u("adKolomDaftar")} className="text-ink-muted">
                     {formatDate(t.createdAt.slice(0, 10))}
                   </Td>
                 </Tr>
@@ -439,9 +439,9 @@ function InfraTab() {
                 {stats.map((s) => (
                   <div
                     key={s.label}
-                    className="rounded-xl bg-slate-50 p-3 ring-1 ring-inset ring-slate-200 dark:bg-slate-900 dark:ring-slate-800"
+                    className="rounded-xl bg-surface-sunken p-3 ring-1 ring-inset ring-line"
                   >
-                    <div className="text-xs text-slate-500 dark:text-slate-400">{s.label}</div>
+                    <div className="text-xs text-ink-muted">{s.label}</div>
                     <div className="mt-1 text-lg font-bold tabular-nums">{s.value}</div>
                   </div>
                 ))}
@@ -478,7 +478,7 @@ function InfraTab() {
                 <Button onClick={() => migrate.mutate()} disabled={migrate.isPending}>
                   {migrate.isPending ? u("adMemigrasi") : u("adMigrasiSekarang")}
                 </Button>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
+                <span className="text-xs text-ink-muted">
                   {u("adAmanBerulang")}
                 </span>
               </div>
@@ -490,13 +490,13 @@ function InfraTab() {
                     {d.versionDistribution.map((v) => (
                       <div
                         key={v.v}
-                        className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-sm dark:bg-slate-900"
+                        className="flex items-center justify-between rounded-lg bg-surface-sunken px-3 py-1.5 text-sm"
                       >
                         <span>
                           v{v.v}
                           {v.v === d.schemaVersion ? ` ${u("adTerkiniSuffix")}` : ""}
                         </span>
-                        <span className="tabular-nums text-slate-500 dark:text-slate-400">
+                        <span className="tabular-nums text-ink-muted">
                           {v.n} {u("adPerusahaanKata")}
                         </span>
                       </div>
@@ -509,10 +509,10 @@ function InfraTab() {
                     {Object.entries(d.refKinds).map(([kind, n]) => (
                       <div
                         key={kind}
-                        className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-1.5 text-sm dark:bg-slate-900"
+                        className="flex items-center justify-between rounded-lg bg-surface-sunken px-3 py-1.5 text-sm"
                       >
                         <span>{kind === "cloudflare" ? u("adD1Dinamis") : u("adPoolLokal")}</span>
-                        <span className="tabular-nums text-slate-500 dark:text-slate-400">
+                        <span className="tabular-nums text-ink-muted">
                           {n} {u("adPerusahaanKata")}
                         </span>
                       </div>
@@ -536,7 +536,7 @@ function InfraTab() {
                         <Tr key={t.id}>
                           <Td label={u("adKolomPerusahaan")}>
                             <div className="font-medium">{t.name}</div>
-                            <div className="text-xs text-slate-400">{t.slug}</div>
+                            <div className="text-xs text-ink-muted">{t.slug}</div>
                           </Td>
                           {/* Bukan `numeric`: isinya "v12 → v38", sebuah
                               perpindahan versi, bukan nilai yang perlu
@@ -598,21 +598,21 @@ function FeedbackTab() {
         {query.isLoading ? (
           <Spinner />
         ) : (query.data?.feedback ?? []).length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{u("adBelumAdaMasukan")}</p>
+          <p className="text-sm text-ink-muted">{u("adBelumAdaMasukan")}</p>
         ) : (
           (query.data?.feedback ?? []).map((f) => (
             <div
               key={f.id}
-              className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800"
+              className="rounded-lg border border-line p-3 text-sm"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone="brand">{u(KATEGORI_KEY[f.category])}</Badge>
                 <span className="font-medium">{f.userName}</span>
-                <span className="text-xs text-slate-400">{f.userEmail}</span>
+                <span className="text-xs text-ink-muted">{f.userEmail}</span>
                 {f.tenantName ? (
-                  <span className="text-xs text-slate-400">· {f.tenantName}</span>
+                  <span className="text-xs text-ink-muted">· {f.tenantName}</span>
                 ) : null}
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-ink-muted">
                   · {formatDate(f.createdAt.slice(0, 10))}
                 </span>
                 <span className="ml-auto">
@@ -630,11 +630,11 @@ function FeedbackTab() {
                   </Select>
                 </span>
               </div>
-              <p className="mt-2 whitespace-pre-wrap text-slate-700 dark:text-slate-200">
+              <p className="mt-2 whitespace-pre-wrap text-ink">
                 {f.message}
               </p>
               {f.pagePath ? (
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-ink-muted">
                   {u("adHalamanLabel")} {f.pagePath}
                 </p>
               ) : null}
@@ -774,7 +774,7 @@ function BlogTab() {
             </div>
             {preview ? (
               <div
-                className="prose-blog min-h-40 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+                className="prose-blog min-h-40 rounded-lg border border-line bg-surface-sunken px-4 py-3 text-sm"
                 // renderMarkdown escape-first — aman XSS by construction.
                 dangerouslySetInnerHTML={{
                   __html: renderMarkdown(form.bodyMd || u("adBelumAdaIsi")),
@@ -784,7 +784,7 @@ function BlogTab() {
               <textarea
                 id="blog-body"
                 rows={12}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 font-mono text-sm text-ink focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
                 value={form.bodyMd}
                 onChange={(e) => setForm({ ...form, bodyMd: e.target.value })}
               />
@@ -821,16 +821,16 @@ function BlogTab() {
           {query.isLoading ? (
             <Spinner />
           ) : (query.data?.posts ?? []).length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">{u("adBelumAdaArtikel")}</p>
+            <p className="text-sm text-ink-muted">{u("adBelumAdaArtikel")}</p>
           ) : (
             <div className="space-y-2">
               {(query.data?.posts ?? []).map((p) => (
                 <div
                   key={p.id}
-                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800"
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line p-3 text-sm"
                 >
                   <span className="font-medium">{p.title}</span>
-                  <span className="font-mono text-xs text-slate-400">/blog/{p.slug}</span>
+                  <span className="font-mono text-xs text-ink-muted">/blog/{p.slug}</span>
                   {p.publishedAt ? (
                     <Badge tone="green">{u("adTayang")}</Badge>
                   ) : (

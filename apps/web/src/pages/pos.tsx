@@ -144,20 +144,20 @@ function RecapCard({ tenantId }: { tenantId: string }) {
           {query.isLoading ? (
             <Spinner />
           ) : !recap || recap.salesCount === 0 ? (
-            <p className="py-2 text-center text-sm text-slate-500 dark:text-slate-400">
+            <p className="py-2 text-center text-sm text-ink-muted">
               {u("belumAdaPenjualanPos")}
             </p>
           ) : (
             <div className="grid gap-6 md:grid-cols-3">
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
                   {u("perJam")} ({recap.salesCount} {u("transaksiSatuan")} ·{" "}
                   {formatIDR(recap.salesTotal)})
                 </div>
                 <ul className="space-y-1 text-sm">
                   {recap.byHour.map((h) => (
                     <li key={h.hourUtc} className="flex justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">
+                      <span className="text-ink-muted">
                         {String(localHour(h.hourUtc)).padStart(2, "0")}:00 · {h.count} trx
                       </span>
                       <span className="tabular-nums">{formatIDR(h.total)}</span>
@@ -166,13 +166,13 @@ function RecapCard({ tenantId }: { tenantId: string }) {
                 </ul>
               </div>
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
                   {u("perShift")}
                 </div>
                 <ul className="space-y-1 text-sm">
                   {recap.byShift.map((s) => (
                     <li key={s.shiftNo} className="flex justify-between gap-2">
-                      <span className="min-w-0 truncate text-slate-500 dark:text-slate-400">
+                      <span className="min-w-0 truncate text-ink-muted">
                         {s.shiftNo} {s.status === "open" ? "(buka)" : ""} · {s.count} trx
                       </span>
                       <span className="tabular-nums">{formatIDR(s.total)}</span>
@@ -181,13 +181,13 @@ function RecapCard({ tenantId }: { tenantId: string }) {
                 </ul>
               </div>
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
                   {u("perMetode")}
                 </div>
                 <ul className="space-y-1 text-sm">
                   {recap.byMethod.map((m) => (
                     <li key={m.method} className="flex justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">
+                      <span className="text-ink-muted">
                         {u(POS_METHOD_KEY[m.method as PosPaymentMethod]) ?? m.method}
                       </span>
                       <span className="tabular-nums">{formatIDR(m.amount)}</span>
@@ -248,16 +248,16 @@ function RefundPanel({ tenantId, onDone }: { tenantId: string; onDone: () => voi
         {receiptsQuery.isLoading ? (
           <Spinner />
         ) : receipts.length === 0 ? (
-          <p className="text-sm text-slate-400">{u("belumAdaStrukPos")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaStrukPos")}</p>
         ) : (
           receipts.map((r) => (
             <div
               key={r.id}
-              className="rounded-lg border border-slate-200 p-2.5 text-sm dark:border-slate-800"
+              className="rounded-lg border border-line p-2.5 text-sm"
             >
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="font-mono text-xs font-semibold">{r.invoiceNo}</span>
-                <span className="text-slate-500 dark:text-slate-400">{r.invoiceDate}</span>
+                <span className="text-ink-muted">{r.invoiceDate}</span>
                 <span className="tabular-nums font-medium">{formatIDR(r.total)}</span>
                 {r.returnedAmount > 0 ? (
                   <Badge tone="amber">
@@ -276,12 +276,12 @@ function RefundPanel({ tenantId, onDone }: { tenantId: string; onDone: () => voi
                 </Button>
               </div>
               {activeId === r.id ? (
-                <div className="mt-2 space-y-1.5 border-t border-slate-100 pt-2 dark:border-slate-800/60">
+                <div className="mt-2 space-y-1.5 border-t border-line pt-2">
                   {r.lines.map((l) => (
                     <div key={l.productId} className="flex items-center gap-3">
                       <span className="min-w-0 flex-1 truncate">
                         {l.productName}{" "}
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-ink-muted">
                           ({u("sisaDari")} {l.qtyReturnable} / {l.qty})
                         </span>
                       </span>
@@ -751,7 +751,7 @@ export function PosPage() {
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-semibold">{h.title}</h1>
           <Badge tone="brand">{shift.shiftNo}</Badge>
-          <span className="text-sm text-slate-500 dark:text-slate-400">
+          <span className="text-sm text-ink-muted">
             {shift.salesCount} {u("transaksiSatuan")} · {formatIDR(shift.cashSalesTotal)}
           </span>
         </div>
@@ -780,7 +780,7 @@ export function PosPage() {
                 onChange={(e) => setClosingCash(e.target.value)}
               />
             </div>
-            <div className="text-sm text-slate-500 dark:text-slate-400">
+            <div className="text-sm text-ink-muted">
               {u("seharusnya")}{" "}
               <strong className="tabular-nums">{formatIDR(shift.expectedCash)}</strong>
             </div>
@@ -852,7 +852,7 @@ export function PosPage() {
                   <Alert tone="warning">{u(PESAN_PINDAI[pindaiGagal])}</Alert>
                 ) : (
                   <>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{u("pindaiArahkan")}</p>
+                    <p className="text-xs text-ink-muted">{u("pindaiArahkan")}</p>
                     <video
                       ref={videoRef}
                       className="w-full max-w-sm rounded-lg bg-slate-900"
@@ -868,10 +868,10 @@ export function PosPage() {
                 <button
                   key={p.id}
                   onClick={() => addToCart(p)}
-                  className="rounded-lg border border-slate-200 p-3 text-left hover:border-brand-500 hover:bg-brand-50 dark:border-slate-700 dark:hover:bg-brand-900/20"
+                  className="rounded-lg border border-line p-3 text-left hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20"
                 >
                   <div className="line-clamp-2 text-sm font-medium">{p.name}</div>
-                  <div className="mt-1 text-xs text-slate-400">{p.sku}</div>
+                  <div className="mt-1 text-xs text-ink-muted">{p.sku}</div>
                   {/* Harga di kartu WAJIB harga yang akan benar-benar masuk
                       keranjang (Fase 23b). Menampilkan harga dasar sementara
                       kliknya memakai harga grup adalah dua angka berbeda di satu
@@ -895,20 +895,20 @@ export function PosPage() {
           <CardHeader title={u("keranjang")} />
           <CardBody className="space-y-3">
             {cart.length === 0 ? (
-              <p className="text-sm text-slate-400">{u("klikProdukTambah")}</p>
+              <p className="text-sm text-ink-muted">{u("klikProdukTambah")}</p>
             ) : (
               cart.map((i) => (
                 <div key={i.productId} data-testid="keranjang-baris" className="flex items-center gap-2 text-sm">
                   <span className="flex-1">{i.name}</span>
                   <button
-                    className="size-7 rounded border border-slate-300 dark:border-slate-700"
+                    className="size-7 rounded border border-line-strong"
                     onClick={() => setQty(i.productId, i.qty - 1)}
                   >
                     −
                   </button>
                   <span className="w-6 text-center tabular-nums">{i.qty}</span>
                   <button
-                    className="size-7 rounded border border-slate-300 dark:border-slate-700"
+                    className="size-7 rounded border border-line-strong"
                     onClick={() => setQty(i.productId, i.qty + 1)}
                   >
                     +
@@ -919,7 +919,7 @@ export function PosPage() {
                     min={0}
                     max={100}
                     placeholder="0%"
-                    className="w-14 rounded border border-slate-300 bg-transparent px-1 py-0.5 text-right text-sm dark:border-slate-700"
+                    className="w-14 rounded border border-line-strong bg-transparent px-1 py-0.5 text-right text-sm"
                     value={i.discountPct || ""}
                     onChange={(e) => setDiscount(i.productId, Number(e.target.value) || 0)}
                   />
@@ -928,7 +928,7 @@ export function PosPage() {
               ))
             )}
 
-            <div className="border-t border-slate-200 pt-3 text-sm dark:border-slate-800">
+            <div className="border-t border-line pt-3 text-sm">
               <div className="flex justify-between">
                 <span>{u("subtotal")}</span>
                 <span className="tabular-nums">{formatIDR(subtotal)}</span>
@@ -937,7 +937,7 @@ export function PosPage() {
                 <span>PPN</span>
                 <select
                   aria-label="PPN"
-                  className="rounded border border-slate-300 bg-transparent px-1 py-0.5 text-sm dark:border-slate-700"
+                  className="rounded border border-line-strong bg-transparent px-1 py-0.5 text-sm"
                   value={taxRate}
                   onChange={(e) => setTaxRate(Number(e.target.value))}
                 >
@@ -962,7 +962,7 @@ export function PosPage() {
                     type="button"
                     onClick={() => addTender(m)}
                     disabled={cart.length === 0}
-                    className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium hover:border-brand-400 hover:bg-brand-50 disabled:opacity-40 dark:border-slate-700 dark:hover:bg-brand-950/30"
+                    className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium hover:border-brand-400 hover:bg-brand-50 disabled:opacity-40 dark:hover:bg-brand-950/30"
                   >
                     + {u(POS_METHOD_KEY[m])}
                   </button>
@@ -970,7 +970,7 @@ export function PosPage() {
               </div>
               {tenders.map((t, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="w-20 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="w-20 text-xs text-ink-muted">
                     {u(POS_METHOD_KEY[t.method])}
                   </span>
                   <Input
@@ -984,7 +984,7 @@ export function PosPage() {
                   <button
                     type="button"
                     aria-label={u("hapusPembayaran")}
-                    className="text-slate-400 hover:text-red-600"
+                    className="text-ink-muted hover:text-red-600"
                     onClick={() => removeTender(i)}
                   >
                     ✕
@@ -997,7 +997,7 @@ export function PosPage() {
                   type="button"
                   onClick={() => quickCash()}
                   disabled={cart.length === 0}
-                  className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 disabled:opacity-40 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  className="rounded-lg bg-surface-muted px-2.5 py-1.5 text-xs font-medium text-ink hover:bg-surface-active disabled:opacity-40"
                 >
                   {u("uangPas")}
                 </button>
@@ -1007,7 +1007,7 @@ export function PosPage() {
                     type="button"
                     onClick={() => quickCash(n)}
                     disabled={cart.length === 0}
-                    className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 disabled:opacity-40 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    className="rounded-lg bg-surface-muted px-2.5 py-1.5 text-xs font-medium text-ink hover:bg-surface-active disabled:opacity-40"
                   >
                     +{n / 1000}
                     {u("ribuSingkat")}
@@ -1040,7 +1040,7 @@ export function PosPage() {
             </Button>
 
             {/* Tahan transaksi */}
-            <div className="flex items-center gap-2 border-t border-slate-200 pt-3 dark:border-slate-800">
+            <div className="flex items-center gap-2 border-t border-line pt-3">
               <Input
                 aria-label={u("namaTahanAria")}
                 placeholder={u("namaTahanOpsional")}
@@ -1059,23 +1059,23 @@ export function PosPage() {
             </div>
             {(heldQuery.data?.held ?? []).length > 0 ? (
               <div className="space-y-1.5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <div className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
                   {u("transaksiDitahan")}
                 </div>
                 {(heldQuery.data?.held ?? []).map((h) => (
                   <div
                     key={h.id}
-                    className="flex items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800"
+                    className="flex items-center gap-2 rounded-lg border border-line p-2 text-sm"
                   >
                     <span className="min-w-0 flex-1 truncate">{h.label}</span>
-                    <span className="text-xs text-slate-400">{h.cart.length} item</span>
+                    <span className="text-xs text-ink-muted">{h.cart.length} item</span>
                     <Button variant="ghost" className="h-7" onClick={() => recallHeld(h)}>
                       {u("panggil")}
                     </Button>
                     <button
                       type="button"
                       aria-label={u("hapusTahan")}
-                      className="text-slate-400 hover:text-red-600"
+                      className="text-ink-muted hover:text-red-600"
                       onClick={() => deleteHeld.mutate(h.id)}
                     >
                       ✕

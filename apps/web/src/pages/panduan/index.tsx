@@ -78,24 +78,24 @@ export function iconFor(slug: string): LucideIcon {
 export function GuideSections({ mod }: { mod: GuideModule }) {
   return (
     <>
-      <p className="mt-3 max-w-3xl text-lg text-slate-600 dark:text-slate-300">{mod.intro}</p>
+      <p className="mt-3 max-w-3xl text-lg text-ink-soft">{mod.intro}</p>
       {mod.sections.map((s) => (
         <section key={s.heading} id={s.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-")} className="mt-10 scroll-mt-24">
           <h2 className="text-xl font-semibold">{s.heading}</h2>
           {s.body?.map((p) => (
-            <p key={p.slice(0, 40)} className="mt-3 max-w-3xl leading-relaxed text-slate-600 dark:text-slate-300">
+            <p key={p.slice(0, 40)} className="mt-3 max-w-3xl leading-relaxed text-ink-soft">
               {p}
             </p>
           ))}
           {s.steps ? (
-            <ol className="mt-3 max-w-3xl list-decimal space-y-2 pl-5 text-slate-700 marker:font-semibold marker:text-brand-600 dark:text-slate-300 dark:marker:text-brand-400">
+            <ol className="mt-3 max-w-3xl list-decimal space-y-2 pl-5 text-ink-soft marker:font-semibold marker:text-brand-600 dark:marker:text-brand-400">
               {s.steps.map((st) => (
                 <li key={st.slice(0, 40)}>{st}</li>
               ))}
             </ol>
           ) : null}
           {s.image ? (
-            <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 shadow-card dark:border-slate-700">
+            <div className="mt-5 overflow-hidden rounded-2xl border border-line shadow-card">
               <img src={s.image} alt={s.imageAlt ?? s.heading} width={1280} height={800} loading="lazy" decoding="async" className="w-full" />
             </div>
           ) : null}
@@ -118,15 +118,15 @@ function GuideHeader() {
   const { dark, toggle } = useDarkMode();
   const lang = useLang();
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-slate-50/80 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+    <header className="sticky top-0 z-30 border-b border-line bg-slate-50/80 backdrop-blur dark:bg-slate-950/80">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
         <Link to="/" className="flex items-center gap-2 text-lg font-bold tracking-tight text-brand-700 dark:text-brand-400">
-          <BrandWordmark className="h-8" /> <span className="font-normal text-slate-400">/ panduan</span>
+          <BrandWordmark className="h-8" /> <span className="font-normal text-ink-muted">/ panduan</span>
         </Link>
         <nav className="flex items-center gap-2">
           <button
             onClick={toggle}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:bg-slate-800"
+            className="rounded-lg p-2 text-ink-muted hover:bg-slate-200/60 dark:hover:bg-slate-800"
             aria-label={pick({ id: "Ganti tema terang/gelap", en: "Toggle light/dark theme" }, lang)}
           >
             {dark ? "☀" : "☾"}
@@ -155,22 +155,22 @@ export function PanduanIndexPage() {
     m.sections.some((s) => s.heading.toLowerCase().includes(query));
 
   return (
-    <div className="min-h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="min-h-full bg-surface-sunken text-ink">
       <GuideHeader />
       <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Panduan erpindo</h1>
-          <p className="mx-auto mt-3 max-w-2xl text-slate-600 dark:text-slate-300">
+          <p className="mx-auto mt-3 max-w-2xl text-ink-soft">
             Cara memakai setiap fitur — dengan tangkapan layar asli dari aplikasi. Semua modul, dari faktur pertama
             sampai ekspor XML Coretax.
           </p>
           <div className="relative mx-auto mt-6 max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" aria-hidden />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" aria-hidden />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={pick({ id: "Cari panduan… (mis. PPN, gaji, stok)", en: "Search guides… (e.g. VAT, payroll, stock)" }, lang)}
-              className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-slate-700 dark:bg-slate-900"
+              className="h-11 w-full rounded-xl border border-line-strong bg-surface pl-9 pr-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </div>
         </div>
@@ -180,7 +180,7 @@ export function PanduanIndexPage() {
           if (visible.length === 0) return null;
           return (
             <section key={cat.title} className="mt-10">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
                 {cat.title}
               </h2>
               <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -191,7 +191,7 @@ export function PanduanIndexPage() {
                       key={m.slug}
                       to="/panduan/$modul"
                       params={{ modul: m.slug }}
-                      className="group rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg dark:border-slate-800 dark:bg-slate-900 dark:hover:border-brand-700"
+                      className="group rounded-2xl border border-line bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg dark:hover:border-brand-700"
                     >
                       <span className="flex size-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700 dark:bg-brand-900/60 dark:text-brand-300">
                         <Icon className="size-5" aria-hidden />
@@ -199,7 +199,7 @@ export function PanduanIndexPage() {
                       <h3 className="mt-3 font-semibold group-hover:text-brand-700 dark:group-hover:text-brand-300">
                         {m.title}
                       </h3>
-                      <p className="mt-1 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">{m.intro}</p>
+                      <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{m.intro}</p>
                     </Link>
                   );
                 })}
@@ -209,7 +209,7 @@ export function PanduanIndexPage() {
         })}
 
         {GUIDE_MODULES.filter(matches).length === 0 ? (
-          <p className="mt-12 text-center text-sm text-slate-500">Tidak ada panduan yang cocok dengan pencarian.</p>
+          <p className="mt-12 text-center text-sm text-ink-muted">Tidak ada panduan yang cocok dengan pencarian.</p>
         ) : null}
       </main>
     </div>
@@ -225,10 +225,10 @@ export function PanduanModulePage() {
 
   if (!mod) {
     return (
-      <div className="min-h-full bg-slate-50 dark:bg-slate-950">
+      <div className="min-h-full bg-surface-sunken">
         <GuideHeader />
         <main className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
-          <p className="text-slate-600 dark:text-slate-300">Panduan tidak ditemukan.</p>
+          <p className="text-ink-soft">Panduan tidak ditemukan.</p>
           <Link to="/panduan" className="mt-4 inline-block text-brand-600 hover:underline dark:text-brand-400">
             ← Kembali ke daftar panduan
           </Link>
@@ -240,13 +240,13 @@ export function PanduanModulePage() {
   const anchor = (h: string) => h.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
   return (
-    <div className="min-h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="min-h-full bg-surface-sunken text-ink">
       <GuideHeader />
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:grid lg:grid-cols-[220px_1fr] lg:gap-10">
         {/* TOC kiri (desktop) */}
         <aside className="hidden lg:block">
           <div className="sticky top-20 space-y-1 text-sm">
-            <Link to="/panduan" className="mb-3 flex items-center gap-1.5 text-slate-500 hover:text-brand-600 dark:text-slate-400">
+            <Link to="/panduan" className="mb-3 flex items-center gap-1.5 text-ink-muted hover:text-brand-600">
               <ArrowLeft className="size-3.5" aria-hidden /> Semua panduan
             </Link>
             <div className="font-semibold">{mod.title}</div>
@@ -254,7 +254,7 @@ export function PanduanModulePage() {
               <a
                 key={s.heading}
                 href={`#${anchor(s.heading)}`}
-                className="block rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                className="block rounded-md px-2 py-1 text-ink-soft hover:bg-slate-100 hover:text-ink dark:hover:bg-slate-900"
               >
                 {s.heading}
               </a>
@@ -263,7 +263,7 @@ export function PanduanModulePage() {
         </aside>
 
         <article className="min-w-0">
-          <nav className="mb-4 text-sm text-slate-500 lg:hidden dark:text-slate-400">
+          <nav className="mb-4 text-sm text-ink-muted lg:hidden">
             <Link to="/panduan" className="hover:text-brand-600">
               Panduan
             </Link>{" "}
@@ -281,12 +281,12 @@ export function PanduanModulePage() {
           </div>
           <GuideSections mod={mod} />
 
-          <nav className="mt-14 flex items-center justify-between gap-3 border-t border-slate-200 pt-6 text-sm dark:border-slate-800">
+          <nav className="mt-14 flex items-center justify-between gap-3 border-t border-line pt-6 text-sm">
             {prev ? (
               <Link
                 to="/panduan/$modul"
                 params={{ modul: prev.slug }}
-                className="flex items-center gap-1.5 text-slate-600 hover:text-brand-600 dark:text-slate-300"
+                className="flex items-center gap-1.5 text-ink-soft hover:text-brand-600"
               >
                 <ArrowLeft className="size-4" aria-hidden /> {prev.title}
               </Link>
@@ -297,7 +297,7 @@ export function PanduanModulePage() {
               <Link
                 to="/panduan/$modul"
                 params={{ modul: next.slug }}
-                className="flex items-center gap-1.5 text-right text-slate-600 hover:text-brand-600 dark:text-slate-300"
+                className="flex items-center gap-1.5 text-right text-ink-soft hover:text-brand-600"
               >
                 {next.title} <ArrowRight className="size-4" aria-hidden />
               </Link>

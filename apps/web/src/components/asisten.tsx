@@ -99,21 +99,21 @@ export function Asisten({ tenantId, isAdmin }: { tenantId: string; isAdmin: bool
       </button>
 
       {open ? (
-        <div className="fixed bottom-20 right-5 z-40 flex h-[min(560px,75vh)] w-[min(380px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 print:hidden">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+        <div className="fixed bottom-20 right-5 z-40 flex h-[min(560px,75vh)] w-[min(380px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl print:hidden">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <div className="flex items-center gap-2 font-semibold">
               <Sparkles className="size-4 text-brand-600 dark:text-brand-400" aria-hidden /> {u("cpAsisten")}
             </div>
-            <div className="flex rounded-lg bg-slate-100 p-0.5 text-xs dark:bg-slate-800">
+            <div className="flex rounded-lg bg-surface-muted p-0.5 text-xs">
               <button
                 onClick={() => setMode("chat")}
-                className={`rounded-md px-2.5 py-1 ${mode === "chat" ? "bg-white font-medium shadow-sm dark:bg-slate-700" : "text-slate-500"}`}
+                className={`rounded-md px-2.5 py-1 ${mode === "chat" ? "bg-white font-medium shadow-sm dark:bg-slate-700" : "text-ink-muted"}`}
               >
                 {u("cpModeTanya")}
               </button>
               <button
                 onClick={() => setMode("laporan")}
-                className={`rounded-md px-2.5 py-1 ${mode === "laporan" ? "bg-white font-medium shadow-sm dark:bg-slate-700" : "text-slate-500"}`}
+                className={`rounded-md px-2.5 py-1 ${mode === "laporan" ? "bg-white font-medium shadow-sm dark:bg-slate-700" : "text-ink-muted"}`}
               >
                 <span className="inline-flex items-center gap-1">
                   <LineChart className="size-3" aria-hidden /> {u("cpModeLaporan")}
@@ -122,7 +122,7 @@ export function Asisten({ tenantId, isAdmin }: { tenantId: string; isAdmin: bool
               {isAdmin ? (
                 <button
                   onClick={() => setMode("jurnal")}
-                  className={`rounded-md px-2.5 py-1 ${mode === "jurnal" ? "bg-white font-medium shadow-sm dark:bg-slate-700" : "text-slate-500"}`}
+                  className={`rounded-md px-2.5 py-1 ${mode === "jurnal" ? "bg-white font-medium shadow-sm dark:bg-slate-700" : "text-ink-muted"}`}
                 >
                   <span className="inline-flex items-center gap-1">
                     <NotebookPen className="size-3" aria-hidden /> {u("cpModeJurnal")}
@@ -134,7 +134,7 @@ export function Asisten({ tenantId, isAdmin }: { tenantId: string; isAdmin: bool
 
           <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
             {messages.length === 0 ? (
-              <div className="text-slate-500 dark:text-slate-400">
+              <div className="text-ink-muted">
                 {mode === "chat" ? (
                   <>
                     <p>{u("cpAjakanTanya")}</p>
@@ -172,14 +172,14 @@ export function Asisten({ tenantId, isAdmin }: { tenantId: string; isAdmin: bool
                 className={
                   m.role === "user"
                     ? "ml-8 whitespace-pre-wrap rounded-2xl rounded-br-sm bg-brand-600 px-3 py-2 text-white"
-                    : "mr-8 whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-slate-100 px-3 py-2 text-slate-800 dark:bg-slate-800 dark:text-slate-100"
+                    : "mr-8 whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-surface-muted px-3 py-2 text-ink"
                 }
               >
                 {m.content}
               </div>
             ))}
             {busy ? (
-              <div className="mr-8 flex items-center gap-2 rounded-2xl bg-slate-100 px-3 py-2 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+              <div className="mr-8 flex items-center gap-2 rounded-2xl bg-surface-muted px-3 py-2 text-ink-muted">
                 <Spinner /> {u("cpBerpikir")}
               </div>
             ) : null}
@@ -189,17 +189,17 @@ export function Asisten({ tenantId, isAdmin }: { tenantId: string; isAdmin: bool
               </div>
             ) : null}
             {quota !== null && !busy ? (
-              <p className="text-right text-[11px] text-slate-400 dark:text-slate-500">{u("cpSisaKuota")} {quota}</p>
+              <p className="text-right text-[11px] text-ink-faint">{u("cpSisaKuota")} {quota}</p>
             ) : null}
           </div>
 
-          <form onSubmit={onSubmit} className="flex items-center gap-2 border-t border-slate-200 p-3 dark:border-slate-700">
+          <form onSubmit={onSubmit} className="flex items-center gap-2 border-t border-line p-3">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={mode === "chat" ? u("cpPlaceholderTanya") : mode === "laporan" ? u("cpPlaceholderLaporan") : u("cpPlaceholderJurnal")}
               aria-label={u("cpPesanUntukAsisten")}
-              className="h-10 flex-1 rounded-lg border border-slate-300 bg-white px-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-slate-600 dark:bg-slate-800"
+              className="h-10 flex-1 rounded-lg border border-line-strong bg-surface-raised px-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
             <Button type="submit" className="h-10 w-10 p-0" disabled={busy || !input.trim()} aria-label={u("cpKirim")}>
               <Send className="size-4" aria-hidden />

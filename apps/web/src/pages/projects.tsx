@@ -254,17 +254,17 @@ function ProjectRow({ project, isAdmin }: { project: ApiProject; isAdmin: boolea
   const detail = detailQuery.data;
 
   return (
-    <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+    <div className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="font-mono text-sm">{project.code}</span>
         <span className="font-medium">{project.name}</span>
         <Badge tone={STATUS_TONE[project.status]}>{u(STATUS_LABEL[project.status])}</Badge>
         {project.contactName ? (
-          <span className="text-xs text-slate-400">{project.contactName}</span>
+          <span className="text-xs text-ink-muted">{project.contactName}</span>
         ) : null}
         {project.taskCount > 0 ? (
-          <span className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-            <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+          <span className="flex items-center gap-1.5 text-xs text-ink-muted">
+            <span className="h-1.5 w-16 overflow-hidden rounded-full bg-surface-active">
               <span
                 className="block h-full rounded-full bg-brand-500"
                 style={{ width: `${progress}%` }}
@@ -281,7 +281,7 @@ function ProjectRow({ project, isAdmin }: { project: ApiProject; isAdmin: boolea
           >
             {formatIDR(project.profit)}
           </strong>
-          {margin !== null ? <span className="text-xs text-slate-400"> ({margin}%)</span> : null}
+          {margin !== null ? <span className="text-xs text-ink-muted"> ({margin}%)</span> : null}
         </span>
         <Button variant="ghost" className="h-8" onClick={() => setOpen((o) => !o)}>
           {open ? "Tutup" : "Detail"}
@@ -289,7 +289,7 @@ function ProjectRow({ project, isAdmin }: { project: ApiProject; isAdmin: boolea
       </div>
 
       {open ? (
-        <div className="mt-3 space-y-5 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/40">
+        <div className="mt-3 space-y-5 rounded-lg bg-surface-sunken p-3">
           {isAdmin ? (
             <div className="flex flex-wrap items-end gap-2">
               <div>
@@ -375,11 +375,11 @@ function ProjectRow({ project, isAdmin }: { project: ApiProject; isAdmin: boolea
 
                   {/* Transaksi ber-tag */}
                   <div>
-                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
                       {u("pendapatanBiayaTag")}
                     </div>
                     {detail.entries.length === 0 ? (
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                      <p className="text-sm text-ink-muted">
                         {u("belumAdaTransaksiProyek")}
                       </p>
                     ) : (
@@ -402,7 +402,7 @@ function ProjectRow({ project, isAdmin }: { project: ApiProject; isAdmin: boolea
                               <Td label={u("jurnal")} className="font-mono text-xs">
                                 {e.entryNo}
                               </Td>
-                              <Td label={u("tanggal")} className="text-slate-400">
+                              <Td label={u("tanggal")} className="text-ink-muted">
                                 {formatDate(e.entryDate)}
                               </Td>
                               <Td label={u("keterangan")}>{e.memo ?? "—"}</Td>
@@ -440,16 +440,16 @@ function ProjectTimeline({ detail }: { detail: ApiProjectDetail }) {
   const past = now > end;
   return (
     <div>
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted">
         <CalendarClock className="size-3.5" aria-hidden /> {u("garisWaktu")}
       </div>
-      <div className="relative h-2 rounded-full bg-slate-200 dark:bg-slate-700">
+      <div className="relative h-2 rounded-full bg-surface-active">
         <div
           className={`absolute left-0 top-0 h-full rounded-full ${past ? "bg-red-500" : "bg-brand-500"}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className="mt-1 flex justify-between text-xs text-slate-500 dark:text-slate-400">
+      <div className="mt-1 flex justify-between text-xs text-ink-muted">
         <span>{formatDate(detail.startDate)}</span>
         <span>{past ? u("lewatTenggat") : `${pct}% ${u("waktuBerjalan")}`}</span>
         <span>{formatDate(detail.endDate)}</span>
@@ -507,11 +507,11 @@ function GanttChart({
 
   return (
     <div>
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
         {u("ganttJadwal")}
       </div>
       {scheduled.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-ink-muted">
           {u("belumAdaTugasBerjadwal")} {isAdmin ? u("petunjukJadwalTugas") : ""}
         </p>
       ) : (
@@ -527,14 +527,14 @@ function GanttChart({
                   {t.name}
                   {t.predecessorId ? (
                     <span
-                      className="ml-1 text-slate-400"
+                      className="ml-1 text-ink-muted"
                       title={`Setelah: ${taskName(t.predecessorId) ?? ""}`}
                     >
                       ↦
                     </span>
                   ) : null}
                 </div>
-                <div className="relative h-5 rounded bg-slate-100 dark:bg-slate-800/60">
+                <div className="relative h-5 rounded bg-surface-muted">
                   {t.baselineStart && t.baselineEnd ? (
                     <div
                       className="absolute top-3.5 h-1 rounded bg-slate-300 dark:bg-slate-600"
@@ -560,23 +560,23 @@ function GanttChart({
         <div className="mt-3 space-y-1.5">
           {tasks.map((t) => (
             <div key={t.id} className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="w-40 truncate text-slate-500 dark:text-slate-400">{t.name}</span>
+              <span className="w-40 truncate text-ink-muted">{t.name}</span>
               {edit?.id === t.id ? (
                 <>
                   <input
                     type="date"
-                    className="rounded border border-slate-300 px-1.5 py-0.5 dark:border-slate-700 dark:bg-slate-900"
+                    className="rounded border border-line-strong px-1.5 py-0.5 dark:bg-slate-900"
                     value={edit.start}
                     onChange={(e) => setEdit({ ...edit, start: e.target.value })}
                   />
                   <input
                     type="date"
-                    className="rounded border border-slate-300 px-1.5 py-0.5 dark:border-slate-700 dark:bg-slate-900"
+                    className="rounded border border-line-strong px-1.5 py-0.5 dark:bg-slate-900"
                     value={edit.end}
                     onChange={(e) => setEdit({ ...edit, end: e.target.value })}
                   />
                   <select
-                    className="rounded border border-slate-300 px-1.5 py-0.5 dark:border-slate-700 dark:bg-slate-900"
+                    className="rounded border border-line-strong px-1.5 py-0.5 dark:bg-slate-900"
                     value={edit.predecessorId}
                     onChange={(e) => setEdit({ ...edit, predecessorId: e.target.value })}
                   >
@@ -703,7 +703,7 @@ function TaskBoard({
 
   return (
     <div>
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
         {u("papanTugas")}
       </div>
       {isAdmin ? (
@@ -781,9 +781,9 @@ function TaskBoard({
                       }
                     : undefined
                 }
-                className={`flex-1 rounded-lg border p-2 ${dragOver === col.key ? "border-brand-400 bg-brand-50 dark:bg-brand-950/30" : "border-slate-200 dark:border-slate-700"}`}
+                className={`flex-1 rounded-lg border p-2 ${dragOver === col.key ? "border-brand-400 bg-brand-50 dark:bg-brand-950/30" : "border-line"}`}
               >
-                <div className="mb-2 flex items-center justify-between text-xs font-medium text-slate-500 dark:text-slate-400">
+                <div className="mb-2 flex items-center justify-between text-xs font-medium text-ink-muted">
                   <span>{u(col.labelKey)}</span>
                   <Badge tone={TASK_TONE[col.key]}>{items.length}</Badge>
                 </div>
@@ -797,7 +797,7 @@ function TaskBoard({
                         onDragStart={
                           isAdmin ? (e) => e.dataTransfer.setData("text/task-id", t.id) : undefined
                         }
-                        className={`rounded-md border bg-white p-2 text-sm dark:bg-slate-900 ${overdue ? "border-red-300 dark:border-red-500/40" : "border-slate-200 dark:border-slate-700"} ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
+                        className={`rounded-md border bg-white p-2 text-sm dark:bg-slate-900 ${overdue ? "border-red-300 dark:border-red-500/40" : "border-line"} ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <span className="min-w-0">{t.name}</span>
@@ -805,7 +805,7 @@ function TaskBoard({
                             {u(TASK_PRIORITY_KEY[t.priority])}
                           </Badge>
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-400">
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ink-muted">
                           <span className="inline-flex items-center gap-1">
                             <UserRound className="size-3" aria-hidden />{" "}
                             {t.assigneeName ?? u("belumDitugaskan")}
@@ -820,7 +820,7 @@ function TaskBoard({
                           <div className="mt-1.5 flex gap-1.5">
                             <select
                               aria-label={u("ubahPenanggungJawab")}
-                              className="min-w-0 flex-1 rounded border border-slate-200 bg-transparent px-1 py-0.5 text-xs dark:border-slate-700"
+                              className="min-w-0 flex-1 rounded border border-line bg-transparent px-1 py-0.5 text-xs"
                               value={t.assigneeId ?? ""}
                               onChange={(e) =>
                                 update.mutate({ id: t.id, assigneeId: e.target.value || null })
@@ -835,7 +835,7 @@ function TaskBoard({
                             </select>
                             <select
                               aria-label={u("ubahPrioritas")}
-                              className="rounded border border-slate-200 bg-transparent px-1 py-0.5 text-xs dark:border-slate-700"
+                              className="rounded border border-line bg-transparent px-1 py-0.5 text-xs"
                               value={t.priority}
                               onChange={(e) =>
                                 update.mutate({
@@ -856,7 +856,7 @@ function TaskBoard({
                     );
                   })}
                   {items.length === 0 ? (
-                    <div className="rounded-md border border-dashed border-slate-200 p-2 text-center text-xs text-slate-400 dark:border-slate-700">
+                    <div className="rounded-md border border-dashed border-line p-2 text-center text-xs text-ink-muted">
                       {u("kolomKosong")}
                     </div>
                   ) : null}
@@ -866,7 +866,7 @@ function TaskBoard({
           })}
         </div>
       </div>
-      {isAdmin ? <p className="mt-1.5 text-xs text-slate-400">{u("petunjukSeretKartu")}</p> : null}
+      {isAdmin ? <p className="mt-1.5 text-xs text-ink-muted">{u("petunjukSeretKartu")}</p> : null}
     </div>
   );
 }
@@ -883,23 +883,23 @@ function WorkloadPanel({ detail }: { detail: ApiProjectDetail }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <div>
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
           {u("bebanKerja")}
         </div>
         <div className="space-y-1.5">
           {detail.workload.map((w) => (
             <div
               key={w.assigneeId ?? "none"}
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-slate-200 p-2 text-sm dark:border-slate-700"
+              className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-line p-2 text-sm"
             >
               <span className="inline-flex items-center gap-1 font-medium">
-                <UserRound className="size-3.5 text-slate-400" aria-hidden /> {w.assigneeName}
+                <UserRound className="size-3.5 text-ink-muted" aria-hidden /> {w.assigneeName}
               </span>
               <span className="ml-auto flex items-center gap-1.5 text-xs">
                 <Badge tone="brand">
                   {w.openTasks} {u("terbuka")}
                 </Badge>
-                <span className="text-slate-400">
+                <span className="text-ink-muted">
                   {u("belumKecil")} {w.todo} · {u("prosesKecil")} {w.inProgress} ·{" "}
                   {u("selesaiKecil")} {w.done}
                 </span>
@@ -909,11 +909,11 @@ function WorkloadPanel({ detail }: { detail: ApiProjectDetail }) {
         </div>
       </div>
       <div>
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
           {u("tugasTenggat")}
         </div>
         {dueTasks.length === 0 ? (
-          <p className="text-sm text-slate-400">{u("belumAdaTugasTenggat")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaTugasTenggat")}</p>
         ) : (
           <div className="space-y-1.5">
             {dueTasks.map((t) => {
@@ -921,12 +921,12 @@ function WorkloadPanel({ detail }: { detail: ApiProjectDetail }) {
               return (
                 <div
                   key={t.id}
-                  className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border border-slate-200 p-2 text-sm dark:border-slate-700"
+                  className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border border-line p-2 text-sm"
                 >
                   <span className="min-w-0 flex-1 truncate">{t.name}</span>
-                  <span className="text-xs text-slate-400">{t.assigneeName ?? "—"}</span>
+                  <span className="text-xs text-ink-muted">{t.assigneeName ?? "—"}</span>
                   <span
-                    className={`text-xs ${overdue ? "font-semibold text-red-500" : "text-slate-500 dark:text-slate-400"}`}
+                    className={`text-xs ${overdue ? "font-semibold text-red-500" : "text-ink-muted"}`}
                   >
                     {overdue ? "terlambat " : ""}
                     {t.dueDate}
@@ -1012,7 +1012,7 @@ function MilestonesSection({
 
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
         <Receipt className="size-3.5" aria-hidden /> {u("terminPenagihan")}
       </div>
       {isAdmin ? (
@@ -1042,13 +1042,13 @@ function MilestonesSection({
         </div>
       ) : null}
       {detail.milestones.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaTermin")}</p>
+        <p className="text-sm text-ink-muted">{u("belumAdaTermin")}</p>
       ) : (
         <div className="space-y-1.5">
           {detail.milestones.map((m) => (
             <div
               key={m.id}
-              className="rounded-md border border-slate-200 p-2 text-sm dark:border-slate-700"
+              className="rounded-md border border-line p-2 text-sm"
             >
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="font-medium">{m.name}</span>
@@ -1085,7 +1085,7 @@ function MilestonesSection({
                 </p>
               ) : null}
               {invoicing === m.id ? (
-                <div className="mt-2 flex flex-wrap items-end gap-2 rounded-md bg-white p-2 dark:bg-slate-900">
+                <div className="mt-2 flex flex-wrap items-end gap-2 rounded-md bg-surface p-2">
                   <div>
                     <Label htmlFor={`inv-date-${m.id}`}>{u("tanggalFaktur")}</Label>
                     <Input
@@ -1130,7 +1130,7 @@ function MilestonesSection({
               ) : null}
             </div>
           ))}
-          <p className="pt-1 text-xs text-slate-500 dark:text-slate-400">
+          <p className="pt-1 text-xs text-ink-muted">
             {u("totalTermin")}{" "}
             <span className="font-medium tabular-nums">{formatIDR(totalTermin)}</span> ·{" "}
             {u("sudahDitagih")}{" "}
@@ -1182,7 +1182,7 @@ function BudgetSection({
 
   return (
     <div>
-      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
         {u("rabAnggaranVsRealisasi")}
       </div>
       {isAdmin ? (
@@ -1214,7 +1214,7 @@ function BudgetSection({
         </div>
       ) : null}
       {detail.budgets.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaRab")}</p>
+        <p className="text-sm text-ink-muted">{u("belumAdaRab")}</p>
       ) : (
         <div className="space-y-1.5">
           {detail.budgets.map((b) => (
@@ -1231,7 +1231,7 @@ function BudgetSection({
               ) : null}
             </div>
           ))}
-          <div className="mt-2 rounded-md bg-white p-2 dark:bg-slate-900">
+          <div className="mt-2 rounded-md bg-surface p-2">
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium">{u("totalAnggaran")}</span>
               <span className="tabular-nums">{formatIDR(detail.plannedCost)}</span>
@@ -1242,14 +1242,14 @@ function BudgetSection({
             </div>
             {realisasiPct !== null ? (
               <div className="mt-2">
-                <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-surface-active">
                   <span
                     className={`block h-full rounded-full ${realisasiPct > 100 ? "bg-red-500" : "bg-emerald-500"}`}
                     style={{ width: `${Math.min(realisasiPct, 100)}%` }}
                   />
                 </div>
                 <p
-                  className={`mt-1 text-xs ${realisasiPct > 100 ? "text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400"}`}
+                  className={`mt-1 text-xs ${realisasiPct > 100 ? "text-red-600 dark:text-red-400" : "text-ink-muted"}`}
                 >
                   {u("realisasi")} {realisasiPct}% {u("dariAnggaran")}
                   {realisasiPct > 100 ? ` ${u("melebihiRab")}` : ""}
@@ -1318,7 +1318,7 @@ function TimesheetSection({
 
   return (
     <div>
-      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+      <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
         <Timer className="size-3.5" aria-hidden /> {u("timesheetJamKerja")}
       </div>
       {isAdmin ? (
@@ -1367,18 +1367,18 @@ function TimesheetSection({
         </div>
       ) : null}
       {detail.timeEntries.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaJam")}</p>
+        <p className="text-sm text-ink-muted">{u("belumAdaJam")}</p>
       ) : (
         <div className="space-y-1">
           {detail.timeEntries.map((t) => (
             <div key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
-              <span className="text-slate-400">{t.entryDate}</span>
+              <span className="text-ink-muted">{t.entryDate}</span>
               <span>{t.employeeName ?? "—"}</span>
               <span className="tabular-nums">
                 {t.hours} jam × {formatIDR(t.hourlyRate)}
               </span>
               <span className="font-medium tabular-nums">{formatIDR(t.amount)}</span>
-              {t.note ? <span className="text-xs text-slate-400">{t.note}</span> : null}
+              {t.note ? <span className="text-xs text-ink-muted">{t.note}</span> : null}
               {isAdmin ? (
                 <button
                   onClick={() => del.mutate(t.id)}
@@ -1389,7 +1389,7 @@ function TimesheetSection({
               ) : null}
             </div>
           ))}
-          <div className="mt-2 rounded-md bg-white p-2 text-sm dark:bg-slate-900">
+          <div className="mt-2 rounded-md bg-surface p-2 text-sm">
             <div className="flex items-center justify-between">
               <span>{u("estimasiBiayaTk")}</span>
               <span className="font-medium tabular-nums">{formatIDR(detail.laborCost)}</span>
@@ -1402,7 +1402,7 @@ function TimesheetSection({
                 {formatIDR(profitAfterLabor)}
               </strong>
             </div>
-            <p className="mt-1 text-xs text-slate-400">{u("descTimesheetEstimasi")}</p>
+            <p className="mt-1 text-xs text-ink-muted">{u("descTimesheetEstimasi")}</p>
           </div>
         </div>
       )}

@@ -64,7 +64,7 @@ function BudgetRow({
     // `align-top` supaya baris lain tidak ikut merenggang mengikuti tinggi
     // input anggaran (pola yang sama dengan work order 18o & routing 18p).
     <Tr className="align-top">
-      <Td label={u("kodeKolom")} className="font-mono text-xs text-slate-400">
+      <Td label={u("kodeKolom")} className="font-mono text-xs text-ink-muted">
         {row.code}
       </Td>
       <Td label={u("akun")}>{row.name}</Td>
@@ -121,7 +121,7 @@ function BudgetTable({
   const favorable = totVar >= 0;
   return (
     <div>
-      <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-ink-muted">
         {title}
       </h3>
       <Table>
@@ -140,7 +140,7 @@ function BudgetTable({
               {/* Baris kosong: `text-center` sengaja dilepas di layar kecil —
                   di mode kartu selnya membentang penuh, jadi rata tengah
                   membuatnya terbaca seperti judul, bukan keterangan. */}
-              <Td colSpan={5} className="text-slate-400 md:text-center">
+              <Td colSpan={5} className="text-ink-muted md:text-center">
                 {u("belumAdaAkunSuffix")} {title.toLowerCase()}.
               </Td>
             </Tr>
@@ -149,7 +149,7 @@ function BudgetTable({
               <BudgetRow key={r.accountId} row={r} period={period} editable={editable} />
             ))
           )}
-          <Tr className="border-t border-slate-200 font-semibold dark:border-slate-800">
+          <Tr className="border-t border-line font-semibold">
             <Td colSpan={2}>
               {u("totalPrefix")} {title}
             </Td>
@@ -241,7 +241,7 @@ export function BudgetPage() {
               />
             </div>
             {!editable ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-ink-muted">
                 {u("hanyaOwnerUbahAnggaran")}
               </p>
             ) : null}
@@ -254,10 +254,10 @@ export function BudgetPage() {
               <BudgetTable title={u("pendapatan")} rows={income} period={period} editable={editable} />
               <BudgetTable title={u("beban")} rows={expense} period={period} editable={editable} />
 
-              <div className="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/40">
+              <div className="rounded-lg bg-surface-sunken p-3">
                 <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
                   <div className="font-medium">{u("labaRugiKecil")}</div>
-                  <div className="text-slate-500 dark:text-slate-400 sm:text-right">
+                  <div className="text-ink-muted sm:text-right">
                     Anggaran: <span className="tabular-nums">{formatIDR(budgetProfit)}</span>
                   </div>
                   <div className="font-semibold tabular-nums sm:text-right">

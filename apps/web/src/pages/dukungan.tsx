@@ -86,7 +86,7 @@ export function DukunganPage() {
               <textarea
                 id="fb-message"
                 rows={4}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
                 placeholder={u("dkPlaceholderPesan")}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -110,7 +110,7 @@ export function DukunganPage() {
           {mine.isLoading ? (
             <Spinner />
           ) : rows.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-ink-muted">
               {u("dkBelumAdaMasukan")}
             </p>
           ) : (
@@ -118,7 +118,7 @@ export function DukunganPage() {
               {rows.map((f) => (
                 <div
                   key={f.id}
-                  className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800"
+                  className="rounded-lg border border-line p-3 text-sm"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone="brand">{u(KATEGORI_KEY[f.category])}</Badge>
@@ -133,11 +133,11 @@ export function DukunganPage() {
                     >
                       {u(STATUS_MASUKAN_KEY[f.status])}
                     </Badge>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-ink-muted">
                       {formatDate(f.createdAt.slice(0, 10))}
                     </span>
                   </div>
-                  <p className="mt-2 whitespace-pre-wrap text-slate-700 dark:text-slate-200">
+                  <p className="mt-2 whitespace-pre-wrap text-ink">
                     {f.message}
                   </p>
                   {f.adminNote ? (

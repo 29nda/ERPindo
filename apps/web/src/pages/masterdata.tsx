@@ -274,7 +274,7 @@ function SearchBox({
   return (
     <div className="relative sm:max-w-xs">
       <Search
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
         aria-hidden
       />
       <Input
@@ -295,7 +295,7 @@ function LoadMore({ shown, total, onMore }: { shown: number; total: number; onMo
   if (total <= shown) return null;
   return (
     <div className="flex items-center justify-center gap-3 pt-2">
-      <span className="text-xs text-slate-500 dark:text-slate-400">
+      <span className="text-xs text-ink-muted">
         {lang === "en" ? `Showing ${shown} of ${total}` : `Menampilkan ${shown} dari ${total}`}
       </span>
       <Button variant="secondary" className="h-8" onClick={onMore}>
@@ -375,12 +375,12 @@ function SerialManager({ product }: { product: ProductRow }) {
   const serials = query.data?.serials ?? [];
   const available = serials.filter((s) => s.status === "in_stock").length;
   return (
-    <div className="mt-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+    <div className="mt-4 rounded-xl border border-line p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">
           {u("nomorSeri")} — {product.name}
         </h3>
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-ink-muted">
           {available} {u("tersedia")} / {serials.length} {u("total").toLowerCase()}
         </span>
       </div>
@@ -407,7 +407,7 @@ function SerialManager({ product }: { product: ProductRow }) {
           <Spinner />
         </div>
       ) : serials.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-400">{u("belumAdaNomorSeri")}</p>
+        <p className="mt-3 text-sm text-ink-muted">{u("belumAdaNomorSeri")}</p>
       ) : (
         <ul className="mt-3 space-y-1.5">
           {serials.map((s) => (
@@ -657,20 +657,20 @@ export function ProductsPage() {
                   idPrefix="produk"
                 />
               </div>
-              <label className="flex items-center gap-2 text-sm text-slate-600 sm:col-span-3 dark:text-slate-300">
+              <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-3">
                 <input
                   type="checkbox"
                   name="trackExpiry"
-                  className="h-4 w-4 rounded border-slate-300"
+                  className="h-4 w-4 rounded border-line-strong"
                   defaultChecked={editing ? editing.track_expiry === 1 : false}
                 />
                 {u("lacakLotKedaluwarsa")}
               </label>
-              <label className="flex items-center gap-2 text-sm text-slate-600 sm:col-span-3 dark:text-slate-300">
+              <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-3">
                 <input
                   type="checkbox"
                   name="isService"
-                  className="h-4 w-4 rounded border-slate-300"
+                  className="h-4 w-4 rounded border-line-strong"
                   defaultChecked={editing ? editing.is_service === 1 : false}
                 />
                 {u("jasaTanpaStok")}
@@ -708,11 +708,11 @@ export function ProductsPage() {
                 />
                 <FieldError messages={issues.uomFactor} />
               </div>
-              <label className="flex items-center gap-2 text-sm text-slate-600 sm:col-span-3 dark:text-slate-300">
+              <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-3">
                 <input
                   type="checkbox"
                   name="trackSerial"
-                  className="h-4 w-4 rounded border-slate-300"
+                  className="h-4 w-4 rounded border-line-strong"
                   defaultChecked={editing ? editing.track_serial === 1 : false}
                 />
                 {u("lacakNomorSeri")}
@@ -779,7 +779,7 @@ export function ProductsPage() {
                       <Td label={u("nama")}>
                         {p.name}
                         {p.uom_secondary && p.uom_factor > 1 ? (
-                          <span className="ml-1 text-xs text-slate-400">
+                          <span className="ml-1 text-xs text-ink-muted">
                             · 1 {p.uom_secondary} = {p.uom_factor} {p.unit}
                           </span>
                         ) : null}

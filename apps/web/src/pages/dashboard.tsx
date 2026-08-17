@@ -112,7 +112,7 @@ function SalesTrendChart({ tenantId }: { tenantId: string }) {
                 className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                   range === r
                     ? "bg-brand-600 text-white dark:bg-brand-400 dark:text-slate-900"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                    : "bg-surface-muted text-ink-soft hover:bg-surface-active"
                 }`}
               >
                 {r} {u("hariSuffix")}
@@ -127,7 +127,7 @@ function SalesTrendChart({ tenantId }: { tenantId: string }) {
         ) : (
           <div className="relative">
             {days.every((d) => d.total === 0) ? (
-              <p className="absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-sm text-slate-400 dark:text-slate-500">
+              <p className="absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-sm text-ink-faint">
                 {u("belumAdaPenjualanRentang")} {range} {u("hariTerakhirSuffix")}{" "}
                 {u("descMulaiDariFaktur")}
               </p>
@@ -207,16 +207,16 @@ function SalesTrendChart({ tenantId }: { tenantId: string }) {
             </svg>
             {hovered ? (
               <div
-                className="pointer-events-none absolute -top-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs shadow-md dark:border-slate-700 dark:bg-slate-900"
+                className="pointer-events-none absolute -top-1 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs shadow-md"
                 style={{
                   left: `${Math.min(92, Math.max(2, ((PAD_L + (hover ?? 0) * slot + slot / 2) / W) * 100))}%`,
                   transform: "translateX(-50%)",
                 }}
               >
-                <span className="block font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                <span className="block font-semibold tabular-nums text-ink">
                   {formatIDR(hovered.total)}
                 </span>
-                <span className="block text-slate-500 dark:text-slate-400">
+                <span className="block text-ink-muted">
                   {formatDate(hovered.date)} · {hovered.count} faktur
                 </span>
               </div>
@@ -246,7 +246,7 @@ function DueInvoicesWidget({ tenantId }: { tenantId: string }) {
         {query.isLoading ? (
           <Skeleton className="h-24 w-full" />
         ) : overdue.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+          <p className="py-4 text-center text-sm text-ink-muted">
             {u("tidakAdaJatuhTempo")}
           </p>
         ) : (
@@ -254,10 +254,10 @@ function DueInvoicesWidget({ tenantId }: { tenantId: string }) {
             {overdue.map((n, i) => (
               <li key={i} className="flex items-start justify-between gap-2">
                 <Link to="/app/penjualan" className="group block min-w-0 flex-1 text-sm">
-                  <span className="block font-medium text-slate-800 group-hover:text-brand-700 dark:text-slate-100 dark:group-hover:text-brand-300">
+                  <span className="block font-medium text-ink group-hover:text-brand-700 dark:group-hover:text-brand-300">
                     {n.title.replace("Faktur ", "").replace(" lewat jatuh tempo", "")}
                   </span>
-                  <span className="block text-xs text-slate-500 dark:text-slate-400">
+                  <span className="block text-xs text-ink-muted">
                     {n.detail}
                   </span>
                 </Link>
@@ -301,21 +301,21 @@ function AnomaliesWidget({ tenantId }: { tenantId: string }) {
         {query.isLoading ? (
           <Skeleton className="h-24 w-full" />
         ) : items.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+          <p className="py-4 text-center text-sm text-ink-muted">
             {u("tidakAdaBebanMencurigakan")}
           </p>
         ) : (
           <ul className="space-y-2.5">
             {items.slice(0, 5).map((a) => (
               <li key={a.code} className="text-sm">
-                <span className="block font-medium text-slate-800 dark:text-slate-100">
+                <span className="block font-medium text-ink">
                   {a.name}{" "}
                   <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
                     {a.ratio.toFixed(1)}
                     {u("kaliBiasanya")}
                   </span>
                 </span>
-                <span className="block text-xs text-slate-500 dark:text-slate-400">
+                <span className="block text-xs text-ink-muted">
                   {u("bulanIni")} {formatIDR(a.current)} {u("vsBiasanya")} {formatIDR(a.baseline)}{" "}
                   (+{formatIDR(a.delta)})
                 </span>
@@ -343,7 +343,7 @@ function ActivityFeed({ tenantId }: { tenantId: string }) {
         {query.isLoading ? (
           <Skeleton className="h-24 w-full" />
         ) : logs.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+          <p className="py-4 text-center text-sm text-ink-muted">
             {u("belumAdaAktivitas")}
           </p>
         ) : (
@@ -355,10 +355,10 @@ function ActivityFeed({ tenantId }: { tenantId: string }) {
                   aria-hidden
                 />
                 <span className="min-w-0">
-                  <span className="font-medium text-slate-800 dark:text-slate-100">
+                  <span className="font-medium text-ink">
                     {AUDIT_ACTION_LABELS[l.action] ?? l.action}
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="text-xs text-ink-muted">
                     {" "}
                     — {l.userName ?? "sistem"} ·{" "}
                     {new Date(l.createdAt).toLocaleString("id-ID", {
@@ -444,7 +444,7 @@ function OnboardingChecklist({ tenantId }: { tenantId: string }) {
         }
       />
       <CardBody>
-        <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+        <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
           <div
             className="h-full rounded-full bg-brand-600 transition-all dark:bg-brand-400"
             style={{ width: `${(doneCount / steps.length) * 100}%` }}
@@ -458,7 +458,7 @@ function OnboardingChecklist({ tenantId }: { tenantId: string }) {
                   className={`flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${
                     s.done
                       ? "border-brand-600 bg-brand-600 text-white dark:border-brand-400 dark:bg-brand-400 dark:text-slate-900"
-                      : "border-slate-300 text-transparent dark:border-slate-600"
+                      : "border-line-strong text-transparent"
                   }`}
                   aria-hidden
                 >
@@ -467,8 +467,8 @@ function OnboardingChecklist({ tenantId }: { tenantId: string }) {
                 <span
                   className={
                     s.done
-                      ? "text-slate-400 line-through dark:text-slate-500"
-                      : "text-slate-700 group-hover:text-brand-700 dark:text-slate-200 dark:group-hover:text-brand-300"
+                      ? "text-ink-faint line-through"
+                      : "text-ink group-hover:text-brand-700 dark:group-hover:text-brand-300"
                   }
                 >
                   {s.label}
@@ -538,7 +538,7 @@ function MonthlyTrendChart({ tenantId }: { tenantId: string }) {
         ) : (
           <div className="relative">
             {months.every((m) => m.total === 0) ? (
-              <p className="absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-sm text-slate-400 dark:text-slate-500">
+              <p className="absolute inset-0 z-10 flex items-center justify-center px-6 text-center text-sm text-ink-faint">
                 {u("descBelumAdaOmzet")}
               </p>
             ) : null}
@@ -613,16 +613,16 @@ function MonthlyTrendChart({ tenantId }: { tenantId: string }) {
             </svg>
             {hovered ? (
               <div
-                className="pointer-events-none absolute -top-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs shadow-md dark:border-slate-700 dark:bg-slate-900"
+                className="pointer-events-none absolute -top-1 rounded-lg border border-line bg-surface px-3 py-1.5 text-xs shadow-md"
                 style={{
                   left: `${Math.min(92, Math.max(2, ((PAD_L + (hover ?? 0) * slot + slot / 2) / W) * 100))}%`,
                   transform: "translateX(-50%)",
                 }}
               >
-                <span className="block font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                <span className="block font-semibold tabular-nums text-ink">
                   {formatIDR(hovered.total)}
                 </span>
-                <span className="block text-slate-500 dark:text-slate-400">
+                <span className="block text-ink-muted">
                   {monthLabel(hovered.month)} · {hovered.count} faktur
                 </span>
               </div>
@@ -683,7 +683,7 @@ function ScheduledReportsWidget({ tenantId, canRun }: { tenantId: string; canRun
         {query.isLoading ? (
           <Skeleton className="h-24 w-full" />
         ) : snapshots.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
+          <p className="py-4 text-center text-sm text-ink-muted">
             {u("descBelumAdaRekap")}
             {canRun ? u("descSusunManual") : "."}
           </p>
@@ -692,15 +692,15 @@ function ScheduledReportsWidget({ tenantId, canRun }: { tenantId: string; canRun
             {snapshots.slice(0, 5).map((s) => (
               <li key={s.id} className="flex items-baseline justify-between gap-3 text-sm">
                 <span className="min-w-0">
-                  <span className="font-medium text-slate-800 dark:text-slate-100">
+                  <span className="font-medium text-ink">
                     {monthName(s.period)}
                   </span>
-                  <span className="block text-xs text-slate-500 dark:text-slate-400">
+                  <span className="block text-xs text-ink-muted">
                     {s.summary.invoiceCount} faktur
                     {s.summary.topProduct ? ` · terlaris: ${s.summary.topProduct}` : ""}
                   </span>
                 </span>
-                <span className="shrink-0 font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                <span className="shrink-0 font-semibold tabular-nums text-ink">
                   {formatIDR(s.summary.totalRevenue)}
                 </span>
               </li>
@@ -741,20 +741,20 @@ function AiWeeklySummaryWidget({ tenantId }: { tenantId: string }) {
           <Skeleton className="h-16 w-full" />
         ) : query.isSuccess ? (
           <>
-            <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+            <p className="text-sm leading-relaxed text-ink">
               {query.data.summary}
             </p>
-            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+            <p className="mt-2 text-xs text-ink-faint">
               {u("dibuatPada")} {formatDate(query.data.generatedAt.slice(0, 10))}{" "}
               {u("descDiperbaruiMingguan")}
             </p>
           </>
         ) : unavailable ? (
-          <p className="py-2 text-sm text-slate-400 dark:text-slate-500">
+          <p className="py-2 text-sm text-ink-faint">
             {u("descAiTakTersedia")}
           </p>
         ) : (
-          <p className="py-2 text-sm text-slate-400 dark:text-slate-500">
+          <p className="py-2 text-sm text-ink-faint">
             {u("descRingkasanGagal")} {(query.error as Error)?.message ?? ""}
           </p>
         )}
@@ -957,7 +957,7 @@ export function DashboardPage() {
           <h1 className="text-2xl font-semibold">
             {greeting(lang)}, {me.user.name.split(" ")[0]}
           </h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-sm text-ink-muted">
             {en ? "Overview of " : "Ringkasan "}
             <span className="font-medium">{tenant.tenantName}</span>
             {en ? " today." : " hari ini."}
@@ -993,14 +993,14 @@ export function DashboardPage() {
                     className={`flex items-center gap-2.5 rounded-xl border p-3 text-left text-sm transition-colors ${
                       on
                         ? "border-brand-300 bg-brand-50/50 dark:border-brand-800 dark:bg-brand-950/30"
-                        : "border-slate-200 dark:border-slate-800"
+                        : "border-line"
                     }`}
                   >
                     <span
                       className={`flex size-5 shrink-0 items-center justify-center rounded-md border ${
                         on
                           ? "border-brand-600 bg-brand-600 text-white dark:border-brand-400 dark:bg-brand-400 dark:text-slate-900"
-                          : "border-slate-300 text-transparent dark:border-slate-600"
+                          : "border-line-strong text-transparent"
                       }`}
                       aria-hidden
                     >
@@ -1009,8 +1009,8 @@ export function DashboardPage() {
                     <span
                       className={
                         on
-                          ? "text-slate-800 dark:text-slate-100"
-                          : "text-slate-500 dark:text-slate-400"
+                          ? "text-ink"
+                          : "text-ink-muted"
                       }
                     >
                       {u(w.label)}
@@ -1050,7 +1050,7 @@ export function DashboardPage() {
               <Card hover className="h-full">
                 <CardBody>
                   <div className="flex items-start justify-between gap-2">
-                    <div className="text-sm text-slate-500 group-hover:text-brand-700 dark:text-slate-400 dark:group-hover:text-brand-300">
+                    <div className="text-sm text-ink-muted group-hover:text-brand-700 dark:group-hover:text-brand-300">
                       {stat.label}
                     </div>
                     <span
@@ -1071,7 +1071,7 @@ export function DashboardPage() {
                   )}
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
                     {stat.hint ? (
-                      <span className="text-slate-400 dark:text-slate-500">{stat.hint}</span>
+                      <span className="text-ink-faint">{stat.hint}</span>
                     ) : null}
                     {stat.delta !== undefined && stat.delta !== null ? (
                       <span
@@ -1131,14 +1131,14 @@ export function DashboardPage() {
                       <Link
                         key={q.to}
                         to={q.to}
-                        className="group flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition-colors hover:border-brand-300 hover:bg-brand-50/50 dark:border-slate-800 dark:hover:border-brand-800 dark:hover:bg-brand-950/30"
+                        className="group flex items-center gap-3 rounded-xl border border-line p-3 transition-colors hover:border-brand-300 hover:bg-brand-50/50 dark:hover:border-brand-800 dark:hover:bg-brand-950/30"
                       >
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors group-hover:bg-brand-100 group-hover:text-brand-700 dark:bg-slate-800 dark:text-slate-300 dark:group-hover:bg-brand-900/60 dark:group-hover:text-brand-300">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-ink-soft transition-colors group-hover:bg-brand-100 group-hover:text-brand-700 dark:group-hover:bg-brand-900/60 dark:group-hover:text-brand-300">
                           <q.icon className="size-4" aria-hidden />
                         </span>
                         <span>
                           <span className="block text-sm font-medium">{q.label}</span>
-                          <span className="block text-xs text-slate-500 dark:text-slate-400">
+                          <span className="block text-xs text-ink-muted">
                             {q.text}
                           </span>
                         </span>
@@ -1161,14 +1161,14 @@ export function DashboardPage() {
                 <Link
                   key={q.to}
                   to={q.to}
-                  className="group flex items-center gap-3 rounded-xl border border-slate-200 p-3 transition-colors hover:border-brand-300 hover:bg-brand-50/50 dark:border-slate-800 dark:hover:border-brand-800 dark:hover:bg-brand-950/30"
+                  className="group flex items-center gap-3 rounded-xl border border-line p-3 transition-colors hover:border-brand-300 hover:bg-brand-50/50 dark:hover:border-brand-800 dark:hover:bg-brand-950/30"
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition-colors group-hover:bg-brand-100 group-hover:text-brand-700 dark:bg-slate-800 dark:text-slate-300 dark:group-hover:bg-brand-900/60 dark:group-hover:text-brand-300">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-ink-soft transition-colors group-hover:bg-brand-100 group-hover:text-brand-700 dark:group-hover:bg-brand-900/60 dark:group-hover:text-brand-300">
                     <q.icon className="size-4" aria-hidden />
                   </span>
                   <span>
                     <span className="block text-sm font-medium">{q.label}</span>
-                    <span className="block text-xs text-slate-500 dark:text-slate-400">
+                    <span className="block text-xs text-ink-muted">
                       {q.text}
                     </span>
                   </span>

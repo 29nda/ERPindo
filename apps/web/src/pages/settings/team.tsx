@@ -67,7 +67,7 @@ export function ApprovalThresholdCard({ tenantId }: { tenantId: string }) {
         <Button variant="secondary" onClick={() => save.mutate()} disabled={save.isPending || amount === ""}>
           {save.isPending ? <Spinner /> : null} {u("simpan")}
         </Button>
-        <span className="text-sm text-slate-500 dark:text-slate-400">
+        <span className="text-sm text-ink-muted">
           {u("saatIni")} {current > 0 ? `Rp ${current.toLocaleString("id-ID")}` : u("nonaktifKecil")}
         </span>
       </CardBody>
@@ -131,11 +131,11 @@ export function RolesCard({ tenantId }: { tenantId: string }) {
         {roles.length > 0 ? (
           <div className="space-y-2">
             {roles.map((r) => (
-              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line p-3 text-sm">
                 <div>
                   <span className="font-medium">{r.name}</span>
                   <Badge tone="neutral" >{r.baseRole === "admin" ? u("dasarAdmin") : u("dasarViewer")}</Badge>
-                  <span className="ml-1 text-xs text-slate-400">{r.permissions.length} {u("modulSatuan")} · {r.memberCount} {u("anggotaSatuan")}</span>
+                  <span className="ml-1 text-xs text-ink-muted">{r.permissions.length} {u("modulSatuan")} · {r.memberCount} {u("anggotaSatuan")}</span>
                   {r.scopeCostCenterIds ? (
                     <Badge tone="amber">{u("terbatasCostCenter")} {r.scopeCostCenterIds.length} {u("costCenterSatuan")}</Badge>
                   ) : null}
@@ -148,10 +148,10 @@ export function RolesCard({ tenantId }: { tenantId: string }) {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaPeranKustom")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaPeranKustom")}</p>
         )}
 
-        <div className="space-y-3 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+        <div className="space-y-3 rounded-xl border border-line p-4">
           <h4 className="text-sm font-semibold">{editing ? `${u("ubahPeran")} ${editing.name}` : u("buatPeranKustom")}</h4>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -170,8 +170,8 @@ export function RolesCard({ tenantId }: { tenantId: string }) {
             <p className="mb-2 text-sm font-medium">{u("modulBolehDiakses")}</p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {PERMISSIONS.map((p) => (
-                <label key={p.key} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                  <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={perms.includes(p.key)} onChange={() => togglePerm(p.key)} />
+                <label key={p.key} className="flex items-center gap-2 text-sm text-ink-soft">
+                  <input type="checkbox" className="h-4 w-4 rounded border-line-strong" checked={perms.includes(p.key)} onChange={() => togglePerm(p.key)} />
                   {u(IZIN_KEY[p.key])}
                 </label>
               ))}
@@ -180,13 +180,13 @@ export function RolesCard({ tenantId }: { tenantId: string }) {
           {costCenters.length > 0 ? (
             <div>
               <p className="mb-1 text-sm font-medium">{u("batasiCostCenter")}</p>
-              <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mb-2 text-xs text-ink-muted">
                 {u("descBatasiCostCenter")} {u("kosongkanUntukSemua")}
               </p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {costCenters.map((cc) => (
-                  <label key={cc.id} className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                    <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={scopeCcIds.includes(cc.id)} onChange={() => toggleScopeCc(cc.id)} />
+                  <label key={cc.id} className="flex items-center gap-2 text-sm text-ink-soft">
+                    <input type="checkbox" className="h-4 w-4 rounded border-line-strong" checked={scopeCcIds.includes(cc.id)} onChange={() => toggleScopeCc(cc.id)} />
                     {cc.code} · {cc.name}
                   </label>
                 ))}
@@ -281,7 +281,7 @@ export function MembersCard({ tenantId }: { tenantId: string }) {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-left text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <tr className="border-b border-line text-left text-ink-muted">
                 <th className="pb-2 pr-4 font-medium">{u("nama")}</th>
                 <th className="hidden pb-2 pr-4 font-medium sm:table-cell">{u("email")}</th>
                 <th className="pb-2 pr-4 font-medium">{u("peranKolom")}</th>
@@ -293,13 +293,13 @@ export function MembersCard({ tenantId }: { tenantId: string }) {
                 const isSelf = m.userId === me.user.id;
                 const canManage = isOwner && !isSelf;
                 return (
-                  <tr key={m.userId} className="border-b border-slate-100 last:border-0 dark:border-slate-800/60">
+                  <tr key={m.userId} className="border-b border-line last:border-0">
                     <td className="py-2.5 pr-4">
                       {m.name}
-                      {isSelf ? <span className="ml-1 text-xs text-slate-400">{u("andaKecil")}</span> : null}
-                      <div className="text-xs text-slate-400 sm:hidden">{m.email}</div>
+                      {isSelf ? <span className="ml-1 text-xs text-ink-muted">{u("andaKecil")}</span> : null}
+                      <div className="text-xs text-ink-muted sm:hidden">{m.email}</div>
                     </td>
-                    <td className="hidden py-2.5 pr-4 text-slate-500 dark:text-slate-400 sm:table-cell">{m.email}</td>
+                    <td className="hidden py-2.5 pr-4 text-ink-muted sm:table-cell">{m.email}</td>
                     <td className="py-2.5 pr-4">
                       {canManage ? (
                         <Select

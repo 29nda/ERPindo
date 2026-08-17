@@ -76,7 +76,7 @@ export function DocNumberingCard({ tenantId }: { tenantId: string }) {
                     onChange={(e) => setPatterns((p) => ({ ...p, [key]: e.target.value }))}
                     placeholder={`${u("bawaanContoh")} ${d.example}`}
                   />
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-xs text-ink-muted">
                     {valid ? (
                       <>
                         {u("pratinjauLabel")} <code>{renderDocNumber(effective, today, 1)}</code>
@@ -89,7 +89,7 @@ export function DocNumberingCard({ tenantId }: { tenantId: string }) {
                 </div>
               );
             })}
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-ink-muted">
               Token: <code>{"{YYYY}"}</code> {u("tokenTahun")} · <code>{"{MM}"}</code> {u("tokenBulan")} ·{" "}
               <code>{"{SEQ:4}"}</code> {u("tokenNomorUrut")} <code>{"{YYYY}"}</code>/<code>{"{MM}"}</code>
               {u("tokenResetPeriode")}
@@ -147,7 +147,7 @@ export function SubscriptionCard() {
       <CardHeader title={u("langgananJudul")} description={u("descLangganan")} />
       <CardBody className="space-y-4 text-sm">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-slate-500 dark:text-slate-400">{u("paketLabel")}</span>
+          <span className="text-ink-muted">{u("paketLabel")}</span>
           <Badge tone="brand">{PLAN_LABELS[tenant.plan]}</Badge>
           {tenant.tenantStatus === "past_due" ? (
             <Badge tone="amber">{u("bacaSajaBerakhir")}</Badge>
@@ -164,7 +164,7 @@ export function SubscriptionCard() {
         </div>
 
         {legacy ? (
-          <p className="text-slate-500 dark:text-slate-400">
+          <p className="text-ink-muted">
             {u("descPelangganAwal1")} <span className="font-medium">{u("aksesSemuaModul")}</span>{" "}
             {u("descPelangganAwal2")}
           </p>
@@ -177,14 +177,14 @@ export function SubscriptionCard() {
             lain untuk dituju, tidak ada selisih harga yang perlu dipratinjau. */}
         <div className="rounded-xl border border-brand-500 bg-brand-50/50 p-4 dark:border-brand-500 dark:bg-brand-950/30">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-slate-800 dark:text-slate-100">{PLAN_LIMITS.lengkap.label}</span>
+            <span className="font-semibold text-ink">{PLAN_LIMITS.lengkap.label}</span>
             {langgananAktif ? <Badge tone="brand">{u("paketAnda")}</Badge> : null}
           </div>
           <div className="mt-1 text-2xl font-bold tabular-nums">
             Rp {PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")}
-            <span className="text-xs font-normal text-slate-400">/{u("perBulanSingkat")}</span>
+            <span className="text-xs font-normal text-ink-muted">/{u("perBulanSingkat")}</span>
           </div>
-          <ul className="mt-2 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+          <ul className="mt-2 space-y-0.5 text-xs text-ink-muted">
             <li>{u("penggunaTakTerbatas")}</li>
             <li>{u("seluruhModulTerbuka")}</li>
             <li>{u("aiPerHari")} {PLAN_LIMITS.lengkap.aiDailyLimit}/{u("hariSuffix")}</li>
@@ -207,26 +207,26 @@ export function SubscriptionCard() {
         </div>
 
         {!b?.configured ? (
-          <p className="text-slate-500 dark:text-slate-400">
+          <p className="text-ink-muted">
             {u("descBillingBelumSiap")}
           </p>
         ) : !isOwner ? (
-          <p className="text-slate-500 dark:text-slate-400">{u("hubungiPemilikLangganan")}</p>
+          <p className="text-ink-muted">{u("hubungiPemilikLangganan")}</p>
         ) : (
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-ink-muted">
             {u("descPembayaranAman")}
           </p>
         )}
 
         {b && b.invoices.length > 0 ? (
           <div className="pt-1">
-            <div className="mb-1 font-medium text-slate-600 dark:text-slate-300">{u("riwayatTagihan")}</div>
+            <div className="mb-1 font-medium text-ink-soft">{u("riwayatTagihan")}</div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <tbody>
                   {b.invoices.slice(0, 6).map((inv) => (
-                    <tr key={inv.id} className="border-b border-slate-100 last:border-0 dark:border-slate-800/60">
-                      <td className="py-1.5 pr-3 text-slate-500 dark:text-slate-400">{formatDate(inv.createdAt.slice(0, 10))}</td>
+                    <tr key={inv.id} className="border-b border-line last:border-0">
+                      <td className="py-1.5 pr-3 text-ink-muted">{formatDate(inv.createdAt.slice(0, 10))}</td>
                       <td className="py-1.5 pr-3 tabular-nums">Rp {inv.amount.toLocaleString("id-ID")}</td>
                       <td className="py-1.5">
                         <Badge tone={inv.status === "paid" ? "green" : inv.status === "pending" ? "amber" : "neutral"}>
@@ -371,7 +371,7 @@ export function CustomFieldsCard({ tenantId }: { tenantId: string }) {
               <Input id="cf-options" value={options} onChange={(e) => setOptions(e.target.value)} />
             </div>
           ) : (
-            <p className="text-xs text-slate-500 dark:text-slate-400">{u("hintKunciField")}</p>
+            <p className="text-xs text-ink-muted">{u("hintKunciField")}</p>
           )}
           <label className="flex h-9 items-center gap-2 text-sm">
             <input
@@ -386,17 +386,17 @@ export function CustomFieldsCard({ tenantId }: { tenantId: string }) {
         {query.isLoading ? (
           <Spinner />
         ) : semua.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaFieldKustom")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaFieldKustom")}</p>
         ) : (
           <div data-testid="daftar-field-kustom" className="space-y-1">
             {semua.map((d) => (
               <div
                 key={d.id}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800"
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-line p-2 text-sm"
               >
                 <Badge>{u(MODUL_KEY[d.module])}</Badge>
                 <span className="font-medium">{d.label}</span>
-                <span className="font-mono text-xs text-slate-400">{d.fieldKey}</span>
+                <span className="font-mono text-xs text-ink-muted">{d.fieldKey}</span>
                 <Badge tone="neutral">{u(TIPE_KEY[d.type])}</Badge>
                 {d.required ? <Badge tone="amber">{u("wajibDiisi")}</Badge> : null}
                 <Button
@@ -471,7 +471,7 @@ export function CompanySettingsCard({ tenantId, readOnly }: { tenantId: string; 
             </div>
             <LogoUploader tenantId={tenantId} current={s.logo_data_url ?? ""} readOnly={readOnly} />
             {readOnly ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-ink-muted">
                 {u("hanyaOwnerAdminUbah")}
               </p>
             ) : (
@@ -546,10 +546,10 @@ function LogoUploader({ tenantId, current, readOnly }: { tenantId: string; curre
           <img
             src={current}
             alt="Logo perusahaan"
-            className="h-12 w-auto max-w-28 rounded border border-slate-200 bg-white object-contain p-1 dark:border-slate-700"
+            className="h-12 w-auto max-w-28 rounded border border-line bg-white object-contain p-1"
           />
         ) : (
-          <span className="text-sm text-slate-400">{u("belumAdaLogo")}</span>
+          <span className="text-sm text-ink-muted">{u("belumAdaLogo")}</span>
         )}
         {readOnly ? null : (
           <>
@@ -565,7 +565,7 @@ function LogoUploader({ tenantId, current, readOnly }: { tenantId: string; curre
           </>
         )}
       </div>
-      <p className="mt-1 text-xs text-slate-400">{u("descLogo")}</p>
+      <p className="mt-1 text-xs text-ink-muted">{u("descLogo")}</p>
     </div>
   );
 }

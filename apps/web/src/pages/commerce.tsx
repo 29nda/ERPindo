@@ -594,7 +594,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
                           <select
                             aria-label={`${u("satuan")} ${i + 1}`}
                             data-testid={`satuan-baris-${i}`}
-                            className="w-16 shrink-0 rounded-lg border border-slate-300 bg-white px-1 text-xs dark:border-slate-700 dark:bg-slate-900"
+                            className="w-16 shrink-0 rounded-lg border border-line-strong bg-surface px-1 text-xs"
                             value={line.uom}
                             onChange={(e) => gantiSatuan(i, line, e.target.value as SatuanBaris)}
                           >
@@ -626,7 +626,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
                         ) : null}
                         {line.hargaDisentuh && grupHarga.nama ? (
                           <div
-                            className="mt-1 text-xs text-slate-500 dark:text-slate-400"
+                            className="mt-1 text-xs text-ink-muted"
                             data-testid={`harga-nego-${i}`}
                           >
                             {u("ghHargaNego")}
@@ -662,7 +662,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
                       // sebenarnya bergerak sebelum dokumennya diposting.
                       <p
                         data-testid={`konversi-baris-${i}`}
-                        className="text-xs text-slate-500 tabular-nums dark:text-slate-400"
+                        className="text-xs text-ink-muted tabular-nums"
                       >
                         {Number(line.qty) || 0} {line.uomSecondary} = {qtyDasar(line)}{" "}
                         {line.unitDasar || u("satuan").toLowerCase()}
@@ -806,7 +806,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
                       {currency} {(subtotal + taxAmount).toLocaleString("id-ID")}
                     </strong>
                     {Number(exchangeRate) > 0 ? (
-                      <span className="text-slate-500 dark:text-slate-400">
+                      <span className="text-ink-muted">
                         {" "}
                         ≈ {formatIDR(Math.round((subtotal + taxAmount) * Number(exchangeRate)))}
                       </span>
@@ -844,7 +844,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
         <CardBody className="space-y-3">
           <div className="relative sm:max-w-xs">
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
               aria-hidden
             />
             <Input
@@ -889,7 +889,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
               </div>
               {(docsQuery.data?.total ?? 0) > (docsQuery.data?.docs.length ?? 0) ? (
                 <div className="flex items-center justify-center gap-3 pt-1">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="text-xs text-ink-muted">
                     {u("menampilkan")} {docsQuery.data!.docs.length} {u("dariTotal")}{" "}
                     {docsQuery.data!.total}
                   </span>
@@ -1108,11 +1108,11 @@ function DocRow({
   });
 
   return (
-    <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+    <div className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
           <span className="font-mono text-xs font-semibold">{doc.docNo}</span>
-          <span className="text-slate-500 dark:text-slate-400">{formatDate(doc.date)}</span>
+          <span className="text-ink-muted">{formatDate(doc.date)}</span>
           <span>{doc.contactName}</span>
           {isVoided ? (
             <Badge tone="red">{u("dibatalkan")}</Badge>
@@ -1141,13 +1141,13 @@ function DocRow({
         (remaining > 0 ||
           doc.status !== "paid" ||
           (doc.paidAmount === 0 && doc.returnedAmount === 0))) ? (
-        <div className="mt-2.5 flex flex-wrap gap-2 border-t border-slate-100 pt-2.5 dark:border-slate-800/60">
+        <div className="mt-2.5 flex flex-wrap gap-2 border-t border-line pt-2.5">
           {mode === "sale" ? (
             <a
               href={`/cetak/faktur?tenant=${tenant.tenantId}&id=${doc.id}`}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 px-3 text-sm hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line-strong px-3 text-sm hover:bg-surface-muted"
             >
               <Printer className="size-4" aria-hidden /> {u("cetak")}
             </a>
@@ -1193,28 +1193,28 @@ function DocRow({
       ) : null}
 
       {paymentsOpen ? (
-        <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+        <div className="mt-3 space-y-2 rounded-lg bg-surface-sunken p-3">
           <div className="text-sm font-medium">{u("pembayaranDokumen")}</div>
           {paymentsQuery.isLoading ? (
             <Spinner />
           ) : (paymentsQuery.data?.payments ?? []).length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-ink-muted">
               {u("belumAdaPembayaran")}
             </p>
           ) : (
             (paymentsQuery.data?.payments ?? []).map((p) => (
               <div key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                 <span className="font-mono text-xs font-semibold">{p.paymentNo}</span>
-                <span className="text-slate-500 dark:text-slate-400">
+                <span className="text-ink-muted">
                   {formatDate(p.paymentDate)}
                 </span>
-                <span className="text-slate-500 dark:text-slate-400">{p.accountName}</span>
+                <span className="text-ink-muted">{p.accountName}</span>
                 <span className="tabular-nums font-medium">{formatIDR(p.amount)}</span>
                 {p.voidedAt ? (
                   <Badge tone="red">DIHAPUS{p.voidJournalNo ? ` · ${p.voidJournalNo}` : ""}</Badge>
                 ) : p.isPos ? (
                   <span
-                    className="text-xs text-slate-400"
+                    className="text-xs text-ink-muted"
                     title={u("descPembayaranPos")}
                   >
                     via Kasir
@@ -1233,7 +1233,7 @@ function DocRow({
         </div>
       ) : null}
 
-      <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+      <div className="mt-2 text-sm text-ink-soft">
         {doc.lines.map((l) => (
           <div key={l.id} className="flex justify-between">
             <span>
@@ -1246,19 +1246,19 @@ function DocRow({
           </div>
         ))}
         {doc.taxAmount > 0 ? (
-          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+          <div className="flex justify-between text-ink-muted">
             <span>PPN {doc.taxRate}%</span>
             <span className="tabular-nums">{formatIDR(doc.taxAmount)}</span>
           </div>
         ) : null}
         {doc.paidAmount > 0 && doc.status !== "paid" ? (
-          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+          <div className="flex justify-between text-ink-muted">
             <span>{u("sudahDibayar")}</span>
             <span className="tabular-nums">{formatIDR(doc.paidAmount)}</span>
           </div>
         ) : null}
         {doc.returnedAmount > 0 ? (
-          <div className="flex justify-between text-slate-500 dark:text-slate-400">
+          <div className="flex justify-between text-ink-muted">
             <span>{u("sudahDiretur")}</span>
             <span className="tabular-nums">− {formatIDR(doc.returnedAmount)}</span>
           </div>
@@ -1266,13 +1266,13 @@ function DocRow({
       </div>
 
       {returnOpen ? (
-        <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+        <div className="mt-3 space-y-2 rounded-lg bg-surface-sunken p-3">
           <div className="text-sm font-medium">{u("returIsiQty")}</div>
           {doc.lines.map((l) => (
             <div key={l.id} className="flex items-center gap-3 text-sm">
               <span className="flex-1">
                 {l.productName}{" "}
-                <span className="text-slate-400">
+                <span className="text-ink-muted">
                   ({u("dibeli")} {l.qty})
                 </span>
               </span>
@@ -1318,7 +1318,7 @@ function DocRow({
       ) : null}
 
       {payOpen ? (
-        <div className="mt-3 space-y-2 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+        <div className="mt-3 space-y-2 rounded-lg bg-surface-sunken p-3">
           <div className="grid gap-2 sm:grid-cols-[1fr_10rem_10rem_auto] sm:items-end">
             <div>
               <Label htmlFor={`pay-acc-${doc.id}`}>{u("masukKeluarAkun")}</Label>
@@ -1374,7 +1374,7 @@ function DocRow({
                   onChange={(e) => setPayRate(e.target.value)}
                 />
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-ink-muted">
                 {u("fakturPadaKurs")} {doc.exchangeRate.toLocaleString("id-ID")}
                 {u("descSelisihKurs")}
               </p>

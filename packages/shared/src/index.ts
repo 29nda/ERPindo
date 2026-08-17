@@ -18,5 +18,6 @@ export * from "./migration";
 export * from "./security";
 export * from "./publicApi";
 export * from "./docNumbering";
+export * from "./landing";
 export * from "./customFields";
 export * from "./text";

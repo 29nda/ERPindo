@@ -84,7 +84,7 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
         description={u("descApiIntegrasi")}
       />
       <CardBody className="space-y-6">
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-ink-muted">
           {u("panduanLengkapDi")} <a className="text-brand-600 underline" href="/api-docs" target="_blank" rel="noreferrer">/api-docs</a>.
         </p>
 
@@ -114,17 +114,17 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
               <button className="mt-1 text-xs underline" onClick={() => setNewKey(null)}>{u("sudahSayaSalin")}</button>
             </Alert>
           ) : null}
-          <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800/60">
+          <div className="mt-3 divide-y divide-line">
             {keys.isLoading ? (
               <Spinner />
             ) : activeKeys.length === 0 ? (
-              <p className="py-2 text-xs text-slate-500 dark:text-slate-400">{u("belumAdaApiKey")}</p>
+              <p className="py-2 text-xs text-ink-muted">{u("belumAdaApiKey")}</p>
             ) : (
               activeKeys.map((k: ApiApiKey) => (
                 <div key={k.id} className="flex items-center justify-between gap-3 py-2">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{k.name}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                    <div className="text-xs text-ink-muted">
                       <code>{k.prefix}</code> · {k.scope === "write" ? u("bacaTulisKecil") : u("bacaKecil")} ·{" "}
                       {k.lastUsedAt ? `${u("dipakaiPada")} ${k.lastUsedAt.slice(0, 10)}` : u("belumDipakai")}
                     </div>
@@ -139,7 +139,7 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
         </div>
 
         {/* --- Webhook --- */}
-        <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+        <div className="border-t border-line pt-4">
           <div className="text-sm font-semibold">Webhook</div>
           <div className="mt-2 space-y-2">
             <div>
@@ -151,7 +151,7 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
                 <label key={ev} className="flex items-center gap-1.5 text-xs">
                   <input
                     type="checkbox"
-                    className="h-3.5 w-3.5 rounded border-slate-300"
+                    className="h-3.5 w-3.5 rounded border-line-strong"
                     checked={hookEvents.includes(ev)}
                     onChange={(e) =>
                       setHookEvents((prev) => (e.target.checked ? [...prev, ev] : prev.filter((x) => x !== ev)))
@@ -172,17 +172,17 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
               <button className="mt-1 text-xs underline" onClick={() => setNewSecret(null)}>{u("sudahSayaSalin")}</button>
             </Alert>
           ) : null}
-          <div className="mt-3 divide-y divide-slate-100 dark:divide-slate-800/60">
+          <div className="mt-3 divide-y divide-line">
             {hooks.isLoading ? (
               <Spinner />
             ) : (hooks.data?.webhooks ?? []).length === 0 ? (
-              <p className="py-2 text-xs text-slate-500 dark:text-slate-400">{u("belumAdaWebhook")}</p>
+              <p className="py-2 text-xs text-ink-muted">{u("belumAdaWebhook")}</p>
             ) : (
               (hooks.data?.webhooks ?? []).map((w: ApiWebhook) => (
                 <div key={w.id} className="flex items-center justify-between gap-3 py-2">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">{w.url}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                    <div className="text-xs text-ink-muted">
                       {w.events.join(", ")}
                       {w.lastStatus ? ` · ${u("terakhirKecil")} ${w.lastStatus}` : ""}
                     </div>
@@ -254,7 +254,7 @@ export function CloseBooksCard({ tenantId }: { tenantId: string }) {
             {u("pembukuanTerkunciSampai")} <strong>{lockedBefore}</strong>.
           </p>
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaPeriodeDitutup")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaPeriodeDitutup")}</p>
         )}
         <div className="flex flex-wrap items-end gap-3">
           <div>
@@ -276,8 +276,8 @@ export function CloseBooksCard({ tenantId }: { tenantId: string }) {
           onCancel={() => setConfirmOpen(false)}
         />
 
-        <div className="border-t border-slate-200 pt-3 dark:border-slate-700">
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+        <div className="border-t border-line pt-3">
+          <p className="text-sm text-ink-muted">
             {u("descJurnalPenutup")}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -309,7 +309,7 @@ export function CloseBooksCard({ tenantId }: { tenantId: string }) {
             />
             <span>
               <span className="font-medium">{u("penutupOtomatis")}</span>
-              <span className="block text-xs text-slate-500 dark:text-slate-400">
+              <span className="block text-xs text-ink-muted">
                 {u("descPenutupOtomatis")}
               </span>
             </span>

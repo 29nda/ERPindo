@@ -662,7 +662,7 @@ export function StockPage() {
                 type="checkbox"
                 checked={lowOnly}
                 onChange={(e) => setLowOnly(e.target.checked)}
-                className="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                className="size-4 rounded border-line-strong text-brand-600 focus:ring-brand-500"
               />
               {u("hanyaStokMenipis")}
               <input
@@ -670,7 +670,7 @@ export function StockPage() {
                 min={0}
                 value={threshold}
                 onChange={(e) => setThreshold(e.target.value)}
-                className="w-16 rounded border border-slate-300 px-2 py-0.5 text-sm dark:border-slate-700 dark:bg-slate-900"
+                className="w-16 rounded border border-line-strong px-2 py-0.5 text-sm dark:bg-slate-900"
                 aria-label={u("ambangStokMenipis")}
               />
               )
@@ -685,7 +685,7 @@ export function StockPage() {
               description={u("descBelumAdaStok")}
             />
           ) : levels.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-ink-muted">
               {u("tidakAdaProdukStokKurang")} {lowLimit}.
             </p>
           ) : (

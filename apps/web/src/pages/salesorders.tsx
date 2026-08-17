@@ -252,7 +252,7 @@ function NewOrderCard({ tenantId, products, customers, warehouses }: { tenantId:
               <Input aria-label={u("hargaSatuan")} type="number" min={0} placeholder={u("hargaSatuan")} className="w-32" value={line.unitPrice} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, unitPrice: e.target.value, hargaDisentuh: true } : l)))} />
               <Input aria-label={u("diskonPersen")} type="number" min={0} max={100} placeholder="0%" className="w-16" value={line.discountPct} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, discountPct: e.target.value } : l)))} />
               {lines.length > 1 ? (
-                <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:text-red-600" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
+                <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-red-600" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
                   <Trash2 className="size-4" aria-hidden />
                 </button>
               ) : null}
@@ -308,17 +308,17 @@ function OrderRow({ order, isAdmin, cashAccounts, companyName }: { order: ApiSal
   });
 
   return (
-    <div className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
+    <div className="rounded-lg border border-line p-3 text-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="font-mono text-xs">{order.soNo}</span>
         <span className="font-medium">{order.contactName}</span>
         <Badge tone={SO_TONE[order.status]}>{SO_STATUS_LABELS[order.status]}</Badge>
         {order.deliveryNo ? <Badge tone="neutral">{order.deliveryNo}</Badge> : null}
         {order.invoiceNo ? <Badge tone="green">{u("fakturPrefix")} {order.invoiceNo}</Badge> : null}
-        {order.dpAmount > 0 ? <span className="text-xs text-slate-400">DP {formatIDR(order.dpAmount)}</span> : null}
+        {order.dpAmount > 0 ? <span className="text-xs text-ink-muted">DP {formatIDR(order.dpAmount)}</span> : null}
         <span className="ml-auto font-semibold tabular-nums">{formatIDR(order.total)}</span>
       </div>
-      <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+      <div className="mt-1.5 text-xs text-ink-muted">
         {order.lines.map((l) => `${l.productName} ×${l.qty}`).join(" · ")}
       </div>
       {isAdmin ? (

@@ -156,7 +156,7 @@ function RequisitionCard({
       <CardHeader title={u("prJudul")} description={u("descPr")} />
       <CardBody className="space-y-4">
         {isAdmin ? (
-          <div className="space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+          <div className="space-y-2 rounded-lg border border-line p-3">
             {lines.map((line, i) => (
               <div key={i} className="flex flex-wrap items-center gap-2">
                 <Select
@@ -175,7 +175,7 @@ function RequisitionCard({
                 <Input aria-label={u("qtyBarang")} type="number" min={1} className="w-20" value={line.qty} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, qty: e.target.value } : l)))} />
                 <Input aria-label={u("catatanBaris")} placeholder={u("catatanOpsional")} className="min-w-[8rem] flex-1" value={line.note} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, note: e.target.value } : l)))} />
                 {lines.length > 1 ? (
-                  <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:text-red-600" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
+                  <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-red-600" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
                     <Trash2 className="size-4" aria-hidden />
                   </button>
                 ) : null}
@@ -196,15 +196,15 @@ function RequisitionCard({
         {loading ? (
           <Spinner />
         ) : requisitions.length === 0 ? (
-          <p className="text-sm text-slate-400">{u("belumAdaPermintaan")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaPermintaan")}</p>
         ) : (
           <div className="space-y-2">
             {requisitions.map((r) => (
-              <div key={r.id} className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
+              <div key={r.id} className="rounded-lg border border-line p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="font-mono text-xs">{r.reqNo}</span>
                   <Badge tone={REQ_TONE[r.status]}>{REQUISITION_STATUS_LABELS[r.status]}</Badge>
-                  {r.note ? <span className="text-xs text-slate-400">“{r.note}”</span> : null}
+                  {r.note ? <span className="text-xs text-ink-muted">“{r.note}”</span> : null}
                   {isAdmin && r.status === "submitted" ? (
                     <span className="ml-auto flex gap-2">
                       <Button variant="secondary" className="h-8" onClick={() => decide.mutate({ id: r.id, status: "approved" })} disabled={decide.isPending}>
@@ -216,7 +216,7 @@ function RequisitionCard({
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <div className="mt-1.5 text-xs text-ink-muted">
                   {r.lines.map((l) => `${l.productName} ×${l.qty}`).join(" · ")}
                 </div>
               </div>
@@ -299,7 +299,7 @@ function PurchaseOrderCard({
       <CardHeader title={u("poJudul")} description={u("descPo")} />
       <CardBody className="space-y-4">
         {isAdmin ? (
-          <div className="space-y-3 rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+          <div className="space-y-3 rounded-lg border border-line p-3">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <Label htmlFor="po-req">{u("dariPermintaanOpsional")}</Label>
@@ -368,7 +368,7 @@ function PurchaseOrderCard({
                   <Input aria-label={u("qtyBarang")} type="number" min={1} className="w-20" value={line.qty} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, qty: e.target.value } : l)))} />
                   <Input aria-label={u("hargaSatuan")} type="number" min={0} placeholder="Harga" className="w-32" value={line.unitPrice} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, unitPrice: e.target.value } : l)))} />
                   {lines.length > 1 ? (
-                    <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:text-red-600" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
+                    <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-red-600" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
                       <Trash2 className="size-4" aria-hidden />
                     </button>
                   ) : null}
@@ -432,7 +432,7 @@ function PurchaseOrderRow({ tenantId, order, isAdmin, onChange }: { tenantId: st
   });
 
   return (
-    <div className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
+    <div className="rounded-lg border border-line p-3 text-sm">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="font-mono text-xs">{order.poNo}</span>
         <span className="font-medium">{order.contactName}</span>
@@ -440,18 +440,18 @@ function PurchaseOrderRow({ tenantId, order, isAdmin, onChange }: { tenantId: st
         {order.purchaseNo ? <Badge tone="green">faktur {order.purchaseNo}</Badge> : null}
         <span className="ml-auto font-semibold tabular-nums">{formatIDR(order.total)}</span>
       </div>
-      <div className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+      <div className="mt-1.5 text-xs text-ink-muted">
         {order.lines.map((l) => `${l.productName} ×${l.qty} @ ${formatIDR(l.unitPrice)}`).join(" · ")}
       </div>
       {isAdmin && order.status === "ordered" ? (
         <div className="mt-2.5 border-t pt-2.5 dark:border-slate-700">
           {receiving ? (
             <div className="space-y-2">
-              <div className="text-xs font-medium text-slate-500 dark:text-slate-400">{u("jumlahBarangDiterima")}</div>
+              <div className="text-xs font-medium text-ink-muted">{u("jumlahBarangDiterima")}</div>
               {order.lines.map((l) => (
                 <div key={l.id} className="flex items-center gap-2">
                   <span className="min-w-0 flex-1 truncate">{l.productName}</span>
-                  <span className="text-xs text-slate-400">{u("pratinjauDari")} {l.qty}</span>
+                  <span className="text-xs text-ink-muted">{u("pratinjauDari")} {l.qty}</span>
                   <Input aria-label={`${u("barangDiterima")} ${l.productName}`} type="number" min={0} max={l.qty} className="w-24" value={recv[l.id] ?? ""} onChange={(e) => setRecv({ ...recv, [l.id]: e.target.value })} />
                 </div>
               ))}
@@ -495,16 +495,16 @@ function ReceiptsCard({ receipts, loading }: { receipts: { id: string; grnNo: st
         {loading ? (
           <Spinner />
         ) : receipts.length === 0 ? (
-          <p className="text-sm text-slate-400">{u("belumAdaPenerimaan")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaPenerimaan")}</p>
         ) : (
           <div className="space-y-2">
             {receipts.map((r) => (
-              <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
+              <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line p-3 text-sm">
                 <span className="font-mono text-xs">{r.grnNo}</span>
-                <span className="text-xs text-slate-400">dari {r.poNo}</span>
-                <span className="text-slate-500 dark:text-slate-400">{r.receiptDate}</span>
+                <span className="text-xs text-ink-muted">dari {r.poNo}</span>
+                <span className="text-ink-muted">{r.receiptDate}</span>
                 {r.purchaseNo ? <Badge tone="green">faktur {r.purchaseNo}</Badge> : null}
-                {r.note ? <span className="text-xs text-slate-400">“{r.note}”</span> : null}
+                {r.note ? <span className="text-xs text-ink-muted">“{r.note}”</span> : null}
               </div>
             ))}
           </div>

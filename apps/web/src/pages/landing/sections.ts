@@ -24,6 +24,7 @@ import {
   WifiOff,
   type LucideIcon,
 } from "lucide-react";
+import { FAQ_LANDING } from "@erpindo/shared";
 import type { Dual } from "../../i18n";
 
 /**
@@ -194,19 +195,16 @@ export const SECURITY_POINTS: { title: Dual; desc: Dual; icon: LucideIcon }[] = 
   { icon: CloudDownload, title: { id: "Data Anda milik Anda", en: "Your data is yours" }, desc: { id: "Unduh seluruh data (ZIP berisi CSV) kapan pun — bahkan setelah langganan berakhir.", en: "Download all your data (a ZIP of CSVs) anytime — even after your subscription ends." } },
 ];
 
-export const FAQ: { q: Dual; a: Dual }[] = [
-  { q: { id: "Apakah butuh kartu kredit untuk mencoba?", en: "Do I need a credit card to try it?" }, a: { id: "Tidak perlu apa pun. Demo publik kami berisi data nyata lintas seluruh modul — bisa Anda telusuri tanpa mendaftar. Berlangganan baru diperlukan saat Anda mulai mencatat data sendiri.", en: "Nothing at all. Our public demo holds real data across every module, and you can explore it without signing up. A subscription is only needed once you start recording your own data." } },
-  { q: { id: "Bagaimana pilihan paketnya?", en: "How do the plans work?" }, a: { id: "Tidak ada pilihan paket — hanya SATU paket, Rp499.000 per perusahaan per bulan, dengan seluruh modul terbuka dan pengguna tak terbatas. Tidak ada fitur yang terkunci di balik paket yang lebih mahal, dan tidak ada tagihan tambahan saat tim Anda bertambah.", en: "There are no tiers to choose from — just ONE plan, Rp499,000 per company per month, with every module unlocked and unlimited users. Nothing is locked behind a pricier tier, and your bill does not grow as your team does." } },
-  { q: { id: "Bisakah melihat-lihat dulu tanpa mendaftar?", en: "Can I look around without signing up?" }, a: { id: "Bisa. Klik \"Lihat Demo\" untuk masuk ke perusahaan contoh yang datanya sudah terisi lengkap — mode baca-saja, tanpa membuat akun.", en: "Yes. Click \"View Demo\" to enter a sample company fully filled with data — read-only, no account needed." } },
-  { q: { id: "Apakah data saya aman dan terpisah?", en: "Is my data safe and separated?" }, a: { id: "Ya. Setiap perusahaan punya database sendiri (terisolasi), dilengkapi peran & hak akses, verifikasi dua langkah (2FA), audit log, dan tutup buku.", en: "Yes. Each company has its own isolated database, with roles & permissions, two-factor authentication (2FA), an audit log, and period close." } },
-  { q: { id: "Bisakah mengelola beberapa perusahaan?", en: "Can I manage multiple companies?" }, a: { id: "Bisa — dari satu akun Anda dapat membuat beberapa badan usaha, lalu melihat laporan Laba Rugi & Neraca konsolidasi lintas perusahaan.", en: "Yes — from one account you can create several entities, then view consolidated P&L & Balance Sheet across companies." } },
-  { q: { id: "Apakah mendukung PPN dan Coretax?", en: "Does it support VAT and Coretax?" }, a: { id: "Ya. PPN dihitung otomatis di faktur (termasuk DPP nilai lain 11/12 sesuai PMK 131/2024), dan faktur keluaran bisa diunduh sebagai XML yang langsung diimpor ke Coretax DJP. Payroll menghitung PPh 21 metode TER + BPJS.", en: "Yes. VAT is computed automatically on invoices (including the 11/12 alternative tax base per PMK 131/2024), and output invoices export as XML that imports directly into Coretax (DJP). Payroll computes PPh 21 (TER) + BPJS." } },
-  { q: { id: "Bisakah dipakai saat offline?", en: "Can it be used offline?" }, a: { id: "Bisa. ERPindo adalah PWA yang bisa dipasang di HP/tablet/komputer dan tetap terbuka saat koneksi terputus.", en: "Yes. ERPindo is a PWA installable on phone/tablet/computer and stays open when the connection drops." } },
-  { q: { id: "Berapa lama proses setup-nya?", en: "How long is setup?" }, a: { id: "Daftar, verifikasi email, dan langsung pakai — bagan akun standar Indonesia sudah tersedia otomatis. Checklist 'Mulai cepat' memandu langkah pertama Anda.", en: "Sign up, verify email, and start — a standard Indonesian chart of accounts is ready automatically. A 'Quick start' checklist guides your first steps." } },
-  { q: { id: "Saya sudah punya data di Excel. Bisa dipindahkan?", en: "I already have data in Excel. Can it be migrated?" }, a: { id: "Bisa. Impor produk dan kontak dari berkas CSV/Excel dengan pratinjau & laporan per baris, jadi tidak perlu mengetik ulang.", en: "Yes. Import products and contacts from CSV/Excel with a preview & per-row report, so no retyping." } },
-  { q: { id: "Bagaimana cara pembayaran langganan?", en: "How do I pay for a subscription?" }, a: { id: "Pembayaran online via Xendit (QRIS/transfer/kartu/e-wallet) — akun aktif otomatis setelah pembayaran terkonfirmasi. Untuk grup/holding atau butuh pendampingan implementasi, jadwalkan demo dan tim kami akan menghubungi Anda.", en: "Online payment via Xendit (QRIS/transfer/card/e-wallet) — your account activates automatically once payment is confirmed. For groups/holdings or implementation help, schedule a demo and our team will reach out." } },
-  { q: { id: "Bagaimana jika saya berhenti berlangganan?", en: "What if I cancel my subscription?" }, a: { id: "Data Anda tetap milik Anda. Akun beralih ke mode baca-saja dan Anda tetap bisa mengunduh seluruh data (ZIP berisi CSV per tabel) kapan pun.", en: "Your data stays yours. The account switches to read-only and you can still download all your data (a ZIP of CSVs per table) anytime." } },
-];
+/**
+ * FAQ — DIIMPOR dari `@erpindo/shared` sejak Fase 31c.
+ *
+ * Dulu daftar ini ditulis di sini (11 tanya-jawab) sementara Worker menyimpan
+ * daftarnya sendiri (5 tanya-jawab) untuk JSON-LD, dengan komentar yang
+ * menyatakan keduanya selaras. Tidak satu pun pertanyaannya sama. Satu sumber
+ * di `packages/shared/src/landing.ts` menutup celah itu; uji di paket yang
+ * sama menguncinya.
+ */
+export const FAQ: { q: Dual; a: Dual }[] = FAQ_LANDING;
 
 /**
  * Kompatibilitas faktual (bukan testimoni karangan). Dipindahkan dari komponen

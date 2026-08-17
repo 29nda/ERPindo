@@ -240,7 +240,7 @@ export function AttendancePage() {
                     <Td
                       numeric
                       label={u("alfaStatus")}
-                      className={r.alfa ? "text-red-600 dark:text-red-400" : "text-slate-400"}
+                      className={r.alfa ? "text-red-600 dark:text-red-400" : "text-ink-muted"}
                     >
                       {r.alfa || "—"}
                     </Td>
@@ -264,24 +264,24 @@ export function AttendancePage() {
           {attendanceQuery.isLoading ? (
             <Spinner />
           ) : records.length === 0 ? (
-            <p className="text-sm text-slate-400">{u("belumAdaCatatanBulanIni")}</p>
+            <p className="text-sm text-ink-muted">{u("belumAdaCatatanBulanIni")}</p>
           ) : (
             <div className="space-y-2">
               {records.map((r) => (
-                <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
-                  <span className="w-24 shrink-0 tabular-nums text-slate-500 dark:text-slate-400">{r.date}</span>
+                <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line p-3 text-sm">
+                  <span className="w-24 shrink-0 tabular-nums text-ink-muted">{r.date}</span>
                   <span className="font-medium">{r.employeeName}</span>
                   <Badge tone={STATUS_TONE[r.status]}>{u(ATT_STATUS_KEY[r.status])}</Badge>
                   {r.clockIn || r.clockOut ? (
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-ink-muted">
                       {r.clockIn ?? "—"} {u("sdKata")} {r.clockOut ?? "—"}
                     </span>
                   ) : null}
-                  {r.note ? <span className="text-xs text-slate-400">“{r.note}”</span> : null}
+                  {r.note ? <span className="text-xs text-ink-muted">“{r.note}”</span> : null}
                   {isAdmin ? (
                     <button
                       type="button"
-                      className="ml-auto inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                      className="ml-auto inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
                       onClick={() => setToDelete(r)}
                       aria-label={`${u("hapusKehadiran")} ${r.employeeName} ${r.date}`}
                     >

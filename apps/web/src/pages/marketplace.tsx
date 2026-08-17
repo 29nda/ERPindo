@@ -206,7 +206,7 @@ export function MarketplacePage() {
 
           <div>
             <Label>{u("mpDataCsv")}</Label>
-            <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mb-1 text-xs text-ink-muted">
               Kolom:{" "}
               <code>
                 {u("kolomCsvMarketplace")}
@@ -220,7 +220,7 @@ export function MarketplacePage() {
               placeholder={
                 "SHP-1001,2026-07-15,SKU-001,2,50000\nSHP-1001,2026-07-15,SKU-002,1,120000\nSHP-1002,2026-07-15,SKU-001,3,50000,10"
               }
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-slate-600 dark:bg-slate-800"
+              className="w-full rounded-lg border border-line-strong bg-surface-raised px-3 py-2 font-mono text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
             <input
               type="file"
@@ -234,7 +234,7 @@ export function MarketplacePage() {
           </div>
 
           {parsed.rows.length > 0 ? (
-            <p className="text-sm text-slate-600 dark:text-slate-300">
+            <p className="text-sm text-ink-soft">
               Terbaca <strong>{parsed.rows.length}</strong> baris dalam{" "}
               <strong>{orderCount}</strong> pesanan.
             </p>
@@ -253,7 +253,7 @@ export function MarketplacePage() {
           </div>
 
           {result ? (
-            <div className="space-y-2 rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800/50">
+            <div className="space-y-2 rounded-lg bg-surface-sunken p-3 text-sm">
               <div className="flex flex-wrap gap-2">
                 <Badge tone="green">{result.imported.length} diimpor</Badge>
                 {result.skipped.length ? (
@@ -283,7 +283,7 @@ export function MarketplacePage() {
           {orders.isLoading ? (
             <Spinner />
           ) : (orders.data?.orders ?? []).length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-ink-muted">
               {u("belumAdaPesananMarketplace")}
             </p>
           ) : (
@@ -308,7 +308,7 @@ export function MarketplacePage() {
                       {o.externalOrderNo}
                     </Td>
                     <Td label={u("faktur")}>{o.invoiceNo ?? "—"}</Td>
-                    <Td label={u("mpDiimpor")} className="text-slate-500 dark:text-slate-400">
+                    <Td label={u("mpDiimpor")} className="text-ink-muted">
                       {formatDate(o.importedAt.slice(0, 10))}
                     </Td>
                   </Tr>

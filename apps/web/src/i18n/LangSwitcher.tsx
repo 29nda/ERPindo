@@ -11,8 +11,8 @@ export function LangSwitcher({ className = "" }: { className?: string }) {
   const lang = useLang();
   return (
     <div className={`inline-flex items-center gap-1 ${className}`}>
-      <Languages className="size-4 text-slate-400" aria-hidden />
-      <div className="inline-flex overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700" role="group" aria-label="Bahasa">
+      <Languages className="size-4 text-ink-muted" aria-hidden />
+      <div className="inline-flex overflow-hidden rounded-lg border border-line-strong" role="group" aria-label="Bahasa">
         {LANGS.map((l) => (
           <button
             key={l}
@@ -22,7 +22,7 @@ export function LangSwitcher({ className = "" }: { className?: string }) {
             className={`px-2 py-1 text-xs font-medium transition-colors ${
               lang === l
                 ? "bg-brand-600 text-white"
-                : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+                : "bg-surface text-ink-soft hover:bg-surface-muted"
             }`}
           >
             {LABELS[l]}

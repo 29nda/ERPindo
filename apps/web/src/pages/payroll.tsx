@@ -302,12 +302,12 @@ export function PayrollPage() {
                   {employees.map((e) => (
                     <Tr key={e.id}>
                       <Td label={u("nama")}>{e.name}</Td>
-                      <Td label={u("jabatan")} className="text-slate-500 dark:text-slate-400">
+                      <Td label={u("jabatan")} className="text-ink-muted">
                         {e.position ?? "—"}
                       </Td>
                       <Td
                         label={u("departemenAtasan")}
-                        className="text-slate-500 dark:text-slate-400"
+                        className="text-ink-muted"
                       >
                         {e.departmentName ?? "—"}
                         {e.managerName ? (
@@ -561,20 +561,20 @@ function DepartmentsCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boo
         {query.isLoading ? (
           <Spinner />
         ) : departments.length === 0 ? (
-          <p className="py-2 text-sm text-slate-500 dark:text-slate-400">
+          <p className="py-2 text-sm text-ink-muted">
             {u("belumAdaDepartemen")}
           </p>
         ) : (
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800/60">
+          <ul className="divide-y divide-line">
             {departments.map((d) => (
               <li key={d.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                 <span>
-                  <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                  <span className="font-mono text-xs text-ink-muted">
                     {d.code}
                   </span>{" "}
                   <span className="font-medium">{d.name}</span>
                   {d.parentName ? (
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                    <span className="text-xs text-ink-muted">
                       {" "}
                       · {u("diBawah")} {d.parentName}
                     </span>
@@ -614,15 +614,15 @@ function OrgChartCard({ tenantId }: { tenantId: string }) {
     return (
       <li key={node.id} style={{ marginLeft: depth * 16 }} className="py-1">
         <div className="text-sm font-semibold">
-          <span className="font-mono text-xs text-slate-500 dark:text-slate-400">{node.code}</span>{" "}
+          <span className="font-mono text-xs text-ink-muted">{node.code}</span>{" "}
           {node.name}
         </div>
         {node.employees.length > 0 ? (
-          <ul className="ml-4 border-l border-slate-200 pl-3 dark:border-slate-700">
+          <ul className="ml-4 border-l border-line pl-3">
             {node.employees.map((e) => (
               <li key={e.id} className="py-0.5 text-sm">
                 {e.name}
-                <span className="text-xs text-slate-500 dark:text-slate-400">
+                <span className="text-xs text-ink-muted">
                   {e.position ? ` · ${e.position}` : ""}
                   {e.managerName ? ` · atasan: ${e.managerName}` : ""}
                 </span>
@@ -644,12 +644,12 @@ function OrgChartCard({ tenantId }: { tenantId: string }) {
         {query.isLoading ? (
           <Spinner />
         ) : tree.length === 0 && unassigned.length === 0 ? (
-          <p className="py-2 text-sm text-slate-500 dark:text-slate-400">{u("belumAdaStruktur")}</p>
+          <p className="py-2 text-sm text-ink-muted">{u("belumAdaStruktur")}</p>
         ) : (
           <div className="space-y-3">
             <ul>{tree.map((n) => renderNode(n, 0))}</ul>
             {unassigned.length > 0 ? (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-ink-muted">
                 Tanpa departemen: {unassigned.map((e) => e.name).join(", ")}
               </p>
             ) : null}
@@ -823,7 +823,7 @@ function AdjustmentsCard({
             </tbody>
           </Table>
         ) : (
-          <p className="text-sm text-slate-400">{u("belumAdaKomponen")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaKomponen")}</p>
         )}
       </CardBody>
     </Card>
@@ -978,7 +978,7 @@ function LoansCard({
         {loansQuery.isLoading ? (
           <Spinner />
         ) : loans.length === 0 ? (
-          <p className="text-sm text-slate-400">{u("belumAdaKasbon")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaKasbon")}</p>
         ) : (
           <Table>
             <Thead>
@@ -998,7 +998,7 @@ function LoansCard({
                   <Td label={u("keterangan")}>
                     {l.name}
                     {l.journalNo ? (
-                      <span className="ml-1 text-xs text-slate-400">
+                      <span className="ml-1 text-xs text-ink-muted">
                         · {u("jurnalKecil")} {l.journalNo}
                       </span>
                     ) : null}
@@ -1183,20 +1183,20 @@ function LeaveCard({
         {listQuery.isLoading ? (
           <Spinner />
         ) : requests.length === 0 ? (
-          <p className="text-sm text-slate-400">{u("belumAdaCuti")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaCuti")}</p>
         ) : (
           <div className="space-y-2">
             {requests.map((r) => (
               <div
                 key={r.id}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800"
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line p-3 text-sm"
               >
                 <span className="font-medium">{r.employeeName}</span>
                 <span>{u(LEAVE_LABEL[r.type])}</span>
-                <span className="text-slate-500 dark:text-slate-400">
+                <span className="text-ink-muted">
                   {r.startDate} s.d. {r.endDate} ({r.days} hari)
                 </span>
-                {r.note ? <span className="text-xs text-slate-400">“{r.note}”</span> : null}
+                {r.note ? <span className="text-xs text-ink-muted">“{r.note}”</span> : null}
                 <Badge tone={LEAVE_STATUS_TONE[r.status]}>{u(LEAVE_STATUS_LABEL[r.status])}</Badge>
                 {isAdmin && r.status === "pending" ? (
                   <span className="ml-auto flex gap-2">
@@ -1259,7 +1259,7 @@ function RunRow({
     },
   });
   return (
-    <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+    <div className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="font-mono text-sm">{run.runNo}</span>
         <span className="font-medium">
@@ -1272,7 +1272,7 @@ function RunRow({
             {u("jurnalKecil")} {run.journalNo}
           </Badge>
         ) : null}
-        <span className="text-xs text-slate-400">{run.payslips.length} karyawan</span>
+        <span className="text-xs text-ink-muted">{run.payslips.length} karyawan</span>
         <span className="ml-auto text-sm">
           {u("bruto")} <strong className="tabular-nums">{formatIDR(run.totalGross)}</strong> · Netto{" "}
           <strong className="tabular-nums">{formatIDR(run.totalNet)}</strong>
@@ -1308,7 +1308,7 @@ function RunRow({
       />
 
       {open ? (
-        <div className="mt-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/40">
+        <div className="mt-3 rounded-lg bg-surface-sunken p-3">
           <Table>
             <Thead>
               <tr>
@@ -1326,7 +1326,7 @@ function RunRow({
                   <Td label={u("karyawan")}>
                     {p.employeeName}
                     {p.position ? (
-                      <span className="text-xs text-slate-400"> · {p.position}</span>
+                      <span className="text-xs text-ink-muted"> · {p.position}</span>
                     ) : null}
                   </Td>
                   <Td numeric label={u("bruto")}>
@@ -1340,7 +1340,7 @@ function RunRow({
                       ikut jadi mono dan sulit dibaca. */}
                   <Td label="PPh 21 (TER)" className="text-right">
                     <span className="num">{formatIDR(p.pph21)}</span>{" "}
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-ink-muted">
                       ({p.terCategory}/{p.terRate}%)
                     </span>
                   </Td>

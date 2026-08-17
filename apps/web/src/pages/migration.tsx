@@ -114,7 +114,7 @@ export function MigrationPage() {
 
   const canSet = status.data?.canSetOpening ?? false;
   const field =
-    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs dark:border-slate-700 dark:bg-slate-950";
+    "w-full rounded-lg border border-line-strong bg-surface px-3 py-2 font-mono text-xs";
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -140,7 +140,7 @@ export function MigrationPage() {
                 type="date"
                 value={asOfDate}
                 onChange={(e) => setAsOfDate(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950"
+                className="rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm"
               />
             </div>
             <div>
@@ -187,7 +187,7 @@ export function MigrationPage() {
               {submit.isPending ? <Spinner /> : <UploadCloud className="size-4" aria-hidden />}{" "}
               {u("simpanSaldoAwal")}
             </Button>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-ink-muted">
               {u("descJurnalPembuka")}
             </p>
           </CardBody>

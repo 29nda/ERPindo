@@ -40,14 +40,14 @@ function ResultRow({
     >
       <span
         className={
-          strong ? "text-slate-900 dark:text-slate-100" : "text-slate-600 dark:text-slate-400"
+          strong ? "text-ink" : "text-ink-soft"
         }
       >
         {label}
       </span>
       <span
         className={
-          strong ? "text-brand-700 dark:text-brand-300" : "text-slate-800 dark:text-slate-200"
+          strong ? "text-brand-700 dark:text-brand-300" : "text-ink"
         }
       >
         {value}
@@ -80,7 +80,7 @@ function Field({
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
-        {suffix ? <span className="text-sm text-slate-500">{suffix}</span> : null}
+        {suffix ? <span className="text-sm text-ink-muted">{suffix}</span> : null}
       </div>
     </div>
   );
@@ -159,7 +159,7 @@ function HppCalc() {
             suffix="%"
           />
         </div>
-        <div className="rounded-xl bg-slate-50 px-4 py-2 dark:bg-slate-800/50">
+        <div className="rounded-xl bg-surface-sunken px-4 py-2">
           <ResultRow label={u("tabHppUnit")} value={formatIDR(hpp)} />
           <ResultRow label={u("labaPerUnit")} value={formatIDR(laba)} />
           <ResultRow label={u("hargaJualDisarankan")} value={formatIDR(hargaJual)} strong />
@@ -198,7 +198,7 @@ function MarkupCalc() {
             suffix="Rp"
           />
         </div>
-        <div className="rounded-xl bg-slate-50 px-4 py-2 dark:bg-slate-800/50">
+        <div className="rounded-xl bg-surface-sunken px-4 py-2">
           <ResultRow label={u("labaKotor")} value={formatIDR(laba)} />
           <ResultRow label={u("markupDariModal")} value={`${markup.toFixed(1)}%`} strong />
           <ResultRow label={u("marginDariHargaJual")} value={`${margin.toFixed(1)}%`} strong />
@@ -243,7 +243,7 @@ function BepCalc() {
             suffix="Rp"
           />
         </div>
-        <div className="rounded-xl bg-slate-50 px-4 py-2 dark:bg-slate-800/50">
+        <div className="rounded-xl bg-surface-sunken px-4 py-2">
           <ResultRow label={u("marginKontribusiUnit")} value={formatIDR(contrib)} />
           {contrib > 0 ? (
             <>
@@ -300,7 +300,7 @@ function Pph21Calc() {
             </Select>
           </div>
         </div>
-        <div className="rounded-xl bg-slate-50 px-4 py-2 dark:bg-slate-800/50">
+        <div className="rounded-xl bg-surface-sunken px-4 py-2">
           <ResultRow label={`${u("kategoriTer")} (${ptkp})`} value={cat} />
           <ResultRow label={u("tarifEfektif")} value={`${rate}%`} />
           <ResultRow label={u("pph21Bulan")} value={formatIDR(pph)} strong />
@@ -338,7 +338,7 @@ function PpnCalc() {
             </Select>
           </div>
         </div>
-        <div className="rounded-xl bg-slate-50 px-4 py-2 dark:bg-slate-800/50">
+        <div className="rounded-xl bg-surface-sunken px-4 py-2">
           <ResultRow label={`PPN ${r}%`} value={formatIDR(ppn)} />
           <ResultRow label={u("totalDppPpn")} value={formatIDR(base + ppn)} strong />
         </div>
@@ -375,7 +375,7 @@ function KasbonCalc() {
             suffix={u("bulanSuffix")}
           />
         </div>
-        <div className="rounded-xl bg-slate-50 px-4 py-2 dark:bg-slate-800/50">
+        <div className="rounded-xl bg-surface-sunken px-4 py-2">
           <ResultRow label={u("potonganPerBulan")} value={formatIDR(perBulan)} strong />
           {terakhir !== perBulan ? (
             <ResultRow label={u("cicilanTerakhir")} value={formatIDR(terakhir)} />

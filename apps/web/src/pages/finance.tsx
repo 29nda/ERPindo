@@ -603,7 +603,7 @@ export function JournalPage() {
             </div>
 
             {templateOpen && balanced ? (
-              <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+              <div className="flex flex-wrap items-end gap-3 rounded-xl border border-line bg-surface-sunken p-3">
                 <div className="min-w-48 flex-1">
                   <Label htmlFor="tpl-name">{u("namaTemplate")}</Label>
                   <Input
@@ -618,7 +618,7 @@ export function JournalPage() {
                     type="checkbox"
                     checked={templateMonthly}
                     onChange={(e) => setTemplateMonthly(e.target.checked)}
-                    className="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    className="size-4 rounded border-line-strong text-brand-600 focus:ring-brand-500"
                   />
                   {u("terbitOtomatisBulanan")}
                 </label>
@@ -671,7 +671,7 @@ export function JournalPage() {
         <CardBody className="space-y-3">
           <div className="relative sm:max-w-xs">
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted"
               aria-hidden
             />
             <Input
@@ -688,7 +688,7 @@ export function JournalPage() {
           {entriesQuery.isLoading ? (
             <Spinner />
           ) : (entriesQuery.data?.entries.length ?? 0) === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-ink-muted">
               {entryQ ? u("tidakAdaJurnalCocok") : u("belumAdaJurnal")}
             </p>
           ) : (
@@ -696,15 +696,15 @@ export function JournalPage() {
               {entriesQuery.data!.entries.map((e) => (
                 <div
                   key={e.id}
-                  className="rounded-lg border border-slate-200 p-3 dark:border-slate-800"
+                  className="rounded-lg border border-line p-3"
                 >
                   <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
                     <span className="font-mono text-xs font-semibold">{e.entryNo}</span>
-                    <span className="text-slate-500 dark:text-slate-400">
+                    <span className="text-ink-muted">
                       {formatDate(e.entryDate)}
                     </span>
                     {e.memo ? (
-                      <span className="text-slate-600 dark:text-slate-300">— {e.memo}</span>
+                      <span className="text-ink-soft">— {e.memo}</span>
                     ) : null}
                     {e.reversedByEntryNo ? (
                       <Badge tone="red">
@@ -751,7 +751,7 @@ export function JournalPage() {
               ))}
               {(entriesQuery.data?.total ?? 0) > (entriesQuery.data?.entries.length ?? 0) ? (
                 <div className="flex items-center justify-center gap-3">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="text-xs text-ink-muted">
                     {u("menampilkan")} {entriesQuery.data!.entries.length} {u("dariTotal")}{" "}
                     {entriesQuery.data!.total}
                   </span>
@@ -983,7 +983,7 @@ export function TrialBalancePage() {
           {query.isLoading ? (
             <Spinner />
           ) : (query.data?.rows.length ?? 0) === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaTransaksi")}</p>
+            <p className="text-sm text-ink-muted">{u("belumAdaTransaksi")}</p>
           ) : (
             <Table>
               <Thead>
@@ -1058,7 +1058,7 @@ function TemplatesCard({
       <CardHeader title={u("templateJurnal")} description={u("descTemplateJurnal")} />
       <CardBody className="space-y-3">
         {templates.map((t) => (
-          <div key={t.id} className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+          <div key={t.id} className="rounded-lg border border-line p-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-medium">{t.name}</span>
@@ -1091,7 +1091,7 @@ function TemplatesCard({
                 </Button>
               </div>
             </div>
-            <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            <div className="mt-2 text-sm text-ink-soft">
               {t.lines.map((l, i) => (
                 <div key={i} className="flex justify-between">
                   <span>

@@ -423,18 +423,18 @@ function ContractRow({ contract, isAdmin }: { contract: ApiContract; isAdmin: bo
   });
 
   return (
-    <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+    <div className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="font-mono text-sm">{contract.code}</span>
         <span className="font-medium">{contract.name}</span>
         <Badge tone={STATUS_TONE[contract.status]}>{u(STATUS_KEY[contract.status])}</Badge>
-        <span className="text-xs text-slate-400">{contract.contactName}</span>
+        <span className="text-xs text-ink-muted">{contract.contactName}</span>
         <span className="ml-auto text-sm">
           {CONTRACT_FREQUENCY_LABELS[contract.frequency]} ·{" "}
           <strong className="tabular-nums">{formatIDR(contract.total)}</strong>/periode
         </span>
       </div>
-      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
         <span>
           {contract.status === "ended" ? "Berakhir" : "Tagih berikutnya"}:{" "}
           {contract.nextInvoiceDate}
@@ -442,7 +442,7 @@ function ContractRow({ contract, isAdmin }: { contract: ApiContract; isAdmin: bo
         <span>· {contract.invoiceCount} {u("fakturTerbitSuffix")}</span>
         {contract.endDate ? <span>· sampai {contract.endDate}</span> : null}
         {contract.lines.map((l) => (
-          <span key={l.id} className="text-slate-500 dark:text-slate-400">
+          <span key={l.id} className="text-ink-muted">
             · {l.productName} ×{l.qty}
           </span>
         ))}

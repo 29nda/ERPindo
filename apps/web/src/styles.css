@@ -2,54 +2,157 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 
+/* ===========================================================================
+   Token desain ERPindo — Fase 31a.
+
+   ## Kenapa berkas ini ditulis ulang
+
+   Repo sudah dua kali menjalankan "perombakan desain" (17a gelap-dulu, 18a
+   terang-dulu) dan pemilik tetap menilai aplikasinya mirip aplikasi lama.
+   Sebabnya ada di mekanismenya, bukan di seleranya: kedua fase itu hanya
+   MEMETAKAN ULANG NILAI ramp `slate-*` di berkas ini, sementara 50 berkas
+   halaman menulis warna secara literal (1.724 kelas `slate-*`, 1.084 varian
+   `dark:`). Warnanya berganti; bentuk, kerapatan, dan strukturnya tidak.
+
+   Karena itu fase ini menambahkan lapis yang sebelumnya tidak ada: **token
+   SEMANTIK** (`surface`, `ink`, `line`) yang sadar tema dengan sendirinya.
+   Halaman berhenti menyebut warna dan mulai menyebut peran. Akibat
+   langsungnya, `dark:` tidak perlu ditulis lagi di halaman — dan itulah yang
+   membuat 1.084 varian `dark:` bisa hilang, bukan sekadar dipindah.
+
+   ## Dua lapis, disengaja
+
+   1. `--erp-*` — nilai mentah, didefinisikan dua kali (`:root` dan
+      `:root.dark`). Hanya di sinilah warna ditulis sebagai angka.
+   2. `@theme inline` — memetakan nilai itu menjadi utilitas Tailwind biasa
+      (`bg-surface`, `text-ink-muted`, `border-line`), lengkap dengan varian
+      dan pengubah opasitas.
+
+   `inline` penting: tanpanya Tailwind menyisipkan lapis `--color-*` perantara
+   yang membuat pelacakan nilai jadi dua langkah tanpa manfaat.
+
+   Ramp `slate-*` TETAP dipetakan ulang di bawah — bukan karena masih dipakai
+   sebagai gaya, melainkan sebagai jaring pengaman: kelas literal yang lolos
+   dari sapuan tetap tampil benar alih-alih berubah menjadi abu-abu stok
+   Tailwind yang bentrok. Penghitungnya di `scripts/sapu-warna.mjs` menekan
+   sisanya turun dari waktu ke waktu.
+=========================================================================== */
+
 /* ---------------------------------------------------------------------------
-   Token desain ERPindo — Fase 17a: "alat pro padat".
-   Arah: rapat, gelap-dulu, informasi padat, cepat. Pemakainya staf akunting
-   dan kasir yang menatap layar berjam-jam; kerapatan dan kecepatan baca angka
-   lebih berharga daripada kartu berbayang lembut.
+   Nilai mentah — TERANG (bawaan).
 
-   CARA KERJA PEROMBAKAN INI — penting dipahami sebelum mengubah:
-   Halaman-halaman menulis warna secara literal (`bg-slate-900`,
-   `border-slate-200`, dst) — ada ~1753 pemakaian `slate-*` di 36 berkas
-   halaman. Karena itu ramp `slate` DIPETAKAN ULANG di sini, bukan diganti satu
-   per satu di halaman. Satu berkas ini mengubah rupa seluruh aplikasi.
-
-   Yang SENGAJA tidak disentuh: `--color-white`. Kelas `text-white` (37×)
-   dipakai untuk teks di atas tombol; memetakannya ulang akan mengubah warna
-   teks, bukan permukaan. Permukaan putih (`bg-white`, 68×) ditangani lewat
-   utilitas `bg-surface` di bawah.
+   Netral bercorak biru sangat tipis (hue ±222°), bukan abu netral-hangat.
+   Alasannya merek: aksennya biru murni, dan netral hangat di sebelah biru
+   murni terbaca sebagai "dua keluarga warna yang kebetulan bertetangga".
 --------------------------------------------------------------------------- */
-@theme {
-  /* Neutral "kertas": abu netral-hangat yang bersih, bukan abu dingin pekat.
-     Ujung terangnya nyaris putih supaya permukaan kartu di atas latar `slate-50`
-     tetap terbaca sebagai lapisan, bukan sebagai kotak abu-abu. Ujung gelapnya
-     tetap pekat karena mode gelap masih didukung penuh (tinggal bukan bawaan). */
-  --color-slate-50: #fafafa;
-  --color-slate-100: #f4f4f5;
-  --color-slate-200: #e6e6e9;
-  --color-slate-300: #d2d2d8;
-  --color-slate-400: #9d9da8;
-  --color-slate-500: #71717f;
-  --color-slate-600: #52525e;
-  --color-slate-700: #3f3f48;
-  --color-slate-800: #27272e;
-  --color-slate-900: #18181d;
-  --color-slate-950: #0c0c10;
+:root {
+  --erp-surface: #ffffff;
+  --erp-surface-raised: #ffffff;
+  --erp-surface-sunken: #f7f8fa;
+  --erp-surface-muted: #eef0f4;
+  --erp-surface-active: #e0e3ea;
 
-  /* Aksen merek: biru yang disetel ulang untuk latar PUTIH. Nilai 600/700
-     dipakai untuk teks & tombol, jadi keduanya wajib punya kontras cukup di
-     atas putih; 50/100 dipakai sebagai latar lembut (chip, baris nav aktif). */
-  --color-brand-50: #eff5ff;
-  --color-brand-100: #dbe8fe;
-  --color-brand-200: #bfd7fe;
-  --color-brand-300: #93bbfd;
-  --color-brand-400: #6098fa;
-  --color-brand-500: #3b7bf6;
-  --color-brand-600: #2563eb;
-  --color-brand-700: #1d4fd7;
-  --color-brand-800: #1e40ae;
-  --color-brand-900: #1e3a8a;
-  --color-brand-950: #172554;
+  --erp-ink: #171b25;
+  --erp-ink-soft: #4d5468;
+  --erp-ink-muted: #69718a;
+  --erp-ink-faint: #98a0b0;
+  --erp-ink-invert: #ffffff;
+
+  --erp-line: #e0e3ea;
+  --erp-line-strong: #c8cdd8;
+}
+
+/* Nilai mentah — GELAP. Masih didukung penuh; bukan bawaan (keputusan 18a,
+   ditegaskan ulang oleh pemilik pada wawancara Fase 31). */
+:root.dark {
+  --erp-surface: #171b25;
+  --erp-surface-raised: #1f2430;
+  --erp-surface-sunken: #0d1017;
+  --erp-surface-muted: #262b38;
+  --erp-surface-active: #3a4052;
+
+  --erp-ink: #f7f8fa;
+  --erp-ink-soft: #c8cdd8;
+  --erp-ink-muted: #98a0b0;
+  --erp-ink-faint: #69718a;
+  --erp-ink-invert: #0d1017;
+
+  --erp-line: #262b38;
+  --erp-line-strong: #3a4052;
+}
+
+@theme inline {
+  /* Peran permukaan & teks — inilah yang dipakai halaman. */
+  --color-surface: var(--erp-surface);
+  --color-surface-raised: var(--erp-surface-raised);
+  --color-surface-sunken: var(--erp-surface-sunken);
+  --color-surface-muted: var(--erp-surface-muted);
+  /* Satu tingkat lebih dalam dari `muted`. Ada karena tanpanya `bg-slate-100`
+     dan `hover:bg-slate-200` sama-sama jatuh ke `surface-muted`, sehingga
+     status hover-nya hilang — tiga kejadian nyata tertangkap saat sapuan
+     Fase 31a. Tiga tingkat permukaan diperlukan justru karena kartu tidak
+     lagi memakai bayangan: kedalaman kini hanya bisa disampaikan lewat nilai. */
+  --color-surface-active: var(--erp-surface-active);
+
+  --color-ink: var(--erp-ink);
+  --color-ink-soft: var(--erp-ink-soft);
+  --color-ink-muted: var(--erp-ink-muted);
+  --color-ink-faint: var(--erp-ink-faint);
+  --color-ink-invert: var(--erp-ink-invert);
+
+  --color-line: var(--erp-line);
+  --color-line-strong: var(--erp-line-strong);
+}
+
+@theme {
+  /* -------------------------------------------------------------------------
+     Aksen merek — DIUKUR DARI LOGO, bukan dikarang.
+
+     `apps/web/public/brand/logo-erpindo.png` didekode dan piksel dominannya
+     dihitung: #002060 (10.762 px), #003090 (7.600), #0050d0 (7.230),
+     #0058e0 (4.073). Seluruhnya **biru murni dengan r = 0**.
+
+     Palet lama memakai #2563eb (Tailwind blue-600) yang mengandung merah —
+     dekat, tetapi bukan warna logonya. Nilai 600/800/900 di bawah adalah
+     piksel logo apa adanya; sisanya interpolasi pada hue yang sama.
+
+     Kontras `brand-600` (#0050d0) di atas putih = 6,87:1 — lulus WCAG AA
+     untuk teks maupun teks putih di atas tombolnya.
+  ------------------------------------------------------------------------- */
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #d9e5ff;
+  --color-brand-200: #bcd1ff;
+  --color-brand-300: #8eb4ff;
+  --color-brand-400: #598cff;
+  --color-brand-500: #2e66f7;
+  --color-brand-600: #0050d0;
+  --color-brand-700: #0040a8;
+  --color-brand-800: #003088;
+  --color-brand-900: #002060;
+  --color-brand-950: #001438;
+
+  /* Segitiga cyan di logo — dipakai hemat, hanya sebagai penanda hidup
+     (indikator daring, sorotan grafik). Bukan warna aksi. */
+  --color-spark-400: #22c4ff;
+  --color-spark-500: #00a8e8;
+  --color-spark-600: #0086bd;
+
+  /* -------------------------------------------------------------------------
+     Netral: ramp `slate-*` dipetakan ulang ke netral bercorak biru yang sama
+     dengan `--erp-*` di atas. Ini JARING PENGAMAN untuk kelas literal yang
+     belum tersapu, bukan gaya yang dianjurkan. Pakailah `surface`/`ink`/`line`.
+  ------------------------------------------------------------------------- */
+  --color-slate-50: #f7f8fa;
+  --color-slate-100: #eef0f4;
+  --color-slate-200: #e0e3ea;
+  --color-slate-300: #c8cdd8;
+  --color-slate-400: #98a0b0;
+  --color-slate-500: #69718a;
+  --color-slate-600: #4d5468;
+  --color-slate-700: #3a4052;
+  --color-slate-800: #262b38;
+  --color-slate-900: #171b25;
+  --color-slate-950: #0d1017;
 
   /* Aksen hangat untuk peringatan/kedaluwarsa. */
   --color-accent-50: #fff7ed;
@@ -64,24 +167,37 @@
   --color-accent-900: #7c2d12;
   --color-accent-950: #431407;
 
-  /* Sudut membulat lembut — Fase 18a. Gaya "bersih & lapang" memakai sudut
-     cukup besar agar kartu terasa ringan, tapi tidak sebesar 1rem yang membuat
-     tabel di dalamnya terlihat seperti gelembung. */
-  --radius-card: 0.75rem;
+  /* -------------------------------------------------------------------------
+     BENTUK — di sinilah perbedaan yang sebenarnya terasa.
 
-  /* Bayangan halus berlapis: satu garis rambut untuk mendefinisikan tepi, satu
-     bayangan ambient yang sangat tipis untuk kedalaman. BUKAN bayangan tebal —
-     yang dicari adalah kesan "melayang sedikit di atas kertas". */
-  --shadow-card:
-    0 0 0 1px rgb(16 16 24 / 0.05),
-    0 1px 2px -1px rgb(16 16 24 / 0.06),
-    0 4px 12px -4px rgb(16 16 24 / 0.06);
+     Bahasa lama: kartu putih membulat 0.75rem yang MELAYANG di atas latar
+     abu-abu, dipisahkan oleh bayangan berlapis. Itu bahasa "dasbor SaaS"
+     yang persis dikenali pemilik dari aplikasi lama.
 
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  /* Aplikasi akuntansi: `tabular-nums` sudah dipakai 217× tetapi tidak pernah
-     ada font mono. Angka rupiah, nomor dokumen, dan kode akun memakai ini. */
-  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+     Bahasa baru: permukaan dipisahkan oleh GARIS, bukan ketinggian. Tidak ada
+     bayangan ambient sama sekali pada kartu; sudut lebih tegas. Bayangan
+     disisakan HANYA untuk lapisan yang benar-benar mengambang di atas konten
+     (dropdown, dialog, popover) — di sana bayangan menyampaikan informasi,
+     bukan hiasan.
+  ------------------------------------------------------------------------- */
+  --radius-card: 0.5rem;
+  --radius-control: 0.375rem;
+
+  /* Kartu: garis rambut saja. Sengaja tanpa blur. */
+  --shadow-card: 0 0 0 1px var(--erp-line);
+  /* Lapisan mengambang sungguhan — dropdown, dialog, palet perintah. */
+  --shadow-overlay:
+    0 0 0 1px var(--erp-line),
+    0 8px 24px -8px rgb(13 16 23 / 0.18),
+    0 2px 6px -2px rgb(13 16 23 / 0.1);
+
+  --font-sans:
+    "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  /* Aplikasi akuntansi: angka rupiah, nomor dokumen, dan kode akun memakai ini
+     lewat utilitas `num` di bawah. */
+  --font-mono:
+    "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -92,10 +208,10 @@ body,
   height: 100%;
 }
 
-/* Terang-dulu (Fase 18a — dibalik dari 17a). Beri tahu peramban supaya kontrol
-   bawaan (scrollbar, date picker, autofill) ikut terang. Skrip anti-FOUC di
-   public/theme-init.js menyetel `.dark` + `color-scheme` sebelum React jalan;
-   nilai di sini jadi cadangan bila skrip itu diblokir. */
+/* Terang-dulu. Beri tahu peramban supaya kontrol bawaan (scrollbar, date
+   picker, autofill) ikut terang. Skrip anti-FOUC di public/theme-init.js
+   menyetel `.dark` + `color-scheme` sebelum React jalan; nilai di sini jadi
+   cadangan bila skrip itu diblokir. */
 :root {
   color-scheme: light;
 }
@@ -104,34 +220,37 @@ body,
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  background-color: var(--erp-surface-sunken);
+  color: var(--erp-ink);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ---------------------------------------------------------------------------
-   Utilitas permukaan — pengganti `bg-white` yang sadar tema.
-   Dipakai untuk kartu, topbar, sidebar, dan panel. Dibuat sebagai utilitas
-   (bukan sekadar kelas) supaya bisa dipakai langsung di JSX seperti kelas
-   Tailwind lain, termasuk digabung dengan varian.
---------------------------------------------------------------------------- */
-@utility bg-surface {
-  background-color: var(--color-white);
-  .dark & {
-    background-color: var(--color-slate-900);
-  }
-}
+   Utilitas permukaan lama — DIPERTAHANKAN sebagai alias.
 
-/* Permukaan satu tingkat lebih dalam — dasar halaman di balik kartu. */
-@utility bg-surface-sunken {
-  background-color: var(--color-slate-50);
-  .dark & {
-    background-color: var(--color-slate-950);
-  }
-}
+   `bg-surface` dan `bg-surface-sunken` kini dihasilkan otomatis oleh
+   `@theme inline` di atas, jadi definisi `@utility` manualnya dihapus. Nama
+   kelasnya tidak berubah, sehingga 66 pemakaian yang sudah ada tetap jalan —
+   yang berubah hanya dari mana nilainya datang.
+--------------------------------------------------------------------------- */
 
 /* Angka: mono + lebar digit tetap, supaya kolom rupiah berbaris rapi. */
 @utility num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+/* Garis pemisah tipis yang sadar tema — dipakai tabel & daftar. */
+@utility rule {
+  border-color: var(--erp-line);
+}
+
+/* Cincin fokus tunggal untuk seluruh aplikasi. Sebelumnya tiap primitif
+   menuliskan kombinasi `focus:ring-*` sendiri-sendiri, sehingga tebal dan
+   warnanya berbeda-beda antar komponen. */
+@utility fokus {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
 }

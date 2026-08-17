@@ -283,7 +283,7 @@ Ringkasan berlapis (detail per lapisan di [dok 01 §8](./01-tanya-jawab-fundamen
 
 Estimasi durasi mengasumsikan 1–2 developer full-time (atau setara, dengan bantuan AI coding). Setiap fase diakhiri demo yang bisa dicoba di URL nyata.
 
-### Fase 0 — Fondasi ✅ (selesai 2 Jul 2026 — [log](./log/2026-07-02-fase-0.md))
+### Fase 0 — Fondasi ✅ (selesai 2 Jul 2026 — log)
 
 - [x] Setup monorepo pnpm (struktur §1.4), Vitest.
 - [x] CI/CD: GitHub Actions → typecheck + test + build + smoke test; job deploy `wrangler` aktif otomatis saat secret Cloudflare tersedia.
@@ -297,9 +297,9 @@ Estimasi durasi mengasumsikan 1–2 developer full-time (atau setara, dengan ban
 
 ### Fase 1 — MVP Produk (± 3 bulan)
 
-- [x] Bulan 1: master data (produk, pelanggan, pemasok, gudang), COA + template Indonesia, jurnal manual, buku besar — ✅ selesai 2 Jul 2026 ([log Fase 1a](./log/2026-07-02-fase-1a.md)), plus neraca saldo.
-- [x] Bulan 2: siklus penjualan & pembelian dengan jurnal + mutasi stok otomatis (moving average), pembayaran & PPN — ✅ selesai 3 Jul 2026 ([log Fase 1b](./log/2026-07-03-fase-1b.md)); PDF invoice & impor rekening menyusul di Fase 1c/2.
-- [x] Bulan 3: laporan Laba Rugi & Neraca + dashboard angka nyata ([log Fase 1c](./log/2026-07-03-fase-1c.md)); kartu stok, aging piutang/hutang, ekspor CSV, tutup buku ([log Fase 1d](./log/2026-07-03-fase-1d.md)) — ✅ 3 Jul 2026. Tersisa untuk Fase 2: arus kas, PDF faktur, PWA penuh.
+- [x] Bulan 1: master data (produk, pelanggan, pemasok, gudang), COA + template Indonesia, jurnal manual, buku besar — ✅ selesai 2 Jul 2026 (log Fase 1a), plus neraca saldo.
+- [x] Bulan 2: siklus penjualan & pembelian dengan jurnal + mutasi stok otomatis (moving average), pembayaran & PPN — ✅ selesai 3 Jul 2026 (log Fase 1b); PDF invoice & impor rekening menyusul di Fase 1c/2.
+- [x] Bulan 3: laporan Laba Rugi & Neraca + dashboard angka nyata (log Fase 1c); kartu stok, aging piutang/hutang, ekspor CSV, tutup buku (log Fase 1d) — ✅ 3 Jul 2026. Tersisa untuk Fase 2: arus kas, PDF faktur, PWA penuh.
 - [ ] Pilot dengan 3–5 bisnis nyata (gratis) → perbaikan dari umpan balik.
 
 **Gerbang keluar:** satu UMKM dapat menjalankan operasional hariannya penuh di erpindo.
@@ -308,7 +308,7 @@ Estimasi durasi mengasumsikan 1–2 developer full-time (atau setara, dengan ban
 
 - [ ] Landing page + pendaftaran self-service + onboarding wizard (impor data awal dari template Excel).
 - [ ] Billing: paket & limit, integrasi Midtrans/Xendit, webhook, dunning (tenggang → read-only → suspend).
-- [x] PWA penuh (installable, offline app shell, auto-update) + cetak/PDF faktur — ✅ 3 Jul 2026 ([log Fase 2a](./log/2026-07-03-fase-2a.md)). Notifikasi in-app/email menyusul.
+- [x] PWA penuh (installable, offline app shell, auto-update) + cetak/PDF faktur — ✅ 3 Jul 2026 (log Fase 2a). Notifikasi in-app/email menyusul.
 - [ ] Hardening: rate limiting, Turnstile, uji keamanan, kebijakan privasi & ToS.
 - [ ] **Peluncuran komersial.**
 
@@ -317,18 +317,18 @@ Estimasi durasi mengasumsikan 1–2 developer full-time (atau setara, dengan ban
 Urutan di dalam fase ini fleksibel — ikuti permintaan pelanggan berbayar. Usulan urutan awal:
 
 - [x] **POS** lebih dulu (permintaan pasar tertinggi, pintu masuk pelanggan retail/F&B) + Workflow/Approval Engine (fondasi yang dipakai modul lain).
-- [x] **CRM Pipeline** (lead, tahap funnel, aktivitas follow-up, konversi lead→pelanggan + quotation→faktur) — ✅ 4 Jul 2026 ([log Fase 2l](./log/2026-07-04-fase-2l-crm.md)).
-- [x] **Anggaran** (target pendapatan/beban per akun per bulan + laporan budget vs realisasi dari jurnal) — ✅ 4 Jul 2026 ([log Fase 2n](./log/2026-07-04-fase-2n-anggaran.md)).
-- [x] **HR & Payroll** (karyawan, penggajian bulanan PPh 21 metode TER + BPJS, slip gaji, jurnal beban gaji otomatis) — ✅ 4 Jul 2026 ([log Fase 2o](./log/2026-07-04-fase-2o-payroll.md)).
-- [x] **Aset Tetap** (register, penyusutan garis lurus otomatis bulanan via Cron + jurnal, pelepasan dengan laba/rugi) — ✅ 4 Jul 2026 ([log Fase 2p](./log/2026-07-04-fase-2p-aset-tetap.md)).
-- [x] **Proyek** (proyek & tugas, tag pendapatan/biaya per proyek dari faktur & jurnal, laporan profitabilitas) — ✅ 4 Jul 2026 ([log Fase 2q](./log/2026-07-04-fase-2q-proyek.md)). **Gelombang B (back-office V2) tuntas.**
-- [x] **Multi mata uang** (kurs valas, faktur mata uang asing dikonversi ke IDR, laba/rugi selisih kurs saat pelunasan) — ✅ 5 Jul 2026 ([log Fase 2r](./log/2026-07-05-fase-2r-multi-mata-uang.md)). Gelombang C dimulai.
-- [x] **Kontrak & tagihan berulang** (kontrak langganan, Cron menerbitkan faktur otomatis tiap periode; + produk jasa tanpa stok) — ✅ 5 Jul 2026 ([log Fase 2s](./log/2026-07-05-fase-2s-kontrak-berulang.md)).
-- [x] **Konsolidasi multi-perusahaan** (buat perusahaan tambahan dari satu akun; Laba Rugi & Neraca gabungan lintas perusahaan milik pemilik yang sama, rincian per perusahaan) — ✅ 5 Jul 2026 ([log Fase 2t](./log/2026-07-05-fase-2t-konsolidasi.md)).
-- [x] **Manufaktur + QC** (resep/BoM, perintah produksi konsumsi bahan → produk jadi biaya gabungan, inspeksi QC lulus/karantina; netral nilai persediaan) — ✅ 5 Jul 2026 ([log Fase 2u](./log/2026-07-05-fase-2u-manufaktur.md)).
-- [x] **Maintenance** (jadwal servis berkala per aset, Cron menerbitkan work order otomatis, work order ad-hoc, biaya servis dijurnal Beban Pemeliharaan, riwayat & total biaya) — ✅ 5 Jul 2026 ([log Fase 2v](./log/2026-07-05-fase-2v-maintenance.md)).
-- [x] **Helpdesk** (tiket dukungan pelanggan, prioritas & status, penugasan ke tim, balasan + catatan internal, terhubung kontak) — ✅ 5 Jul 2026 ([log Fase 2w](./log/2026-07-05-fase-2w-helpdesk.md)).
-- [x] **Ekspor e-Faktur** (ekspor CSV faktur keluaran ber-PPN per periode: NPWP/nama pembeli, DPP, PPN; non-PPN dikecualikan; batas mandiri, koneksi Coretax pending) — ✅ 5 Jul 2026 ([log Fase 2x](./log/2026-07-05-fase-2x-efaktur.md)). **Gelombang C (V3 tanpa dependensi eksternal) selesai.**
+- [x] **CRM Pipeline** (lead, tahap funnel, aktivitas follow-up, konversi lead→pelanggan + quotation→faktur) — ✅ 4 Jul 2026 (log Fase 2l).
+- [x] **Anggaran** (target pendapatan/beban per akun per bulan + laporan budget vs realisasi dari jurnal) — ✅ 4 Jul 2026 (log Fase 2n).
+- [x] **HR & Payroll** (karyawan, penggajian bulanan PPh 21 metode TER + BPJS, slip gaji, jurnal beban gaji otomatis) — ✅ 4 Jul 2026 (log Fase 2o).
+- [x] **Aset Tetap** (register, penyusutan garis lurus otomatis bulanan via Cron + jurnal, pelepasan dengan laba/rugi) — ✅ 4 Jul 2026 (log Fase 2p).
+- [x] **Proyek** (proyek & tugas, tag pendapatan/biaya per proyek dari faktur & jurnal, laporan profitabilitas) — ✅ 4 Jul 2026 (log Fase 2q). **Gelombang B (back-office V2) tuntas.**
+- [x] **Multi mata uang** (kurs valas, faktur mata uang asing dikonversi ke IDR, laba/rugi selisih kurs saat pelunasan) — ✅ 5 Jul 2026 (log Fase 2r). Gelombang C dimulai.
+- [x] **Kontrak & tagihan berulang** (kontrak langganan, Cron menerbitkan faktur otomatis tiap periode; + produk jasa tanpa stok) — ✅ 5 Jul 2026 (log Fase 2s).
+- [x] **Konsolidasi multi-perusahaan** (buat perusahaan tambahan dari satu akun; Laba Rugi & Neraca gabungan lintas perusahaan milik pemilik yang sama, rincian per perusahaan) — ✅ 5 Jul 2026 (log Fase 2t).
+- [x] **Manufaktur + QC** (resep/BoM, perintah produksi konsumsi bahan → produk jadi biaya gabungan, inspeksi QC lulus/karantina; netral nilai persediaan) — ✅ 5 Jul 2026 (log Fase 2u).
+- [x] **Maintenance** (jadwal servis berkala per aset, Cron menerbitkan work order otomatis, work order ad-hoc, biaya servis dijurnal Beban Pemeliharaan, riwayat & total biaya) — ✅ 5 Jul 2026 (log Fase 2v).
+- [x] **Helpdesk** (tiket dukungan pelanggan, prioritas & status, penugasan ke tim, balasan + catatan internal, terhubung kontak) — ✅ 5 Jul 2026 (log Fase 2w).
+- [x] **Ekspor e-Faktur** (ekspor CSV faktur keluaran ber-PPN per periode: NPWP/nama pembeli, DPP, PPN; non-PPN dikecualikan; batas mandiri, koneksi Coretax pending) — ✅ 5 Jul 2026 (log Fase 2x). **Gelombang C (V3 tanpa dependensi eksternal) selesai.**
 - [x] Inventori lanjutan (batch/lot, kedaluwarsa, FEFO) — ✅ 3 Jul 2026. Manajemen Dokumen (lampiran R2) ⏸ menunggu R2 diaktifkan di akun Cloudflare pemilik.
 - [ ] Impor rekening koran & rekonsiliasi; API publik + webhook; multi-cabang.
 
@@ -385,3 +385,7 @@ Artinya biaya tetap bulanan sebelum punya pelanggan **di bawah Rp 200 ribu** —
 ---
 
 *Dokumen ini adalah blueprint hidup — perbarui seiring keputusan dan pembelajaran baru.*
+
+---
+
+> **Catatan (Fase 31e).** Tautan ke log per sub-fase dilepas: 258 log fase dipadatkan menjadi `docs/riwayat.md`, yang memuat keputusan yang masih mengikat beserta alasannya. Riwayat penuhnya tetap ada di `git log`.
