@@ -88,8 +88,13 @@ tambalan kebohongan.
    inilah satu-satunya bukti bahwa secret memang terpasang — GitHub tidak
    memperlihatkan keberadaan secret lewat API.
 
-> **Menyemai demo memakai satu slot database.** Setelah berhasil, 2 dari 6 slot
-> terpakai (perusahaan Anda + demo). Lihat langkah 2 bila Anda butuh lebih.
+> **Menyemai demo memakai DUA slot database, bukan satu.** Penyemai membuat
+> `PT Demo Sejahtera` **dan** `CV Demo Cabang` — perusahaan kedua diperlukan
+> agar laporan **konsolidasi** punya dua entitas nyata untuk digabungkan; tanpa
+> itu, salah satu modul unggulan tampil kosong di demo.
+>
+> Jadi setelah berhasil: **3 dari 6 slot** terpakai (perusahaan Anda + dua milik
+> demo). Sisa 3. Lihat langkah 2 bila Anda butuh lebih.
 
 **Verifikasi — jangan lewati.** Setelah selesai, jalankan pemeriksa yang
 mengueri hasilnya, bukan sekadar melihat layar:
