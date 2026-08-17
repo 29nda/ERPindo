@@ -320,6 +320,16 @@ export const api = {
       versionDistribution: { v: number; n: number }[];
       refKinds: Record<string, number>;
       behind: { id: string; name: string; slug: string; schemaVersion: number }[];
+      // Fase 31g — kesiapan demo publik. Tanpa tenant ini, tombol "Lihat Demo"
+      // di halaman depan gagal untuk SETIAP pengunjung, dan sampai fase ini
+      // tidak ada satu pun tempat yang memberitahukannya kepada pemilik.
+      demo: {
+        slug: string;
+        siap: boolean;
+        nama: string | null;
+        status: string | null;
+        peringatan: string | null;
+      };
       // Fase 23c — kapasitas pendaftaran mode lokal. null di mode cloudflare
       // (D1 dinamis: tak ada batas keras yang perlu diperingatkan).
       kapasitas: {

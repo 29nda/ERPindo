@@ -1440,6 +1440,36 @@ try {
   // INTI Fase 24: mendaftar TIDAK memakan slot pool. Kalau ini merah, seluruh
   // alasan menghapus trial ikut batal.
   const infraSebelum = await owner("GET", "/api/admin/infra");
+
+  // --- 31g: kesiapan demo publik terlihat di /admin/infra ---------------------
+  //
+  // Tanpa tenant demo, `POST /api/auth/demo` menjawab 404 dan tombol "Lihat
+  // Demo" — ajakan UTAMA halaman depan sejak masa coba dihapus — gagal untuk
+  // setiap pengunjung. Sampai Fase 31g tidak ada satu pun tempat yang
+  // memberitahukannya kepada pemilik, dan itu terjadi betulan di produksi:
+  // aplikasi hidup berhari-hari sambil menawarkan demo yang tidak ada.
+  //
+  // Suite ini TIDAK menyemai perusahaan demo, jadi `siap` di sini wajib false —
+  // yang justru menjadikannya tempat yang tepat untuk menguji jalur peringatannya.
+  check(
+    "31g /admin/infra melaporkan kesiapan demo publik",
+    infraSebelum.json?.demo?.siap === false &&
+      typeof infraSebelum.json?.demo?.slug === "string" &&
+      typeof infraSebelum.json?.demo?.peringatan === "string",
+    `→ ${JSON.stringify(infraSebelum.json?.demo)}`,
+  );
+  check(
+    "31g peringatan demo menyebut cara memperbaikinya, bukan sekadar 'gagal'",
+    /Seed demo/.test(infraSebelum.json?.demo?.peringatan ?? "") &&
+      /SEED_EMAIL/.test(infraSebelum.json?.demo?.peringatan ?? ""),
+    `→ ${infraSebelum.json?.demo?.peringatan}`,
+  );
+  // Endpoint /auth/demo sendiri TIDAK diuji ulang di sini: cek "demo 404
+  // sebelum perusahaan demo di-seed" (Fase 10b) sudah melakukannya di awal
+  // suite. Yang baru di sini adalah pengetahuan pemilik tentangnya — 404 yang
+  // benar tidak berguna kalau tak ada yang melihatnya sampai pengunjung
+  // mengeklik tombolnya.
+
   const bacaBelumBayar = await belumBayar("GET", `/api/tenants/${tenantBelumBayar}/products`);
   check(
     "24 tenant belum berlangganan: MEMBACA pun ditolak 402 belum-berlangganan",

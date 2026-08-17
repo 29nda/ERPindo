@@ -15,6 +15,19 @@
 name: Seed demo
 
 on:
+  # Fase 31g: `workflow_dispatch` DITAMBAHKAN — dan ini memperbaiki cacat nyata.
+  #
+  # `docs/langkah-pemilik.md` menyuruh pemilik "Klik Run workflow", sementara
+  # workflow ini hanya bisa dipicu lewat push ke branch di bawah. Tombol itu
+  # tidak pernah ada. Pemilik mengikuti petunjuknya, tidak menemukan tombolnya,
+  # dan demo tidak pernah tersemai — lalu tombol "Lihat Demo" di halaman depan
+  # gagal untuk setiap pengunjung.
+  #
+  # Catatan di kepala berkas ini menyebut "integrasi Git tidak punya izin
+  # workflow_dispatch". Itu benar untuk integrasi yang membuat berkas ini,
+  # tetapi TIDAK berlaku bagi pemilik repo yang memicunya sendiri dari tab
+  # Actions. Pemicu `push` dipertahankan sebagai jalur cadangan.
+  workflow_dispatch:
   push:
     branches: [ops/seed-demo-run]
 

@@ -56,14 +56,40 @@ Halaman depan sengaja **tidak menyebut angka bulan** sama sekali, jadi tidak ada
 janji yang meleset selama Anda belum sempat. Ini peningkatan mutu, bukan
 tambalan kebohongan.
 
-**Langkah:**
+> ### Koreksi — petunjuk lama di sini menyuruh menekan tombol yang tidak ada
+>
+> Versi sebelumnya berbunyi *"Klik **Run workflow**"*, padahal workflow-nya
+> **tidak punya `workflow_dispatch`** — satu-satunya pemicunya adalah push ke
+> branch `ops/seed-demo-run`. Tombol itu tidak pernah ada, dan itu kemungkinan
+> besar sebab nyata demo Anda belum tersemai. Sudah diperbaiki pada Fase 31g:
+> tombolnya kini benar-benar ada.
 
-1. Buka repo di GitHub → tab **Actions** → workflow **seed-demo**.
-2. Pastikan secret `SEED_EMAIL` dan `SEED_PASSWORD` sudah terisi
-   (Settings → Secrets and variables → Actions). Keduanya harus milik akun yang
-   terdaftar di `COMPED_EMAILS` — perusahaan demo tidak pernah membayar, jadi ia
-   harus disemai dari akun yang dibebaskan dari paywall.
-3. Klik **Run workflow**.
+**Langkah, berurutan:**
+
+1. **Pasang dua secret lebih dulu** — ini yang paling sering terlewat, dan
+   tanpanya workflow berhenti di langkah pertama dengan `402`.
+   GitHub → **Settings** → **Secrets and variables** → **Actions** →
+   **New repository secret**:
+
+   | Secret | Isi |
+   | --- | --- |
+   | `SEED_EMAIL` | `29nurudhuhaalamin@gmail.com` |
+   | `SEED_PASSWORD` | sandi yang Anda pakai saat mendaftar |
+
+   **Kenapa harus email itu.** Perusahaan demo dibuat sebagai perusahaan
+   *tambahan*, dan sejak masa coba dihapus hanya akun yang terdaftar di
+   `COMPED_EMAILS` yang boleh menambah perusahaan. Saat ini yang terdaftar
+   hanya email Anda. Akun lain akan ditolak `402 belum-berlangganan`.
+
+2. Buka tab **Actions** → workflow **Seed demo** → **Run workflow**.
+
+3. Perhatikan langkah **probe** di lognya. Ia login, melaporkan akun dan apakah
+   perusahaan demo sudah ada, lalu **keluar tanpa menulis apa pun**. Log probe
+   inilah satu-satunya bukti bahwa secret memang terpasang — GitHub tidak
+   memperlihatkan keberadaan secret lewat API.
+
+> **Menyemai demo memakai satu slot database.** Setelah berhasil, 2 dari 6 slot
+> terpakai (perusahaan Anda + demo). Lihat langkah 2 bila Anda butuh lebih.
 
 **Verifikasi — jangan lewati.** Setelah selesai, jalankan pemeriksa yang
 mengueri hasilnya, bukan sekadar melihat layar:
@@ -160,6 +186,28 @@ mengetahui kuota habis adalah **pelanggan menelepon karena aplikasinya mati**
 > menampilkan pesan "tidak bisa membaca kuota" beserta alasannya, dan **sisa
 > dasbor tetap normal**. Kabari bila itu terjadi; perbaikannya kecil, tetapi
 > harus dilakukan dengan melihat respons aslinya.
+
+---
+
+## Membuka perusahaan kedua, ketiga, dan seterusnya
+
+**Sudah bisa sekarang — tidak ada yang perlu dipasang.** Akun Anda terdaftar di
+`COMPED_EMAILS`, dan pagar "aktifkan langganan dulu" yang berlaku bagi pendaftar
+biasa **dilewati sepenuhnya** untuk akun itu.
+
+Jalurnya: **Pengaturan → Perusahaan → "Tambah Perusahaan"**, isi namanya, lalu
+aplikasi langsung berpindah ke perusahaan baru itu. Berpindah antar-perusahaan
+lewat pemilih di kepala menu kiri.
+
+Tiap perusahaan berdiri sendiri dengan **databasenya masing-masing** — datanya
+tidak pernah bercampur. Laporan Laba Rugi & Neraca **konsolidasi** lintas
+perusahaan tersedia di menu Uang → Konsolidasi, termasuk eliminasi transaksi
+antar-perusahaan.
+
+**Batasnya kapasitas, bukan izin.** Paket sekarang menyediakan **6 slot
+database** untuk seluruh akun Anda. Sisa slot terlihat di **Kelola → Admin →
+Infra**, dan halaman itu memperingatkan saat tersisa dua atau kurang. Melewati
+6 perusahaan menuntut langkah 2 di bawah.
 
 ---
 
