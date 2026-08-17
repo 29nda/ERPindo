@@ -58,8 +58,26 @@ function DemoButton({ size = "lg", variant = "primary" }: { size?: "md" | "lg"; 
           api
             .demoLogin()
             .then(() => window.location.assign("/app"))
-            .catch((err: Error) => {
-              setError(err.message || L(lang, "Demo sedang tidak tersedia. Coba daftar saja.", "Demo is unavailable right now. Try signing up instead."));
+            .catch(() => {
+              // Fase 31g: pesan galat server SENGAJA tidak diteruskan apa adanya.
+              //
+              // Sebelumnya `err.message` ditampilkan langsung, sehingga calon
+              // pelanggan membaca "Akun demo belum disiapkan." — kalimat yang
+              // ditulis untuk operator, bukan pengunjung. Bagi mereka itu
+              // terbaca seperti aplikasi yang rusak, tepat pada satu-satunya
+              // ajakan utama halaman ini.
+              //
+              // Sekarang kalimatnya jujur tanpa membocorkan keadaan internal,
+              // dan menawarkan langkah berikutnya alih-alih berhenti. Sisi
+              // operator tidak kehilangan apa pun: /app/admin → Infra kini
+              // menyatakan persis apa yang kurang dan cara memperbaikinya.
+              setError(
+                L(
+                  lang,
+                  "Demo sedang disiapkan. Sementara ini, daftar saja — akun langsung bisa dipakai.",
+                  "The demo is being prepared. In the meantime, just sign up — your account works right away.",
+                ),
+              );
               setBusy(false);
             });
         }}

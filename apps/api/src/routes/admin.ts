@@ -328,8 +328,40 @@ export const adminRoutes = new Hono<AppEnv>()
       kapasitas = { ...k, peringatan };
     }
 
+    /**
+     * Kesiapan demo publik (Fase 31g).
+     *
+     * Tanpa tenant ber-slug ini, `POST /api/auth/demo` menjawab 404 dan tombol
+     * "Lihat Demo" — ajakan UTAMA di halaman depan sejak masa coba dihapus —
+     * gagal untuk **setiap pengunjung**.
+     *
+     * Sampai fase ini tidak ada satu pun tempat yang memberitahukannya kepada
+     * pemilik. Ia baru tahu dengan mengeklik tombolnya sendiri, dan itu terjadi
+     * betulan: pemilik melapor "gagal nampilin demo" setelah aplikasinya hidup
+     * berhari-hari sambil menawarkan demo yang tidak ada.
+     *
+     * Dilaporkan di sini, bukan sebagai galat, karena "belum disemai" adalah
+     * keadaan yang sah pada instalasi baru — yang tidak sah adalah tidak
+     * terlihat.
+     */
+    const demoSlug = c.env.DEMO_TENANT_SLUG ?? "pt-demo-sejahtera";
+    const demoTenant = await c.env.DB.prepare(`SELECT id, name, status FROM tenants WHERE slug = ?`)
+      .bind(demoSlug)
+      .first<{ id: string; name: string; status: string }>();
+
     return c.json({
       dbMode: c.env.TENANT_DB_MODE,
+      demo: {
+        slug: demoSlug,
+        siap: Boolean(demoTenant),
+        nama: demoTenant?.name ?? null,
+        status: demoTenant?.status ?? null,
+        peringatan: demoTenant
+          ? null
+          : `Perusahaan demo "${demoSlug}" belum ada. Tombol "Lihat Demo" di halaman depan ` +
+            `gagal untuk setiap pengunjung. Jalankan workflow "Seed demo" di GitHub Actions ` +
+            `(butuh secret SEED_EMAIL + SEED_PASSWORD berisi akun yang terdaftar di COMPED_EMAILS).`,
+      },
       schemaVersion: TENANT_SCHEMA_VERSION,
       totalTenants: total?.n ?? 0,
       tenantsBehind: jumlahBehind?.n ?? 0,

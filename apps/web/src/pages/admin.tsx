@@ -447,6 +447,16 @@ function InfraTab() {
                 ))}
               </div>
 
+              {/* Demo publik didahulukan bahkan di atas kapasitas: kapasitas
+                  habis menghentikan pendaftar BARU, sedangkan demo yang tidak
+                  ada menggagalkan ajakan utama halaman depan untuk SETIAP
+                  pengunjung — termasuk yang belum sempat berniat mendaftar. */}
+              {d.demo && !d.demo.siap ? (
+                <Alert tone="error" testId="infra-demo-belum-siap">
+                  {d.demo.peringatan}
+                </Alert>
+              ) : null}
+
               {/* Kapasitas pendaftaran didahulukan di atas status migrasi:
                   tertinggal migrasi merepotkan, kapasitas habis menghentikan
                   penjualan sama sekali. */}

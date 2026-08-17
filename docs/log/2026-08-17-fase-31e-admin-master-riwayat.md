@@ -87,10 +87,10 @@ menyamakan dua bentuk yang titik acuannya berbeda:
 | Bentuk | Acuan |
 | --- | --- |
 | `[teks](path)` | relatif terhadap berkas yang memuatnya (aturan Markdown) |
-| `` `docs/x.md` `` | sebutan jalur dari **akar repo**, bukan tautan |
+| sebutan jalur dalam backtick | dari **akar repo**, bukan tautan Markdown |
 
 Menyamakannya membuat `docs/STATUS.md` yang disebut dari dalam `docs/` dicari
-sebagai `docs/docs/STATUS.md`. Pola contoh (`YYYY-MM-DD-fase-NX-*.md`) juga ikut
+sebagai jalur berlipat `docs/` dua kali. Pola contoh ber-`YYYY-MM-DD` juga ikut
 terhitung sebagai tautan. Keduanya diperbaiki; angkanya turun ke 21 yang
 seluruhnya nyata, lalu ke 0 setelah diperbaiki.
 
