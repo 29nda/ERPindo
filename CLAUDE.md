@@ -26,6 +26,14 @@ pnpm lint                                                  # wajib di CI sejak F
 # subfolder, dan karena itu `pages/settings/` lolos tanpa terlihat selama
 # seluruh program dwibahasa Fase 19.
 shopt -s globstar && node scripts/sapu-i18n.mjs apps/web/src/pages/**/*.tsx apps/web/src/components/**/*.tsx
+# Penyapu warna (Fase 31a) — kelas literal `slate-*`/`dark:` hanya boleh TURUN.
+# Ada karena perombakan desain 17a & 18a hanya mengganti NILAI warna di satu
+# berkas, sementara 50 halaman menulis warna sendiri — jadi kerangkanya tidak
+# pernah berubah. Pakai token semantik: bg-surface, text-ink-muted, border-line.
+node scripts/sapu-warna.mjs
+# Penjaga tautan dokumen (Fase 31e) — Markdown tidak dikompilasi, jadi tautan
+# mati tidak pernah memunculkan galat sampai pemilik mengekliknya.
+node scripts/periksa-tautan-dokumen.mjs
 ```
 
 Jumlah cek hanya boleh **naik**, tidak boleh turun. Fitur baru wajib diberi cek
@@ -37,6 +45,10 @@ smoke (`apps/api/scripts/smoke.mjs`) dan, bila menyentuh UI, cek ui-sim.
 - Tiap sub-fase menulis log `docs/log/YYYY-MM-DD-fase-NX-ringkas.md`: bagian
   "Yang dikerjakan", "Validasi" (dengan angka cek), dan catatan koreksi/kejujuran
   bila temuan eksplorasi tidak terbukti.
+- **`docs/log/` hanya memuat program yang sedang berjalan.** Saat sebuah program
+  besar selesai, log-nya dipadatkan ke `docs/riwayat.md` — yang disimpan hanya
+  keputusan yang masih mengikat beserta alasannya, bukan catatan pekerjaan.
+  258 log (18.972 baris) dipadatkan begitu pada Fase 31e.
 - Akhir fase besar: laporan akhir untuk pemilik + perbarui `docs/STATUS.md`
   (non-teknis, ditujukan ke pemilik) dan centang item di `docs/03-roadmap-lanjutan.md`.
 
@@ -58,3 +70,8 @@ smoke (`apps/api/scripts/smoke.mjs`) dan, bila menyentuh UI, cek ui-sim.
 - `apps/web/src/api/client.ts` TIDAK dipecah (keputusan Fase 9d: churn tanpa nilai).
 - Jangan membangun ulang pembayaran non-tunai POS — sudah ada sejak Fase 7a
   (`POS_PAYMENT_METHODS`, multi-tender, jurnal ke akun bank).
+- Jangan menulis warna literal (`bg-white`, `text-slate-500`, `dark:*`) di
+  halaman — pakai token semantik. Ini yang membuat dua perombakan desain
+  sebelumnya tidak pernah terasa; rinciannya di `docs/riwayat.md` §6.
+- Jangan menaruh tombol/tautan baru di dalam `aside nav` shell aplikasi tanpa
+  memeriksa ui-sim: sebelas asersi menghitung `aside nav a:visible`.

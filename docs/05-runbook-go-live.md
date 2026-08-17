@@ -235,7 +235,7 @@ akan membuat aplikasi gagal keras.
   `provisionTenantDb — kapasitas pool`), tetapi tetap **ditolak**. Aktifkan D1
   dinamis SEBELUM peluncuran bila menargetkan lebih dari 6 pendaftar:
   `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID` + `TENANT_DB_MODE=cloudflare`
-  — runbook di `docs/log/2026-07-17-fase-11a-skala-migrasi.md`.
+  — lihat §6 di bawah.
 - **Kuota AI:** Workers AI gratis ~10rb neuron/hari; fitur AI dibatasi per tenant.
   Bila laris, Workers AI berbayar murah (bayar per neuron) & bisa dibebankan ke
   paket Enterprise.
@@ -244,7 +244,7 @@ akan membuat aplikasi gagal keras.
 
 ## 6. Menghilangkan batas 6 perusahaan (D1 dinamis)
 
-Langkah lengkapnya ada di `docs/log/2026-07-17-fase-11a-skala-migrasi.md`;
+Langkah lengkapnya ada di §6 dokumen ini;
 ringkasannya di sini supaya bisa dikerjakan tanpa berpindah dokumen.
 
 **Prasyarat:**

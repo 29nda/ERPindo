@@ -40,15 +40,20 @@ const devConfigPath = makeDevConfig();
 {
   const { readFileSync } = await import("node:fs");
   const isiDev = readFileSync(devConfigPath, "utf8");
-  const bocor = ["APP_URL"].filter((v) => new RegExp(`"${v}"\\s*:`).test(isiDev));
+  // Fase 31e: dulu daftarnya di-hardcode `["APP_URL"]` sementara komentar di
+  // atas menjanjikan "var produksi apa pun ... akan tertangkap". Itu tidak
+  // benar — var https:// berikutnya akan lolos diam-diam. Kini yang diperiksa
+  // adalah KELAS bahayanya: nilai apa pun berawalan `https://` di config dev
+  // membuat `setSessionCookie` menyetel `secure: true` di atas http://127.0.0.1.
+  const bocor = [...isiDev.matchAll(/"([A-Z0-9_]+)"\s*:\s*"(https:\/\/[^"]*)"/g)].map((m) => m[1]);
   if (bocor.length > 0) {
     console.error(
-      `\n✗ Var produksi bocor ke wrangler.dev.jsonc: ${bocor.join(", ")}\n` +
+      `\n✗ Var produksi berawalan https:// bocor ke wrangler.dev.jsonc: ${bocor.join(", ")}\n` +
         `  Buang di scripts/make-dev-config.mjs sebelum melanjutkan.\n`,
     );
     process.exit(1);
   }
-  console.log("  ✓ 30j var produksi tidak bocor ke konfigurasi dev (APP_URL)");
+  console.log("  ✓ 31e tidak ada var https:// yang bocor ke konfigurasi dev");
 }
 
 let failures = 0;

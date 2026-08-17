@@ -2745,7 +2745,9 @@ try {
   check("F47/30 halaman daftar tidak menampilkan lencana paket", paketLencana === 0, `→ ${paketLencana} lencana`);
   // Parameter sisa dari tautan lama tidak boleh memunculkan galat — URL yang
   // sudah dibagikan/di-bookmark orang tetap harus membuka halaman yang benar.
-  await gotoRoute("/daftar?paket=business", 400);
+  // Fase 31e: `?paket=business` dibuang. PLANS menjadi ["lengkap"] sejak Fase A,
+  // jadi parameter itu sudah tidak menunjuk apa pun sejak berbulan-bulan lalu.
+  await gotoRoute("/daftar", 400);
   const daftarLama = await page.locator("form").count();
   check("F47/30 tautan lama ?paket= tetap membuka formulir daftar tanpa galat", daftarLama >= 1, `→ ${daftarLama} form`);
   await gotoRoute("/", 600);

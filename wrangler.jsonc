@@ -93,7 +93,25 @@
     //
     // `scripts/make-dev-config.mjs` MEMBUANG var ini untuk lingkungan dev —
     // lihat alasannya di sana; membiarkannya akan meruntuhkan seluruh smoke.
-    "APP_URL": "https://erpindo.29nurudhuhaalamin.workers.dev"
+    "APP_URL": "https://erpindo.29nurudhuhaalamin.workers.dev",
+
+    // Akun master pemilik (Fase 31e).
+    //
+    // `PLATFORM_ADMIN_EMAILS` membuka menu & rute /app/admin — pemantauan
+    // pendaftar, langganan, MRR/churn, blog, dan masukan (middleware/auth.ts).
+    // `COMPED_EMAILS` membuat tenant-nya `active` tanpa `subscription_ends_at`,
+    // jadi akun ini tidak pernah terkena paywall (routes/auth.ts).
+    //
+    // Keduanya berisi ALAMAT EMAIL SAJA. Kata sandi TIDAK pernah masuk repo:
+    // repo ini ada di GitHub, dan sandi yang ter-commit ikut ter-clone serta
+    // tetap tinggal di riwayat git meski dihapus belakangan. Pemilik mendaftar
+    // sekali lewat halaman /daftar seperti pengguna biasa, dan akun itu
+    // langsung menjadi master karena emailnya cocok dengan daftar di bawah.
+    //
+    // Dipisah koma bila kelak lebih dari satu, dan pencocokannya
+    // case-insensitive.
+    "PLATFORM_ADMIN_EMAILS": "29nurudhuhaalamin@gmail.com",
+    "COMPED_EMAILS": "29nurudhuhaalamin@gmail.com"
   },
 
   // Job harian: siklus hidup langganan (trial berakhir → mode baca-saja).

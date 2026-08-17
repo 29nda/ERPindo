@@ -109,3 +109,10 @@ jobs:
       - name: Penjaga warna (token semantik)
         run: node scripts/sapu-warna.mjs
 
+      # Fase 31e: Markdown tidak dikompilasi, jadi tautan mati tidak pernah
+      # menghasilkan galat. Memadatkan 258 log fase meninggalkan 21 rujukan
+      # menggantung sekaligus — dua di antaranya di dokumen yang justru dibaca
+      # pemilik saat meluncurkan.
+      - name: Penjaga tautan dokumen
+        run: node scripts/periksa-tautan-dokumen.mjs
+
