@@ -1,0 +1,1901 @@
+/**
+ * Migrasi tertanam: sumber kebenaran skema untuk control-plane dan database
+ * tenant. Disimpan sebagai konstanta agar bisa dijalankan dari Worker saat
+ * provisioning tenant baru maupun saat upgrade versi (tanpa akses filesystem).
+ *
+ * Aturan: migrasi bersifat append-only — jangan pernah mengubah entri lama,
+ * selalu tambahkan migrasi baru di akhir daftar.
+ */
+
+export type Migration = {
+  id: string;
+  statements: string[];
+};
+
+export const CONTROL_PLANE_MIGRATIONS: Migration[] = [
+  {
+    id: "0001_init",
+    statements: [
+      `CREATE TABLE users (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        email_verified INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )`,
+      `CREATE TABLE tenants (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        db_ref TEXT NOT NULL,
+        status TEXT NOT NULL,
+        plan TEXT NOT NULL DEFAULT 'trial',
+        trial_ends_at TEXT,
+        schema_version INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      )`,
+      `CREATE TABLE memberships (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )`,
+      `CREATE UNIQUE INDEX memberships_user_tenant ON memberships (user_id, tenant_id)`,
+      `CREATE TABLE sessions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX sessions_user ON sessions (user_id)`,
+      `CREATE TABLE tokens (
+        id TEXT PRIMARY KEY,
+        token_hash TEXT NOT NULL UNIQUE,
+        type TEXT NOT NULL,
+        email TEXT NOT NULL,
+        user_id TEXT,
+        tenant_id TEXT,
+        role TEXT,
+        expires_at TEXT NOT NULL,
+        used_at TEXT,
+        created_at TEXT NOT NULL
+      )`,
+      `CREATE TABLE audit_logs (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT,
+        user_id TEXT,
+        action TEXT NOT NULL,
+        detail TEXT,
+        ip TEXT,
+        created_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX audit_logs_tenant ON audit_logs (tenant_id, created_at)`,
+    ],
+  },
+  {
+    id: "0002_totp",
+    statements: [
+      `ALTER TABLE users ADD COLUMN totp_secret TEXT`,
+      `ALTER TABLE users ADD COLUMN totp_enabled INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  {
+    id: "0003_custom_roles",
+    statements: [
+      // RBAC granular (Fase 7e): peran kustom per tenant. base_role menjaga
+      // kompatibilitas requireTenantRole (baca/tulis per level); permissions =
+      // JSON array kunci modul yang boleh diakses. memberships.custom_role_id
+      // menunjuk peran kustom bila anggota memakainya (role tetap terisi base).
+      `CREATE TABLE custom_roles (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        base_role TEXT NOT NULL,
+        permissions TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX custom_roles_tenant ON custom_roles (tenant_id)`,
+      `ALTER TABLE memberships ADD COLUMN custom_role_id TEXT`,
+    ],
+  },
+  {
+    // Backup Google Drive (Fase 8b): sambungan Drive per tenant. Refresh token
+    // disimpan TERENKRIPSI (AES-GCM, kunci diturunkan dari GOOGLE_CLIENT_SECRET).
+    id: "0004_drive_backup",
+    statements: [
+      `CREATE TABLE drive_connections (
+        tenant_id TEXT PRIMARY KEY,
+        refresh_token_enc TEXT NOT NULL,
+        account_email TEXT,
+        connected_by TEXT,
+        connected_at TEXT NOT NULL DEFAULT (datetime('now')),
+        last_backup_at TEXT,
+        last_backup_status TEXT
+      )`,
+    ],
+  },
+  {
+    // RBAC berdimensi (Fase 8d): peran kustom bisa dibatasi ke cost center
+    // tertentu. NULL = tanpa batasan (perilaku lama, kompatibel mundur).
+    id: "0005_role_scope",
+    statements: [`ALTER TABLE custom_roles ADD COLUMN scope_cost_center_ids TEXT`],
+  },
+  {
+    // Masuk/daftar via Google (Fase 10d): identitas Google (sub) per user.
+    // password_hash tetap NOT NULL — user Google-only diberi hash acak yang
+    // tak pernah keluar dari proses (login password selalu gagal).
+    id: "0006_google_identity",
+    statements: [
+      `ALTER TABLE users ADD COLUMN google_sub TEXT`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL`,
+    ],
+  },
+  {
+    // Admin platform + dukungan + blog SEO (Fase 10e): masukan pengguna
+    // (saran/bug/pertanyaan) dan artikel blog yang dilayani server-side
+    // di /blog untuk SEO.
+    id: "0007_platform_admin",
+    statements: [
+      `CREATE TABLE feedback (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        category TEXT NOT NULL CHECK (category IN ('saran','bug','pertanyaan')),
+        message TEXT NOT NULL,
+        page_path TEXT,
+        status TEXT NOT NULL DEFAULT 'baru' CHECK (status IN ('baru','dibaca','selesai')),
+        admin_note TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status, created_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_feedback_user ON feedback(user_id, created_at)`,
+      `CREATE TABLE blog_posts (
+        id TEXT PRIMARY KEY,
+        slug TEXT NOT NULL UNIQUE,
+        title TEXT NOT NULL,
+        excerpt TEXT,
+        body_md TEXT NOT NULL,
+        cover_url TEXT,
+        published_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    // Billing langganan (Fase 11b; provider Xendit sejak Fase 25a). Setiap
+    // upaya bayar = satu subscription_invoice (order_id unik — dipakai sebagai
+    // `external_id` di provider). Webhook yang terverifikasi
+    // tanda tangannya menandai invoice 'paid' → tenant.status 'active' +
+    // subscription_ends_at diperpanjang 1 bulan. Cron menurunkan active →
+    // past_due saat subscription_ends_at lewat (NULL = comped, tak diturunkan).
+    id: "0008_billing",
+    statements: [
+      `CREATE TABLE subscription_invoices (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        order_id TEXT NOT NULL UNIQUE,
+        amount INTEGER NOT NULL,
+        period_months INTEGER NOT NULL DEFAULT 1,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','paid','failed','expired')),
+        redirect_url TEXT,
+        transaction_status TEXT,
+        paid_at TEXT,
+        created_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX idx_sub_invoices_tenant ON subscription_invoices (tenant_id, created_at)`,
+      `ALTER TABLE tenants ADD COLUMN subscription_ends_at TEXT`,
+    ],
+  },
+  {
+    // Payment collection (Fase 11d): link pembayaran online per faktur penjualan
+    // via Xendit. Menandai link 'paid' saat webhook terverifikasi masuk;
+    // pencatatan ke buku besar tetap aksi Pemilik (nudge di UI).
+    id: "0009_payment_links",
+    statements: [
+      `CREATE TABLE payment_links (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        invoice_id TEXT NOT NULL,
+        invoice_no TEXT NOT NULL,
+        order_id TEXT NOT NULL UNIQUE,
+        amount INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','paid','expired','failed')),
+        redirect_url TEXT,
+        paid_at TEXT,
+        created_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX idx_payment_links_invoice ON payment_links (tenant_id, invoice_id)`,
+    ],
+  },
+  {
+    // Fase 13a: paket 4 tingkat. `legacy_full_access` menandai pelanggan lama
+    // (harga tunggal Rp389rb) agar tetap punya akses semua modul walau paketnya
+    // "starter/business" — grandfather, tidak boleh diturunkan paksa.
+    id: "0010_plan_tiers",
+    statements: [
+      `ALTER TABLE tenants ADD COLUMN legacy_full_access INTEGER NOT NULL DEFAULT 0`,
+      // Semua tenant berbayar yang sudah ada saat migrasi ini berjalan = pelanggan
+      // lama → beri akses penuh permanen.
+      `UPDATE tenants SET legacy_full_access = 1 WHERE plan IN ('starter','business','enterprise')`,
+    ],
+  },
+  {
+    // Fase 13b: checkout memilih paket → paket yang dibeli disimpan di invoice
+    // agar webhook mengaktifkan paket yang tepat (bukan mewarisi paket lama).
+    id: "0011_invoice_plan",
+    statements: [`ALTER TABLE subscription_invoices ADD COLUMN plan TEXT NOT NULL DEFAULT 'business'`],
+  },
+  {
+    // Fase 13c: permintaan demo/kontak dari landing (motion sales-assisted).
+    id: "0012_demo_requests",
+    statements: [
+      `CREATE TABLE demo_requests (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        company TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT,
+        employees TEXT,
+        message TEXT,
+        status TEXT NOT NULL DEFAULT 'baru',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX idx_demo_requests_created ON demo_requests (created_at)`,
+    ],
+  },
+  {
+    // Fase 13g: keamanan enterprise per perusahaan. `require_2fa` memaksa semua
+    // anggota mengaktifkan TOTP; `allowed_ips` = daftar CIDR/IP (JSON) yang boleh
+    // mengakses tenant (kosong/NULL = tanpa pembatasan). Keduanya hanya bisa
+    // dinyalakan pada paket Enterprise (ditegakkan di endpoint & middleware).
+    id: "0013_tenant_security",
+    statements: [
+      `ALTER TABLE tenants ADD COLUMN require_2fa INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE tenants ADD COLUMN allowed_ips TEXT`,
+    ],
+  },
+  {
+    // Fase 13h: API publik + webhook (paket Enterprise). API key per tenant
+    // (hash disimpan, kunci penuh hanya tampil sekali), webhook langganan
+    // peristiwa, dan antrean pengiriman webhook dengan retry berjenjang.
+    id: "0014_public_api",
+    statements: [
+      `CREATE TABLE api_keys (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        key_hash TEXT NOT NULL,
+        prefix TEXT NOT NULL,
+        scope TEXT NOT NULL DEFAULT 'read' CHECK (scope IN ('read','write')),
+        created_at TEXT NOT NULL,
+        last_used_at TEXT,
+        revoked_at TEXT
+      )`,
+      `CREATE INDEX api_keys_hash ON api_keys (key_hash)`,
+      `CREATE INDEX api_keys_tenant ON api_keys (tenant_id)`,
+      `CREATE TABLE webhooks (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        url TEXT NOT NULL,
+        secret TEXT NOT NULL,
+        events TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        last_status TEXT,
+        last_attempt_at TEXT
+      )`,
+      `CREATE INDEX webhooks_tenant ON webhooks (tenant_id)`,
+      `CREATE TABLE webhook_deliveries (
+        id TEXT PRIMARY KEY,
+        webhook_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        event TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','delivered','failed')),
+        attempts INTEGER NOT NULL DEFAULT 0,
+        next_attempt_at TEXT NOT NULL,
+        last_error TEXT,
+        created_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX webhook_deliveries_pending ON webhook_deliveries (status, next_attempt_at)`,
+    ],
+  },
+  {
+    // Fase 20k: ganti paket mandiri dengan prorata.
+    //
+    // `pending_plan` menampung penurunan paket yang BERLAKU DI AKHIR PERIODE —
+    // tenant sudah membayar sisa periode ini, jadi paketnya tidak boleh turun
+    // seketika. Cron yang memperpanjang/menurunkan status ikut menerapkannya.
+    //
+    // `is_prorata` menandai invoice selisih harga: webhook TIDAK boleh
+    // memperpanjang `subscription_ends_at` untuk invoice semacam ini — yang
+    // dibeli hanyalah kenaikan paket untuk sisa periode yang sudah berjalan,
+    // bukan satu bulan tambahan.
+    id: "0015_plan_change_prorata",
+    statements: [
+      `ALTER TABLE tenants ADD COLUMN pending_plan TEXT`,
+      `ALTER TABLE subscription_invoices ADD COLUMN is_prorata INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  {
+    /**
+     * State OAuth sekali-pakai (Fase 26b, temuan audit B).
+     *
+     * State OAuth sebelumnya **dihitung**, bukan disimpan:
+     * `sha256("drive-state|<tenantId>|<client_secret>")`. Nilainya karena itu
+     * sama selamanya untuk sebuah tenant — tanpa kedaluwarsa, bisa dipakai ulang
+     * tanpa batas, dan tidak terikat sesi mana pun. Satu kebocoran (riwayat
+     * peramban, tangkapan layar dukungan, log proxy) berlaku selamanya.
+     *
+     * Untuk alur login Google keadaannya lebih buruk lagi: state-nya konstan
+     * untuk SEMUA orang, dan `GET /api/auth/google` publik — siapa pun bisa
+     * memulai alur lalu membaca state itu dari URL redirect. State yang bisa
+     * diambil siapa saja tidak memberi perlindungan CSRF apa pun.
+     *
+     * Baris di tabel ini DIHAPUS saat ditukar, dan penghapusannya sendiri yang
+     * menjadi pemeriksaannya (`changes === 1`) — jadi sekali-pakai bersifat
+     * atomik, bukan hasil baca-lalu-tulis yang bisa dibalap.
+     */
+    id: "0016_oauth_states",
+    statements: [
+      `CREATE TABLE oauth_states (
+        id TEXT PRIMARY KEY,
+        purpose TEXT NOT NULL,
+        tenant_id TEXT,
+        session_id TEXT,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX idx_oauth_states_expires ON oauth_states (expires_at)`,
+    ],
+  },
+  {
+    /**
+     * Fase 30: paket tunggal. Seluruh tenant dipindahkan ke `lengkap`.
+     *
+     * Tiga hal dikerjakan sekaligus, dan ketiganya wajib:
+     *
+     * 1. `plan` → `'lengkap'`. Tanpa ini, tenant lama menyimpan nilai
+     *    (`starter`/`business`/`enterprise`) yang **tidak lagi ada di tipe
+     *    `Plan`**. Kode yang mengindeks `PLAN_LIMITS[tenant.plan]` akan
+     *    memberi `undefined`, dan pembacaan `.pricePerMonth` di atasnya
+     *    melempar di runtime — di jalur checkout, tempat paling mahal untuk
+     *    gagal. TypeScript tidak bisa menangkapnya: nilai itu datang dari
+     *    database, bukan dari kode.
+     * 2. `pending_plan` → NULL. Kolomnya sengaja TIDAK di-DROP (SQLite membuat
+     *    itu mahal, dan migrasi control-plane bersifat tambah-saja), tetapi
+     *    penurunan paket terjadwal yang masih menggantung harus dibatalkan —
+     *    cron yang dulu menerapkannya sudah dicabut, jadi baris semacam itu
+     *    akan menggantung selamanya tanpa ada yang memprosesnya.
+     * Yang SENGAJA TIDAK dikerjakan: mengubah `DEFAULT 'trial'` pada kolom
+     * `plan` (peninggalan `0001_init`, usang sejak Fase 24a menghapus masa
+     * coba). SQLite tidak punya `ALTER COLUMN`, jadi mengubahnya menuntut
+     * membangun ulang tabel `tenants` dan menyalin seluruh isinya — dan
+     * default itu **tidak pernah terpakai**: keempat jalur `INSERT INTO
+     * tenants` di repo (dua di `routes/auth.ts`, dua di uji) semuanya mengisi
+     * `plan` secara eksplisit. Menyalin tabel akun demi default yang mati
+     * adalah risiko tanpa imbalan; bila suatu saat ada jalur INSERT yang
+     * mengandalkannya, itu bug di jalur tersebut, bukan di sini.
+     */
+    id: "0017_paket_tunggal",
+    statements: [
+      `UPDATE tenants SET plan = 'lengkap', pending_plan = NULL`,
+      // Invoice langganan menyimpan paket yang dibeli; riwayatnya ikut
+      // dinormalkan supaya kartu tagihan tidak menampilkan nama paket yang
+      // sudah tidak ada.
+      `UPDATE subscription_invoices SET plan = 'lengkap' WHERE plan IS NOT NULL`,
+    ],
+  },
+];
+
+/**
+ * Skema database tenant Fase 0: baru berisi pengaturan perusahaan.
+ * Tabel-tabel modul bisnis (COA, jurnal, produk, dst.) ditambahkan sebagai
+ * migrasi baru pada Fase 1.
+ */
+/**
+ * Template Bagan Akun (COA) standar UMKM Indonesia. Disemai lewat migrasi
+ * sehingga tenant baru maupun lama mendapatkannya. Akun sistem (is_system=1)
+ * tidak dapat diarsipkan dan menjadi sasaran jurnal otomatis modul lain.
+ */
+const COA_SEED: [code: string, name: string, type: string][] = [
+  ["1-1000", "Kas", "asset"],
+  ["1-1100", "Bank", "asset"],
+  ["1-1200", "Piutang Usaha", "asset"],
+  ["1-1300", "Persediaan Barang", "asset"],
+  ["1-1400", "PPN Masukan", "asset"],
+  ["1-1500", "Aset Tetap", "asset"],
+  ["1-1510", "Akumulasi Penyusutan", "asset"],
+  ["2-1000", "Hutang Usaha", "liability"],
+  ["2-1100", "PPN Keluaran", "liability"],
+  ["2-1200", "Hutang Gaji", "liability"],
+  ["3-1000", "Modal Pemilik", "equity"],
+  ["3-2000", "Laba Ditahan", "equity"],
+  ["4-1000", "Pendapatan Penjualan", "income"],
+  ["4-2000", "Pendapatan Lain-lain", "income"],
+  ["5-1000", "Harga Pokok Penjualan", "expense"],
+  ["5-2000", "Beban Gaji", "expense"],
+  ["5-3000", "Beban Sewa", "expense"],
+  ["5-4000", "Beban Operasional Lain", "expense"],
+];
+
+export const TENANT_MIGRATIONS: Migration[] = [
+  {
+    id: "0001_init",
+    statements: [
+      `CREATE TABLE settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`,
+    ],
+  },
+  {
+    id: "0002_accounting_masterdata",
+    statements: [
+      // --- Bagan Akun -----------------------------------------------------
+      `CREATE TABLE accounts (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('asset','liability','equity','income','expense')),
+        is_system INTEGER NOT NULL DEFAULT 0,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      // --- Jurnal double-entry ---------------------------------------------
+      // Nominal disimpan sebagai INTEGER rupiah (IDR tidak memakai sen).
+      `CREATE TABLE journal_entries (
+        id TEXT PRIMARY KEY,
+        entry_no TEXT NOT NULL UNIQUE,
+        entry_date TEXT NOT NULL,
+        memo TEXT,
+        status TEXT NOT NULL DEFAULT 'posted' CHECK (status IN ('posted','void')),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE journal_lines (
+        id TEXT PRIMARY KEY,
+        entry_id TEXT NOT NULL REFERENCES journal_entries(id),
+        account_id TEXT NOT NULL REFERENCES accounts(id),
+        description TEXT,
+        debit INTEGER NOT NULL DEFAULT 0 CHECK (debit >= 0),
+        credit INTEGER NOT NULL DEFAULT 0 CHECK (credit >= 0),
+        CHECK (NOT (debit > 0 AND credit > 0))
+      )`,
+      `CREATE INDEX journal_lines_entry ON journal_lines (entry_id)`,
+      `CREATE INDEX journal_lines_account ON journal_lines (account_id)`,
+      // --- Master data ------------------------------------------------------
+      `CREATE TABLE contacts (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL CHECK (type IN ('customer','supplier','both')),
+        name TEXT NOT NULL,
+        email TEXT,
+        phone TEXT,
+        address TEXT,
+        npwp TEXT,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE products (
+        id TEXT PRIMARY KEY,
+        sku TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        unit TEXT NOT NULL DEFAULT 'pcs',
+        sell_price INTEGER NOT NULL DEFAULT 0,
+        buy_price INTEGER NOT NULL DEFAULT 0,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE warehouses (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        address TEXT,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      // --- Seed COA + gudang utama -----------------------------------------
+      ...COA_SEED.map(
+        ([code, name, type]) =>
+          `INSERT INTO accounts (id, code, name, type, is_system) VALUES ('acc-${code}', '${code}', '${name}', '${type}', 1)`,
+      ),
+      `INSERT INTO warehouses (id, code, name) VALUES ('wh-utama', 'UTAMA', 'Gudang Utama')`,
+    ],
+  },
+  {
+    id: "0003_commerce",
+    statements: [
+      // --- Faktur penjualan --------------------------------------------------
+      `CREATE TABLE invoices (
+        id TEXT PRIMARY KEY,
+        invoice_no TEXT NOT NULL UNIQUE,
+        contact_id TEXT NOT NULL REFERENCES contacts(id),
+        invoice_date TEXT NOT NULL,
+        due_date TEXT,
+        status TEXT NOT NULL DEFAULT 'posted' CHECK (status IN ('posted','paid')),
+        subtotal INTEGER NOT NULL,
+        tax_rate INTEGER NOT NULL DEFAULT 0,
+        tax_amount INTEGER NOT NULL DEFAULT 0,
+        total INTEGER NOT NULL,
+        paid_amount INTEGER NOT NULL DEFAULT 0,
+        journal_entry_id TEXT NOT NULL REFERENCES journal_entries(id),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE invoice_lines (
+        id TEXT PRIMARY KEY,
+        invoice_id TEXT NOT NULL REFERENCES invoices(id),
+        product_id TEXT NOT NULL REFERENCES products(id),
+        description TEXT,
+        qty INTEGER NOT NULL CHECK (qty > 0),
+        unit_price INTEGER NOT NULL CHECK (unit_price >= 0),
+        amount INTEGER NOT NULL
+      )`,
+      `CREATE INDEX invoice_lines_invoice ON invoice_lines (invoice_id)`,
+      // --- Faktur pembelian ---------------------------------------------------
+      `CREATE TABLE purchases (
+        id TEXT PRIMARY KEY,
+        purchase_no TEXT NOT NULL UNIQUE,
+        contact_id TEXT NOT NULL REFERENCES contacts(id),
+        purchase_date TEXT NOT NULL,
+        due_date TEXT,
+        status TEXT NOT NULL DEFAULT 'posted' CHECK (status IN ('posted','paid')),
+        subtotal INTEGER NOT NULL,
+        tax_rate INTEGER NOT NULL DEFAULT 0,
+        tax_amount INTEGER NOT NULL DEFAULT 0,
+        total INTEGER NOT NULL,
+        paid_amount INTEGER NOT NULL DEFAULT 0,
+        journal_entry_id TEXT NOT NULL REFERENCES journal_entries(id),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE purchase_lines (
+        id TEXT PRIMARY KEY,
+        purchase_id TEXT NOT NULL REFERENCES purchases(id),
+        product_id TEXT NOT NULL REFERENCES products(id),
+        description TEXT,
+        qty INTEGER NOT NULL CHECK (qty > 0),
+        unit_price INTEGER NOT NULL CHECK (unit_price >= 0),
+        amount INTEGER NOT NULL
+      )`,
+      `CREATE INDEX purchase_lines_purchase ON purchase_lines (purchase_id)`,
+      // --- Stok: mutasi + level berjalan (moving average cost) -----------------
+      `CREATE TABLE stock_movements (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL REFERENCES products(id),
+        warehouse_id TEXT NOT NULL REFERENCES warehouses(id),
+        ref_type TEXT NOT NULL CHECK (ref_type IN ('purchase','sale','adjustment')),
+        ref_id TEXT,
+        qty INTEGER NOT NULL,
+        unit_cost INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX stock_movements_product ON stock_movements (product_id, warehouse_id)`,
+      `CREATE TABLE stock_levels (
+        product_id TEXT NOT NULL REFERENCES products(id),
+        warehouse_id TEXT NOT NULL REFERENCES warehouses(id),
+        qty INTEGER NOT NULL DEFAULT 0,
+        avg_cost INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (product_id, warehouse_id)
+      )`,
+      // --- Pembayaran (terima dari pelanggan / bayar ke pemasok) ---------------
+      `CREATE TABLE payments (
+        id TEXT PRIMARY KEY,
+        payment_no TEXT NOT NULL UNIQUE,
+        direction TEXT NOT NULL CHECK (direction IN ('receive','pay')),
+        ref_type TEXT NOT NULL CHECK (ref_type IN ('invoice','purchase')),
+        ref_id TEXT NOT NULL,
+        account_id TEXT NOT NULL REFERENCES accounts(id),
+        amount INTEGER NOT NULL CHECK (amount > 0),
+        payment_date TEXT NOT NULL,
+        journal_entry_id TEXT NOT NULL REFERENCES journal_entries(id),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    id: "0004_returns",
+    statements: [
+      // Retur penjualan (nota kredit) & pembelian (nota debit), terikat dokumen asal.
+      `CREATE TABLE returns (
+        id TEXT PRIMARY KEY,
+        return_no TEXT NOT NULL UNIQUE,
+        ref_type TEXT NOT NULL CHECK (ref_type IN ('invoice','purchase')),
+        ref_id TEXT NOT NULL,
+        return_date TEXT NOT NULL,
+        memo TEXT,
+        subtotal INTEGER NOT NULL,
+        tax_amount INTEGER NOT NULL DEFAULT 0,
+        total INTEGER NOT NULL,
+        journal_entry_id TEXT NOT NULL REFERENCES journal_entries(id),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE return_lines (
+        id TEXT PRIMARY KEY,
+        return_id TEXT NOT NULL REFERENCES returns(id),
+        product_id TEXT NOT NULL REFERENCES products(id),
+        qty INTEGER NOT NULL CHECK (qty > 0),
+        unit_price INTEGER NOT NULL CHECK (unit_price >= 0),
+        amount INTEGER NOT NULL
+      )`,
+      `CREATE INDEX return_lines_return ON return_lines (return_id)`,
+      `CREATE INDEX returns_ref ON returns (ref_type, ref_id)`,
+      // Sisa tagihan efektif = total - paid_amount - returned_amount.
+      `ALTER TABLE invoices ADD COLUMN returned_amount INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE purchases ADD COLUMN returned_amount INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  {
+    id: "0005_pos",
+    statements: [
+      // Sesi kasir: buka dengan kas awal, tutup dengan hitung kas fisik.
+      `CREATE TABLE pos_shifts (
+        id TEXT PRIMARY KEY,
+        shift_no TEXT NOT NULL UNIQUE,
+        warehouse_id TEXT NOT NULL REFERENCES warehouses(id),
+        status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed')),
+        opening_cash INTEGER NOT NULL DEFAULT 0,
+        opened_by TEXT NOT NULL,
+        opened_at TEXT NOT NULL DEFAULT (datetime('now')),
+        expected_cash INTEGER,
+        closing_cash INTEGER,
+        difference INTEGER,
+        journal_entry_id TEXT,
+        closed_by TEXT,
+        closed_at TEXT
+      )`,
+      // Penjualan POS memakai mesin faktur yang sama; kolom ini menautkannya ke shift.
+      `ALTER TABLE invoices ADD COLUMN pos_shift_id TEXT`,
+    ],
+  },
+  {
+    id: "0006_approvals",
+    statements: [
+      // Antrean persetujuan: dokumen DISIMPAN sebagai payload dan baru
+      // diposting (jurnal + stok) saat Owner menyetujui.
+      `CREATE TABLE approval_requests (
+        id TEXT PRIMARY KEY,
+        request_no TEXT NOT NULL UNIQUE,
+        type TEXT NOT NULL CHECK (type IN ('purchase')),
+        payload TEXT NOT NULL,
+        summary TEXT,
+        total INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+        requested_by TEXT NOT NULL,
+        requested_at TEXT NOT NULL DEFAULT (datetime('now')),
+        decided_by TEXT,
+        decided_at TEXT,
+        decision_note TEXT,
+        result_doc_id TEXT
+      )`,
+    ],
+  },
+  {
+    id: "0007_lots",
+    statements: [
+      // Pelacakan lot/batch + kedaluwarsa per produk (opsional per produk).
+      `ALTER TABLE products ADD COLUMN track_expiry INTEGER NOT NULL DEFAULT 0`,
+      `CREATE TABLE stock_lots (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL REFERENCES products(id),
+        warehouse_id TEXT NOT NULL REFERENCES warehouses(id),
+        lot_no TEXT,
+        expiry_date TEXT,
+        qty INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX stock_lots_fefo ON stock_lots (product_id, warehouse_id, expiry_date)`,
+    ],
+  },
+  {
+    id: "0008_crm",
+    statements: [
+      // CRM: corong pra-penjualan. Lead bergerak lewat tahap funnel, dicatat
+      // aktivitas follow-up, lalu dikonversi menjadi kontak pelanggan.
+      `CREATE TABLE leads (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        contact_person TEXT,
+        email TEXT,
+        phone TEXT,
+        source TEXT,
+        stage TEXT NOT NULL DEFAULT 'new' CHECK (stage IN ('new','contacted','qualified','proposal','won','lost')),
+        est_value INTEGER NOT NULL DEFAULT 0,
+        notes TEXT,
+        status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','won','lost')),
+        converted_contact_id TEXT REFERENCES contacts(id),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX leads_stage ON leads (status, stage, created_at)`,
+      `CREATE TABLE lead_activities (
+        id TEXT PRIMARY KEY,
+        lead_id TEXT NOT NULL REFERENCES leads(id),
+        type TEXT NOT NULL CHECK (type IN ('call','email','meeting','whatsapp','note')),
+        note TEXT NOT NULL,
+        activity_date TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX lead_activities_lead ON lead_activities (lead_id, activity_date)`,
+      // Penawaran (quotation) — sengaja dilepas dari akuntansi: tak berjurnal &
+      // tak menggerakkan stok. Stok/jurnal baru bergerak saat dikonversi ke faktur.
+      `CREATE TABLE quotations (
+        id TEXT PRIMARY KEY,
+        quote_no TEXT NOT NULL UNIQUE,
+        contact_id TEXT NOT NULL REFERENCES contacts(id),
+        lead_id TEXT REFERENCES leads(id),
+        quote_date TEXT NOT NULL,
+        valid_until TEXT,
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','sent','accepted','rejected','converted')),
+        subtotal INTEGER NOT NULL,
+        tax_rate INTEGER NOT NULL DEFAULT 0,
+        tax_amount INTEGER NOT NULL DEFAULT 0,
+        total INTEGER NOT NULL,
+        notes TEXT,
+        result_invoice_id TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE quotation_lines (
+        id TEXT PRIMARY KEY,
+        quotation_id TEXT NOT NULL REFERENCES quotations(id),
+        product_id TEXT NOT NULL REFERENCES products(id),
+        description TEXT,
+        qty INTEGER NOT NULL CHECK (qty > 0),
+        unit_price INTEGER NOT NULL CHECK (unit_price >= 0),
+        amount INTEGER NOT NULL
+      )`,
+    ],
+  },
+  {
+    id: "0009_budgets",
+    statements: [
+      // Anggaran per akun (pendapatan/beban) per bulan (period = 'YYYY-MM').
+      // Realisasi tetap dihitung dari jurnal — tabel ini hanya menyimpan target.
+      `CREATE TABLE budgets (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(id),
+        period TEXT NOT NULL,
+        amount INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (account_id, period)
+      )`,
+      `CREATE INDEX budgets_period ON budgets (period)`,
+    ],
+  },
+  {
+    id: "0010_payroll",
+    statements: [
+      // HR & Payroll: karyawan + penggajian bulanan (PPh 21 TER + BPJS).
+      `CREATE TABLE employees (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        position TEXT,
+        ptkp_status TEXT NOT NULL DEFAULT 'TK/0',
+        base_salary INTEGER NOT NULL DEFAULT 0,
+        allowances INTEGER NOT NULL DEFAULT 0,
+        bank_account TEXT,
+        join_date TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE payroll_runs (
+        id TEXT PRIMARY KEY,
+        run_no TEXT NOT NULL UNIQUE,
+        period TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'posted',
+        total_gross INTEGER NOT NULL,
+        total_deductions INTEGER NOT NULL,
+        total_net INTEGER NOT NULL,
+        journal_entry_id TEXT REFERENCES journal_entries(id),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (period)
+      )`,
+      `CREATE TABLE payslips (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES payroll_runs(id),
+        employee_id TEXT NOT NULL REFERENCES employees(id),
+        base_salary INTEGER NOT NULL,
+        allowances INTEGER NOT NULL,
+        gross INTEGER NOT NULL,
+        bpjs_health_employee INTEGER NOT NULL DEFAULT 0,
+        bpjs_jht_employee INTEGER NOT NULL DEFAULT 0,
+        bpjs_jp_employee INTEGER NOT NULL DEFAULT 0,
+        ter_category TEXT NOT NULL,
+        ter_rate REAL NOT NULL,
+        pph21 INTEGER NOT NULL DEFAULT 0,
+        total_deductions INTEGER NOT NULL DEFAULT 0,
+        net INTEGER NOT NULL
+      )`,
+      `CREATE INDEX payslips_run ON payslips (run_id)`,
+    ],
+  },
+  {
+    id: "0011_fixed_assets",
+    statements: [
+      // Akun beban penyusutan (Aset Tetap 1-1500 & Akumulasi 1-1510 sudah ada di COA).
+      `INSERT INTO accounts (id, code, name, type, is_system) VALUES ('acc-5-5000', '5-5000', 'Beban Penyusutan', 'expense', 1)`,
+      `CREATE TABLE fixed_assets (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        category TEXT,
+        acquisition_date TEXT NOT NULL,
+        acquisition_cost INTEGER NOT NULL,
+        useful_life_months INTEGER NOT NULL,
+        residual_value INTEGER NOT NULL DEFAULT 0,
+        accumulated_depreciation INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','disposed')),
+        disposed_date TEXT,
+        journal_entry_id TEXT REFERENCES journal_entries(id),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE depreciation_entries (
+        id TEXT PRIMARY KEY,
+        asset_id TEXT NOT NULL REFERENCES fixed_assets(id),
+        period TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        journal_entry_id TEXT REFERENCES journal_entries(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (asset_id, period)
+      )`,
+    ],
+  },
+  {
+    id: "0012_projects",
+    statements: [
+      // Proyek: tagging biaya/pendapatan lewat project_id di jurnal → laporan
+      // profitabilitas dihitung dari jurnal terposting yang ber-tag.
+      `CREATE TABLE projects (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        contact_id TEXT REFERENCES contacts(id),
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','completed','on_hold')),
+        budget INTEGER NOT NULL DEFAULT 0,
+        start_date TEXT,
+        end_date TEXT,
+        notes TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE project_tasks (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id),
+        name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo','in_progress','done')),
+        due_date TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `ALTER TABLE journal_entries ADD COLUMN project_id TEXT REFERENCES projects(id)`,
+      `CREATE INDEX journal_entries_project ON journal_entries (project_id)`,
+    ],
+  },
+  {
+    id: "0013_multicurrency",
+    statements: [
+      // Akun laba/rugi selisih kurs.
+      `INSERT INTO accounts (id, code, name, type, is_system) VALUES ('acc-4-3000', '4-3000', 'Laba Selisih Kurs', 'income', 1)`,
+      `INSERT INTO accounts (id, code, name, type, is_system) VALUES ('acc-5-6000', '5-6000', 'Rugi Selisih Kurs', 'expense', 1)`,
+      // Master mata uang. rate = IDR per 1 unit valas (REAL). IDR = basis (rate 1).
+      `CREATE TABLE currencies (
+        code TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        rate REAL NOT NULL DEFAULT 1,
+        is_base INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO currencies (code, name, rate, is_base) VALUES ('IDR', 'Rupiah', 1, 1)`,
+      // Faktur/pembayaran valas: nilai buku tetap IDR; kolom valas untuk jejak & selisih kurs.
+      `ALTER TABLE invoices ADD COLUMN currency TEXT NOT NULL DEFAULT 'IDR'`,
+      `ALTER TABLE invoices ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 1`,
+      `ALTER TABLE invoices ADD COLUMN foreign_total INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE purchases ADD COLUMN currency TEXT NOT NULL DEFAULT 'IDR'`,
+      `ALTER TABLE purchases ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 1`,
+      `ALTER TABLE purchases ADD COLUMN foreign_total INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE payments ADD COLUMN currency TEXT NOT NULL DEFAULT 'IDR'`,
+      `ALTER TABLE payments ADD COLUMN exchange_rate REAL NOT NULL DEFAULT 1`,
+      `ALTER TABLE payments ADD COLUMN foreign_amount INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  {
+    id: "0014_contracts",
+    statements: [
+      // Produk jasa: tidak melacak stok (faktur tak menggerakkan stok/HPP).
+      `ALTER TABLE products ADD COLUMN is_service INTEGER NOT NULL DEFAULT 0`,
+      // Kontrak tagihan berulang: Cron menerbitkan faktur saat jatuh tempo.
+      `CREATE TABLE contracts (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        contact_id TEXT NOT NULL REFERENCES contacts(id),
+        name TEXT NOT NULL,
+        frequency TEXT NOT NULL CHECK (frequency IN ('monthly','quarterly','yearly')),
+        tax_rate INTEGER NOT NULL DEFAULT 0,
+        warehouse_id TEXT NOT NULL REFERENCES warehouses(id),
+        next_invoice_date TEXT NOT NULL,
+        end_date TEXT,
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','ended')),
+        last_invoice_id TEXT,
+        invoice_count INTEGER NOT NULL DEFAULT 0,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX contracts_due ON contracts (status, next_invoice_date)`,
+      `CREATE TABLE contract_lines (
+        id TEXT PRIMARY KEY,
+        contract_id TEXT NOT NULL REFERENCES contracts(id),
+        product_id TEXT NOT NULL REFERENCES products(id),
+        description TEXT,
+        qty INTEGER NOT NULL CHECK (qty > 0),
+        unit_price INTEGER NOT NULL CHECK (unit_price >= 0)
+      )`,
+    ],
+  },
+  {
+    id: "0015_manufacturing",
+    statements: [
+      // Bill of Materials: resep satu produk jadi. `output_qty` = jumlah unit
+      // produk jadi yang dihasilkan dari komponen yang terdaftar.
+      `CREATE TABLE boms (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL UNIQUE REFERENCES products(id),
+        output_qty INTEGER NOT NULL CHECK (output_qty > 0),
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE bom_lines (
+        id TEXT PRIMARY KEY,
+        bom_id TEXT NOT NULL REFERENCES boms(id),
+        component_id TEXT NOT NULL REFERENCES products(id),
+        qty INTEGER NOT NULL CHECK (qty > 0)
+      )`,
+      // Perintah produksi: mengonsumsi bahan (stok keluar) → produk jadi (stok
+      // masuk) dengan biaya gabungan. Netral terhadap nilai persediaan (bahan &
+      // produk jadi sama-sama di akun Persediaan) sehingga tanpa jurnal.
+      `CREATE TABLE production_orders (
+        id TEXT PRIMARY KEY,
+        order_no TEXT NOT NULL UNIQUE,
+        product_id TEXT NOT NULL REFERENCES products(id),
+        warehouse_id TEXT NOT NULL REFERENCES warehouses(id),
+        qty INTEGER NOT NULL CHECK (qty > 0),
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','produced')),
+        qc_status TEXT NOT NULL DEFAULT 'none' CHECK (qc_status IN ('none','pending','passed','quarantined')),
+        unit_cost INTEGER NOT NULL DEFAULT 0,
+        total_cost INTEGER NOT NULL DEFAULT 0,
+        qc_warehouse_id TEXT REFERENCES warehouses(id),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        produced_at TEXT
+      )`,
+    ],
+  },
+  {
+    id: "0016_maintenance",
+    statements: [
+      // Akun beban servis/pemeliharaan aset.
+      `INSERT INTO accounts (id, code, name, type, is_system) VALUES ('acc-5-7000', '5-7000', 'Beban Pemeliharaan', 'expense', 1)`,
+      // Jadwal servis berkala per aset tetap. Cron menerbitkan work order saat
+      // jatuh tempo lalu memajukan tanggal servis berikutnya.
+      `CREATE TABLE maintenance_schedules (
+        id TEXT PRIMARY KEY,
+        asset_id TEXT NOT NULL REFERENCES fixed_assets(id),
+        name TEXT NOT NULL,
+        interval_months INTEGER NOT NULL CHECK (interval_months > 0),
+        next_due_date TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX maintenance_due ON maintenance_schedules (active, next_due_date)`,
+      // Work order: pekerjaan servis (dari jadwal atau ad-hoc). Saat selesai
+      // dengan biaya, memposting jurnal Beban Pemeliharaan / Kas-Bank.
+      `CREATE TABLE work_orders (
+        id TEXT PRIMARY KEY,
+        order_no TEXT NOT NULL UNIQUE,
+        asset_id TEXT NOT NULL REFERENCES fixed_assets(id),
+        schedule_id TEXT REFERENCES maintenance_schedules(id),
+        title TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','done')),
+        scheduled_date TEXT NOT NULL,
+        completed_date TEXT,
+        cost INTEGER NOT NULL DEFAULT 0,
+        notes TEXT,
+        journal_entry_id TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    id: "0017_helpdesk",
+    statements: [
+      // Tiket dukungan pelanggan: prioritas, status, penugasan, terhubung kontak.
+      `CREATE TABLE tickets (
+        id TEXT PRIMARY KEY,
+        ticket_no TEXT NOT NULL UNIQUE,
+        contact_id TEXT NOT NULL REFERENCES contacts(id),
+        subject TEXT NOT NULL,
+        description TEXT,
+        priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low','medium','high','urgent')),
+        status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','in_progress','resolved','closed')),
+        assigned_to TEXT,
+        assigned_name TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        resolved_at TEXT
+      )`,
+      `CREATE INDEX tickets_status ON tickets (status, created_at)`,
+      // Balasan/komentar pada tiket (internal = catatan tim, bukan untuk pelanggan).
+      `CREATE TABLE ticket_replies (
+        id TEXT PRIMARY KEY,
+        ticket_id TEXT NOT NULL REFERENCES tickets(id),
+        body TEXT NOT NULL,
+        author_user_id TEXT NOT NULL,
+        author_name TEXT NOT NULL,
+        internal INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    id: "0018_void",
+    statements: [
+      // Pembatalan dokumen: terisi = dokumen dibatalkan (jurnal pembalik telah
+      // diposting & stok dikembalikan). Semua query outstanding memfilter
+      // voided_at IS NULL.
+      `ALTER TABLE invoices ADD COLUMN voided_at TEXT`,
+      `ALTER TABLE purchases ADD COLUMN voided_at TEXT`,
+    ],
+  },
+  {
+    id: "0019_commerce_extras",
+    statements: [
+      // Diskon per baris (persen 0–100): nilai baris & PPN dihitung setelah diskon.
+      `ALTER TABLE invoice_lines ADD COLUMN discount_pct REAL NOT NULL DEFAULT 0`,
+      `ALTER TABLE purchase_lines ADD COLUMN discount_pct REAL NOT NULL DEFAULT 0`,
+      // Ambang stok menipis per produk (0 = tanpa peringatan).
+      `ALTER TABLE products ADD COLUMN min_stock INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  {
+    id: "0020_finance_extras",
+    statements: [
+      // Template jurnal berulang: lines = JSON [{accountId, debit, credit}].
+      // schedule 'monthly' + next_run_date → cron memposting otomatis; NULL =
+      // hanya terbit manual dari form Jurnal Umum.
+      `CREATE TABLE journal_templates (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        memo TEXT,
+        lines TEXT NOT NULL,
+        schedule TEXT,
+        next_run_date TEXT,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL
+      )`,
+      // Rekonsiliasi bank v1: baris mutasi rekening koran hasil impor CSV.
+      // amount bertanda (+ masuk / − keluar); matched_journal_line_id terisi =
+      // baris sudah dicocokkan (otomatis maupun manual).
+      `CREATE TABLE bank_statement_items (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(id),
+        stmt_date TEXT NOT NULL,
+        description TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        matched_journal_line_id TEXT,
+        created_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX idx_bank_stmt_account ON bank_statement_items(account_id, stmt_date)`,
+    ],
+  },
+  {
+    id: "0021_crm_extras",
+    statements: [
+      // Rencana tindak lanjut: aktivitas bisa diberi tenggat — masuk lonceng
+      // notifikasi saat jatuh tempo (kolom source lead & valid_until penawaran
+      // sudah ada sejak 0008).
+      `ALTER TABLE lead_activities ADD COLUMN due_at TEXT`,
+    ],
+  },
+  {
+    id: "0022_hr_extras",
+    statements: [
+      // Saldo cuti tahunan (hari) — dipotong saat pengajuan cuti tahunan disetujui.
+      `ALTER TABLE employees ADD COLUMN leave_balance INTEGER NOT NULL DEFAULT 12`,
+      // Slip menyimpan total komponen ad-hoc (bonus/lembur/potongan, ikut bruto &
+      // pajak) dan potongan cicilan kasbon (dipotong dari netto, di luar pajak).
+      `ALTER TABLE payslips ADD COLUMN adjustments_total INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE payslips ADD COLUMN loan_deduction INTEGER NOT NULL DEFAULT 0`,
+      // Komponen ad-hoc per periode; run_id terisi saat periode itu digaji.
+      `CREATE TABLE payroll_adjustments (
+        id TEXT PRIMARY KEY,
+        period TEXT NOT NULL,
+        employee_id TEXT NOT NULL REFERENCES employees(id),
+        name TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        run_id TEXT REFERENCES payroll_runs(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX payroll_adjustments_period ON payroll_adjustments (period)`,
+      // Kasbon/pinjaman karyawan: pencairan berjurnal (Piutang Karyawan), cicilan
+      // otomatis memotong netto tiap run penggajian sampai lunas.
+      `CREATE TABLE employee_loans (
+        id TEXT PRIMARY KEY,
+        employee_id TEXT NOT NULL REFERENCES employees(id),
+        name TEXT NOT NULL,
+        principal INTEGER NOT NULL,
+        monthly_deduction INTEGER NOT NULL,
+        balance INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        journal_entry_id TEXT REFERENCES journal_entries(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      // Cuti & izin: pengajuan + keputusan Owner/Admin; cuti tahunan yang disetujui
+      // memotong saldo cuti karyawan.
+      `CREATE TABLE leave_requests (
+        id TEXT PRIMARY KEY,
+        employee_id TEXT NOT NULL REFERENCES employees(id),
+        type TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        days INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        note TEXT,
+        decided_by TEXT,
+        decided_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    id: "0023_project_extras",
+    statements: [
+      // Termin penagihan: milestone → 'Buat faktur dari termin' (faktur penjualan
+      // jasa tertaut proyek). invoice_id terisi setelah difakturkan.
+      `CREATE TABLE project_milestones (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id),
+        name TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'planned',
+        invoice_id TEXT REFERENCES invoices(id),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX project_milestones_project ON project_milestones (project_id)`,
+      // RAB: anggaran biaya per kategori vs realisasi (realisasi dari jurnal ber-tag proyek).
+      `CREATE TABLE project_budgets (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id),
+        category TEXT NOT NULL,
+        planned_amount INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX project_budgets_project ON project_budgets (project_id)`,
+      // Timesheet: jam kerja per karyawan per proyek (informatif, jam × tarif) →
+      // estimasi biaya tenaga kerja proyek (gaji sudah dibebankan lewat payroll,
+      // jadi tidak dijurnal ulang agar tak dobel-hitung).
+      `CREATE TABLE time_entries (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL REFERENCES projects(id),
+        employee_id TEXT REFERENCES employees(id),
+        entry_date TEXT NOT NULL,
+        hours REAL NOT NULL,
+        hourly_rate INTEGER NOT NULL DEFAULT 0,
+        note TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX time_entries_project ON time_entries (project_id)`,
+    ],
+  },
+  {
+    id: "0024_hr_attendance",
+    statements: [
+      // Absensi/kehadiran harian per karyawan — satu baris per karyawan per tanggal
+      // (upsert saat dikoreksi). status: hadir/izin/sakit/alfa/cuti; jam masuk/keluar opsional.
+      `CREATE TABLE attendance (
+        id TEXT PRIMARY KEY,
+        employee_id TEXT NOT NULL REFERENCES employees(id),
+        date TEXT NOT NULL,
+        clock_in TEXT,
+        clock_out TEXT,
+        status TEXT NOT NULL DEFAULT 'hadir',
+        note TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (employee_id, date)
+      )`,
+      `CREATE INDEX attendance_emp_date ON attendance (employee_id, date)`,
+    ],
+  },
+  {
+    id: "0025_project_pm",
+    statements: [
+      // Manajemen proyek serius: penanggung jawab tugas, prioritas, urutan kanban.
+      // ALTER backward-compatible — tugas lama tetap valid (assignee kosong, prioritas 'medium').
+      `ALTER TABLE project_tasks ADD COLUMN assignee_id TEXT REFERENCES employees(id)`,
+      `ALTER TABLE project_tasks ADD COLUMN priority TEXT NOT NULL DEFAULT 'medium'`,
+      `ALTER TABLE project_tasks ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`,
+      `CREATE INDEX project_tasks_assignee ON project_tasks (assignee_id)`,
+    ],
+  },
+  {
+    id: "0026_procurement",
+    statements: [
+      // Procure-to-pay: permintaan (PR) → pesanan (PO) → penerimaan (GRN).
+      // Stok & jurnal terjadi saat penerimaan lewat executePurchase (faktur pembelian).
+      `CREATE TABLE purchase_requisitions (
+        id TEXT PRIMARY KEY,
+        req_no TEXT NOT NULL,
+        note TEXT,
+        status TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted','approved','rejected','ordered')),
+        requested_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE purchase_requisition_lines (
+        id TEXT PRIMARY KEY,
+        requisition_id TEXT NOT NULL REFERENCES purchase_requisitions(id),
+        product_id TEXT NOT NULL REFERENCES products(id),
+        qty INTEGER NOT NULL,
+        note TEXT
+      )`,
+      `CREATE INDEX prl_requisition ON purchase_requisition_lines (requisition_id)`,
+      `CREATE TABLE purchase_orders (
+        id TEXT PRIMARY KEY,
+        po_no TEXT NOT NULL,
+        requisition_id TEXT REFERENCES purchase_requisitions(id),
+        contact_id TEXT NOT NULL REFERENCES contacts(id),
+        order_date TEXT NOT NULL,
+        expected_date TEXT,
+        warehouse_id TEXT NOT NULL REFERENCES warehouses(id),
+        tax_rate INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'ordered' CHECK (status IN ('ordered','received','cancelled')),
+        note TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE purchase_order_lines (
+        id TEXT PRIMARY KEY,
+        po_id TEXT NOT NULL REFERENCES purchase_orders(id),
+        product_id TEXT NOT NULL REFERENCES products(id),
+        qty INTEGER NOT NULL,
+        unit_price INTEGER NOT NULL
+      )`,
+      `CREATE INDEX pol_po ON purchase_order_lines (po_id)`,
+      `CREATE TABLE goods_receipts (
+        id TEXT PRIMARY KEY,
+        grn_no TEXT NOT NULL,
+        po_id TEXT NOT NULL REFERENCES purchase_orders(id),
+        receipt_date TEXT NOT NULL,
+        purchase_id TEXT REFERENCES purchases(id),
+        note TEXT,
+        received_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE goods_receipt_lines (
+        id TEXT PRIMARY KEY,
+        grn_id TEXT NOT NULL REFERENCES goods_receipts(id),
+        po_line_id TEXT NOT NULL REFERENCES purchase_order_lines(id),
+        qty_received INTEGER NOT NULL
+      )`,
+      `CREATE INDEX grl_grn ON goods_receipt_lines (grn_id)`,
+    ],
+  },
+  {
+    id: "0027_approval_engine",
+    statements: [
+      // Approval workflow engine (Fase 6e): aturan berjenjang generik + alur multi-langkah.
+      // Berdampingan dengan approval pembelian ambang-tunggal lama (approval_requests) — tak diubah.
+      `CREATE TABLE approval_rules (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        doc_type TEXT NOT NULL,
+        min_amount INTEGER NOT NULL DEFAULT 0,
+        approver_roles TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE approval_flows (
+        id TEXT PRIMARY KEY,
+        flow_no TEXT NOT NULL,
+        doc_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+        current_step INTEGER NOT NULL DEFAULT 1,
+        rule_id TEXT REFERENCES approval_rules(id),
+        requested_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE approval_flow_steps (
+        id TEXT PRIMARY KEY,
+        flow_id TEXT NOT NULL REFERENCES approval_flows(id),
+        step_order INTEGER NOT NULL,
+        approver_role TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+        decided_by TEXT,
+        decided_at TEXT,
+        note TEXT
+      )`,
+      `CREATE INDEX afs_flow ON approval_flow_steps (flow_id)`,
+    ],
+  },
+  {
+    id: "0028_pos_multipay",
+    statements: [
+      // POS lanjut (Fase 7a): pembayaran multi-metode per penjualan + tahan transaksi.
+      // amount = nilai yang masuk pembukuan (tunai = kas yang tinggal di laci setelah kembalian);
+      // tendered = nominal yang diserahkan pelanggan (tunai bisa lebih untuk kembalian).
+      `CREATE TABLE pos_sale_payments (
+        id TEXT PRIMARY KEY,
+        invoice_id TEXT NOT NULL REFERENCES invoices(id),
+        shift_id TEXT NOT NULL REFERENCES pos_shifts(id),
+        method TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        tendered INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX psp_shift ON pos_sale_payments (shift_id)`,
+      `CREATE INDEX psp_invoice ON pos_sale_payments (invoice_id)`,
+      // Transaksi ditahan (park): keranjang disimpan sementara per shift.
+      `CREATE TABLE pos_held_sales (
+        id TEXT PRIMARY KEY,
+        shift_id TEXT NOT NULL REFERENCES pos_shifts(id),
+        label TEXT NOT NULL,
+        cart TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX phs_shift ON pos_held_sales (shift_id)`,
+    ],
+  },
+  {
+    id: "0029_sales_orders",
+    statements: [
+      // Penjualan bertahap (Fase 7b): pesanan pelanggan (SO) → surat jalan (DO) → faktur.
+      // SO & faktur tak menggerakkan stok; stok keluar TEPAT SEKALI di surat jalan (DO).
+      `CREATE TABLE sales_orders (
+        id TEXT PRIMARY KEY,
+        so_no TEXT NOT NULL,
+        contact_id TEXT NOT NULL REFERENCES contacts(id),
+        order_date TEXT NOT NULL,
+        expected_date TEXT,
+        warehouse_id TEXT NOT NULL REFERENCES warehouses(id),
+        tax_rate INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','delivered','invoiced','cancelled')),
+        dp_amount INTEGER NOT NULL DEFAULT 0,
+        invoice_id TEXT REFERENCES invoices(id),
+        note TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE sales_order_lines (
+        id TEXT PRIMARY KEY,
+        so_id TEXT NOT NULL REFERENCES sales_orders(id),
+        product_id TEXT NOT NULL REFERENCES products(id),
+        qty INTEGER NOT NULL,
+        unit_price INTEGER NOT NULL,
+        discount_pct REAL NOT NULL DEFAULT 0
+      )`,
+      `CREATE INDEX sol_so ON sales_order_lines (so_id)`,
+      `CREATE TABLE delivery_orders (
+        id TEXT PRIMARY KEY,
+        do_no TEXT NOT NULL,
+        so_id TEXT NOT NULL REFERENCES sales_orders(id),
+        delivery_date TEXT NOT NULL,
+        journal_entry_id TEXT REFERENCES journal_entries(id),
+        note TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE delivery_order_lines (
+        id TEXT PRIMARY KEY,
+        do_id TEXT NOT NULL REFERENCES delivery_orders(id),
+        product_id TEXT NOT NULL REFERENCES products(id),
+        qty INTEGER NOT NULL
+      )`,
+      `CREATE INDEX dol_do ON delivery_order_lines (do_id)`,
+    ],
+  },
+  {
+    id: "0030_stock_advanced",
+    statements: [
+      // Stok lanjut (Fase 7c): barcode, multi-satuan (UOM), nomor seri.
+      // Kolom produk baru — backward-compatible (nilai default aman untuk data lama).
+      `ALTER TABLE products ADD COLUMN barcode TEXT`,
+      // Satuan besar (mis. "dus") + faktor konversi (1 satuan besar = uom_factor satuan dasar).
+      `ALTER TABLE products ADD COLUMN uom_secondary TEXT`,
+      `ALTER TABLE products ADD COLUMN uom_factor INTEGER NOT NULL DEFAULT 1`,
+      // Produk terpilih melacak nomor seri (barang bernilai tinggi/garansi).
+      `ALTER TABLE products ADD COLUMN track_serial INTEGER NOT NULL DEFAULT 0`,
+      // Registri nomor seri per produk (in_stock → sold). Ringan, terpisah dari stock_levels.
+      `CREATE TABLE product_serials (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL REFERENCES products(id),
+        serial_no TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'in_stock' CHECK (status IN ('in_stock','sold')),
+        note TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (product_id, serial_no)
+      )`,
+      `CREATE INDEX ps_product ON product_serials (product_id)`,
+    ],
+  },
+  {
+    id: "0031_umkm_tax",
+    statements: [
+      // Pajak UMKM (Fase 7d): PPh Final 0,5% (PP 55/2022) per bulan + PPh 23 (bukti potong).
+      `CREATE TABLE tax_pph_final (
+        id TEXT PRIMARY KEY,
+        period TEXT NOT NULL UNIQUE,
+        omzet INTEGER NOT NULL,
+        rate REAL NOT NULL DEFAULT 0.5,
+        amount INTEGER NOT NULL,
+        account_id TEXT NOT NULL REFERENCES accounts(id),
+        journal_entry_id TEXT REFERENCES journal_entries(id),
+        paid_date TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      // PPh 23 dipotong dari pihak lain (jasa/sewa/royalti/dll) → bukti potong + hutang PPh 23.
+      `CREATE TABLE tax_pph23 (
+        id TEXT PRIMARY KEY,
+        doc_no TEXT NOT NULL,
+        contact_id TEXT NOT NULL REFERENCES contacts(id),
+        tax_date TEXT NOT NULL,
+        object_type TEXT NOT NULL,
+        gross INTEGER NOT NULL,
+        rate REAL NOT NULL,
+        amount INTEGER NOT NULL,
+        source_account_id TEXT NOT NULL REFERENCES accounts(id),
+        journal_entry_id TEXT REFERENCES journal_entries(id),
+        deposited INTEGER NOT NULL DEFAULT 0,
+        deposit_journal_id TEXT REFERENCES journal_entries(id),
+        note TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX pph23_contact ON tax_pph23 (contact_id)`,
+    ],
+  },
+  {
+    id: "0032_dimensions",
+    statements: [
+      // Akuntansi dimensi (Fase 7f): cost center / departemen opsional per baris jurnal.
+      // Backward-compatible: kolom nullable; baris lama & jurnal otomatis tak terpengaruh.
+      `CREATE TABLE cost_centers (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `ALTER TABLE journal_lines ADD COLUMN cost_center_id TEXT`,
+      `CREATE INDEX journal_lines_cc ON journal_lines (cost_center_id)`,
+      // Rekonsiliasi bank v2 (Fase 7f): aturan auto-match tersimpan per akun.
+      `CREATE TABLE bank_match_rules (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL REFERENCES accounts(id),
+        keyword TEXT NOT NULL,
+        date_tolerance INTEGER NOT NULL DEFAULT 3,
+        active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+    ],
+  },
+  {
+    id: "0033_pm_manufacturing",
+    statements: [
+      // Proyek Gantt (Fase 7g): jadwal + dependensi + baseline per tugas (nullable, additive).
+      `ALTER TABLE project_tasks ADD COLUMN start_date TEXT`,
+      `ALTER TABLE project_tasks ADD COLUMN end_date TEXT`,
+      `ALTER TABLE project_tasks ADD COLUMN predecessor_id TEXT REFERENCES project_tasks(id)`,
+      `ALTER TABLE project_tasks ADD COLUMN baseline_start TEXT`,
+      `ALTER TABLE project_tasks ADD COLUMN baseline_end TEXT`,
+      // Manufaktur routing (Fase 7g): work center + tahapan routing per perintah produksi.
+      `CREATE TABLE work_centers (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        hourly_rate INTEGER NOT NULL DEFAULT 0,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE production_routing_steps (
+        id TEXT PRIMARY KEY,
+        production_id TEXT NOT NULL REFERENCES production_orders(id),
+        work_center_id TEXT NOT NULL REFERENCES work_centers(id),
+        step_order INTEGER NOT NULL DEFAULT 0,
+        name TEXT NOT NULL,
+        standard_cost INTEGER NOT NULL DEFAULT 0,
+        actual_cost INTEGER,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','done')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX routing_steps_production ON production_routing_steps (production_id)`,
+    ],
+  },
+  {
+    // Laporan terjadwal (Fase 7h): snapshot ringkasan berkala yang ditulis oleh
+    // Cron (rekap penjualan bulanan) — idempotent per (kind, period). Additive.
+    id: "0034_scheduled_reports",
+    statements: [
+      `CREATE TABLE report_snapshots (
+        id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        period TEXT NOT NULL,
+        title TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        created_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (kind, period)
+      )`,
+    ],
+  },
+  {
+    // Struktur organisasi (Fase 8c): departemen berhierarki + departemen/atasan
+    // per karyawan (nullable — alur payroll lama tak berubah).
+    id: "0035_org_structure",
+    statements: [
+      `CREATE TABLE departments (
+        id TEXT PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        parent_id TEXT REFERENCES departments(id),
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `ALTER TABLE employees ADD COLUMN department_id TEXT`,
+      `ALTER TABLE employees ADD COLUMN manager_id TEXT`,
+    ],
+  },
+  {
+    // Indeks jalur panas hasil audit Fase 9a: daftar jurnal diurutkan
+    // entry_date + join buku besar memfilter status; pencarian stock_movements
+    // per dokumen sumber (ref_type, ref_id) dipakai void/retur.
+    id: "0036_fase9_indexes",
+    statements: [
+      `CREATE INDEX IF NOT EXISTS idx_journal_entries_status_date ON journal_entries(status, entry_date)`,
+      `CREATE INDEX IF NOT EXISTS idx_stock_movements_ref ON stock_movements(ref_type, ref_id)`,
+    ],
+  },
+  {
+    // Fase 10c — pembalikan transaksi terposting. Tautan dua arah di jurnal
+    // menjadi penjaga keras "dibalik tepat sekali" (claim-first via UPDATE ...
+    // RETURNING); pembayaran & penggajian mendapat kolom void; payroll_loan_cuts
+    // mencatat potongan kasbon per run agar void bisa memulihkan saldo persis.
+    id: "0037_reversals",
+    statements: [
+      `ALTER TABLE journal_entries ADD COLUMN reversed_by_entry_id TEXT REFERENCES journal_entries(id)`,
+      `ALTER TABLE journal_entries ADD COLUMN reverses_entry_id TEXT REFERENCES journal_entries(id)`,
+      `CREATE INDEX IF NOT EXISTS idx_journal_entries_reverses ON journal_entries(reverses_entry_id)`,
+      `ALTER TABLE payments ADD COLUMN voided_at TEXT`,
+      `ALTER TABLE payments ADD COLUMN void_journal_entry_id TEXT REFERENCES journal_entries(id)`,
+      `ALTER TABLE payroll_runs ADD COLUMN voided_at TEXT`,
+      `ALTER TABLE payroll_runs ADD COLUMN void_journal_entry_id TEXT REFERENCES journal_entries(id)`,
+      `CREATE TABLE payroll_loan_cuts (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES payroll_runs(id),
+        loan_id TEXT NOT NULL REFERENCES employee_loans(id),
+        amount INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_payroll_loan_cuts_run ON payroll_loan_cuts(run_id)`,
+    ],
+  },
+  {
+    // Import pesanan marketplace (Fase 11e): pesanan Shopee/Tokopedia/TikTok
+    // (ekspor CSV) → faktur penjualan + stok keluar otomatis. Tabel ini menjaga
+    // idempotensi: satu (channel, external_order_no) hanya diimpor sekali.
+    id: "0038_marketplace",
+    statements: [
+      `CREATE TABLE marketplace_orders (
+        id TEXT PRIMARY KEY,
+        channel TEXT NOT NULL,
+        external_order_no TEXT NOT NULL,
+        invoice_id TEXT REFERENCES invoices(id),
+        imported_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE UNIQUE INDEX marketplace_orders_uq ON marketplace_orders (channel, external_order_no)`,
+    ],
+  },
+  {
+    // Revaluasi aset tetap (Fase 20e) — model revaluasi PSAK 16.
+    //
+    // Metode ELIMINASI: akumulasi penyusutan dinolkan dan harga perolehan
+    // disetel ke nilai wajar. Ini yang membuat penyusutan setelahnya tetap
+    // sederhana (satu garis lurus dari nilai baru), dan yang dipakai mayoritas
+    // UKM. Alternatifnya (proporsional) menuntut menyimpan dua basis angka
+    // untuk tiap aset — mahal dipahami, tanpa manfaat nyata di skala ini.
+    id: "0039_asset_revaluation",
+    statements: [
+      // Surplus revaluasi adalah EKUITAS, bukan pendapatan: kenaikan nilai
+      // wajar belum terealisasi, jadi tidak boleh menyentuh laba rugi.
+      `INSERT INTO accounts (id, code, name, type, is_system) VALUES ('acc-3-3000', '3-3000', 'Surplus Revaluasi', 'equity', 1)`,
+      `CREATE TABLE asset_revaluations (
+        id TEXT PRIMARY KEY,
+        asset_id TEXT NOT NULL REFERENCES fixed_assets(id),
+        reval_date TEXT NOT NULL,
+        cost_before INTEGER NOT NULL,
+        accumulated_before INTEGER NOT NULL,
+        book_value_before INTEGER NOT NULL,
+        fair_value INTEGER NOT NULL,
+        difference INTEGER NOT NULL,
+        journal_entry_id TEXT REFERENCES journal_entries(id),
+        note TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX asset_revaluations_asset ON asset_revaluations (asset_id, reval_date)`,
+    ],
+  },
+  {
+    // Eliminasi transaksi antar-perusahaan (Fase 20f).
+    //
+    // Penandanya di AKUN, bukan di transaksi. Alasannya praktis: pemilik grup
+    // UKM sudah memisahkan piutang/utang afiliasi ke akun tersendiri ("Piutang
+    // Antar-Perusahaan", "Penjualan ke Afiliasi"). Menandai per-transaksi akan
+    // menuntut mereka mengingatnya tiap kali menjurnal — sekali lupa, laporan
+    // gabungannya dobel tanpa ada yang tahu. Menandai akunnya sekali saja
+    // membuat eliminasinya otomatis dan tak bisa lupa.
+    id: "0040_intercompany",
+    statements: [
+      `ALTER TABLE accounts ADD COLUMN is_intercompany INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  {
+    // Fase 20j: field kustom per modul.
+    //
+    // Nilainya disimpan sebagai TEXT dan dikonversi menurut `type` definisinya.
+    // Kolom bertipe kuat per jenis akan memaksa satu kolom per tipe (atau satu
+    // tabel per tipe) tanpa memberi jaminan tambahan — validasi tetap harus
+    // terjadi di skema zod, karena di situlah SELURUH pemanggil lewat.
+    //
+    // `field_key` unik per modul supaya kolom ekspor tidak pernah bertabrakan.
+    // `ON DELETE CASCADE` pada nilai: definisi yang dihapus tidak boleh
+    // meninggalkan nilai yatim yang tetap ikut terekspor.
+    id: "0041_custom_fields",
+    statements: [
+      `CREATE TABLE custom_field_defs (
+        id TEXT PRIMARY KEY,
+        module TEXT NOT NULL CHECK (module IN ('contact','product','invoice')),
+        field_key TEXT NOT NULL,
+        label TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('teks','angka','tanggal','pilihan')),
+        options TEXT,
+        required INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE UNIQUE INDEX custom_field_defs_key ON custom_field_defs (module, field_key)`,
+      `CREATE TABLE custom_field_values (
+        id TEXT PRIMARY KEY,
+        def_id TEXT NOT NULL REFERENCES custom_field_defs(id) ON DELETE CASCADE,
+        ref_type TEXT NOT NULL,
+        ref_id TEXT NOT NULL,
+        value TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE UNIQUE INDEX custom_field_values_unik ON custom_field_values (def_id, ref_type, ref_id)`,
+      `CREATE INDEX custom_field_values_ref ON custom_field_values (ref_type, ref_id)`,
+    ],
+  },
+  {
+    // Fase 21c: satuan ganda dipakai saat transaksi.
+    //
+    // Aturan penyimpanan yang dipilih — dan alasannya, karena inilah bagian
+    // yang paling mudah salah:
+    //
+    //   `qty`        SELALU dalam satuan DASAR (pcs).
+    //   `unit_price` dalam satuan yang DIINPUT (mis. per dus).
+    //   `uom_factor` isi satuan besar; 1 untuk seluruh baris lama & baris
+    //                bersatuan dasar, sehingga `qty_input = qty / uom_factor`.
+    //
+    // `qty` dibuat konsisten satuannya karena SUM(qty) dipakai di beberapa
+    // tempat (laporan produk terlaris, validasi retur, agregat dokumen).
+    // Menyimpan qty campur dus & pcs di satu kolom membuat penjumlahan itu
+    // salah tanpa satu pun angkanya terlihat aneh.
+    //
+    // `unit_price` justru TIDAK dibagi, supaya `qty_input × unit_price` tetap
+    // eksak; ekspor e-Faktur menjumlahkan ulang TaxBase dari kolom-kolom ini
+    // dan hasilnya wajib sama persis dengan subtotal faktur. Harga per dus yang
+    // tak habis dibagi isinya (mis. Rp 1.000.000 ÷ 24) akan meleset bila
+    // dibulatkan lebih dulu.
+    //
+    // `uom_name` hanya untuk tampilan/cetak: nama satuan boleh berubah di
+    // master produk, dan dokumen lama harus tetap tercetak seperti saat dibuat.
+    id: "0042_uom_baris_transaksi",
+    statements: [
+      `ALTER TABLE invoice_lines ADD COLUMN uom_factor INTEGER NOT NULL DEFAULT 1`,
+      `ALTER TABLE invoice_lines ADD COLUMN uom_name TEXT`,
+      `ALTER TABLE purchase_lines ADD COLUMN uom_factor INTEGER NOT NULL DEFAULT 1`,
+      `ALTER TABLE purchase_lines ADD COLUMN uom_name TEXT`,
+    ],
+  },
+  {
+    // Fase 21f: overhead & tenaga kerja masuk HPP produksi.
+    //
+    // `5-2100 Beban Produksi Diserap` adalah akun KONTRA-BEBAN, dan itulah inti
+    // fase ini. Gaji & listrik SUDAH dibebankan di laba rugi lewat jurnal
+    // penggajian dan biaya operasional; menambahkannya lagi ke nilai persediaan
+    // tanpa sisi kredit yang membatalkannya akan menghitungnya DUA KALI.
+    //
+    // Saldo akun ini (kredit) mengurangi total beban, dan selisihnya terhadap
+    // beban aktual adalah selisih serapan (over/under-absorbed) yang memang
+    // seharusnya tetap terlihat di laba rugi — bukan disembunyikan.
+    //
+    // Biaya disimpan sebagai TOTAL sebatch, bukan per unit: pemilik UKM
+    // menghitung "hari ini upah tukang Rp 300rb untuk 200 bungkus", bukan
+    // "Rp 1.500 per bungkus". Pembagian per unitnya urusan sistem.
+    id: "0043_hpp_produksi_konversi",
+    statements: [
+      `INSERT INTO accounts (id, code, name, type, is_system) VALUES ('acc-5-2100', '5-2100', 'Beban Produksi Diserap', 'expense', 1)`,
+      `ALTER TABLE production_orders ADD COLUMN labour_cost INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE production_orders ADD COLUMN overhead_cost INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
+  {
+    // Fase 22c: kas kecil sistem dana tetap (imprest).
+    //
+    // Dua akun sistem, dan alasan keduanya berbeda:
+    //
+    // `1-1050 Kas Kecil` memisahkan uang di laci pemegang kas kecil dari kas
+    // besar. Tanpa akun tersendiri, "berapa sisa di kotak" hanya bisa dijawab
+    // dengan mengingat — dan pengisian ulangnya jadi angka yang diketik, bukan
+    // dihitung.
+    //
+    // `5-4900 Selisih Kas` menampung hasil opname. Ia satu akun untuk KEDUA
+    // arah: didebet saat uang kurang, dikredit saat lebih. Memisahkannya jadi
+    // beban dan pendapatan akan menyembunyikan angka yang justru paling ingin
+    // dilihat pemilik — selisih BERSIH sepanjang tahun. Konsekuensinya
+    // dinyatakan apa adanya: bila sepanjang periode kotaknya lebih sering
+    // berlebih, baris ini tampil sebagai beban NEGATIF di laba rugi. Itu
+    // penyajian yang jujur, bukan kesalahan.
+    //
+    // Tidak ada tabel baru. Setiap bon kas kecil dijurnal saat dicatat (lewat
+    // Catat Transaksi / jurnal biasa), sehingga daftar bon SUDAH berupa buku
+    // besar akun `1-1050` dan halaman mutasi kas/bank yang ada sudah
+    // menampilkannya. Menambah tabel register tersendiri berarti dua daftar
+    // yang bisa berbeda isi — persis kelas masalah yang dihindari repo ini.
+    // Dana tetap & tanggal pengisian terakhir cukup di `settings`.
+    // `INSERT OR IGNORE`, bukan `INSERT` biasa: `accounts.code` UNIQUE, dan
+    // `1-1050` justru kode yang paling mungkin sudah dibuat sendiri oleh tenant
+    // lama untuk kas kecil mereka. `INSERT` biasa akan melempar dan menggagalkan
+    // SELURUH migrasi tenant itu — cara paling mahal untuk kalah pada tebakan
+    // kode akun. Karena itu pencarian akunnya nanti lewat KODE, bukan id tetap.
+    id: "0044_kas_kecil_dana_tetap",
+    statements: [
+      `INSERT OR IGNORE INTO accounts (id, code, name, type, is_system) VALUES ('acc-1-1050', '1-1050', 'Kas Kecil', 'asset', 1)`,
+      `INSERT OR IGNORE INTO accounts (id, code, name, type, is_system) VALUES ('acc-5-4900', '5-4900', 'Selisih Kas', 'expense', 1)`,
+    ],
+  },
+  {
+    // Fase 22d: metode saldo menurun + penyusutan fiskal berdampingan.
+    //
+    // `depreciation_method` bawaannya `garis_lurus` supaya SELURUH aset yang
+    // sudah ada berperilaku persis seperti sebelumnya — fase ini tidak boleh
+    // diam-diam mengubah angka penyusutan aset yang sudah berjalan.
+    //
+    // `tax_group` & `tax_method` adalah kolom FISKAL, dan sengaja dipisah dari
+    // kolom komersial di sebelahnya. Keduanya TIDAK pernah dijurnal: buku besar
+    // memuat penyusutan komersial, sementara angka fiskal hanya dipakai
+    // merekonsiliasi laba komersial ke laba fiskal di SPT. Menjurnalkannya
+    // berarti menyusutkan aset dua kali — dan karena jurnalnya tetap seimbang,
+    // neraca saldo tidak akan menangkapnya sama sekali.
+    //
+    // `tax_group` boleh NULL, dan NULL berarti "belum diatur" — bukan "fiskalnya
+    // nol". Keduanya keadaan berbeda; menyamakannya membuat koreksi fiskal
+    // diam-diam salah, jadi laporannya menghitung aset tanpa kelompok terpisah.
+    id: "0045_penyusutan_saldo_menurun_fiskal",
+    statements: [
+      `ALTER TABLE fixed_assets ADD COLUMN depreciation_method TEXT NOT NULL DEFAULT 'garis_lurus'`,
+      `ALTER TABLE fixed_assets ADD COLUMN tax_group TEXT`,
+      `ALTER TABLE fixed_assets ADD COLUMN tax_method TEXT`,
+    ],
+  },
+  {
+    // Fase 23a: harga bertingkat per grup pelanggan (grosir vs ecer).
+    //
+    // Dua aturan penyimpanan yang menentukan benar-salahnya angka, dan keduanya
+    // jenis yang tidak terlihat salah saat dibaca sepintas:
+    //
+    // 1. `price_group_items.unit_price` adalah harga per SATUAN DASAR (pcs).
+    //    Ini SENGAJA berbeda dari `invoice_lines.unit_price`, yang sejak Fase
+    //    21c justru per satuan yang DIINPUT (per dus). Alasannya: daftar harga
+    //    tidak tahu satuan apa yang nanti dipakai saat transaksi, jadi ia harus
+    //    punya satu satuan yang pasti. Pengalian ke satuan besar terjadi saat
+    //    resolusi (`hargaUntukGrup()` di `@erpindo/shared`) — pasangan terbalik
+    //    dari pembagian di `konversiSatuanBaris()`. Salah arah di sini membuat
+    //    faktur dus tertagih 1/24 harganya tanpa satu angka pun terlihat ganjil.
+    //
+    // 2. Harga Rp 0 SAH dan berarti gratis (barang bonus). "Belum diatur"
+    //    diwakili oleh BARISNYA TIDAK ADA, bukan oleh nilai 0. Karena itu
+    //    mengembalikan produk ke harga dasar dilakukan dengan MENGHAPUS baris,
+    //    bukan menyetelnya ke 0. Kalau 0 diperlakukan sebagai kosong, produk
+    //    bonus akan diam-diam ditagih harga normal — dan faktur yang salah itu
+    //    terlihat sangat wajar.
+    //
+    // `ON DELETE CASCADE` pada kedua kolom `price_group_items`: baris daftar
+    // harga yang produk atau grupnya sudah tiada adalah sampah yang tak bisa
+    // ditampilkan di layar mana pun.
+    //
+    // `contacts.price_group_id` sengaja TANPA cascade. Menghapus grup harga
+    // tidak boleh ikut menghapus pelanggannya — itu kehilangan data yang jauh
+    // lebih mahal daripada harga yang perlu diatur ulang. Pelanggan yang
+    // grupnya hilang atau diarsip mundur ke `products.sell_price`, dan itu
+    // ditangani di resolusi, bukan di skema.
+    id: "0046_harga_bertingkat",
+    statements: [
+      `CREATE TABLE price_groups (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        is_archived INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE price_group_items (
+        id TEXT PRIMARY KEY,
+        group_id TEXT NOT NULL REFERENCES price_groups(id) ON DELETE CASCADE,
+        product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        unit_price INTEGER NOT NULL CHECK (unit_price >= 0),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE UNIQUE INDEX price_group_items_unik ON price_group_items (group_id, product_id)`,
+      `ALTER TABLE contacts ADD COLUMN price_group_id TEXT REFERENCES price_groups(id)`,
+    ],
+  },
+];
+
+/** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */
+export type SqlExecutor = {
+  prepare(query: string): {
+    bind(...values: unknown[]): {
+      all<T = unknown>(): Promise<{ results: T[] }>;
+      run(): Promise<unknown>;
+      first<T = unknown>(): Promise<T | null>;
+    };
+    all<T = unknown>(): Promise<{ results: T[] }>;
+    run(): Promise<unknown>;
+    first<T = unknown>(): Promise<T | null>;
+  };
+};
+
+/**
+ * Terapkan migrasi yang belum berjalan, dicatat di tabel `_migrations`.
+ * Aman dipanggil berulang (idempotent). Mengembalikan daftar id yang baru
+ * diterapkan.
+ */
+export async function applyMigrations(db: SqlExecutor, migrations: Migration[]): Promise<string[]> {
+  await db
+    .prepare(`CREATE TABLE IF NOT EXISTS _migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`)
+    .run();
+
+  const { results } = await db.prepare(`SELECT id FROM _migrations`).all<{ id: string }>();
+  const done = new Set(results.map((r) => r.id));
+  const applied: string[] = [];
+
+  for (const migration of migrations) {
+    if (done.has(migration.id)) continue;
+    for (const statement of migration.statements) {
+      await db.prepare(statement).run();
+    }
+    await db
+      .prepare(`INSERT INTO _migrations (id, applied_at) VALUES (?, ?)`)
+      .bind(migration.id, new Date().toISOString())
+      .run();
+    applied.push(migration.id);
+  }
+  return applied;
+}
+
+export const TENANT_SCHEMA_VERSION = TENANT_MIGRATIONS.length;

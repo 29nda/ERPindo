@@ -1,0 +1,6999 @@
+#!/usr/bin/env node
+/**
+ * Smoke test end-to-end: menjalankan `wrangler dev` (D1 & KV lokal) lalu
+ * menguji alur nyata lewat HTTP:
+ *   register → verifikasi email → login → RBAC → tulis/baca DB tenant →
+ *   undang anggota → terima undangan → viewer ditolak di endpoint admin.
+ *
+ * Gagal = exit code 1. Dipakai lokal dan di CI sebagai gerbang merge.
+ */
+import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const apiDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+const persistDir = mkdtempSync(join(tmpdir(), "erpindo-smoke-"));
+const PORT = 8799;
+const BASE = `http://127.0.0.1:${PORT}`;
+
+// Config dev = wrangler.jsonc minus binding "ai" (butuh kredensial remote).
+const { makeDevConfig } = await import(join(apiDir, "../../scripts/make-dev-config.mjs"));
+makeDevConfig();
+
+let failures = 0;
+function check(name, cond, extra = "") {
+  if (cond) {
+    console.log(`  ✓ ${name}`);
+  } else {
+    failures++;
+    console.error(`  ✗ ${name} ${extra}`);
+  }
+}
+
+const logs = [];
+const child = spawn(
+  "pnpm",
+  [
+    "exec",
+    "wrangler",
+    "dev",
+    "-c",
+    "../../wrangler.dev.jsonc",
+    "--port",
+    String(PORT),
+    "--persist-to",
+    persistDir,
+    "--show-interactive-dev-session=false",
+    // Untuk memicu cron via /__scheduled.
+    "--test-scheduled",
+    // Fase 21b: paksa blok tugas bulanan berjalan supaya email rekap bulanan
+    // bisa diuji — tanpa ini jalurnya hanya hidup tanggal 1–3 tiap bulan.
+    "--var",
+    "MONTHLY_JOBS_OVERRIDE:3",
+    // Fase 21d: paksa blok jurnal penutup tahunan berjalan dengan `asOf` hari
+    // ini — tanpa ini jalurnya hanya hidup 1–3 Januari, tiga hari SETAHUN.
+    "--var",
+    `YEARLY_JOBS_OVERRIDE:${new Date().toISOString().slice(0, 10)}`,
+    // Fase 21d: pakukan tanggal POS ke dunia bertanggal tetap suite ini.
+    // Tanpa ini entri POS ikut kalender nyata dan asersi arus kas Juli berubah
+    // merah setiap kali smoke dijalankan di bulan lain.
+    "--var",
+    "POS_DATE_OVERRIDE:2026-07-20",
+    // Fase 22b: payload kurs siap pakai, MENGGANTIKAN pengambilan lewat
+    // jaringan. Gerbang tidak boleh bergantung pada layanan pihak ketiga yang
+    // bisa mati atau berubah bentuk. USD sengaja dibuat 16.500 (berbeda dari
+    // 16.000 yang disetel manual) supaya perubahannya terlihat; XAU sengaja
+    // TIDAK terdaftar di tenant, dan EUR sengaja rusak.
+    "--var",
+    'KURS_PAYLOAD_OVERRIDE:{"base":"IDR","rates":{"USD":0.0000606060606,"XAU":0.00000002,"EUR":0}}',
+    // Uji jalur akun comped (Fase 4a): email Dewi mendapat tenant aktif permanen.
+    "--var",
+    "COMPED_EMAILS:dewi@majujaya.co.id,budi@majujaya.co.id,sari@majujaya.co.id,luar@contoh.com",
+    // Akun demo publik (Fase 10b): pool DB tenant lokal terbatas (6), jadi
+    // perusahaan demo dites pada tenant comped yang sudah ada (Cabang Dewi —
+    // status aktif permanen sehingga penolakan tulis = 403 role, bukan 402).
+    "--var",
+    "DEMO_TENANT_SLUG:cabang-dewi",
+    // Admin platform (Fase 10e): email pemilik smoke (Budi) di-gate sebagai
+    // admin platform; Dewi (comped) bukan admin → dipakai menguji 403.
+    "--var",
+    "PLATFORM_ADMIN_EMAILS:budi@majujaya.co.id",
+  ],
+  { cwd: apiDir, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, CI: "1" } },
+);
+child.stdout.on("data", (d) => logs.push(d.toString()));
+child.stderr.on("data", (d) => logs.push(d.toString()));
+
+function findInLogs(regex) {
+  for (const chunk of logs.join("").split("\n")) {
+    const m = chunk.match(regex);
+    if (m) return m;
+  }
+  return null;
+}
+
+async function waitForReady(timeoutMs = 90_000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(`${BASE}/api/health`);
+      if (res.ok) return;
+    } catch {
+      /* belum siap */
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(`wrangler dev tidak siap dalam ${timeoutMs / 1000}s.\nLog:\n${logs.join("")}`);
+}
+
+/** TOTP RFC 6238 (SHA-1, 6 digit) — padanan Node dari apps/api/src/lib/totp.ts */
+function totpNode(secretB32, timeMs = Date.now()) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = 0;
+  let value = 0;
+  const bytes = [];
+  for (const ch of secretB32) {
+    value = (value << 5) | alphabet.indexOf(ch);
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(timeMs / 1000 / 30)));
+  const mac = createHmac("sha1", Buffer.from(bytes)).update(counter).digest();
+  const off = mac[mac.length - 1] & 0xf;
+  const code = (((mac[off] & 0x7f) << 24) | (mac[off + 1] << 16) | (mac[off + 2] << 8) | mac[off + 3]) % 1_000_000;
+  return String(code).padStart(6, "0");
+}
+
+/** Klien fetch mini dengan cookie jar per pengguna. */
+function makeClient() {
+  let cookie = "";
+  // extraHeaders (Fase 13g): mensimulasikan IP klien untuk uji pembatasan IP —
+  // clientIp membaca cf-connecting-ip/x-forwarded-for.
+  return async function request(method, path, body, extraHeaders) {
+    const res = await fetch(`${BASE}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(cookie ? { Cookie: cookie } : {}),
+        ...(extraHeaders ?? {}),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const setCookie = res.headers.get("set-cookie");
+    if (setCookie) cookie = setCookie.split(";")[0];
+    const text = await res.text();
+    let json = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      /* respons bukan JSON (mis. XML) — tetap tersedia lewat .text */
+    }
+    return { status: res.status, json, text };
+  };
+}
+
+try {
+  console.log("Menunggu wrangler dev siap...");
+  await waitForReady();
+  console.log("Server siap. Menjalankan skenario:\n");
+
+  // --- Header keamanan (Fase 10h) ----------------------------------------------
+  console.log("0a. Header keamanan");
+  const secResp = await fetch(`${BASE}/api/health`);
+  const csp = secResp.headers.get("content-security-policy") ?? "";
+  check(
+    "Content-Security-Policy hadir dengan default-src 'self' + object-src 'none'",
+    csp.includes("default-src 'self'") && csp.includes("object-src 'none'") && csp.includes("frame-ancestors 'none'"),
+    `→ ${csp.slice(0, 80)}`,
+  );
+  check("CSP TIDAK memaksa upgrade-insecure-requests (aman utk http lokal)", !csp.includes("upgrade-insecure-requests"));
+  check("Referrer-Policy diset", (secResp.headers.get("referrer-policy") ?? "").includes("strict-origin"));
+  const permPol = secResp.headers.get("permissions-policy") ?? "";
+  check("Permissions-Policy membatasi kamera/mikrofon/lokasi", permPol.includes("camera"));
+  // --- Fase 21g: dua header yang MEMATIKAN pemindai barcode bila salah -------
+  //
+  // Cek lama di atas hanya menuntut kata "camera" ADA, sehingga `camera=()` —
+  // yang menutup kamera untuk aplikasi ini sendiri — lolos bertahun-tahun
+  // sambil terlihat seperti pengerasan yang benar. Yang diperiksa sekarang
+  // adalah ISI kebijakannya.
+  check(
+    "Permissions-Policy mengizinkan kamera untuk origin sendiri (camera=(self)), bukan camera=()",
+    permPol.includes("camera=(self)"),
+    `→ ${permPol}`,
+  );
+  check("Permissions-Policy tetap menutup mikrofon & lokasi", permPol.includes("microphone=()") && permPol.includes("geolocation=()"));
+  check(
+    "CSP mengizinkan kompilasi WebAssembly (wasm-unsafe-eval) untuk pengurai barcode cadangan",
+    csp.includes("'wasm-unsafe-eval'"),
+    `→ ${csp.slice(0, 120)}`,
+  );
+  // `'wasm-unsafe-eval'` bukan superset `'unsafe-eval'`: yang pertama hanya
+  // membolehkan kompilasi wasm. Cek ini memastikan yang kedua tidak ikut masuk.
+  check("CSP TIDAK ikut membuka eval JavaScript biasa", !csp.includes("'unsafe-eval'"));
+
+  // --- PWA: manifest & service worker terlayani (Fase 2a) -----------------------
+  console.log("0. Aset PWA");
+  const manifest = await fetch(`${BASE}/manifest.webmanifest`);
+  check("manifest.webmanifest terlayani (200)", manifest.status === 200);
+  const sw = await fetch(`${BASE}/sw.js`);
+  check("service worker sw.js terlayani (200)", sw.status === 200);
+
+  // --- Registrasi pemilik + provisioning tenant -----------------------------
+  console.log("1. Registrasi perusahaan baru");
+  let owner = makeClient();
+  const reg = await owner("POST", "/api/auth/register", {
+    companyName: "PT Maju Jaya",
+    name: "Budi Santoso",
+    email: "budi@majujaya.co.id",
+    password: "rahasia-kuat-123",
+  });
+  check("register 201", reg.status === 201, `→ ${reg.status} ${JSON.stringify(reg.json)}`);
+
+  // Fase 10b: sebelum perusahaan demo (slug DEMO_TENANT_SLUG) ada, tombol
+  // "Lihat Demo" harus mendapat 404 yang jelas, bukan galat server.
+  const demoTooEarly = await makeClient()("POST", "/api/auth/demo");
+  check("demo 404 sebelum perusahaan demo di-seed", demoTooEarly.status === 404, `→ ${JSON.stringify(demoTooEarly.json)}`);
+  const tenantId = reg.json?.tenantId;
+  check("tenantId & slug diberikan", Boolean(tenantId && reg.json?.slug === "pt-maju-jaya"));
+
+  const dup = await owner("POST", "/api/auth/register", {
+    companyName: "PT Lain",
+    name: "Budi",
+    email: "budi@majujaya.co.id",
+    password: "rahasia-kuat-123",
+  });
+  check("email ganda ditolak 409", dup.status === 409);
+
+  // --- Verifikasi email dari link di log ------------------------------------
+  console.log("2. Verifikasi email (link diambil dari log mailer)");
+  await new Promise((r) => setTimeout(r, 300));
+  const verifyMatch = findInLogs(/verifikasi\?token=([0-9a-f]{64})/);
+  check("email verifikasi terkirim ke log", Boolean(verifyMatch));
+  if (verifyMatch) {
+    const ver = await owner("POST", "/api/auth/verify", { token: verifyMatch[1] });
+    check("verifikasi 200", ver.status === 200);
+    const reuse = await owner("POST", "/api/auth/verify", { token: verifyMatch[1] });
+    check("token verifikasi sekali pakai", reuse.status === 400);
+  }
+
+  // --- Sesi & login ----------------------------------------------------------
+  console.log("3. Sesi & login");
+  const me = await owner("GET", "/api/auth/me");
+  check("me 200 + emailVerified", me.status === 200 && me.json?.user?.emailVerified === true);
+  check("membership owner", me.json?.memberships?.[0]?.role === "owner");
+
+  const anon = makeClient();
+  const meAnon = await anon("GET", "/api/auth/me");
+  check("tanpa sesi ditolak 401", meAnon.status === 401);
+
+  const badLogin = await anon("POST", "/api/auth/login", {
+    email: "budi@majujaya.co.id",
+    password: "password-salah",
+  });
+  check("login password salah 401", badLogin.status === 401);
+
+  // --- Tulis & baca DATABASE TENANT ------------------------------------------
+  console.log("4. Pengaturan perusahaan (database tenant)");
+  const patch = await owner("PATCH", `/api/tenants/${tenantId}/settings`, {
+    address: "Jl. Sudirman No. 1, Jakarta",
+    npwp: "01.234.567.8-901.000",
+  });
+  check("update settings 200", patch.status === 200);
+  const settings = await owner("GET", `/api/tenants/${tenantId}/settings`);
+  check(
+    "settings tersimpan di DB tenant",
+    settings.json?.settings?.display_name === "PT Maju Jaya" &&
+      settings.json?.settings?.npwp === "01.234.567.8-901.000",
+    `→ ${JSON.stringify(settings.json)}`,
+  );
+
+  // --- Undangan anggota + RBAC ------------------------------------------------
+  console.log("5. Undangan anggota & RBAC");
+  const invite = await owner("POST", `/api/tenants/${tenantId}/invites`, {
+    email: "sari@majujaya.co.id",
+    role: "viewer",
+  });
+  check("undangan terkirim 201", invite.status === 201 && /undangan\?token=/.test(invite.json?.inviteUrl ?? ""));
+
+  const viewer = makeClient();
+  const regViewer = await viewer("POST", "/api/auth/register", {
+    companyName: "Toko Sari",
+    name: "Sari Dewi",
+    email: "sari@majujaya.co.id",
+    password: "rahasia-sari-456",
+  });
+  check("registrasi user kedua 201 (tenant kedua terprovisi)", regViewer.status === 201);
+
+  const inviteToken = invite.json.inviteUrl.split("token=")[1];
+  const accept = await viewer("POST", "/api/invites/accept", { token: inviteToken });
+  check("terima undangan 200", accept.status === 200 && accept.json?.tenantId === tenantId);
+
+  const viewerRead = await viewer("GET", `/api/tenants/${tenantId}/settings`);
+  check("viewer boleh membaca settings", viewerRead.status === 200);
+  const viewerWrite = await viewer("PATCH", `/api/tenants/${tenantId}/settings`, { address: "coba tulis" });
+  check("viewer DITOLAK menulis settings (403)", viewerWrite.status === 403);
+  const viewerMembers = await viewer("GET", `/api/tenants/${tenantId}/members`);
+  check("viewer DITOLAK melihat anggota (403)", viewerMembers.status === 403);
+
+  const members = await owner("GET", `/api/tenants/${tenantId}/members`);
+  check("owner melihat 2 anggota", members.status === 200 && members.json?.members?.length === 2);
+
+  // --- Migrasi & saldo awal (Fase 13f) — diuji di "Toko Sari" (buku kosong) ------
+  // Sari (viewer di tenant utama) adalah OWNER perusahaannya sendiri yang masih kosong.
+  const sariTenant = regViewer.json.tenantId;
+  const openStat = await viewer("GET", `/api/tenants/${sariTenant}/migration/opening-status`);
+  check("saldo awal: buku kosong → canSetOpening true", openStat.status === 200 && openStat.json?.canSetOpening === true, `→ ${JSON.stringify(openStat.json)}`);
+  // Siapkan 1 gudang + 1 produk untuk stok awal.
+  const sariWh = await viewer("POST", `/api/tenants/${sariTenant}/warehouses`, { code: "UT", name: "Gudang Utama" });
+  const sariProd = await viewer("POST", `/api/tenants/${sariTenant}/products`, { sku: "MIG-1", name: "Barang Migrasi", unit: "pcs", sellPrice: 10000, buyPrice: 6000 });
+  // Saldo awal: Kas 5jt + Bank 20jt (debit); Hutang 4jt (kredit). Persediaan dari stok:
+  // 100 × 6.000 = 600.000. Total debit = 25.600.000, kredit = 4.000.000 → selisih
+  // 21.600.000 masuk Ekuitas Saldo Awal (kredit). Jurnal seimbang otomatis.
+  const openPost = await viewer("POST", `/api/tenants/${sariTenant}/migration/opening-balances`, {
+    asOfDate: "2026-01-01",
+    accounts: [
+      { accountCode: "1-1000", debit: 5_000_000, credit: 0 },
+      { accountCode: "1-1100", debit: 20_000_000, credit: 0 },
+      { accountCode: "2-1000", debit: 0, credit: 4_000_000 },
+    ],
+    stock: [{ productId: sariProd.json.id, warehouseId: sariWh.json.id, qty: 100, unitCost: 6_000 }],
+  });
+  check("saldo awal: jurnal pembuka tersimpan 201 + nilai stok 600rb", openPost.status === 201 && openPost.json?.stockValue === 600_000, `→ ${JSON.stringify(openPost.json)}`);
+  const sariBs = await viewer("GET", `/api/tenants/${sariTenant}/reports/balance-sheet?asOf=2026-12-31`);
+  check("saldo awal: neraca Toko Sari SEIMBANG (aset = kewajiban + ekuitas)", sariBs.json?.balanced === true, `→ ${JSON.stringify({ a: sariBs.json?.totalAssets, l: sariBs.json?.totalLiabilities, e: sariBs.json?.totalEquity })}`);
+  check("saldo awal: total aset = kas 5jt + bank 20jt + persediaan 600rb = 25.600.000", sariBs.json?.totalAssets === 25_600_000, `→ ${sariBs.json?.totalAssets}`);
+  const sariCard = await viewer("GET", `/api/tenants/${sariTenant}/stock-card/${sariProd.json.id}?warehouseId=${sariWh.json.id}`);
+  check("saldo awal: kartu stok memuat mutasi masuk 100 (nilai persediaan sinkron)", (sariCard.json?.rows ?? []).some((r) => r.qty === 100), `→ ${JSON.stringify(sariCard.json?.rows?.[0])}`);
+  const openStat2 = await viewer("GET", `/api/tenants/${sariTenant}/migration/opening-status`);
+  check("saldo awal: setelah diisi, canSetOpening false", openStat2.json?.canSetOpening === false);
+  const openAgain = await viewer("POST", `/api/tenants/${sariTenant}/migration/opening-balances`, { asOfDate: "2026-01-01", accounts: [{ accountCode: "1-1000", debit: 1000, credit: 0 }] });
+  check("saldo awal: pengisian kedua DITOLAK 409 (buku sudah berisi)", openAgain.status === 409 && openAgain.json?.detail === "books-not-empty", `→ ${openAgain.status}`);
+  const openInvalid = await viewer("POST", `/api/tenants/${sariTenant}/migration/opening-balances`, { asOfDate: "bukan-tanggal", accounts: [] });
+  check("saldo awal: data tidak valid DITOLAK 400", openInvalid.status === 400, `→ ${openInvalid.status}`);
+
+  // --- Kelola peran anggota (Fase 6a) ---------------------------------------------
+  const ownerRow = members.json.members.find((m) => m.role === "owner");
+  const viewerRow = members.json.members.find((m) => m.role === "viewer");
+
+  const viewerChangeRole = await viewer("PATCH", `/api/tenants/${tenantId}/members/${ownerRow.userId}`, { role: "viewer" });
+  check("viewer DITOLAK ubah peran anggota (403)", viewerChangeRole.status === 403);
+
+  const promote = await owner("PATCH", `/api/tenants/${tenantId}/members/${viewerRow.userId}`, { role: "admin" });
+  check("owner ubah peran anggota → admin 200", promote.status === 200 && promote.json?.role === "admin");
+  const membersAfter = await owner("GET", `/api/tenants/${tenantId}/members`);
+  check("peran anggota tersimpan sebagai admin", membersAfter.json?.members?.find((m) => m.userId === viewerRow.userId)?.role === "admin");
+  const demoteBack = await owner("PATCH", `/api/tenants/${tenantId}/members/${viewerRow.userId}`, { role: "viewer" });
+  check("owner kembalikan peran → viewer 200", demoteBack.status === 200);
+
+  const selfDemote = await owner("PATCH", `/api/tenants/${tenantId}/members/${ownerRow.userId}`, { role: "admin" });
+  check("turunkan pemilik terakhir DITOLAK 400", selfDemote.status === 400);
+  const selfRemove = await owner("DELETE", `/api/tenants/${tenantId}/members/${ownerRow.userId}`);
+  check("keluarkan diri sendiri DITOLAK 400", selfRemove.status === 400);
+  const removeUnknown = await owner("DELETE", `/api/tenants/${tenantId}/members/user-tidak-ada`);
+  check("keluarkan anggota tak dikenal DITOLAK 404", removeUnknown.status === 404);
+  // Uji hapus 200 dilakukan di bawah memakai 'outsider' yang sudah terdaftar
+  // (tanpa registrasi baru agar tidak menabrak rate-limit register).
+
+  const outsider = makeClient();
+  await outsider("POST", "/api/auth/register", {
+    companyName: "CV Pihak Luar",
+    name: "Orang Luar",
+    email: "luar@contoh.com",
+    password: "rahasia-luar-789",
+  });
+  const crossTenant = await outsider("GET", `/api/tenants/${tenantId}/settings`);
+  check("NON-anggota DITOLAK akses tenant lain (403) — isolasi tenant", crossTenant.status === 403);
+
+  // Uji hapus anggota 200 memakai 'outsider' yang sudah punya akun (tanpa registrasi
+  // baru) — undang, terima, lalu keluarkan; jumlah anggota kembali ke 2.
+  const inviteOutsider = await owner("POST", `/api/tenants/${tenantId}/invites`, { email: "luar@contoh.com", role: "viewer" });
+  await outsider("POST", "/api/invites/accept", { token: inviteOutsider.json.inviteUrl.split("token=")[1] });
+  const members3 = await owner("GET", `/api/tenants/${tenantId}/members`);
+  check("anggota jadi 3 setelah undangan diterima", members3.json?.members?.length === 3);
+  const outsiderRow = members3.json.members.find((m) => m.email === "luar@contoh.com");
+  const removeOutsider = await owner("DELETE", `/api/tenants/${tenantId}/members/${outsiderRow.userId}`);
+  check("owner keluarkan anggota 200", removeOutsider.status === 200);
+  const members4 = await owner("GET", `/api/tenants/${tenantId}/members`);
+  check("anggota kembali 2 setelah dikeluarkan", members4.json?.members?.length === 2);
+  const outsiderAfterRemoval = await outsider("GET", `/api/tenants/${tenantId}/settings`);
+  check("anggota yang dikeluarkan kehilangan akses (403)", outsiderAfterRemoval.status === 403);
+
+  // --- Modul Keuangan & Master Data (Fase 1a) ---------------------------------
+  console.log("6. Bagan Akun (COA)");
+  const accountsRes = await owner("GET", `/api/tenants/${tenantId}/accounts`);
+  const accounts = accountsRes.json?.accounts ?? [];
+  // 24 sejak Fase 21f: migrasi 0043 menambah akun kontra-beban "5-2100 Beban
+  // Produksi Diserap". Sebelumnya 23 sejak Fase 20e: migrasi 0039 "3-3000 Surplus
+  // Revaluasi" (ekuitas). Angkanya NAIK karena COA-nya memang bertambah satu,
+  // bukan karena asersinya dilonggarkan — pola yang sama dengan 0011 yang dulu
+  // menambahkan "5-5000 Beban Penyusutan".
+  // 26 sejak migrasi 0044 (Fase 22c) menambah `1-1050 Kas Kecil` & `5-4900 Selisih Kas`.
+  check("COA template Indonesia tersemai (26 akun)", accountsRes.status === 200 && accounts.length === 26, `→ ${accounts.length}`);
+  const kas = accounts.find((a) => a.code === "1-1000");
+  const modal = accounts.find((a) => a.code === "3-1000");
+  const penjualan = accounts.find((a) => a.code === "4-1000");
+  check("akun Kas/Modal/Pendapatan ada", Boolean(kas && modal && penjualan));
+
+  const newAcc = await owner("POST", `/api/tenants/${tenantId}/accounts`, {
+    code: "1-1600",
+    name: "Piutang Karyawan",
+    type: "asset",
+  });
+  check("tambah akun kustom 201", newAcc.status === 201);
+  const dupAcc = await owner("POST", `/api/tenants/${tenantId}/accounts`, {
+    code: "1-1600",
+    name: "Duplikat",
+    type: "asset",
+  });
+  check("kode akun ganda ditolak 409", dupAcc.status === 409);
+
+  console.log("7. Jurnal double-entry");
+  const goodJournal = await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-07-02",
+    memo: "Setoran modal awal",
+    lines: [
+      { accountId: kas.id, description: "Setoran tunai", debit: 50_000_000, credit: 0 },
+      { accountId: modal.id, debit: 0, credit: 50_000_000 },
+    ],
+  });
+  check("jurnal seimbang diposting 201", goodJournal.status === 201, `→ ${JSON.stringify(goodJournal.json)}`);
+  check("nomor jurnal berurutan JRN-00001", goodJournal.json?.entryNo === "JRN-00001");
+
+  const badJournal = await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-07-02",
+    lines: [
+      { accountId: kas.id, debit: 10_000, credit: 0 },
+      { accountId: modal.id, debit: 0, credit: 9_000 },
+    ],
+  });
+  check("jurnal TIDAK seimbang DITOLAK 400", badJournal.status === 400);
+
+  await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-07-03",
+    memo: "Penjualan tunai",
+    lines: [
+      { accountId: kas.id, debit: 2_500_000, credit: 0 },
+      { accountId: penjualan.id, debit: 0, credit: 2_500_000 },
+    ],
+  });
+
+  const ledger = await owner("GET", `/api/tenants/${tenantId}/ledger/${kas.id}`);
+  check(
+    "buku besar Kas: 2 mutasi, saldo 52.500.000",
+    ledger.status === 200 && ledger.json?.entries?.length === 2 && ledger.json?.balance === 52_500_000,
+    `→ ${JSON.stringify(ledger.json?.balance)}`,
+  );
+
+  const tb = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check(
+    "neraca saldo SEIMBANG (debit = kredit = 52.500.000)",
+    tb.status === 200 && tb.json?.balanced === true && tb.json?.totalDebit === 52_500_000,
+    `→ ${JSON.stringify(tb.json)}`,
+  );
+
+  const viewerJournal = await viewer("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-07-02",
+    lines: [
+      { accountId: kas.id, debit: 1000, credit: 0 },
+      { accountId: modal.id, debit: 0, credit: 1000 },
+    ],
+  });
+  check("viewer DITOLAK memposting jurnal (403)", viewerJournal.status === 403);
+  const viewerTb = await viewer("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("viewer boleh melihat neraca saldo", viewerTb.status === 200);
+
+  console.log("8. Master data");
+  const product = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "BRG-001",
+    name: "Kopi Arabika 1kg",
+    unit: "pcs",
+    sellPrice: 150_000,
+    buyPrice: 100_000,
+  });
+  check("tambah produk 201", product.status === 201);
+  const dupProduct = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "BRG-001",
+    name: "Duplikat",
+    unit: "pcs",
+    sellPrice: 0,
+    buyPrice: 0,
+  });
+  check("SKU ganda ditolak 409", dupProduct.status === 409);
+
+  const contact = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "customer",
+    name: "PT Pelanggan Setia",
+    email: "info@pelanggansetia.co.id",
+  });
+  check("tambah kontak 201", contact.status === 201);
+
+  const warehouses = await owner("GET", `/api/tenants/${tenantId}/warehouses`);
+  check(
+    "Gudang Utama otomatis tersedia",
+    warehouses.status === 200 && warehouses.json?.items?.some((w) => w.code === "UTAMA"),
+  );
+
+  const products = await owner("GET", `/api/tenants/${tenantId}/products`);
+  check("daftar produk berisi 1 item", products.json?.items?.length === 1);
+  const archiveProduct = await owner("POST", `/api/tenants/${tenantId}/products/${product.json.id}/archive`);
+  const productsAfter = await owner("GET", `/api/tenants/${tenantId}/products`);
+  check("arsip produk menyembunyikan dari daftar", archiveProduct.status === 200 && productsAfter.json?.items?.length === 0);
+
+  // Isolasi tenant untuk data akuntansi: tenant lain tidak melihat jurnal ini.
+  const outsiderTb = await outsider("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("non-anggota DITOLAK membaca neraca saldo tenant lain (403)", outsiderTb.status === 403);
+
+  // Impor batch master data (Fase 2d): valid masuk, duplikat & invalid dilaporkan.
+  const importRes = await owner("POST", `/api/tenants/${tenantId}/contacts/import`, {
+    rows: [
+      { type: "customer", name: "PT Impor Satu", email: "satu@impor.co.id" },
+      { type: "supplier", name: "CV Impor Dua" },
+      { type: "customer", name: "X" }, // nama terlalu pendek → gagal validasi
+      { type: "aneh", name: "PT Jenis Salah" }, // jenis tidak dikenal → gagal
+    ],
+  });
+  check(
+    "impor kontak: 2 masuk, 2 gagal dengan pesan per-baris",
+    importRes.status === 200 && importRes.json?.inserted === 2 && importRes.json?.failed === 2 && importRes.json?.errors?.length === 2,
+    `→ ${JSON.stringify(importRes.json)}`,
+  );
+  const importDupe = await owner("POST", `/api/tenants/${tenantId}/products/import`, {
+    rows: [
+      { sku: "IMP-001", name: "Barang Impor", unit: "pcs", sellPrice: 10_000, buyPrice: 5_000 },
+      { sku: "IMP-001", name: "Duplikat SKU", unit: "pcs", sellPrice: 1, buyPrice: 1 },
+    ],
+  });
+  check(
+    "impor produk: duplikat SKU dilewati dengan laporan",
+    importDupe.json?.inserted === 1 && importDupe.json?.failed === 1 && /sudah ada/.test(importDupe.json?.errors?.[0]?.message ?? ""),
+    `→ ${JSON.stringify(importDupe.json)}`,
+  );
+  const importByViewer = await viewer("POST", `/api/tenants/${tenantId}/contacts/import`, {
+    rows: [{ type: "customer", name: "PT Viewer" }],
+  });
+  check("viewer DITOLAK mengimpor (403)", importByViewer.status === 403);
+
+  // --- Siklus dagang penuh: beli → jual → bayar (Fase 1b) -----------------------
+  console.log("9. Siklus pembelian → penjualan → pembayaran");
+
+  const prodBarang = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "BRG-002",
+    name: "Teh Hijau Premium 250g",
+    unit: "pcs",
+    sellPrice: 150_000,
+    buyPrice: 100_000,
+  });
+  const supplier = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "supplier",
+    name: "CV Pemasok Teh",
+  });
+  const whs = await owner("GET", `/api/tenants/${tenantId}/warehouses`);
+  const whUtama = whs.json.items.find((w) => w.code === "UTAMA");
+  const customer = contact; // PT Pelanggan Setia (customer) dari bagian 8
+
+  // Jual sebelum ada stok → harus ditolak.
+  const sellNoStock = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-07-03",
+    taxRate: 11,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 1, unitPrice: 150_000 }],
+  });
+  check("jual tanpa stok DITOLAK 400", sellNoStock.status === 400);
+
+  // Beli 10 pcs @ Rp100.000 + PPN 11%.
+  const purchase = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id,
+    invoiceDate: "2026-07-03",
+    taxRate: 11,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 10, unitPrice: 100_000 }],
+  });
+  check("faktur pembelian diposting (PB-00001, total 1.110.000)", purchase.status === 201 && purchase.json?.total === 1_110_000, `→ ${JSON.stringify(purchase.json)}`);
+
+  let stock = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  let level = stock.json?.levels?.find((l) => l.sku === "BRG-002");
+  check("stok masuk 10 pcs @avg 100.000", level?.qty === 10 && level?.avgCost === 100_000);
+
+  // Jual 3 pcs @ Rp150.000 + PPN 11%.
+  const invoice = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-07-04",
+    taxRate: 11,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 3, unitPrice: 150_000 }],
+  });
+  check("faktur penjualan diposting (total 499.500)", invoice.status === 201 && invoice.json?.total === 499_500, `→ ${JSON.stringify(invoice.json)}`);
+
+  // Jual 100 pcs → stok tidak cukup.
+  const sellTooMany = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-07-04",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 100, unitPrice: 150_000 }],
+  });
+  check("jual melebihi stok DITOLAK 400", sellTooMany.status === 400);
+
+  stock = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  level = stock.json?.levels?.find((l) => l.sku === "BRG-002");
+  check("stok berkurang menjadi 7 pcs (nilai 700.000)", level?.qty === 7 && level?.value === 700_000);
+
+  // Buku besar HPP harus berisi 3 × 100.000.
+  const accountsNow = await owner("GET", `/api/tenants/${tenantId}/accounts`);
+  const hppAcc = accountsNow.json.accounts.find((a) => a.code === "5-1000");
+  const hppLedger = await owner("GET", `/api/tenants/${tenantId}/ledger/${hppAcc.id}`);
+  check("jurnal HPP otomatis 300.000", hppLedger.json?.balance === 300_000, `→ ${hppLedger.json?.balance}`);
+
+  // Terima pembayaran penuh ke Kas.
+  const kasAcc = accountsNow.json.accounts.find((a) => a.code === "1-1000");
+  const payment = await owner("POST", `/api/tenants/${tenantId}/payments`, {
+    refType: "invoice",
+    refId: invoice.json.id,
+    accountId: kasAcc.id,
+    amount: 499_500,
+    paymentDate: "2026-07-05",
+  });
+  check("pembayaran dicatat & faktur lunas", payment.status === 201 && payment.json?.settled === true);
+
+  const overpay = await owner("POST", `/api/tenants/${tenantId}/payments`, {
+    refType: "invoice",
+    refId: invoice.json.id,
+    accountId: kasAcc.id,
+    amount: 1,
+    paymentDate: "2026-07-05",
+  });
+  check("pembayaran melebihi sisa tagihan DITOLAK 400", overpay.status === 400);
+
+  const invoicesAfter = await owner("GET", `/api/tenants/${tenantId}/invoices`);
+  const paidInvoice = invoicesAfter.json?.docs?.find((d) => d.id === invoice.json.id);
+  check("status faktur = paid", paidInvoice?.status === "paid");
+
+  // Neraca saldo tetap seimbang setelah seluruh siklus otomatis.
+  const tbAfter = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check(
+    "neraca saldo TETAP seimbang setelah siklus dagang",
+    tbAfter.status === 200 && tbAfter.json?.balanced === true,
+    `→ debit ${tbAfter.json?.totalDebit} vs kredit ${tbAfter.json?.totalCredit}`,
+  );
+
+  const viewerInvoice = await viewer("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-07-04",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 1, unitPrice: 1 }],
+  });
+  check("viewer DITOLAK membuat faktur (403)", viewerInvoice.status === 403);
+
+  // --- Laporan keuangan & dashboard (Fase 1c) -----------------------------------
+  console.log("10. Laporan keuangan & dashboard");
+
+  // Konteks angka: modal 50jt + penjualan tunai (jurnal manual) 2,5jt masuk 4-1000;
+  // siklus dagang: jual 450rb (+PPN 49,5rb), HPP 300rb; beli 1,11jt belum dibayar.
+  const pl = await owner("GET", `/api/tenants/${tenantId}/reports/income-statement?from=2026-07-01&to=2026-07-31`);
+  check(
+    "laba rugi: pendapatan 2.950.000, beban 300.000, laba 2.650.000",
+    pl.status === 200 &&
+      pl.json?.totalIncome === 2_950_000 &&
+      pl.json?.totalExpense === 300_000 &&
+      pl.json?.netProfit === 2_650_000,
+    `→ ${JSON.stringify(pl.json && { i: pl.json.totalIncome, e: pl.json.totalExpense, n: pl.json.netProfit })}`,
+  );
+
+  const bs = await owner("GET", `/api/tenants/${tenantId}/reports/balance-sheet?asOf=2026-07-31`);
+  check(
+    "neraca SEIMBANG: aset = kewajiban + ekuitas (incl. laba berjalan)",
+    bs.status === 200 && bs.json?.balanced === true,
+    `→ aset ${bs.json?.totalAssets} vs K+E ${(bs.json?.totalLiabilities ?? 0) + (bs.json?.totalEquity ?? 0)}`,
+  );
+  check(
+    "neraca memuat baris Laba (Rugi) Berjalan 2.650.000",
+    bs.json?.equity?.some((r) => r.name.includes("Berjalan") && r.amount === 2_650_000),
+  );
+
+  const badDate = await owner("GET", `/api/tenants/${tenantId}/reports/balance-sheet?asOf=31-07-2026`);
+  check("format tanggal salah DITOLAK 400", badDate.status === 400);
+
+
+  const dash = await owner("GET", `/api/tenants/${tenantId}/dashboard`);
+  check(
+    "dashboard: piutang 0, hutang 1.110.000, persediaan 700.000",
+    dash.status === 200 &&
+      dash.json?.receivableOutstanding === 0 &&
+      dash.json?.payableOutstanding === 1_110_000 &&
+      dash.json?.inventoryValue === 700_000,
+    `→ ${JSON.stringify(dash.json)}`,
+  );
+  check("dashboard: kas & bank 52.999.500", dash.json?.cashAndBank === 52_999_500, `→ ${dash.json?.cashAndBank}`);
+  check("dashboard: memuat penjualan bulan lalu (untuk delta)", typeof dash.json?.salesLastMonth === "number");
+  // KPI Laba Bulan Ini (Fase 12d): dari jurnal terposting, konsisten dengan laba rugi.
+  check(
+    "dashboard: laba bulan ini & bulan lalu (Fase 12d) berupa angka",
+    typeof dash.json?.profitThisMonth === "number" && typeof dash.json?.profitLastMonth === "number",
+    `→ ${JSON.stringify({ cur: dash.json?.profitThisMonth, prev: dash.json?.profitLastMonth })}`,
+  );
+  {
+    // Konsistensi (bebas-jam): laba bulan ini di dashboard = netProfit laporan
+    // laba rugi untuk bulan kalender berjalan.
+    const now = new Date();
+    const mFrom = `${now.toISOString().slice(0, 7)}-01`;
+    const mTo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+    const plCur = await owner("GET", `/api/tenants/${tenantId}/reports/income-statement?from=${mFrom}&to=${mTo}`);
+    check(
+      "dashboard: laba bulan ini konsisten dengan laporan laba rugi",
+      plCur.status === 200 && dash.json?.profitThisMonth === plCur.json?.netProfit,
+      `→ dashboard ${dash.json?.profitThisMonth} vs L/R ${plCur.json?.netProfit}`,
+    );
+  }
+
+  const viewerPl = await viewer(
+    "GET",
+    `/api/tenants/${tenantId}/reports/income-statement?from=2026-07-01&to=2026-07-31`,
+  );
+  check("viewer boleh melihat laba rugi", viewerPl.status === 200);
+
+  // --- Kartu stok, aging & tutup buku (Fase 1d) ---------------------------------
+  console.log("11. Kartu stok, umur hutang & tutup buku");
+
+  const stockCard = await owner(
+    "GET",
+    `/api/tenants/${tenantId}/stock-card/${prodBarang.json.id}?warehouseId=${whUtama.id}`,
+  );
+  check(
+    "kartu stok: 2 mutasi (+10, -3) saldo akhir 7",
+    stockCard.status === 200 &&
+      stockCard.json?.rows?.length === 2 &&
+      stockCard.json?.rows?.[0]?.qty === 10 &&
+      stockCard.json?.rows?.[1]?.qty === -3 &&
+      stockCard.json?.balance === 7,
+    `→ ${JSON.stringify(stockCard.json)}`,
+  );
+
+  const agingAp = await owner("GET", `/api/tenants/${tenantId}/reports/aging?type=payable`);
+  check(
+    "aging hutang: CV Pemasok Teh 1.110.000",
+    agingAp.status === 200 &&
+      agingAp.json?.grandTotal === 1_110_000 &&
+      agingAp.json?.rows?.[0]?.contactName === "CV Pemasok Teh",
+    `→ ${JSON.stringify(agingAp.json)}`,
+  );
+  const agingAr = await owner("GET", `/api/tenants/${tenantId}/reports/aging?type=receivable`);
+  check("aging piutang kosong (semua lunas)", agingAr.status === 200 && agingAr.json?.rows?.length === 0);
+
+  // Penyesuaian stok (opname) — dijalankan SEBELUM tutup buku (memakai tanggal hari ini).
+  console.log("11b. Penyesuaian stok (opname) & audit log");
+  const adjDown = await owner("POST", `/api/tenants/${tenantId}/stock-adjustments`, {
+    productId: prodBarang.json.id,
+    warehouseId: whUtama.id,
+    physicalQty: 5,
+    note: "opname: 2 rusak",
+  });
+  check(
+    "opname 7→5: selisih -2, nilai 200.000, jurnal dibuat",
+    adjDown.status === 201 && adjDown.json?.delta === -2 && adjDown.json?.value === 200_000 && Boolean(adjDown.json?.entryNo),
+    `→ ${JSON.stringify(adjDown.json)}`,
+  );
+  const adjSame = await owner("POST", `/api/tenants/${tenantId}/stock-adjustments`, {
+    productId: prodBarang.json.id,
+    warehouseId: whUtama.id,
+    physicalQty: 5,
+  });
+  check("opname tanpa selisih DITOLAK 400", adjSame.status === 400);
+  const adjUp = await owner("POST", `/api/tenants/${tenantId}/stock-adjustments`, {
+    productId: prodBarang.json.id,
+    warehouseId: whUtama.id,
+    physicalQty: 6,
+    note: "ketemu 1 di rak lain",
+  });
+  check("opname 5→6: selisih +1, nilai 100.000", adjUp.status === 201 && adjUp.json?.delta === 1 && adjUp.json?.value === 100_000);
+
+  const stockAfterAdj = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  check(
+    "stok kini 6 pcs",
+    stockAfterAdj.json?.levels?.find((l) => l.sku === "BRG-002")?.qty === 6,
+  );
+  const tbAfterAdj = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah opname", tbAfterAdj.json?.balanced === true);
+
+  const adjByViewer = await viewer("POST", `/api/tenants/${tenantId}/stock-adjustments`, {
+    productId: prodBarang.json.id,
+    warehouseId: whUtama.id,
+    physicalQty: 0,
+  });
+  check("viewer DITOLAK opname (403)", adjByViewer.status === 403);
+
+  const auditLogs = await owner("GET", `/api/tenants/${tenantId}/audit-logs`);
+  check(
+    "audit log owner: berisi aktivitas incl. penyesuaian stok",
+    auditLogs.status === 200 && auditLogs.json?.logs?.some((l) => l.action === "inventory.adjusted"),
+  );
+  const auditByViewer = await viewer("GET", `/api/tenants/${tenantId}/audit-logs`);
+  check("viewer DITOLAK membaca audit log (403)", auditByViewer.status === 403);
+
+  // --- Transfer antar gudang & profil (Fase 2g) -----------------------------------
+  console.log("11b2. Transfer antar gudang & profil pengguna");
+  const wh2 = await owner("POST", `/api/tenants/${tenantId}/warehouses`, {
+    code: "CAB-01",
+    name: "Gudang Cabang",
+  });
+  check("gudang kedua dibuat", wh2.status === 201);
+
+  const transferSame = await owner("POST", `/api/tenants/${tenantId}/stock-transfers`, {
+    productId: prodBarang.json.id,
+    fromWarehouseId: whUtama.id,
+    toWarehouseId: whUtama.id,
+    qty: 1,
+  });
+  check("transfer ke gudang yang sama DITOLAK 400", transferSame.status === 400);
+
+  const transfer = await owner("POST", `/api/tenants/${tenantId}/stock-transfers`, {
+    productId: prodBarang.json.id,
+    fromWarehouseId: whUtama.id,
+    toWarehouseId: wh2.json.id,
+    qty: 2,
+  });
+  check("transfer 2 pcs (nilai 200.000)", transfer.status === 201 && transfer.json?.value === 200_000);
+
+  const stockAfterTransfer = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const utamaLevel = stockAfterTransfer.json?.levels?.find((l) => l.sku === "BRG-002" && l.warehouseId === whUtama.id);
+  const cabangLevel = stockAfterTransfer.json?.levels?.find((l) => l.sku === "BRG-002" && l.warehouseId === wh2.json.id);
+  check(
+    "level per gudang benar (4 & 2) dan total nilai tetap 600.000",
+    utamaLevel?.qty === 4 && cabangLevel?.qty === 2 && utamaLevel.value + cabangLevel.value === 600_000,
+    `→ ${JSON.stringify({ utama: utamaLevel?.qty, cabang: cabangLevel?.qty })}`,
+  );
+  // Kembalikan agar skenario retur di bawah tetap memakai stok Gudang Utama.
+  await owner("POST", `/api/tenants/${tenantId}/stock-transfers`, {
+    productId: prodBarang.json.id,
+    fromWarehouseId: wh2.json.id,
+    toWarehouseId: whUtama.id,
+    qty: 2,
+  });
+
+  const rename = await owner("PATCH", "/api/auth/profile", { name: "Budi Santoso Jr" });
+  const meRenamed = await owner("GET", "/api/auth/me");
+  check("ubah nama profil", rename.status === 200 && meRenamed.json?.user?.name === "Budi Santoso Jr");
+
+  const wrongPass = await owner("POST", "/api/auth/change-password", {
+    currentPassword: "salah-total",
+    newPassword: "rahasia-baru-456",
+  });
+  check("ganti password dengan password lama salah DITOLAK 400", wrongPass.status === 400);
+  const changePass = await owner("POST", "/api/auth/change-password", {
+    currentPassword: "rahasia-kuat-123",
+    newPassword: "rahasia-baru-456",
+  });
+  check("ganti password berhasil", changePass.status === 200);
+  const meStill = await owner("GET", "/api/auth/me");
+  check("sesi saat ini tetap hidup setelah ganti password", meStill.status === 200);
+  const loginOldPass = await makeClient()("POST", "/api/auth/login", {
+    email: "budi@majujaya.co.id",
+    password: "rahasia-kuat-123",
+  });
+  check("login dengan password lama DITOLAK 401", loginOldPass.status === 401);
+  // Kembalikan password agar skenario 2FA di bawah tetap valid.
+  await owner("POST", "/api/auth/change-password", {
+    currentPassword: "rahasia-baru-456",
+    newPassword: "rahasia-kuat-123",
+  });
+
+  // --- Retur penjualan & pembelian (Fase 2f) --------------------------------------
+  console.log("11c. Retur penjualan & pembelian");
+  // Faktur kedua (belum dibayar): jual 2 pcs @150rb + PPN 11% = 333.000; stok 6→4.
+  const inv2 = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-07-03",
+    taxRate: 11,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 2, unitPrice: 150_000 }],
+  });
+  check("faktur kedua diposting (333.000)", inv2.status === 201 && inv2.json?.total === 333_000);
+
+  const returnTooMany = await owner("POST", `/api/tenants/${tenantId}/returns`, {
+    refType: "invoice",
+    refId: inv2.json.id,
+    warehouseId: whUtama.id,
+    returnDate: "2026-07-03",
+    lines: [{ productId: prodBarang.json.id, qty: 5 }],
+  });
+  check("retur melebihi qty dokumen DITOLAK 400", returnTooMany.status === 400);
+
+  const salesReturn = await owner("POST", `/api/tenants/${tenantId}/returns`, {
+    refType: "invoice",
+    refId: inv2.json.id,
+    warehouseId: whUtama.id,
+    returnDate: "2026-07-03",
+    memo: "1 rusak saat kirim",
+    lines: [{ productId: prodBarang.json.id, qty: 1 }],
+  });
+  check(
+    "retur penjualan 1 pcs: nilai 166.500 + jurnal",
+    salesReturn.status === 201 && salesReturn.json?.total === 166_500 && Boolean(salesReturn.json?.journalNo),
+    `→ ${JSON.stringify(salesReturn.json)}`,
+  );
+
+  const invoicesAfterReturn = await owner("GET", `/api/tenants/${tenantId}/invoices`);
+  const inv2After = invoicesAfterReturn.json?.docs?.find((d) => d.id === inv2.json.id);
+  check("faktur mencatat returnedAmount 166.500", inv2After?.returnedAmount === 166_500);
+
+  const agingAfterReturn = await owner("GET", `/api/tenants/${tenantId}/reports/aging?type=receivable`);
+  check(
+    "aging piutang: sisa 166.500 setelah retur",
+    agingAfterReturn.json?.grandTotal === 166_500,
+    `→ ${agingAfterReturn.json?.grandTotal}`,
+  );
+
+  // Retur pembelian 2 pcs dari PB-00001 (1.110.000): 200rb + PPN 22rb = 222rb; stok turun 2.
+  const purchases = await owner("GET", `/api/tenants/${tenantId}/purchases`);
+  const pb1 = purchases.json.docs.find((d) => d.docNo === "PB-00001");
+  const purchaseReturn = await owner("POST", `/api/tenants/${tenantId}/returns`, {
+    refType: "purchase",
+    refId: pb1.id,
+    warehouseId: whUtama.id,
+    returnDate: "2026-07-03",
+    lines: [{ productId: prodBarang.json.id, qty: 2 }],
+  });
+  check(
+    "retur pembelian 2 pcs: nilai 222.000",
+    purchaseReturn.status === 201 && purchaseReturn.json?.total === 222_000,
+    `→ ${JSON.stringify(purchaseReturn.json)}`,
+  );
+
+  const agingApAfterReturn = await owner("GET", `/api/tenants/${tenantId}/reports/aging?type=payable`);
+  check("aging hutang berkurang menjadi 888.000", agingApAfterReturn.json?.grandTotal === 888_000);
+
+  const stockAfterReturns = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  check(
+    "stok setelah retur: 6−2(jual)+1(retur jual)−2(retur beli) = 3",
+    stockAfterReturns.json?.levels?.find((l) => l.sku === "BRG-002" && l.warehouseId === whUtama.id)?.qty === 3,
+  );
+
+  const tbAfterReturns = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah retur", tbAfterReturns.json?.balanced === true);
+
+  // --- Fase 14c: retur dengan refund kas (faktur sudah dibayar lunas) ---------
+  // Faktur 1 pcs @150k + PPN 11% = 166.500; stok 3→2. Bayar lunas → sisa 0.
+  const invRef = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-08-06",
+    taxRate: 11,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 1, unitPrice: 150_000 }],
+  });
+  check("refund: faktur baru 166.500", invRef.status === 201 && invRef.json?.total === 166_500, `→ ${JSON.stringify(invRef.json)}`);
+  const payRef = await owner("POST", `/api/tenants/${tenantId}/payments`, { refType: "invoice", refId: invRef.json.id, accountId: kasAcc.id, amount: 166_500, paymentDate: "2026-08-06" });
+  check("refund: faktur dibayar lunas", payRef.status === 201 && payRef.json?.settled === true, `→ ${JSON.stringify(payRef.json)}`);
+  // Retur seluruh barang → nilai melebihi sisa tagihan (0). Tanpa akun refund → 400.
+  const retNoAcct = await owner("POST", `/api/tenants/${tenantId}/returns`, { refType: "invoice", refId: invRef.json.id, warehouseId: whUtama.id, returnDate: "2026-08-06", lines: [{ productId: prodBarang.json.id, qty: 1 }] });
+  check("refund: retur melebihi sisa tanpa akun → 400 refund-account-required", retNoAcct.status === 400 && retNoAcct.json?.detail === "refund-account-required", `→ ${retNoAcct.status} ${JSON.stringify(retNoAcct.json)}`);
+  // Dengan akun kas → 201, seluruh nilai jadi refund tunai.
+  const retRefund = await owner("POST", `/api/tenants/${tenantId}/returns`, { refType: "invoice", refId: invRef.json.id, warehouseId: whUtama.id, returnDate: "2026-08-06", refundAccountId: kasAcc.id, lines: [{ productId: prodBarang.json.id, qty: 1 }] });
+  check("refund: retur dengan akun kas → 201 + refund 166.500", retRefund.status === 201 && retRefund.json?.refund === 166_500, `→ ${JSON.stringify(retRefund.json)}`);
+  const tbAfterRefund = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("refund: neraca saldo tetap seimbang setelah refund kas", tbAfterRefund.json?.balanced === true);
+
+  const returnByViewer = await viewer("POST", `/api/tenants/${tenantId}/returns`, {
+    refType: "invoice",
+    refId: inv2.json.id,
+    warehouseId: whUtama.id,
+    returnDate: "2026-07-03",
+    lines: [{ productId: prodBarang.json.id, qty: 1 }],
+  });
+  check("viewer DITOLAK membuat retur (403)", returnByViewer.status === 403);
+
+  // --- POS / Kasir (Fase 2h) --------------------------------------------------------
+  console.log("11d. POS / Kasir");
+  const openShift = await owner("POST", `/api/tenants/${tenantId}/pos/shift/open`, {
+    warehouseId: whUtama.id,
+    openingCash: 500_000,
+  });
+  check("shift dibuka (SHF-00001, kas awal 500rb)", openShift.status === 201 && openShift.json?.shiftNo === "SHF-00001");
+
+  const doubleOpen = await owner("POST", `/api/tenants/${tenantId}/pos/shift/open`, {
+    warehouseId: whUtama.id,
+    openingCash: 0,
+  });
+  check("membuka shift kedua saat masih ada yang terbuka DITOLAK 400", doubleOpen.status === 400);
+
+  const underpay = await owner("POST", `/api/tenants/${tenantId}/pos/sales`, {
+    shiftId: openShift.json.id,
+    taxRate: 0,
+    cashReceived: 100,
+    lines: [{ productId: prodBarang.json.id, qty: 1, unitPrice: 150_000 }],
+  });
+  check("uang kurang dari total DITOLAK 400", underpay.status === 400);
+
+  const posSale = await owner("POST", `/api/tenants/${tenantId}/pos/sales`, {
+    shiftId: openShift.json.id,
+    taxRate: 0,
+    cashReceived: 200_000,
+    lines: [{ productId: prodBarang.json.id, qty: 1, unitPrice: 150_000 }],
+  });
+  check(
+    "penjualan POS: total 150rb, kembalian 50rb",
+    posSale.status === 201 && posSale.json?.total === 150_000 && posSale.json?.change === 50_000,
+    `→ ${JSON.stringify(posSale.json)}`,
+  );
+
+  const invoicesWithPos = await owner("GET", `/api/tenants/${tenantId}/invoices`);
+  const posInvoice = invoicesWithPos.json?.docs?.find((d) => d.docNo === posSale.json.invoiceNo);
+  check("faktur POS berstatus LUNAS", posInvoice?.status === "paid" && posInvoice?.paidAmount === 150_000);
+
+  const shiftState = await owner("GET", `/api/tenants/${tenantId}/pos/shift`);
+  check(
+    "status shift: 1 transaksi, seharusnya kas 650rb",
+    shiftState.json?.shift?.salesCount === 1 && shiftState.json?.shift?.expectedCash === 650_000,
+  );
+
+  const closeShift = await owner("POST", `/api/tenants/${tenantId}/pos/shift/${openShift.json.id}/close`, {
+    closingCash: 640_000,
+  });
+  check(
+    "tutup shift: fisik 640rb vs seharusnya 650rb → selisih -10rb terjurnal",
+    closeShift.status === 200 && closeShift.json?.expected === 650_000 && closeShift.json?.difference === -10_000,
+    `→ ${JSON.stringify(closeShift.json)}`,
+  );
+
+  const saleOnClosed = await owner("POST", `/api/tenants/${tenantId}/pos/sales`, {
+    shiftId: openShift.json.id,
+    taxRate: 0,
+    cashReceived: 200_000,
+    lines: [{ productId: prodBarang.json.id, qty: 1, unitPrice: 150_000 }],
+  });
+  check("penjualan pada shift tertutup DITOLAK 400", saleOnClosed.status === 400);
+
+  const tbAfterPos = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah POS", tbAfterPos.json?.balanced === true);
+
+  // --- POS lanjut (Fase 7a): multi metode bayar + split + tahan transaksi ---------
+  console.log("11d2. POS lanjut (multi-bayar + tahan transaksi)");
+  // Produk khusus POS, distok lewat pembelian September (di luar jendela arus kas Juli
+  // & di luar asersi stok BRG-002), lalu dibayar tunai agar tak menyisakan hutang.
+  const prodPos = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "POS-7A", name: "Produk POS", unit: "pcs", sellPrice: 150_000, buyPrice: 100_000,
+  });
+  const posBuy = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-09-15", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: prodPos.json.id, qty: 5, unitPrice: 100_000 }],
+  });
+  await owner("POST", `/api/tenants/${tenantId}/payments`, {
+    refType: "purchase", refId: posBuy.json.id, accountId: kas.id, amount: 500_000, paymentDate: "2026-09-15",
+  });
+  const shift2 = await owner("POST", `/api/tenants/${tenantId}/pos/shift/open`, { warehouseId: whUtama.id, openingCash: 0 });
+  check("buka shift kedua (kas awal 0)", shift2.status === 201);
+  // Split: tunai 100rb + QRIS 50rb untuk total 150rb → kembalian 0; hanya tunai masuk laci.
+  const splitSale = await owner("POST", `/api/tenants/${tenantId}/pos/sales`, {
+    shiftId: shift2.json.id, taxRate: 0,
+    payments: [{ method: "tunai", amount: 100_000 }, { method: "qris", amount: 50_000 }],
+    lines: [{ productId: prodPos.json.id, qty: 1, unitPrice: 150_000 }],
+  });
+  check("penjualan split tunai+QRIS 201 (kembalian 0)", splitSale.status === 201 && splitSale.json?.total === 150_000 && splitSale.json?.change === 0, `→ ${JSON.stringify(splitSale.json)}`);
+  const shift2State = await owner("GET", `/api/tenants/${tenantId}/pos/shift`);
+  check("kas laci shift hanya porsi TUNAI (100rb, bukan 150rb)", shift2State.json?.shift?.expectedCash === 100_000, `→ ${shift2State.json?.shift?.expectedCash}`);
+  const badOverpay = await owner("POST", `/api/tenants/${tenantId}/pos/sales`, {
+    shiftId: shift2.json.id, taxRate: 0,
+    payments: [{ method: "qris", amount: 200_000 }],
+    lines: [{ productId: prodPos.json.id, qty: 1, unitPrice: 150_000 }],
+  });
+  check("kembalian dari non-tunai DITOLAK 400", badOverpay.status === 400);
+  const underPay2 = await owner("POST", `/api/tenants/${tenantId}/pos/sales`, {
+    shiftId: shift2.json.id, taxRate: 0,
+    payments: [{ method: "kartu", amount: 100_000 }],
+    lines: [{ productId: prodPos.json.id, qty: 1, unitPrice: 150_000 }],
+  });
+  check("total pembayaran kurang DITOLAK 400", underPay2.status === 400);
+
+  // Rekap penjualan harian POS (Fase 12e): per jam, per shift, per metode.
+  const recap = await owner("GET", `/api/tenants/${tenantId}/pos/recap`);
+  check(
+    "rekap POS hari ini 200: memuat penjualan split (QRIS 50rb tercatat per metode)",
+    recap.status === 200 && recap.json?.byMethod?.some((m) => m.method === "qris" && m.amount === 50_000),
+    `→ ${JSON.stringify(recap.json?.byMethod)}`,
+  );
+  check(
+    "rekap POS: total per jam konsisten dengan total keseluruhan",
+    Array.isArray(recap.json?.byHour) &&
+      recap.json.byHour.reduce((s, h) => s + h.total, 0) === recap.json?.salesTotal &&
+      recap.json?.salesCount >= 2,
+    `→ ${JSON.stringify({ n: recap.json?.salesCount, total: recap.json?.salesTotal })}`,
+  );
+  check("rekap POS: memuat baris per shift", recap.json?.byShift?.length >= 1, `→ ${recap.json?.byShift?.length}`);
+  const recapAnon = await anon("GET", `/api/tenants/${tenantId}/pos/recap`);
+  check("rekap POS tanpa login DITOLAK 401", recapAnon.status === 401);
+  const hold1 = await owner("POST", `/api/tenants/${tenantId}/pos/held`, {
+    shiftId: shift2.json.id, label: "Meja 3", cart: [{ productId: prodPos.json.id, qty: 2, unitPrice: 150_000 }], taxRate: 0,
+  });
+  check("tahan transaksi 201", hold1.status === 201);
+  const heldList = await owner("GET", `/api/tenants/${tenantId}/pos/held?shiftId=${shift2.json.id}`);
+  check("daftar tahan memuat 1 (Meja 3, 1 item)", heldList.json?.held?.length === 1 && heldList.json.held[0].label === "Meja 3" && heldList.json.held[0].cart?.length === 1, `→ ${JSON.stringify(heldList.json?.held)}`);
+  const delHeld = await owner("DELETE", `/api/tenants/${tenantId}/pos/held/${hold1.json.id}`);
+  check("hapus/panggil tahan 200", delHeld.status === 200);
+  const viewerHold = await viewer("POST", `/api/tenants/${tenantId}/pos/held`, { shiftId: shift2.json.id, label: "X", cart: [{ productId: prodPos.json.id, qty: 1, unitPrice: 1 }] });
+  check("viewer DITOLAK menahan transaksi (403)", viewerHold.status === 403);
+  await owner("POST", `/api/tenants/${tenantId}/pos/shift/${shift2.json.id}/close`, { closingCash: 100_000 });
+  const tbAfterPos2 = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah POS multi-bayar", tbAfterPos2.json?.balanced === true);
+
+  // --- Penjualan bertahap (Fase 7b): SO → Surat Jalan (DO) → Faktur ---------------
+  console.log("11d3. Penjualan bertahap (SO → Surat Jalan → Faktur)");
+  // Produk & tanggal khusus (September) agar tak menyentuh asersi stok BRG-002 & arus kas Juli.
+  const prodSo = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "SO-7B", name: "Produk Pesanan", unit: "pcs", sellPrice: 200_000, buyPrice: 120_000,
+  });
+  await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-09-16", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: prodSo.json.id, qty: 20, unitPrice: 120_000 }],
+  });
+  const soBody = {
+    contactId: customer.json.id, orderDate: "2026-09-16", warehouseId: whUtama.id, taxRate: 11,
+    lines: [{ productId: prodSo.json.id, qty: 5, unitPrice: 200_000 }],
+  };
+  const viewerSo = await viewer("POST", `/api/tenants/${tenantId}/sales-orders`, soBody);
+  check("viewer DITOLAK membuat pesanan penjualan (403)", viewerSo.status === 403);
+  const so1 = await owner("POST", `/api/tenants/${tenantId}/sales-orders`, soBody);
+  check("buat pesanan penjualan 201 (SO bernomor)", so1.status === 201 && Boolean(so1.json?.soNo), `→ ${JSON.stringify(so1.json)}`);
+
+  // Faktur sebelum surat jalan DITOLAK (harus dikirim dulu).
+  const invBeforeDeliver = await owner("POST", `/api/tenants/${tenantId}/sales-orders/${so1.json.id}/invoice`, { invoiceDate: "2026-09-20" });
+  check("faktur sebelum surat jalan DITOLAK 409", invBeforeDeliver.status === 409, `→ ${invBeforeDeliver.status}`);
+
+  // Uang muka (DP) 300rb via kas.
+  const dp = await owner("POST", `/api/tenants/${tenantId}/sales-orders/${so1.json.id}/down-payment`, {
+    amount: 300_000, accountId: kas.id, paymentDate: "2026-09-17",
+  });
+  check("uang muka pesanan 200", dp.status === 200, `→ ${JSON.stringify(dp.json)}`);
+
+  const stockBeforeDeliver = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const soStockPre = stockBeforeDeliver.json?.levels?.find((l) => l.sku === "SO-7B" && l.warehouseId === whUtama.id)?.qty;
+  check("stok awal produk pesanan = 20 (dari pembelian)", soStockPre === 20, `→ ${soStockPre}`);
+
+  // Surat jalan: stok KELUAR di sini (5 pcs) + jurnal HPP.
+  const deliver = await owner("POST", `/api/tenants/${tenantId}/sales-orders/${so1.json.id}/deliver`, { deliveryDate: "2026-09-18" });
+  check("surat jalan (DO) 201 dengan nomor", deliver.status === 201 && Boolean(deliver.json?.doNo), `→ ${JSON.stringify(deliver.json)}`);
+  const stockAfterDeliver = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const soStockDeliver = stockAfterDeliver.json?.levels?.find((l) => l.sku === "SO-7B" && l.warehouseId === whUtama.id)?.qty;
+  check("stok BERKURANG 5 saat surat jalan (20 → 15)", soStockDeliver === 15, `→ ${soStockDeliver}`);
+
+  // Pesanan terkirim tidak boleh dibatalkan.
+  const cancelDelivered = await owner("POST", `/api/tenants/${tenantId}/sales-orders/${so1.json.id}/cancel`, {});
+  check("batalkan pesanan yang sudah dikirim DITOLAK 409", cancelDelivered.status === 409, `→ ${cancelDelivered.status}`);
+
+  // Faktur dari pesanan terkirim: pendapatan diakui, stok TIDAK bergerak lagi (skipStock).
+  const soInvoice = await owner("POST", `/api/tenants/${tenantId}/sales-orders/${so1.json.id}/invoice`, { invoiceDate: "2026-09-20", dueDate: "2026-10-20" });
+  check("faktur dari pesanan terkirim 201 (total 1.110.000 = 1jt + PPN 110rb)", soInvoice.status === 201 && soInvoice.json?.total === 1_110_000, `→ ${JSON.stringify(soInvoice.json)}`);
+  const stockAfterInvoice = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const soStockInvoice = stockAfterInvoice.json?.levels?.find((l) => l.sku === "SO-7B" && l.warehouseId === whUtama.id)?.qty;
+  check("stok TIDAK bergerak lagi saat faktur (tetap 15)", soStockInvoice === 15, `→ ${soStockInvoice}`);
+
+  // Uang muka terpakai → faktur sebagian terbayar.
+  const soInvList = await owner("GET", `/api/tenants/${tenantId}/invoices`);
+  const soInvDoc = soInvList.json?.docs?.find((d) => d.docNo === soInvoice.json.invoiceNo);
+  check("uang muka 300rb diterapkan ke faktur (paidAmount 300rb, status posted)", soInvDoc?.paidAmount === 300_000 && soInvDoc?.status === "posted", `→ ${JSON.stringify(soInvDoc && { p: soInvDoc.paidAmount, s: soInvDoc.status })}`);
+
+  // Kirim ulang pesanan yang sudah difakturkan DITOLAK.
+  const reDeliver = await owner("POST", `/api/tenants/${tenantId}/sales-orders/${so1.json.id}/deliver`, { deliveryDate: "2026-09-21" });
+  check("kirim ulang pesanan yang sudah difakturkan DITOLAK 409", reDeliver.status === 409, `→ ${reDeliver.status}`);
+
+  // Pesanan kedua yang masih terbuka boleh dibatalkan.
+  const so2 = await owner("POST", `/api/tenants/${tenantId}/sales-orders`, soBody);
+  const cancelOpen = await owner("POST", `/api/tenants/${tenantId}/sales-orders/${so2.json.id}/cancel`, {});
+  check("batalkan pesanan terbuka 200", cancelOpen.status === 200, `→ ${cancelOpen.status}`);
+
+  const soList = await owner("GET", `/api/tenants/${tenantId}/sales-orders`);
+  const so1Row = soList.json?.orders?.find((o) => o.id === so1.json.id);
+  check("daftar pesanan: SO pertama berstatus 'invoiced' + ada nomor faktur & surat jalan", so1Row?.status === "invoiced" && Boolean(so1Row?.invoiceNo) && Boolean(so1Row?.deliveryNo), `→ ${JSON.stringify(so1Row && { s: so1Row.status, inv: so1Row.invoiceNo, dl: so1Row.deliveryNo })}`);
+
+  const tbAfterSo = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah alur penjualan bertahap", tbAfterSo.json?.balanced === true);
+
+  // --- Stok lanjut (Fase 7c): barcode, multi-satuan, nomor seri, titik pesan ------
+  console.log("11d4. Stok lanjut (barcode + UOM + nomor seri + titik pesan)");
+  const prodSerial = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "SER-7C", name: "Mesin Espresso", unit: "unit", sellPrice: 12_000_000, buyPrice: 9_000_000,
+    barcode: "8991234567891", uomSecondary: "dus", uomFactor: 6, trackSerial: true,
+  });
+  check("buat produk barcode + UOM + lacak seri 201", prodSerial.status === 201, `→ ${prodSerial.status}`);
+  const lookup = await owner("GET", `/api/tenants/${tenantId}/products/lookup?barcode=8991234567891`);
+  check("pindai barcode menemukan produk", lookup.status === 200 && lookup.json?.product?.id === prodSerial.json.id && lookup.json?.product?.sku === "SER-7C", `→ ${JSON.stringify(lookup.json?.product)}`);
+  const lookupMiss = await owner("GET", `/api/tenants/${tenantId}/products/lookup?barcode=0000000000000`);
+  check("pindai barcode tak dikenal → 404", lookupMiss.status === 404);
+  // Fase 20i: pemindai kamera memasukkan hasil lookup LANGSUNG ke keranjang POS,
+  // jadi harga & satuannya harus ikut terbawa — bukan hanya id/sku. Tanpa ini,
+  // barang bisa masuk keranjang berharga Rp 0 tanpa ada yang menyadarinya.
+  check(
+    "hasil pindai memuat harga jual & satuan (dipakai keranjang POS)",
+    lookup.json?.product?.sellPrice === 12_000_000 && lookup.json?.product?.unit === "unit" &&
+      lookup.json?.product?.name === "Mesin Espresso",
+    `→ ${JSON.stringify(lookup.json?.product)}`,
+  );
+
+  const ser1 = await owner("POST", `/api/tenants/${tenantId}/products/${prodSerial.json.id}/serials`, { serialNo: "SN-0001" });
+  check("tambah nomor seri SN-0001 201", ser1.status === 201);
+  const serDup = await owner("POST", `/api/tenants/${tenantId}/products/${prodSerial.json.id}/serials`, { serialNo: "SN-0001" });
+  check("nomor seri duplikat DITOLAK 409", serDup.status === 409);
+  await owner("POST", `/api/tenants/${tenantId}/products/${prodSerial.json.id}/serials`, { serialNo: "SN-0002", note: "garansi 2 tahun" });
+  const serList = await owner("GET", `/api/tenants/${tenantId}/products/${prodSerial.json.id}/serials`);
+  check("daftar seri: 2 unit, keduanya tersedia", serList.json?.serials?.length === 2 && serList.json.serials.every((s) => s.status === "in_stock"), `→ ${JSON.stringify(serList.json?.serials?.map((s) => s.serialNo))}`);
+  const serSold = await owner("PATCH", `/api/tenants/${tenantId}/products/${prodSerial.json.id}/serials/${ser1.json.id}`, { status: "sold" });
+  check("tandai seri terjual 200", serSold.status === 200);
+  const serList2 = await owner("GET", `/api/tenants/${tenantId}/products/${prodSerial.json.id}/serials`);
+  check("SN-0001 kini 'sold', 1 tersedia", serList2.json?.serials?.find((s) => s.serialNo === "SN-0001")?.status === "sold" && serList2.json.serials.filter((s) => s.status === "in_stock").length === 1);
+  const serViewer = await viewer("POST", `/api/tenants/${tenantId}/products/${prodSerial.json.id}/serials`, { serialNo: "SN-X" });
+  check("viewer DITOLAK menambah nomor seri (403)", serViewer.status === 403);
+
+  // Titik pesan otomatis → usulan pembelian (produk baru, min_stock>0, tanpa stok).
+  const prodReorder = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "RORDER-7C", name: "Filter Kertas V60", unit: "pak", sellPrice: 35_000, buyPrice: 20_000, minStock: 10,
+  });
+  const reorder = await owner("GET", `/api/tenants/${tenantId}/reorder-suggestions`);
+  const roRow = reorder.json?.suggestions?.find((s) => s.sku === "RORDER-7C");
+  check("usulan pembelian memuat produk di bawah titik pesan (usulan 20 = 2× ambang)", reorder.status === 200 && roRow?.suggestedQty === 20 && roRow?.qty === 0 && roRow?.shortfall === 10, `→ ${JSON.stringify(roRow)}`);
+  const reorderViewer = await viewer("GET", `/api/tenants/${tenantId}/reorder-suggestions`);
+  check("viewer boleh membaca usulan pembelian (200)", reorderViewer.status === 200);
+  // Sambungkan ke Pengadaan: buat permintaan pembelian dari usulan.
+  const roPr = await owner("POST", `/api/tenants/${tenantId}/requisitions`, {
+    note: "Usulan otomatis titik pesan", lines: [{ productId: prodReorder.json.id, qty: roRow.suggestedQty }],
+  });
+  check("buat permintaan pembelian dari usulan 201", roPr.status === 201 && Boolean(roPr.json?.reqNo), `→ ${JSON.stringify(roPr.json)}`);
+
+  // --- Peramalan stok (Fase 20h) --------------------------------------------
+  // Produk khusus supaya angkanya deterministik: beli 100, jual 30, sisa 70.
+  const prodFc = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "FCAST-20H", name: "Produk Uji Peramalan", unit: "pcs", sellPrice: 5_000, buyPrice: 2_000,
+  });
+  await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-09-25", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: prodFc.json.id, qty: 100, unitPrice: 2_000 }],
+  });
+  const fcSale = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2026-09-25", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: prodFc.json.id, qty: 30, unitPrice: 5_000 }],
+  });
+  check("penjualan uji peramalan diposting (30 pcs)", fcSale.status === 201, `→ ${fcSale.status}`);
+
+  // Jendela 90 hari, lead time 7 + cadangan 7 → titik pesan hanya 5, jadi
+  // stok 70 masih jauh di atasnya: tidak boleh menyarankan pembelian.
+  const fc = await owner("GET", `/api/tenants/${tenantId}/stock-forecast?days=90&leadTime=7&safety=7`);
+  const fcRow = fc.json?.forecasts?.find((f) => f.sku === "FCAST-20H");
+  check(
+    "ramalan: rata-rata 30/90 hari, sisa 70, titik pesan 5, belum perlu pesan",
+    fc.status === 200 && fcRow?.stok === 70 && fcRow?.terjual === 30 && fcRow?.titikPesan === 5 &&
+      fcRow?.perluPesan === false && fcRow?.qtyDisarankan === 0,
+    `→ ${JSON.stringify(fcRow)}`,
+  );
+  // Seluruh penjualan smoke terjadi pada SATU hari, jadi datanya tipis —
+  // ramalannya wajib ditandai berkeyakinan rendah walau angkanya rapi.
+  check("ramalan dari penjualan satu hari ditandai keyakinan 'rendah'", fcRow?.keyakinan === "rendah", `→ ${fcRow?.keyakinan}`);
+
+  // Waktu tunggu pemasok yang panjang menaikkan titik pesan sampai melewati
+  // stok — dan usulan qty-nya harus ikut muncul.
+  const fcLama = await owner("GET", `/api/tenants/${tenantId}/stock-forecast?days=90&leadTime=180&safety=180`);
+  const fcLamaRow = fcLama.json?.forecasts?.find((f) => f.sku === "FCAST-20H");
+  check(
+    "waktu tunggu 180 hari → titik pesan 120 > stok 70 → usulan beli 60",
+    fcLamaRow?.titikPesan === 120 && fcLamaRow?.perluPesan === true && fcLamaRow?.qtyDisarankan === 60,
+    `→ ${JSON.stringify(fcLamaRow)}`,
+  );
+
+  // Produk yang tak pernah terjual tidak boleh diramalkan angka apa pun.
+  const fcKosong = fc.json?.forecasts?.find((f) => f.sku === "RORDER-7C");
+  check(
+    "produk tanpa penjualan: rata-rata 0, tanpa perkiraan habis, tanpa usulan",
+    fcKosong?.rataHarian === 0 && fcKosong?.hariHabis === null && fcKosong?.qtyDisarankan === 0,
+    `→ ${JSON.stringify(fcKosong)}`,
+  );
+  const fcViewer = await viewer("GET", `/api/tenants/${tenantId}/stock-forecast`);
+  check("viewer boleh membaca peramalan stok (200)", fcViewer.status === 200);
+
+  // --- Pajak UMKM (Fase 7d): PPh Final 0,5% + PPh 23 + SPT Masa PPN ----------------
+  console.log("11d5. Pajak UMKM (PPh Final + PPh 23 + SPT PPN)");
+  // Masa Oktober terisolasi (tak ada transaksi lain) agar omzet/PPN deterministik.
+  const prodTax = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "TAX-7D", name: "Produk Pajak", unit: "pcs", sellPrice: 200_000, buyPrice: 100_000,
+  });
+  await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-10-05", taxRate: 11, warehouseId: whUtama.id,
+    lines: [{ productId: prodTax.json.id, qty: 10, unitPrice: 100_000 }],
+  });
+  const taxSale = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2026-10-06", taxRate: 11, warehouseId: whUtama.id,
+    lines: [{ productId: prodTax.json.id, qty: 5, unitPrice: 200_000 }],
+  });
+  check("faktur PPN Oktober (DPP 1jt + PPN 110rb)", taxSale.status === 201 && taxSale.json?.total === 1_110_000);
+
+  // PPh Final 0,5%.
+  const pfPrev = await owner("GET", `/api/tenants/${tenantId}/tax/pph-final/preview?period=2026-10`);
+  check("preview PPh Final: omzet 1jt → PPh 5.000", pfPrev.status === 200 && pfPrev.json?.omzet === 1_000_000 && pfPrev.json?.amount === 5_000, `→ ${JSON.stringify(pfPrev.json)}`);
+  const pfViewer = await viewer("POST", `/api/tenants/${tenantId}/tax/pph-final`, { period: "2026-10", accountId: kas.id, paidDate: "2026-10-10" });
+  check("viewer DITOLAK setor PPh Final (403)", pfViewer.status === 403);
+  const pfPay = await owner("POST", `/api/tenants/${tenantId}/tax/pph-final`, { period: "2026-10", accountId: kas.id, paidDate: "2026-10-10" });
+  check("setor PPh Final 201 (amount 5.000)", pfPay.status === 201 && pfPay.json?.amount === 5_000, `→ ${JSON.stringify(pfPay.json)}`);
+  const pfDup = await owner("POST", `/api/tenants/${tenantId}/tax/pph-final`, { period: "2026-10", accountId: kas.id, paidDate: "2026-10-10" });
+  check("setor PPh Final masa yang sama DITOLAK 409", pfDup.status === 409);
+  const pfZero = await owner("POST", `/api/tenants/${tenantId}/tax/pph-final`, { period: "2026-11", accountId: kas.id, paidDate: "2026-11-10" });
+  check("setor PPh Final masa tanpa omzet DITOLAK 400", pfZero.status === 400);
+
+  // PPh 23 (bukti potong) + setor.
+  const p23Viewer = await viewer("POST", `/api/tenants/${tenantId}/tax/pph23`, { contactId: supplier.json.id, taxDate: "2026-10-07", objectType: "jasa", gross: 10_000_000, rate: 2, sourceAccountId: kas.id });
+  check("viewer DITOLAK membuat bukti potong (403)", p23Viewer.status === 403);
+  const p23 = await owner("POST", `/api/tenants/${tenantId}/tax/pph23`, { contactId: supplier.json.id, taxDate: "2026-10-07", objectType: "jasa", gross: 10_000_000, rate: 2, sourceAccountId: kas.id });
+  check("buat bukti potong PPh 23 (2% × 10jt = 200rb)", p23.status === 201 && p23.json?.amount === 200_000 && Boolean(p23.json?.docNo), `→ ${JSON.stringify(p23.json)}`);
+  const p23Deposit = await owner("POST", `/api/tenants/${tenantId}/tax/pph23/${p23.json.id}/deposit`, { accountId: kas.id, depositDate: "2026-10-08" });
+  check("setor PPh 23 200", p23Deposit.status === 200);
+  const p23Redeposit = await owner("POST", `/api/tenants/${tenantId}/tax/pph23/${p23.json.id}/deposit`, { accountId: kas.id, depositDate: "2026-10-08" });
+  check("setor ulang PPh 23 DITOLAK 409", p23Redeposit.status === 409);
+
+  // SPT Masa PPN 1111 (masa Oktober terisolasi).
+  const spt = await owner("GET", `/api/tenants/${tenantId}/tax/spt-ppn?period=2026-10`);
+  check(
+    "SPT Masa PPN Oktober: keluaran 110rb, masukan 110rb, netto 0",
+    spt.status === 200 && spt.json?.totalOutputPpn === 110_000 && spt.json?.totalInputPpn === 110_000 && spt.json?.net === 0 && spt.json?.output?.length === 1 && spt.json?.input?.length === 1,
+    `→ ${JSON.stringify(spt.json && { o: spt.json.totalOutputPpn, i: spt.json.totalInputPpn, net: spt.json.net })}`,
+  );
+
+  // PPh unifikasi (Fase 20d) — rekap semua PPh masa Oktober. Bukti potong
+  // PPh 23 di atas sudah DISETOR, jadi belumDisetor harus 0. Ini penting
+  // diperiksa: kalau kolom `deposited` salah dibaca, angkanya akan terlihat
+  // wajar tetapi menyesatkan saat mengisi SPT.
+  const pphu = await owner("GET", `/api/tenants/${tenantId}/tax/pph-unifikasi?period=2026-10`);
+  check(
+    "PPh unifikasi Oktober: memuat bukti potong PPh 23 yang sudah disetor",
+    pphu.status === 200 &&
+      pphu.json?.totalPph23 > 0 &&
+      pphu.json?.belumDisetor === 0 &&
+      pphu.json?.rows?.some((r) => r.jenis === "pph23" && r.deposited === true),
+    `→ ${JSON.stringify(pphu.json && { p23: pphu.json.totalPph23, belum: pphu.json.belumDisetor, n: pphu.json.rows?.length })}`,
+  );
+  check(
+    "PPh unifikasi: total = jumlah ketiga jenisnya",
+    pphu.json?.total === pphu.json?.totalPph21 + pphu.json?.totalPph23 + pphu.json?.totalPphFinal,
+    `→ total=${pphu.json?.total}`,
+  );
+  const pphuBadPeriod = await owner("GET", `/api/tenants/${tenantId}/tax/pph-unifikasi?period=2026-13`);
+  check("PPh unifikasi masa tak valid DITOLAK 400", pphuBadPeriod.status === 400);
+  const pphuViewer = await viewer("GET", `/api/tenants/${tenantId}/tax/pph-unifikasi?period=2026-10`);
+  check("PPh unifikasi boleh dibaca viewer (laporan, bukan aksi)", pphuViewer.status === 200);
+
+  const tbAfterTax = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah alur pajak", tbAfterTax.json?.balanced === true);
+
+  const shiftByViewer = await viewer("POST", `/api/tenants/${tenantId}/pos/shift/open`, {
+    warehouseId: whUtama.id,
+    openingCash: 0,
+  });
+  check("viewer DITOLAK membuka shift (403)", shiftByViewer.status === 403);
+
+  // --- Approval engine pembelian (Fase 2i) -----------------------------------------
+  console.log("11e. Persetujuan pembelian (approval engine)");
+
+  // Undang admin baru untuk menguji jalur non-owner.
+  const inviteAdmin = await owner("POST", `/api/tenants/${tenantId}/invites`, {
+    email: "dewi@majujaya.co.id",
+    role: "admin",
+  });
+  const admin = makeClient();
+  await admin("POST", "/api/auth/register", {
+    companyName: "Usaha Dewi",
+    name: "Dewi Lestari",
+    email: "dewi@majujaya.co.id",
+    password: "rahasia-dewi-789",
+  });
+  await admin("POST", "/api/invites/accept", { token: inviteAdmin.json.inviteUrl.split("token=")[1] });
+
+  // --- Akun comped (Fase 4a): email di COMPED_EMAILS → tenant aktif permanen ------
+  // Server dijalankan dengan COMPED_EMAILS=dewi@majujaya.co.id (lihat spawn args).
+  const dewiMe = await admin("GET", "/api/auth/me");
+  const dewiOwn = dewiMe.json?.memberships?.find((m) => m.tenantSlug?.startsWith("usaha-dewi"));
+  check(
+    "register email comped → tenant langsung active tanpa akhir trial (Fase 30: paket tunggal)",
+    dewiOwn?.tenantStatus === "active" && dewiOwn?.plan === "lengkap" && dewiOwn?.trialEndsAt === null,
+    `→ ${JSON.stringify(dewiOwn)}`,
+  );
+  // Fase 24: pendaftar biasa TIDAK dapat database dan berstatus `provisioning`
+  // sampai membayar. Diuji dengan akun sendiri (bukan tenant utama, yang di
+  // suite ini sengaja comped agar jalur lama tetap terjelajahi utuh).
+  const belumBayar = makeClient();
+  const regBelumBayar = await belumBayar(
+    "POST",
+    "/api/auth/register",
+    {
+      companyName: "PT Belum Bayar",
+      name: "Calon Pelanggan",
+      email: "calon@contoh.co.id",
+      password: "rahasia-calon-123",
+    },
+    // IP berbeda: rate-limit registrasi (5/5 menit) dikunci per-IP, dan suite
+    // ini sudah memakai jatah IP bawaan. Seorang calon pelanggan baru memang
+    // datang dari IP lain — jadi penjaganya tidak dilemahkan, hanya dipakai
+    // sebagaimana ia bekerja di dunia nyata.
+    { "cf-connecting-ip": "203.0.113.24" },
+  );
+  check("24 register non-comped 201", regBelumBayar.status === 201, `→ ${regBelumBayar.status}`);
+  const tenantBelumBayar = regBelumBayar.json?.tenantId;
+  const meBelumBayar = await belumBayar("GET", "/api/auth/me");
+  check(
+    "24 pendaftar baru berstatus provisioning (belum berlangganan)",
+    meBelumBayar.json?.memberships?.[0]?.tenantStatus === "provisioning",
+    `→ ${meBelumBayar.json?.memberships?.[0]?.tenantStatus}`,
+  );
+  // INTI Fase 24: mendaftar TIDAK memakan slot pool. Kalau ini merah, seluruh
+  // alasan menghapus trial ikut batal.
+  const infraSebelum = await owner("GET", "/api/admin/infra");
+  const bacaBelumBayar = await belumBayar("GET", `/api/tenants/${tenantBelumBayar}/products`);
+  check(
+    "24 tenant belum berlangganan: MEMBACA pun ditolak 402 belum-berlangganan",
+    bacaBelumBayar.status === 402 && bacaBelumBayar.json?.detail === "belum-berlangganan",
+    `→ ${bacaBelumBayar.status} ${JSON.stringify(bacaBelumBayar.json)}`,
+  );
+  const tulisBelumBayar = await belumBayar("POST", `/api/tenants/${tenantBelumBayar}/products`, {
+    sku: "X", name: "X", unit: "pcs", sellPrice: 1, buyPrice: 1,
+  });
+  check("24 tenant belum berlangganan: MENULIS ditolak 402", tulisBelumBayar.status === 402, `→ ${tulisBelumBayar.status}`);
+  // Jalur pembayarannya HARUS tetap terbuka — kalau tidak, pelanggan terkunci
+  // di luar halaman yang seharusnya membebaskannya.
+  const billBelumBayar = await belumBayar("GET", `/api/tenants/${tenantBelumBayar}/billing`);
+  check(
+    "24 endpoint billing tetap terjangkau oleh tenant belum berlangganan",
+    billBelumBayar.status === 200,
+    `→ ${billBelumBayar.status}`,
+  );
+  const infraSesudah = await owner("GET", "/api/admin/infra");
+  check(
+    "24 INVARIAN: mendaftar TIDAK memakan slot pool",
+    infraSebelum.json?.kapasitas?.terpakai === infraSesudah.json?.kapasitas?.terpakai,
+    `→ ${infraSebelum.json?.kapasitas?.terpakai} → ${infraSesudah.json?.kapasitas?.terpakai}`,
+  );
+  // Fase 24 — pagar anti-abuse: akun yang punya perusahaan BELUM berlangganan
+  // tidak boleh menambah perusahaan lagi. Perusahaan tambahan diprovisi
+  // seketika, jadi tanpa pagar ini seorang pendaftar bisa memanen slot database
+  // lewat endpoint ini dan melewati paywall yang baru dipasang di registrasi.
+  const gateTambah = await belumBayar("POST", "/api/auth/companies", { companyName: "PT Nebeng Slot" });
+  check(
+    "24 pagar: akun dengan perusahaan belum berlangganan tidak bisa menambah perusahaan",
+    gateTambah.status === 402 && gateTambah.json?.detail === "belum-berlangganan",
+    `→ ${gateTambah.status} ${JSON.stringify(gateTambah.json)}`,
+  );
+
+  // Aktivasi manual (pelanggan transfer bank) HARUS ikut membuatkan database.
+  await owner("POST", `/api/admin/tenants/${tenantBelumBayar}/plan`, { plan: "lengkap", status: "active" });
+  const bacaSetelahAktif = await belumBayar("GET", `/api/tenants/${tenantBelumBayar}/products`);
+  check(
+    "24 aktivasi manual admin membuatkan database → tenant bisa dipakai",
+    bacaSetelahAktif.status === 200,
+    `→ ${bacaSetelahAktif.status} ${JSON.stringify(bacaSetelahAktif.json)}`,
+  );
+  const dewiCo = await admin("POST", "/api/auth/companies", { companyName: "Cabang Dewi" });
+  check("perusahaan tambahan milik email comped 201", dewiCo.status === 201);
+  const dewiMe2 = await admin("GET", "/api/auth/me");
+  const dewiCoRow = dewiMe2.json?.memberships?.find((m) => m.tenantId === dewiCo.json?.tenantId);
+  check(
+    "perusahaan tambahan comped juga langsung active",
+    dewiCoRow?.tenantStatus === "active" && dewiCoRow?.plan === "lengkap" && dewiCoRow?.trialEndsAt === null,
+    `→ ${JSON.stringify(dewiCoRow)}`,
+  );
+
+  // --- Import pesanan marketplace (Fase 11e) — di tenant Dewi (aktif, terisolasi
+  //     dari asersi angka tenant utama) ------------------------------------------
+  const mpT = dewiCo.json.tenantId;
+  const mpDate = new Date().toISOString().slice(0, 10);
+  const mpWh = (await admin("GET", `/api/tenants/${mpT}/warehouses`)).json.items.find((w) => w.code === "UTAMA").id;
+  const mpSupplier = await admin("POST", `/api/tenants/${mpT}/contacts`, { type: "supplier", name: "Pemasok MP" });
+  const mpCust = await admin("POST", `/api/tenants/${mpT}/contacts`, { type: "customer", name: "Pembeli Shopee" });
+  const mpProd = await admin("POST", `/api/tenants/${mpT}/products`, { sku: "MP-9Z", name: "Produk Marketplace", unit: "pcs", sellPrice: 50_000, buyPrice: 30_000 });
+  await admin("POST", `/api/tenants/${mpT}/purchases`, {
+    contactId: mpSupplier.json.id, invoiceDate: mpDate, taxRate: 0, warehouseId: mpWh,
+    lines: [{ productId: mpProd.json.id, qty: 20, unitPrice: 30_000 }],
+  });
+  const mpBody = (rows) => ({ channel: "shopee", warehouseId: mpWh, contactId: mpCust.json.id, rows });
+  const mpImport = await admin("POST", `/api/tenants/${mpT}/marketplace/import`, mpBody([
+    { externalOrderNo: "SHP-9001", orderDate: mpDate, sku: "MP-9Z", qty: 2, unitPrice: 50_000 },
+    { externalOrderNo: "SHP-9001", orderDate: mpDate, sku: "MP-9Z", qty: 1, unitPrice: 60_000 },
+    { externalOrderNo: "SHP-9002", orderDate: mpDate, sku: "mp-9z", qty: 1, unitPrice: 50_000 },
+  ]));
+  check("import marketplace: 2 pesanan → 2 faktur (baris digabung, SKU case-insensitive)",
+    mpImport.status === 200 && mpImport.json?.imported?.length === 2 && mpImport.json?.failed?.length === 0,
+    `→ ${JSON.stringify({ imported: mpImport.json?.imported?.length, failed: mpImport.json?.failed })}`);
+  const mpAgain = await admin("POST", `/api/tenants/${mpT}/marketplace/import`, mpBody([
+    { externalOrderNo: "SHP-9001", orderDate: mpDate, sku: "MP-9Z", qty: 2, unitPrice: 50_000 },
+    { externalOrderNo: "SHP-9002", orderDate: mpDate, sku: "MP-9Z", qty: 1, unitPrice: 50_000 },
+  ]));
+  check("re-import idempoten → 2 dilewati, 0 diimpor",
+    mpAgain.json?.imported?.length === 0 && mpAgain.json?.skipped?.length === 2,
+    `→ ${JSON.stringify({ imported: mpAgain.json?.imported?.length, skipped: mpAgain.json?.skipped?.length })}`);
+  const mpBad = await admin("POST", `/api/tenants/${mpT}/marketplace/import`, mpBody([
+    { externalOrderNo: "SHP-9003", orderDate: mpDate, sku: "SKU-TIDAK-ADA", qty: 1, unitPrice: 1_000 },
+  ]));
+  check("SKU tak dikenal → pesanan gagal (0 diimpor)",
+    mpBad.json?.failed?.length === 1 && mpBad.json?.imported?.length === 0, `→ ${JSON.stringify(mpBad.json)}`);
+  const mpNoSession = await fetch(`${BASE}/api/tenants/${mpT}/marketplace/import`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(mpBody([])),
+  });
+  check("impor marketplace tanpa sesi → 401", mpNoSession.status === 401, `→ HTTP ${mpNoSession.status}`);
+  const mpOrders = await admin("GET", `/api/tenants/${mpT}/marketplace/orders`);
+  check("daftar pesanan marketplace memuat SHP-9001 dengan nomor faktur",
+    mpOrders.status === 200 && mpOrders.json?.orders?.some((o) => o.externalOrderNo === "SHP-9001" && o.invoiceNo),
+    `→ ${JSON.stringify(mpOrders.json?.orders?.slice(0, 2))}`);
+
+  // --- Template industri (Fase 11f) — di tenant Dewi (terisolasi) --------------
+  const indTplRetail = await admin("POST", `/api/tenants/${mpT}/setup/industry-template`, { industry: "retail" });
+  check("template industri retail: 5 produk + 2 kontak ditambahkan",
+    indTplRetail.status === 200 && indTplRetail.json?.productsAdded === 5 && indTplRetail.json?.contactsAdded === 2,
+    `→ ${JSON.stringify(indTplRetail.json)}`);
+  const indTplAgain = await admin("POST", `/api/tenants/${mpT}/setup/industry-template`, { industry: "retail" });
+  check("terapkan ulang template → idempoten (0 ditambahkan)",
+    indTplAgain.json?.productsAdded === 0 && indTplAgain.json?.contactsAdded === 0, `→ ${JSON.stringify(indTplAgain.json)}`);
+  const indTplBad = await admin("POST", `/api/tenants/${mpT}/setup/industry-template`, { industry: "tidak-ada" });
+  check("jenis usaha tak dikenal → 400", indTplBad.status === 400, `→ HTTP ${indTplBad.status}`);
+  const indTplViewer = await viewer("POST", `/api/tenants/${tenantId}/setup/industry-template`, { industry: "retail" });
+  check("viewer DITOLAK menerapkan template (403)", indTplViewer.status === 403, `→ HTTP ${indTplViewer.status}`);
+
+  const thresholdByViewer = await viewer("POST", `/api/tenants/${tenantId}/approval-threshold`, { amount: 1 });
+  check("viewer DITOLAK mengatur ambang (403)", thresholdByViewer.status === 403);
+  const setThreshold = await owner("POST", `/api/tenants/${tenantId}/approval-threshold`, { amount: 1_000_000 });
+  check("owner mengatur ambang 1.000.000", setThreshold.status === 200);
+
+  const smallPurchase = await admin("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id,
+    invoiceDate: "2026-07-03",
+    taxRate: 11,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 2, unitPrice: 100_000 }],
+  });
+  check("pembelian admin DI BAWAH ambang (222rb) langsung diposting 201", smallPurchase.status === 201);
+
+  const bigPurchase = await admin("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id,
+    invoiceDate: "2026-07-03",
+    taxRate: 11,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 10, unitPrice: 100_000 }],
+  });
+  check(
+    "pembelian admin DI ATAS ambang (1.110.000) → 202 menunggu persetujuan",
+    bigPurchase.status === 202 && bigPurchase.json?.pendingApproval === true && bigPurchase.json?.requestNo === "APR-00001",
+    `→ ${JSON.stringify(bigPurchase.json)}`,
+  );
+
+  let stockPending = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  check(
+    "stok & jurnal TIDAK berubah saat menunggu (4 pcs setelah pembelian kecil)",
+    stockPending.json?.levels?.find((l) => l.sku === "BRG-002" && l.warehouseId === whUtama.id)?.qty === 4,
+  );
+
+  const approvalsByAdmin = await admin("GET", `/api/tenants/${tenantId}/approvals`);
+  check("admin DITOLAK melihat daftar persetujuan (403)", approvalsByAdmin.status === 403);
+
+  const approvals = await owner("GET", `/api/tenants/${tenantId}/approvals`);
+  const pendingReq = approvals.json?.requests?.find((r) => r.status === "pending");
+  check("owner melihat 1 permintaan menunggu", approvals.status === 200 && Boolean(pendingReq));
+
+  const approveByAdmin = await admin("POST", `/api/tenants/${tenantId}/approvals/${pendingReq.id}/approve`);
+  check("admin DITOLAK menyetujui (403)", approveByAdmin.status === 403);
+
+  const approve = await owner("POST", `/api/tenants/${tenantId}/approvals/${pendingReq.id}/approve`);
+  check("owner menyetujui → faktur pembelian diposting", approve.status === 200 && Boolean(approve.json?.docNo));
+
+  stockPending = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  check(
+    "stok bertambah 10 setelah disetujui (total 14)",
+    stockPending.json?.levels?.find((l) => l.sku === "BRG-002" && l.warehouseId === whUtama.id)?.qty === 14,
+  );
+
+  const doubleApprove = await owner("POST", `/api/tenants/${tenantId}/approvals/${pendingReq.id}/approve`);
+  check("menyetujui dua kali DITOLAK 404", doubleApprove.status === 404);
+
+  const bigPurchase2 = await admin("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id,
+    invoiceDate: "2026-07-03",
+    taxRate: 11,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 20, unitPrice: 100_000 }],
+  });
+  const approvals2 = await owner("GET", `/api/tenants/${tenantId}/approvals`);
+  const pending2 = approvals2.json?.requests?.find((r) => r.status === "pending");
+  const rejectReq = await owner("POST", `/api/tenants/${tenantId}/approvals/${pending2.id}/reject`, {
+    note: "Terlalu besar bulan ini",
+  });
+  check("owner menolak permintaan kedua", bigPurchase2.status === 202 && rejectReq.status === 200);
+  stockPending = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  check(
+    "penolakan tidak mengubah stok (tetap 14)",
+    stockPending.json?.levels?.find((l) => l.sku === "BRG-002" && l.warehouseId === whUtama.id)?.qty === 14,
+  );
+  const tbAfterApprovals = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah alur persetujuan", tbAfterApprovals.json?.balanced === true);
+
+  // --- Pengadaan / procure-to-pay (Fase 6d): PR → PO → penerimaan → faktur --------
+  console.log("11e2. Pengadaan (PR → PO → penerimaan → faktur pembelian)");
+  // Produk khusus pengadaan (BRG-002 dipakai asersi stok=14 di bagian lain).
+  const prodProc = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "PRC-001", name: "Barang Pengadaan", unit: "pcs", sellPrice: 40_000, buyPrice: 20_000,
+  });
+
+  const viewerReq = await viewer("POST", `/api/tenants/${tenantId}/requisitions`, {
+    lines: [{ productId: prodProc.json.id, qty: 5 }],
+  });
+  check("viewer DITOLAK membuat permintaan (403)", viewerReq.status === 403);
+
+  const req = await owner("POST", `/api/tenants/${tenantId}/requisitions`, {
+    note: "Restok barang", lines: [{ productId: prodProc.json.id, qty: 5, note: "segera" }],
+  });
+  check("buat permintaan pembelian 201", req.status === 201 && Boolean(req.json?.reqNo));
+  const badProdReq = await owner("POST", `/api/tenants/${tenantId}/requisitions`, {
+    lines: [{ productId: "produk-tidak-ada", qty: 1 }],
+  });
+  check("permintaan produk tak dikenal 404", badProdReq.status === 404);
+  const approveReq = await owner("PATCH", `/api/tenants/${tenantId}/requisitions/${req.json.id}`, { status: "approved" });
+  check("setujui permintaan 200", approveReq.status === 200);
+
+  const po = await owner("POST", `/api/tenants/${tenantId}/purchase-orders`, {
+    requisitionId: req.json.id, contactId: supplier.json.id, orderDate: "2026-09-05",
+    warehouseId: whUtama.id, taxRate: 0,
+    lines: [{ productId: prodProc.json.id, qty: 5, unitPrice: 20_000 }],
+  });
+  check("buat pesanan dari permintaan 201", po.status === 201 && Boolean(po.json?.poNo));
+  const reqAfterPo = await owner("GET", `/api/tenants/${tenantId}/requisitions`);
+  check("permintaan jadi 'ordered' setelah dipesan", reqAfterPo.json?.requisitions?.find((r) => r.id === req.json.id)?.status === "ordered");
+  const viewerPo = await viewer("POST", `/api/tenants/${tenantId}/purchase-orders`, {
+    contactId: supplier.json.id, orderDate: "2026-09-05", warehouseId: whUtama.id, taxRate: 0,
+    lines: [{ productId: prodProc.json.id, qty: 1, unitPrice: 1000 }],
+  });
+  check("viewer DITOLAK membuat pesanan (403)", viewerPo.status === 403);
+
+  const poList = await owner("GET", `/api/tenants/${tenantId}/purchase-orders`);
+  const poRow = poList.json?.orders?.find((o) => o.id === po.json.id);
+  const poLineId = poRow?.lines?.[0]?.id;
+  check("pesanan tampil dengan status 'ordered' + total", poRow?.status === "ordered" && poRow?.total === 100_000, `→ ${JSON.stringify(poRow?.total)}`);
+
+  // Terima melebihi dipesan → 400.
+  const overRecv = await owner("POST", `/api/tenants/${tenantId}/purchase-orders/${po.json.id}/receive`, {
+    receiptDate: "2026-09-06", lines: [{ poLineId, qtyReceived: 99 }],
+  });
+  check("terima melebihi dipesan DITOLAK 400", overRecv.status === 400);
+  // Terima penuh → faktur pembelian + stok masuk.
+  const recv = await owner("POST", `/api/tenants/${tenantId}/purchase-orders/${po.json.id}/receive`, {
+    receiptDate: "2026-09-06", lines: [{ poLineId, qtyReceived: 5 }],
+  });
+  check("terima barang → faktur pembelian 201", recv.status === 201 && Boolean(recv.json?.purchaseNo), `→ ${JSON.stringify(recv.json)}`);
+  const dupRecv = await owner("POST", `/api/tenants/${tenantId}/purchase-orders/${po.json.id}/receive`, {
+    receiptDate: "2026-09-06", lines: [{ poLineId, qtyReceived: 1 }],
+  });
+  check("terima pesanan yang sudah diterima DITOLAK 409", dupRecv.status === 409);
+  const stockAfterProc = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const barangQtyAfter = stockAfterProc.json?.levels?.find((l) => l.sku === "PRC-001" && l.warehouseId === whUtama.id)?.qty ?? 0;
+  check("stok bertambah jadi 5 setelah penerimaan", barangQtyAfter === 5, `→ ${barangQtyAfter}`);
+  const purchasesAfterProc = await owner("GET", `/api/tenants/${tenantId}/purchases`);
+  check("faktur pembelian hasil penerimaan muncul di daftar pembelian", purchasesAfterProc.json?.docs?.some((d) => d.docNo === recv.json.purchaseNo));
+  const grnList = await owner("GET", `/api/tenants/${tenantId}/goods-receipts`);
+  check("penerimaan (GRN) tercatat + tertaut faktur", grnList.json?.receipts?.some((g) => g.purchaseNo === recv.json.purchaseNo));
+
+  // Batalkan pesanan (buat PO segar tanpa PR).
+  const po2 = await owner("POST", `/api/tenants/${tenantId}/purchase-orders`, {
+    contactId: supplier.json.id, orderDate: "2026-09-05", warehouseId: whUtama.id, taxRate: 0,
+    lines: [{ productId: prodBarang.json.id, qty: 2, unitPrice: 20_000 }],
+  });
+  const cancelPo = await owner("POST", `/api/tenants/${tenantId}/purchase-orders/${po2.json.id}/cancel`);
+  check("batalkan pesanan 200", cancelPo.status === 200);
+  const cancelReceived = await owner("POST", `/api/tenants/${tenantId}/purchase-orders/${po.json.id}/cancel`);
+  check("batalkan pesanan yang sudah diterima DITOLAK 409", cancelReceived.status === 409);
+
+  const tbAfterProc = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah pengadaan", tbAfterProc.json?.balanced === true);
+
+  // --- Approval workflow engine (Fase 6e): aturan berjenjang + multi-langkah -------
+  console.log("11e3. Approval workflow engine (aturan + alur multi-langkah)");
+  const viewerRule = await viewer("POST", `/api/tenants/${tenantId}/approval-rules`, {
+    name: "X", docType: "pembelian", minAmount: 1, approverRoles: ["owner"],
+  });
+  check("viewer DITOLAK membuat aturan (403)", viewerRule.status === 403);
+  const rule = await owner("POST", `/api/tenants/${tenantId}/approval-rules`, {
+    name: "Pembelian besar", docType: "pembelian", minAmount: 5_000_000, approverRoles: ["admin", "owner"],
+  });
+  check("buat aturan approval 2-langkah 201", rule.status === 201);
+  const rulesList = await owner("GET", `/api/tenants/${tenantId}/approval-rules`);
+  check("aturan tersimpan dengan urutan approver [admin, owner]", rulesList.json?.rules?.some((r) => r.id === rule.json.id && r.approverRoles?.join(",") === "admin,owner"));
+
+  // Alur di bawah ambang → auto-approved (tanpa aturan cocok).
+  const autoFlow = await admin("POST", `/api/tenants/${tenantId}/approval-flows`, {
+    docType: "pembelian", title: "Beli ATK", amount: 200_000,
+  });
+  check("ajukan alur di bawah ambang → auto 'approved'", autoFlow.status === 201 && autoFlow.json?.status === "approved" && autoFlow.json?.autoApproved === true, `→ ${JSON.stringify(autoFlow.json)}`);
+
+  // Alur di atas ambang → pending, 2 langkah (admin lalu owner).
+  const flow = await admin("POST", `/api/tenants/${tenantId}/approval-flows`, {
+    docType: "pembelian", title: "Beli 4 laptop tim", amount: 8_000_000,
+  });
+  check("ajukan alur di atas ambang → 'pending' 2 langkah", flow.status === 201 && flow.json?.status === "pending" && flow.json?.steps === 2, `→ ${JSON.stringify(flow.json)}`);
+  // Owner mencoba memutus langkah-1 (milik admin) → 403.
+  const ownerWrongStep = await owner("POST", `/api/tenants/${tenantId}/approval-flows/${flow.json.id}/steps/decide`, { decision: "approve" });
+  check("Pemilik DITOLAK memutus langkah admin (403)", ownerWrongStep.status === 403);
+  // Antrean admin memuat alur ini; antrean owner belum.
+  const adminQueue = await admin("GET", `/api/tenants/${tenantId}/approval-flows?queue=me`);
+  check("antrean admin memuat alur langkah-1", adminQueue.json?.flows?.some((f) => f.id === flow.json.id));
+  const ownerQueueEmpty = await owner("GET", `/api/tenants/${tenantId}/approval-flows?queue=me`);
+  check("antrean owner belum memuat alur (masih langkah admin)", !ownerQueueEmpty.json?.flows?.some((f) => f.id === flow.json.id));
+  // Admin setujui langkah-1 → maju ke langkah owner.
+  const step1 = await admin("POST", `/api/tenants/${tenantId}/approval-flows/${flow.json.id}/steps/decide`, { decision: "approve" });
+  check("admin setujui langkah-1 → maju (pending)", step1.status === 200 && step1.json?.status === "pending" && step1.json?.currentStep === 2, `→ ${JSON.stringify(step1.json)}`);
+  const ownerQueue2 = await owner("GET", `/api/tenants/${tenantId}/approval-flows?queue=me`);
+  check("kini antrean owner memuat alur langkah-2", ownerQueue2.json?.flows?.some((f) => f.id === flow.json.id));
+  // Owner setujui langkah-2 → alur approved.
+  const step2 = await owner("POST", `/api/tenants/${tenantId}/approval-flows/${flow.json.id}/steps/decide`, { decision: "approve" });
+  check("owner setujui langkah terakhir → 'approved'", step2.status === 200 && step2.json?.status === "approved");
+  const decideDone = await owner("POST", `/api/tenants/${tenantId}/approval-flows/${flow.json.id}/steps/decide`, { decision: "approve" });
+  check("memutus alur yang sudah selesai DITOLAK 409", decideDone.status === 409);
+  // Jalur reject.
+  const flow2 = await admin("POST", `/api/tenants/${tenantId}/approval-flows`, {
+    docType: "pembelian", title: "Beli mesin mahal", amount: 9_000_000,
+  });
+  const rejectStep = await admin("POST", `/api/tenants/${tenantId}/approval-flows/${flow2.json.id}/steps/decide`, { decision: "reject", note: "Tunda dulu" });
+  check("tolak di langkah-1 → alur 'rejected'", rejectStep.status === 200 && rejectStep.json?.status === "rejected");
+  const history = await owner("GET", `/api/tenants/${tenantId}/approval-flows`);
+  const flowHist = history.json?.flows?.find((f) => f.id === flow.json.id);
+  check("riwayat memuat alur dengan 2 langkah tersetujui", flowHist?.steps?.filter((s) => s.status === "approved").length === 2, `→ ${JSON.stringify(flowHist?.steps?.map((s) => s.status))}`);
+
+  // --- RBAC granular (Fase 7e): izin per modul + peran kustom ---------------------
+  console.log("11e4. RBAC granular (izin modul + peran kustom)");
+  const permOwner = await owner("GET", `/api/tenants/${tenantId}/my-permissions`);
+  check("izin Owner: semua 13 modul", permOwner.status === 200 && permOwner.json?.role === "owner" && permOwner.json?.permissions?.length === 13, `→ ${permOwner.json?.permissions?.length}`);
+  const permAdmin = await admin("GET", `/api/tenants/${tenantId}/my-permissions`);
+  check("izin Admin: 12 modul (tanpa kelola pengguna)", permAdmin.status === 200 && permAdmin.json?.permissions?.length === 12 && !permAdmin.json.permissions.includes("pengguna"), `→ ${permAdmin.json?.permissions?.length}`);
+  const permViewerPre = await viewer("GET", `/api/tenants/${tenantId}/my-permissions`);
+  check("izin Viewer: semua modul terlihat (baca-saja)", permViewerPre.status === 200 && permViewerPre.json?.role === "viewer" && permViewerPre.json?.permissions?.length === 13);
+
+  const roleViewerTry = await viewer("POST", `/api/tenants/${tenantId}/roles`, { name: "X", baseRole: "admin", permissions: ["penjualan"] });
+  check("viewer DITOLAK membuat peran kustom (403)", roleViewerTry.status === 403);
+  const kasirRole = await owner("POST", `/api/tenants/${tenantId}/roles`, { name: "Kasir Toko", baseRole: "admin", permissions: ["penjualan", "kasir"] });
+  check("buat peran kustom 'Kasir Toko' 201", kasirRole.status === 201 && Boolean(kasirRole.json?.id));
+
+  const membersList = await owner("GET", `/api/tenants/${tenantId}/members`);
+  const viewerMember = membersList.json?.members?.find((m) => m.role === "viewer");
+  check("daftar anggota memuat viewer", Boolean(viewerMember?.userId));
+  const assignKasir = await owner("PATCH", `/api/tenants/${tenantId}/members/${viewerMember.userId}/assign`, { customRoleId: kasirRole.json.id });
+  check("tetapkan peran kustom ke anggota 200", assignKasir.status === 200, `→ ${assignKasir.status}`);
+  const permViewerKasir = await viewer("GET", `/api/tenants/${tenantId}/my-permissions`);
+  check("izin anggota kini = peran kustom (base admin, 2 modul)", permViewerKasir.json?.role === "admin" && permViewerKasir.json?.roleName === "Kasir Toko" && permViewerKasir.json?.permissions?.length === 2, `→ ${JSON.stringify(permViewerKasir.json)}`);
+  const taxBlocked = await viewer("GET", `/api/tenants/${tenantId}/tax/pph-final/preview?period=2026-10`);
+  check("peran kustom tanpa izin 'pajak' DITOLAK akses Pajak (403)", taxBlocked.status === 403, `→ ${taxBlocked.status}`);
+
+  // --- Fase 26a: matriks izin peran kustom, satu modul kritis satu cek ------------
+  //
+  // Sampai audit keamanan Agustus 2026, `requirePermission` HANYA terpasang di
+  // routes/tax.ts. Artinya cek "DITOLAK akses Pajak" di atas adalah satu-satunya
+  // modul yang benar-benar dijaga: peran "Kasir Toko" ini bisa memanggil
+  // akuntansi, penggajian, pengadaan, dan pengaturan keamanan lewat API tanpa
+  // hambatan — yang membatasinya hanya menu di layar, dan menu bukan penjaga.
+  //
+  // Blok ini menguji sisi IZINKAN dan sisi TOLAK sekaligus: peran yang terlalu
+  // ketat sama rusaknya dengan peran yang terlalu longgar, dan hanya satu di
+  // antaranya yang akan dilaporkan pengguna.
+  const kasirBoleh = [
+    ["penjualan (invoices)", `/api/tenants/${tenantId}/invoices`],
+    ["kasir (pos/shift)", `/api/tenants/${tenantId}/pos/shift`],
+    ["baca produk untuk pindai barcode", `/api/tenants/${tenantId}/products`],
+    ["baca setelan untuk footer struk", `/api/tenants/${tenantId}/settings`],
+  ];
+  for (const [label, path] of kasirBoleh) {
+    const res = await viewer("GET", path);
+    check(`26a peran kustom BOLEH ${label} (bukan 403)`, res.status !== 403, `→ ${res.status}`);
+  }
+
+  const kasirDitolak = [
+    ["akuntansi (accounts)", `/api/tenants/${tenantId}/accounts`],
+    ["buku besar", `/api/tenants/${tenantId}/ledger/${kas.id}`],
+    ["penggajian (employees)", `/api/tenants/${tenantId}/employees`],
+    ["pengadaan (purchase-orders)", `/api/tenants/${tenantId}/purchase-orders`],
+    ["keamanan perusahaan", `/api/tenants/${tenantId}/security`],
+    ["laporan", `/api/tenants/${tenantId}/reports/income-statement?from=2026-01-01&to=2026-12-31`],
+  ];
+  for (const [label, path] of kasirDitolak) {
+    const res = await viewer("GET", path);
+    check(`26a peran kustom DITOLAK ${label} (403)`, res.status === 403, `→ ${res.status}`);
+  }
+
+  // Mutasi ikut dijaga — bukan hanya pembacaan. Ini yang membedakan penjaga
+  // sungguhan dari menu yang disembunyikan.
+  const tulisProdukDitolak = await viewer("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "SEC-1",
+    name: "Uji izin",
+    unit: "pcs",
+    price: 1000,
+  });
+  check("26a peran kustom DITOLAK menulis produk (403)", tulisProdukDitolak.status === 403, `→ ${tulisProdukDitolak.status}`);
+
+  const pajakRole = await owner("POST", `/api/tenants/${tenantId}/roles`, { name: "Staf Pajak", baseRole: "admin", permissions: ["pajak", "laporan"] });
+  await owner("PATCH", `/api/tenants/${tenantId}/members/${viewerMember.userId}/assign`, { customRoleId: pajakRole.json.id });
+  const taxAllowed = await viewer("GET", `/api/tenants/${tenantId}/tax/pph-final/preview?period=2026-10`);
+  check("peran kustom dengan izin 'pajak' BOLEH akses Pajak (200)", taxAllowed.status === 200, `→ ${taxAllowed.status}`);
+
+  const delInUse = await owner("DELETE", `/api/tenants/${tenantId}/roles/${pajakRole.json.id}`);
+  check("hapus peran yang masih dipakai DITOLAK 409", delInUse.status === 409);
+  const restoreViewer = await owner("PATCH", `/api/tenants/${tenantId}/members/${viewerMember.userId}/assign`, { preset: "viewer" });
+  check("kembalikan anggota ke preset Viewer 200", restoreViewer.status === 200);
+  const delFreed = await owner("DELETE", `/api/tenants/${tenantId}/roles/${pajakRole.json.id}`);
+  check("hapus peran yang sudah tak dipakai 200", delFreed.status === 200);
+  await owner("DELETE", `/api/tenants/${tenantId}/roles/${kasirRole.json.id}`);
+  const permViewerPost = await viewer("GET", `/api/tenants/${tenantId}/my-permissions`);
+  check("anggota kembali jadi Viewer baca-saja (13 modul)", permViewerPost.json?.role === "viewer" && permViewerPost.json?.permissions?.length === 13);
+
+  // --- Akuntansi dimensi + rekonsiliasi bank v2 (Fase 7f) -------------------------
+  console.log("11e5. Akuntansi dimensi (cost center) + rekonsiliasi v2");
+  const ccViewer = await viewer("POST", `/api/tenants/${tenantId}/cost-centers`, { code: "X", name: "X" });
+  check("viewer DITOLAK membuat cost center (403)", ccViewer.status === 403);
+  const cc = await owner("POST", `/api/tenants/${tenantId}/cost-centers`, { code: "CAB-UJI", name: "Cabang Uji" });
+  check("buat cost center 201", cc.status === 201 && Boolean(cc.json?.id));
+  const ccDup = await owner("POST", `/api/tenants/${tenantId}/cost-centers`, { code: "CAB-UJI", name: "Lain" });
+  check("kode cost center duplikat DITOLAK 409", ccDup.status === 409);
+
+  const accsForDim = await owner("GET", `/api/tenants/${tenantId}/accounts`);
+  const bebanAcc = accsForDim.json?.accounts?.find((a) => a.code === "5-4000");
+  const bankAcc = accsForDim.json?.accounts?.find((a) => a.code === "1-1100");
+  // Jurnal Oktober terisolasi: Beban 500rb ditandai cost center / Kas 500rb.
+  const dimJrn = await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-10-12", memo: "Beban operasional Cabang Uji",
+    lines: [
+      { accountId: bebanAcc.id, debit: 500_000, credit: 0, costCenterId: cc.json.id },
+      { accountId: kas.id, debit: 0, credit: 500_000 },
+    ],
+  });
+  check("jurnal dengan dimensi cost center 201", dimJrn.status === 201, `→ ${JSON.stringify(dimJrn.json)}`);
+  const dimBad = await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-10-12", memo: "x",
+    lines: [
+      { accountId: bebanAcc.id, debit: 1_000, credit: 0, costCenterId: "tidak-ada" },
+      { accountId: kas.id, debit: 0, credit: 1_000 },
+    ],
+  });
+  check("jurnal dengan cost center tak dikenal DITOLAK 400", dimBad.status === 400);
+  const dimRep = await owner("GET", `/api/tenants/${tenantId}/reports/dimension?from=2026-10-01&to=2026-10-31`);
+  const ccRow = dimRep.json?.rows?.find((r) => r.costCenterId === cc.json.id);
+  check("laporan dimensi: Cabang Uji beban 500rb (laba -500rb)", dimRep.status === 200 && ccRow?.expense === 500_000 && ccRow?.net === -500_000, `→ ${JSON.stringify(ccRow)}`);
+  const ccArchive = await owner("POST", `/api/tenants/${tenantId}/cost-centers/${cc.json.id}/archive`);
+  check("arsipkan cost center 200", ccArchive.status === 200);
+
+  // Rekonsiliasi bank v2: aturan auto-match.
+  const brViewer = await viewer("POST", `/api/tenants/${tenantId}/bank-match-rules`, { accountId: bankAcc.id, keyword: "X" });
+  check("viewer DITOLAK membuat aturan auto-match (403)", brViewer.status === 403);
+  const br = await owner("POST", `/api/tenants/${tenantId}/bank-match-rules`, { accountId: bankAcc.id, keyword: "BIAYA ADM", dateTolerance: 2 });
+  check("buat aturan auto-match 201", br.status === 201 && Boolean(br.json?.id));
+  const brList = await owner("GET", `/api/tenants/${tenantId}/bank-match-rules`);
+  check("daftar aturan memuat aturan baru", brList.json?.rules?.some((r) => r.id === br.json.id && r.keyword === "BIAYA ADM"));
+  const brDel = await owner("DELETE", `/api/tenants/${tenantId}/bank-match-rules/${br.json.id}`);
+  check("hapus aturan auto-match 200", brDel.status === 200);
+
+  const tbAfterDim = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah alur dimensi", tbAfterDim.json?.balanced === true);
+
+  // --- RBAC berdimensi (Fase 8d): scope cost center per peran kustom -------------
+  console.log("11e6. RBAC berdimensi (scope cost center per peran)");
+  const ccScopeA = await owner("POST", `/api/tenants/${tenantId}/cost-centers`, { code: "SCOPE-A", name: "Cabang Scope A" });
+  const ccScopeB = await owner("POST", `/api/tenants/${tenantId}/cost-centers`, { code: "SCOPE-B", name: "Cabang Scope B" });
+  // Jurnal beban Oktober untuk kedua cabang (periode terisolasi dari asersi lama).
+  await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-10-21", description: "Beban cabang A", lines: [
+      { accountId: bebanAcc.id, debit: 250_000, credit: 0, costCenterId: ccScopeA.json.id },
+      { accountId: bankAcc.id, debit: 0, credit: 250_000 },
+    ],
+  });
+  await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-10-21", description: "Beban cabang B", lines: [
+      { accountId: bebanAcc.id, debit: 350_000, credit: 0, costCenterId: ccScopeB.json.id },
+      { accountId: bankAcc.id, debit: 0, credit: 350_000 },
+    ],
+  });
+
+  const scopeTooBig = await owner("POST", `/api/tenants/${tenantId}/roles`, { name: "Kebanyakan", baseRole: "admin", permissions: ["keuangan"], scopeCostCenterIds: Array.from({ length: 21 }, (_, i) => `id-${i}`) });
+  check("scope > 20 cost center DITOLAK 400", scopeTooBig.status === 400);
+  const scopedRole = await owner("POST", `/api/tenants/${tenantId}/roles`, {
+    name: "Manajer Cabang A", baseRole: "admin", permissions: ["keuangan", "laporan"], scopeCostCenterIds: [ccScopeA.json.id],
+  });
+  check("buat peran ber-scope 201", scopedRole.status === 201 && Boolean(scopedRole.json?.id));
+  const rolesWithScope = await owner("GET", `/api/tenants/${tenantId}/roles`);
+  check("daftar peran memuat scope", rolesWithScope.json?.roles?.some((r) => r.id === scopedRole.json.id && r.scopeCostCenterIds?.length === 1));
+
+  const assignScoped = await owner("PATCH", `/api/tenants/${tenantId}/members/${viewerMember.userId}/assign`, { customRoleId: scopedRole.json.id });
+  check("tetapkan peran ber-scope ke anggota 200", assignScoped.status === 200);
+  const permScoped = await viewer("GET", `/api/tenants/${tenantId}/my-permissions`);
+  check("my-permissions memuat scope cost center", permScoped.json?.scopeCostCenterIds?.length === 1 && permScoped.json.scopeCostCenterIds[0] === ccScopeA.json.id, `→ ${JSON.stringify(permScoped.json?.scopeCostCenterIds)}`);
+
+  const ccListScoped = await viewer("GET", `/api/tenants/${tenantId}/cost-centers`);
+  check(
+    "daftar cost center TERSARING (hanya Scope A, tanpa Scope B)",
+    ccListScoped.json?.items?.some((i) => i.id === ccScopeA.json.id) && !ccListScoped.json?.items?.some((i) => i.id === ccScopeB.json.id),
+    `→ ${JSON.stringify(ccListScoped.json?.items?.map((i) => i.code))}`,
+  );
+  const dimScoped = await viewer("GET", `/api/tenants/${tenantId}/reports/dimension?from=2026-10-01&to=2026-10-31`);
+  check(
+    "laporan dimensi tersaring: HANYA baris Scope A (tanpa Scope B & tanpa-dimensi)",
+    dimScoped.status === 200 && dimScoped.json?.rows?.length >= 1 && dimScoped.json.rows.every((r) => r.costCenterId === ccScopeA.json.id),
+    `→ ${JSON.stringify(dimScoped.json?.rows?.map((r) => r.code))}`,
+  );
+  const jrnOutScope = await viewer("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-10-22", description: "Coba luar scope", lines: [
+      { accountId: bebanAcc.id, debit: 10_000, credit: 0, costCenterId: ccScopeB.json.id },
+      { accountId: bankAcc.id, debit: 0, credit: 10_000 },
+    ],
+  });
+  check("jurnal ke cost center LUAR scope DITOLAK 403", jrnOutScope.status === 403, `→ ${jrnOutScope.status}`);
+  const jrnInScope = await viewer("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-10-22", description: "Beban dalam scope", lines: [
+      { accountId: bebanAcc.id, debit: 10_000, credit: 0, costCenterId: ccScopeA.json.id },
+      { accountId: bankAcc.id, debit: 0, credit: 10_000 },
+    ],
+  });
+  check("jurnal ke cost center DALAM scope BOLEH 201", jrnInScope.status === 201, `→ ${jrnInScope.status}`);
+
+  const ccListOwner = await owner("GET", `/api/tenants/${tenantId}/cost-centers`);
+  check("pengguna TANPA scope tetap melihat semua (perilaku lama)", ccListOwner.json?.items?.some((i) => i.id === ccScopeB.json.id));
+
+  // Kembalikan anggota ke preset Viewer agar blok-blok berikutnya tak terpengaruh.
+  const restoreViewer2 = await owner("PATCH", `/api/tenants/${tenantId}/members/${viewerMember.userId}/assign`, { preset: "viewer" });
+  check("anggota dikembalikan ke preset Viewer 200", restoreViewer2.status === 200);
+
+  // --- Lot & kedaluwarsa (Fase 2j) ----------------------------------------------
+  console.log("11f. Batch/lot & kedaluwarsa (FEFO)");
+
+  // Owner dipakai agar ambang persetujuan 1.000.000 tidak ikut campur; PPN 0 dan
+  // faktur dibiarkan belum dibayar supaya ekspektasi arus kas tidak berubah.
+  const prodExp = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "BRG-EXP",
+    name: "Yogurt Botol 250ml",
+    unit: "pcs",
+    sellPrice: 15_000,
+    buyPrice: 10_000,
+    trackExpiry: true,
+  });
+  check("produk berpelacakan kedaluwarsa dibuat 201", prodExp.status === 201);
+
+  const buyNoExp = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id,
+    invoiceDate: "2026-07-03",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodExp.json.id, qty: 5, unitPrice: 10_000 }],
+  });
+  check(
+    "pembelian produk terlacak TANPA tanggal exp DITOLAK 400",
+    buyNoExp.status === 400 && /kedaluwarsa/.test(buyNoExp.json?.error ?? ""),
+    `→ ${JSON.stringify(buyNoExp.json)}`,
+  );
+
+  // Dua lot: LOT-A kedaluwarsa +10 hari (harus keluar duluan), LOT-B +100 hari.
+  const expSoon = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+  const expFar = new Date(Date.now() + 100 * 86_400_000).toISOString().slice(0, 10);
+  const buyLots = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id,
+    invoiceDate: "2026-07-03",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    lines: [
+      { productId: prodExp.json.id, qty: 5, unitPrice: 10_000, lotNo: "LOT-A", expiryDate: expSoon },
+      { productId: prodExp.json.id, qty: 5, unitPrice: 10_000, lotNo: "LOT-B", expiryDate: expFar },
+    ],
+  });
+  check("pembelian 2 lot diposting (total 100.000)", buyLots.status === 201 && buyLots.json?.total === 100_000);
+
+  let lotsRes = await owner("GET", `/api/tenants/${tenantId}/stock-lots`);
+  let expLots = (lotsRes.json?.lots ?? []).filter((l) => l.sku === "BRG-EXP");
+  check(
+    "daftar lot urut FEFO (LOT-A dulu, 5+5)",
+    lotsRes.status === 200 &&
+      expLots.length === 2 &&
+      expLots[0]?.lotNo === "LOT-A" &&
+      expLots[0]?.qty === 5 &&
+      expLots[1]?.lotNo === "LOT-B" &&
+      expLots[1]?.qty === 5,
+    `→ ${JSON.stringify(expLots)}`,
+  );
+  check(
+    "peringatan: 1 lot kedaluwarsa ≤ 30 hari (LOT-A)",
+    lotsRes.json?.expiringSoon === 1 && expLots[0]?.daysToExpiry === 10,
+    `→ expiringSoon=${lotsRes.json?.expiringSoon}, days=${expLots[0]?.daysToExpiry}`,
+  );
+  check(
+    "produk tanpa pelacakan tidak punya lot (BRG-002 bebas lot)",
+    !(lotsRes.json?.lots ?? []).some((l) => l.sku === "BRG-002"),
+  );
+
+  // Jual 3 → semuanya dari LOT-A (kedaluwarsa terdekat lebih dulu).
+  const sellFefo1 = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-07-04",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodExp.json.id, qty: 3, unitPrice: 15_000 }],
+  });
+  lotsRes = await owner("GET", `/api/tenants/${tenantId}/stock-lots`);
+  expLots = (lotsRes.json?.lots ?? []).filter((l) => l.sku === "BRG-EXP");
+  check(
+    "jual 3 mengambil LOT-A dulu (FEFO): LOT-A sisa 2, LOT-B tetap 5",
+    sellFefo1.status === 201 &&
+      expLots.find((l) => l.lotNo === "LOT-A")?.qty === 2 &&
+      expLots.find((l) => l.lotNo === "LOT-B")?.qty === 5,
+    `→ ${JSON.stringify(expLots)}`,
+  );
+
+  // Jual 4 → LOT-A habis (2) lalu lanjut ke LOT-B (2).
+  const sellFefo2 = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-07-04",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodExp.json.id, qty: 4, unitPrice: 15_000 }],
+  });
+  lotsRes = await owner("GET", `/api/tenants/${tenantId}/stock-lots`);
+  expLots = (lotsRes.json?.lots ?? []).filter((l) => l.sku === "BRG-EXP");
+  check(
+    "jual 4 menghabiskan LOT-A lalu memotong LOT-B (sisa hanya LOT-B = 3)",
+    sellFefo2.status === 201 && expLots.length === 1 && expLots[0]?.lotNo === "LOT-B" && expLots[0]?.qty === 3,
+    `→ ${JSON.stringify(expLots)}`,
+  );
+
+  const lotsByViewer = await viewer("GET", `/api/tenants/${tenantId}/stock-lots`);
+  check("viewer boleh melihat daftar lot", lotsByViewer.status === 200);
+
+  const tbAfterLots = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah alur lot/FEFO", tbAfterLots.json?.balanced === true);
+
+  // Tutup buku sampai 10 Juli — transaksi ≤ tanggal itu harus ditolak.
+  const closeByViewer = await viewer("POST", `/api/tenants/${tenantId}/close-books`, { date: "2026-07-10" });
+  check("viewer/admin DITOLAK menutup buku (403)", closeByViewer.status === 403);
+
+  const close = await owner("POST", `/api/tenants/${tenantId}/close-books`, { date: "2026-07-10" });
+  check("owner menutup buku sampai 2026-07-10", close.status === 200 && close.json?.lockedBefore === "2026-07-10");
+
+  const lockedJournal = await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-07-05",
+    lines: [
+      { accountId: kas.id, debit: 1000, credit: 0 },
+      { accountId: modal.id, debit: 0, credit: 1000 },
+    ],
+  });
+  check("jurnal pada periode terkunci DITOLAK 400", lockedJournal.status === 400);
+
+  const lockedInvoice = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-07-08",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 1, unitPrice: 150_000 }],
+  });
+  check("faktur pada periode terkunci DITOLAK 400", lockedInvoice.status === 400);
+
+  const stockAfterLock = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const levelAfterLock = stockAfterLock.json?.levels?.find((l) => l.sku === "BRG-002" && l.warehouseId === whUtama.id);
+  check("stok TIDAK berubah oleh faktur yang ditolak (tetap 14)", levelAfterLock?.qty === 14);
+
+  const openJournal = await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-07-15",
+    memo: "Setelah tutup buku",
+    lines: [
+      { accountId: kas.id, debit: 1000, credit: 0 },
+      { accountId: modal.id, debit: 0, credit: 1000 },
+    ],
+  });
+  check("jurnal SETELAH tanggal kunci tetap boleh (201)", openJournal.status === 201);
+
+  const rollback = await owner("POST", `/api/tenants/${tenantId}/close-books`, { date: "2026-07-01" });
+  check("tanggal kunci mundur DITOLAK 400", rollback.status === 400);
+
+  // --- CRM Pipeline (Fase 2l) -----------------------------------------------------
+  console.log("11g. CRM Pipeline (lead, funnel, aktivitas, penawaran, konversi)");
+
+  const lead = await owner("POST", `/api/tenants/${tenantId}/leads`, {
+    name: "PT Calon Pelanggan",
+    contactPerson: "Ibu Sari",
+    phone: "0811-2222-3333",
+    estValue: 5_000_000,
+  });
+  check("buat lead 201", lead.status === 201, `→ ${JSON.stringify(lead.json)}`);
+  const leadId = lead.json?.id;
+
+  const leadsList = await owner("GET", `/api/tenants/${tenantId}/leads`);
+  check(
+    "daftar lead berisi 1 (tahap 'new')",
+    leadsList.status === 200 && leadsList.json?.leads?.length === 1 && leadsList.json.leads[0].stage === "new",
+  );
+
+  const viewerLead = await viewer("POST", `/api/tenants/${tenantId}/leads`, { name: "Coba Viewer" });
+  check("viewer DITOLAK membuat lead (403)", viewerLead.status === 403);
+  const outsiderLeads = await outsider("GET", `/api/tenants/${tenantId}/leads`);
+  check("non-anggota DITOLAK akses CRM tenant lain (403)", outsiderLeads.status === 403);
+
+  const act = await owner("POST", `/api/tenants/${tenantId}/leads/${leadId}/activities`, {
+    type: "call",
+    note: "Telepon perkenalan, tertarik produk.",
+    activityDate: "2026-07-15",
+  });
+  check("catat aktivitas lead 201", act.status === 201);
+  const acts = await owner("GET", `/api/tenants/${tenantId}/leads/${leadId}/activities`);
+  check("daftar aktivitas berisi 1", acts.status === 200 && acts.json?.activities?.length === 1);
+
+  const moveStage = await owner("PATCH", `/api/tenants/${tenantId}/leads/${leadId}`, { stage: "qualified" });
+  check("pindah tahap lead 200", moveStage.status === 200);
+
+  const contactsBefore = await owner("GET", `/api/tenants/${tenantId}/contacts`);
+  const nContactsBefore = contactsBefore.json?.items?.length ?? 0;
+  const convertLead = await owner("POST", `/api/tenants/${tenantId}/leads/${leadId}/convert`);
+  check("konversi lead → pelanggan 201", convertLead.status === 201 && Boolean(convertLead.json?.contactId));
+  const contactsAfter = await owner("GET", `/api/tenants/${tenantId}/contacts`);
+  const newCust = contactsAfter.json?.items?.find((k) => k.name === "PT Calon Pelanggan" && k.type === "customer");
+  check(
+    "kontak pelanggan baru terbentuk dari lead",
+    (contactsAfter.json?.items?.length ?? 0) === nContactsBefore + 1 && Boolean(newCust),
+  );
+
+  const reconvert = await owner("POST", `/api/tenants/${tenantId}/leads/${leadId}/convert`);
+  check("konversi lead kedua kali DITOLAK 400", reconvert.status === 400);
+
+  // Penawaran (quotation) — 2 baris, PPN 11%: 300rb + 33rb = 333rb.
+  const quote = await owner("POST", `/api/tenants/${tenantId}/quotations`, {
+    contactId: newCust.id,
+    quoteDate: "2026-07-20",
+    taxRate: 11,
+    lines: [
+      { productId: prodBarang.json.id, qty: 2, unitPrice: 100_000 },
+      { productId: prodBarang.json.id, qty: 1, unitPrice: 100_000 },
+    ],
+  });
+  check(
+    "buat penawaran 201, total = 300rb + PPN 33rb = 333rb",
+    quote.status === 201 && quote.json?.total === 333_000,
+    `→ ${JSON.stringify(quote.json)}`,
+  );
+  const quoteId = quote.json?.id;
+
+  const convertEarly = await owner("POST", `/api/tenants/${tenantId}/quotations/${quoteId}/convert`, {
+    warehouseId: whUtama.id,
+    invoiceDate: "2026-07-20",
+  });
+  check("konversi penawaran belum 'diterima' DITOLAK 400", convertEarly.status === 400);
+
+  const acceptQuote = await owner("PATCH", `/api/tenants/${tenantId}/quotations/${quoteId}/status`, { status: "accepted" });
+  check("tandai penawaran 'diterima' 200", acceptQuote.status === 200);
+
+  const stockBeforeConv = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const qtyBeforeConv =
+    stockBeforeConv.json?.levels?.find((l) => l.sku === "BRG-002" && l.warehouseId === whUtama.id)?.qty ?? 0;
+
+  const convertQuote = await owner("POST", `/api/tenants/${tenantId}/quotations/${quoteId}/convert`, {
+    warehouseId: whUtama.id,
+    invoiceDate: "2026-07-20",
+  });
+  check(
+    "konversi penawaran → faktur 201",
+    convertQuote.status === 201 && Boolean(convertQuote.json?.docNo),
+    `→ ${JSON.stringify(convertQuote.json)}`,
+  );
+
+  const quotesAfter = await owner("GET", `/api/tenants/${tenantId}/quotations`);
+  const convertedQuote = quotesAfter.json?.quotations?.find((q) => q.id === quoteId);
+  check(
+    "penawaran menjadi 'converted' + tertaut ke faktur",
+    convertedQuote?.status === "converted" && Boolean(convertedQuote?.resultInvoiceId),
+  );
+
+  const invoicesAfterConv = await owner("GET", `/api/tenants/${tenantId}/invoices`);
+  check(
+    "faktur hasil konversi muncul di daftar penjualan",
+    invoicesAfterConv.json?.docs?.some((d) => d.docNo === convertQuote.json.docNo),
+  );
+
+  const stockAfterConv = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const qtyAfterConv =
+    stockAfterConv.json?.levels?.find((l) => l.sku === "BRG-002" && l.warehouseId === whUtama.id)?.qty ?? 0;
+  check(
+    "stok BRG-002 berkurang 3 setelah konversi penawaran",
+    qtyAfterConv === qtyBeforeConv - 3,
+    `→ ${qtyBeforeConv} → ${qtyAfterConv}`,
+  );
+
+  const reconvertQuote = await owner("POST", `/api/tenants/${tenantId}/quotations/${quoteId}/convert`, {
+    warehouseId: whUtama.id,
+    invoiceDate: "2026-07-20",
+  });
+  check("konversi penawaran kedua kali DITOLAK 400", reconvertQuote.status === 400);
+
+  const tbAfterCrm = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah alur CRM", tbAfterCrm.json?.balanced === true);
+
+  // --- CRM lanjut (Fase 5e): sumber lead, tenggat follow-up, laporan konversi ------
+  console.log("11g2. CRM lanjut (sumber, tenggat follow-up, laporan sumber, masa berlaku penawaran)");
+
+  const lead5e = await owner("POST", `/api/tenants/${tenantId}/leads`, {
+    name: "Toko Oleh-Oleh Nusantara",
+    contactPerson: "Pak Bagus",
+    estValue: 4_000_000,
+    source: "Instagram",
+  });
+  check("buat lead ber-sumber 201", lead5e.status === 201, `→ ${JSON.stringify(lead5e.json)}`);
+  const leads5e = await owner("GET", `/api/tenants/${tenantId}/leads`);
+  check(
+    "daftar lead memuat kolom sumber",
+    leads5e.json?.leads?.some((l) => l.id === lead5e.json?.id && l.source === "Instagram"),
+  );
+
+  const act5e = await owner("POST", `/api/tenants/${tenantId}/leads/${lead5e.json?.id}/activities`, {
+    type: "whatsapp",
+    note: "Kirim katalog — janji dihubungi lagi.",
+    activityDate: "2026-01-02",
+    dueAt: "2026-01-05",
+  });
+  check("catat aktivitas ber-tenggat 201", act5e.status === 201, `→ ${JSON.stringify(act5e.json)}`);
+  const acts5e = await owner("GET", `/api/tenants/${tenantId}/leads/${lead5e.json?.id}/activities`);
+  check(
+    "daftar aktivitas memuat tenggat (dueAt)",
+    acts5e.json?.activities?.some((a) => a.dueAt === "2026-01-05"),
+  );
+
+  const notif5e = await owner("GET", `/api/tenants/${tenantId}/notifications`);
+  check(
+    "lonceng notifikasi memuat follow-up jatuh tempo (crm_followup_due)",
+    notif5e.json?.notifications?.some((n) => n.type === "crm_followup_due"),
+    `→ ${JSON.stringify(notif5e.json?.notifications?.map((n) => n.type))}`,
+  );
+
+  const crmReport = await owner("GET", `/api/tenants/${tenantId}/crm/report`);
+  const igRow = crmReport.json?.rows?.find((r) => r.source === "Instagram");
+  check("laporan sumber lead 200 + baris Instagram", crmReport.status === 200 && Boolean(igRow));
+  check(
+    "baris laporan punya total & conversionPct angka",
+    igRow?.total >= 1 && typeof igRow?.conversionPct === "number",
+    `→ ${JSON.stringify(crmReport.json)}`,
+  );
+  const outsiderReport = await outsider("GET", `/api/tenants/${tenantId}/crm/report`);
+  check("non-anggota DITOLAK laporan CRM (403)", outsiderReport.status === 403);
+
+  const quote5e = await owner("POST", `/api/tenants/${tenantId}/quotations`, {
+    contactId: newCust.id,
+    quoteDate: "2026-01-10",
+    validUntil: "2026-01-31",
+    taxRate: 0,
+    lines: [{ productId: prodBarang.json.id, qty: 1, unitPrice: 150_000 }],
+  });
+  check("buat penawaran ber-masa-berlaku 201", quote5e.status === 201, `→ ${JSON.stringify(quote5e.json)}`);
+  const quotes5e = await owner("GET", `/api/tenants/${tenantId}/quotations`);
+  check(
+    "daftar penawaran memuat validUntil (basis status kedaluwarsa)",
+    quotes5e.json?.quotations?.some((q) => q.id === quote5e.json?.id && q.validUntil === "2026-01-31"),
+  );
+
+  // --- Anggaran (Fase 2n) ---------------------------------------------------------
+  console.log("11h. Anggaran (budget vs realisasi)");
+  const expenseAcc = accounts.find((a) => a.type === "expense");
+
+  const setBudget = await owner("PUT", `/api/tenants/${tenantId}/budgets`, {
+    accountId: penjualan.id,
+    period: "2026-07",
+    amount: 10_000_000,
+  });
+  check("tetapkan anggaran pendapatan 200", setBudget.status === 200);
+  await owner("PUT", `/api/tenants/${tenantId}/budgets`, { accountId: expenseAcc.id, period: "2026-07", amount: 2_000_000 });
+
+  const budgetRep = await owner("GET", `/api/tenants/${tenantId}/budgets/2026-07`);
+  const penjRow = budgetRep.json?.rows?.find((r) => r.accountId === penjualan.id);
+  check("laporan anggaran memuat baris pendapatan dengan anggaran 10jt", budgetRep.status === 200 && penjRow?.budget === 10_000_000);
+
+  // Realisasi harus cocok dengan Laba Rugi bulan itu (satu sumber = jurnal).
+  const isJul = await owner("GET", `/api/tenants/${tenantId}/reports/income-statement?from=2026-07-01&to=2026-07-31`);
+  const penjIsActual = isJul.json?.income?.find((l) => l.accountId === penjualan.id)?.amount ?? 0;
+  check(
+    "realisasi anggaran = angka Laba Rugi bulan yang sama",
+    penjRow?.actual === penjIsActual,
+    `→ budget=${penjRow?.actual} vs IS=${penjIsActual}`,
+  );
+  check("selisih pendapatan = realisasi − anggaran", penjRow?.variance === penjRow.actual - 10_000_000);
+
+  // Upsert: ubah anggaran akun yang sama → nilai ter-update, bukan ganda.
+  await owner("PUT", `/api/tenants/${tenantId}/budgets`, { accountId: penjualan.id, period: "2026-07", amount: 12_000_000 });
+  const budgetRep2 = await owner("GET", `/api/tenants/${tenantId}/budgets/2026-07`);
+  check(
+    "ubah anggaran meng-upsert (tetap satu baris, nilai 12jt)",
+    budgetRep2.json?.rows?.find((r) => r.accountId === penjualan.id)?.budget === 12_000_000,
+  );
+
+  const viewerBudget = await viewer("PUT", `/api/tenants/${tenantId}/budgets`, {
+    accountId: penjualan.id,
+    period: "2026-07",
+    amount: 1,
+  });
+  check("viewer DITOLAK menetapkan anggaran (403)", viewerBudget.status === 403);
+
+  const budgetOnAsset = await owner("PUT", `/api/tenants/${tenantId}/budgets`, {
+    accountId: kas.id,
+    period: "2026-07",
+    amount: 1000,
+  });
+  check("anggaran pada akun non-pendapatan/beban DITOLAK 400", budgetOnAsset.status === 400);
+
+  const badPeriod = await owner("GET", `/api/tenants/${tenantId}/budgets/2026-7`);
+  check("periode salah format DITOLAK 400", badPeriod.status === 400);
+
+  // --- HR & Payroll (Fase 2o) -----------------------------------------------------
+  // Digaji di Agustus (setelah tanggal kunci 2026-07-10 & di luar jendela arus kas Juli).
+  console.log("11i. HR & Payroll (PPh 21 TER + BPJS)");
+
+  const empA = await owner("POST", `/api/tenants/${tenantId}/employees`, {
+    name: "Andi Karyawan",
+    position: "Staf",
+    ptkpStatus: "TK/0",
+    baseSalary: 5_000_000,
+    allowances: 0,
+  });
+  check("tambah karyawan 201", empA.status === 201);
+  await owner("POST", `/api/tenants/${tenantId}/employees`, {
+    name: "Bunga Manajer",
+    position: "Manajer",
+    ptkpStatus: "TK/0",
+    baseSalary: 10_000_000,
+    allowances: 0,
+  });
+
+  const viewerEmp = await viewer("POST", `/api/tenants/${tenantId}/employees`, { name: "X", ptkpStatus: "TK/0", baseSalary: 1 });
+  check("viewer DITOLAK menambah karyawan (403)", viewerEmp.status === 403);
+
+  const emps = await owner("GET", `/api/tenants/${tenantId}/employees`);
+  check("daftar karyawan berisi 2 aktif", emps.status === 200 && emps.json?.employees?.length === 2);
+
+  // Jalankan penggajian Agustus.
+  const runRes = await owner("POST", `/api/tenants/${tenantId}/payroll-runs`, {
+    period: "2026-08",
+    cashAccountId: kas.id,
+    paymentDate: "2026-08-15",
+  });
+  check(
+    "jalankan penggajian 201 (bruto 15jt, netto 14,2jt, 2 karyawan)",
+    runRes.status === 201 && runRes.json?.totalGross === 15_000_000 && runRes.json?.totalNet === 14_200_000 && runRes.json?.employees === 2,
+    `→ ${JSON.stringify(runRes.json)}`,
+  );
+
+  const runs = await owner("GET", `/api/tenants/${tenantId}/payroll-runs`);
+  const run1 = runs.json?.runs?.[0];
+  const slipB = run1?.payslips?.find((p) => p.employeeName === "Bunga Manajer");
+  check("slip manajer: PPh21 200rb (TER A 2%), potongan 600rb, netto 9,4jt", slipB?.pph21 === 200_000 && slipB?.totalDeductions === 600_000 && slipB?.net === 9_400_000, `→ ${JSON.stringify(slipB)}`);
+  const slipA = run1?.payslips?.find((p) => p.employeeName === "Andi Karyawan");
+  check("slip staf (bruto 5jt < ambang): PPh21 0, BPJS 200rb, netto 4,8jt", slipA?.pph21 === 0 && slipA?.net === 4_800_000);
+
+  const dupRun = await owner("POST", `/api/tenants/${tenantId}/payroll-runs`, { period: "2026-08", cashAccountId: kas.id, paymentDate: "2026-08-15" });
+  check("penggajian ganda periode sama DITOLAK 409", dupRun.status === 409);
+
+  const viewerRun = await viewer("POST", `/api/tenants/${tenantId}/payroll-runs`, { period: "2026-09", cashAccountId: kas.id, paymentDate: "2026-09-15" });
+  check("viewer DITOLAK menjalankan penggajian (403)", viewerRun.status === 403);
+
+  const badAccRun = await owner("POST", `/api/tenants/${tenantId}/payroll-runs`, { period: "2026-09", cashAccountId: modal.id, paymentDate: "2026-09-15" });
+  check("penggajian dengan akun non-kas DITOLAK 400", badAccRun.status === 400);
+
+  const tbAfterPayroll = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah penggajian", tbAfterPayroll.json?.balanced === true);
+
+  // --- Struktur organisasi (Fase 8c): departemen hierarki + atasan ---------------
+  console.log("11i3. Struktur organisasi (departemen, atasan, bagan)");
+  const deptViewer = await viewer("POST", `/api/tenants/${tenantId}/departments`, { code: "X", name: "Xx" });
+  check("viewer DITOLAK membuat departemen (403)", deptViewer.status === 403);
+  const deptOps = await owner("POST", `/api/tenants/${tenantId}/departments`, { code: "OPS", name: "Operasional" });
+  check("buat departemen 201", deptOps.status === 201 && Boolean(deptOps.json?.id));
+  const deptDup = await owner("POST", `/api/tenants/${tenantId}/departments`, { code: "OPS", name: "Lain" });
+  check("kode departemen duplikat DITOLAK 409", deptDup.status === 409);
+  const deptSub = await owner("POST", `/api/tenants/${tenantId}/departments`, { code: "OPS-GDG", name: "Gudang", parentId: deptOps.json.id });
+  check("sub-departemen 201", deptSub.status === 201);
+  const cyc = await owner("PATCH", `/api/tenants/${tenantId}/departments/${deptOps.json.id}`, { code: "OPS", name: "Operasional", parentId: deptSub.json.id });
+  check("struktur MELINGKAR ditolak 400 (induk = anak sendiri)", cyc.status === 400);
+  const selfParent = await owner("PATCH", `/api/tenants/${tenantId}/departments/${deptOps.json.id}`, { code: "OPS", name: "Operasional", parentId: deptOps.json.id });
+  check("departemen jadi induk dirinya DITOLAK 400", selfParent.status === 400);
+
+  const empOrg = await owner("POST", `/api/tenants/${tenantId}/employees`, {
+    name: "Citra Organisasi", position: "Staf Gudang", ptkpStatus: "TK/0", baseSalary: 5_100_000, allowances: 0,
+    departmentId: deptSub.json.id, managerId: empA.json.id,
+  });
+  check("karyawan ber-departemen + atasan 201", empOrg.status === 201);
+  const selfMgr = await owner("PATCH", `/api/tenants/${tenantId}/employees/${empOrg.json.id}`, {
+    name: "Citra Organisasi", ptkpStatus: "TK/0", baseSalary: 5_100_000, allowances: 0, managerId: empOrg.json.id,
+  });
+  check("atasan = diri sendiri DITOLAK 400", selfMgr.status === 400);
+  const empsOrg = await owner("GET", `/api/tenants/${tenantId}/employees`);
+  const citra = empsOrg.json?.employees?.find((e) => e.name === "Citra Organisasi");
+  check("GET karyawan menyertakan nama departemen & atasan", citra?.departmentName === "Gudang" && citra?.managerName === "Andi Karyawan", `→ ${JSON.stringify(citra && { d: citra.departmentName, m: citra.managerName })}`);
+  const chart = await owner("GET", `/api/tenants/${tenantId}/org-chart`);
+  const opsNode = chart.json?.tree?.find((n) => n.code === "OPS");
+  check("bagan organisasi: OPS punya sub Gudang berisi Citra", opsNode?.children?.[0]?.code === "OPS-GDG" && opsNode?.children?.[0]?.employees?.some((e) => e.name === "Citra Organisasi"));
+  const archived = await owner("DELETE", `/api/tenants/${tenantId}/departments/${deptSub.json.id}`);
+  const deptsAfter = await owner("GET", `/api/tenants/${tenantId}/departments`);
+  check("arsip departemen 200 dan hilang dari daftar", archived.status === 200 && !deptsAfter.json?.departments?.some((d) => d.code === "OPS-GDG"));
+
+  // --- HR lanjut (Fase 5f): kasbon, komponen ad-hoc, cuti & izin ------------------
+  console.log("11i2. HR lanjut (kasbon, bonus/potongan ad-hoc, cuti & izin, 1721-A1)");
+  const andiId = empA.json?.id;
+
+  // Kasbon Andi: pokok 2jt, cicilan 1jt/bln — pencairan berjurnal (Piutang Karyawan).
+  const loan = await owner("POST", `/api/tenants/${tenantId}/employee-loans`, {
+    employeeId: andiId,
+    name: "Kasbon uji",
+    principal: 2_000_000,
+    monthlyDeduction: 1_000_000,
+    cashAccountId: kas.id,
+    loanDate: "2026-09-01",
+  });
+  check("cairkan kasbon 201 + jurnal", loan.status === 201 && Boolean(loan.json?.journalNo), `→ ${JSON.stringify(loan.json)}`);
+  const loansList = await owner("GET", `/api/tenants/${tenantId}/employee-loans`);
+  const loan1 = loansList.json?.loans?.find((l) => l.id === loan.json?.id);
+  check("daftar kasbon: saldo 2jt, status aktif", loan1?.balance === 2_000_000 && loan1?.status === "active");
+  const badLoan = await owner("POST", `/api/tenants/${tenantId}/employee-loans`, {
+    employeeId: andiId, name: "Cicilan > pokok", principal: 1_000_000, monthlyDeduction: 2_000_000, cashAccountId: kas.id, loanDate: "2026-09-01",
+  });
+  check("kasbon cicilan > pokok DITOLAK 400", badLoan.status === 400);
+  const viewerLoan = await viewer("POST", `/api/tenants/${tenantId}/employee-loans`, {
+    employeeId: andiId, name: "x", principal: 1000, monthlyDeduction: 100, cashAccountId: kas.id, loanDate: "2026-09-01",
+  });
+  check("viewer DITOLAK mencairkan kasbon (403)", viewerLoan.status === 403);
+
+  // Komponen ad-hoc periode 2026-09: bonus 1jt untuk Andi (ikut bruto & pajak).
+  const adj = await owner("POST", `/api/tenants/${tenantId}/payroll-adjustments`, {
+    period: "2026-09", employeeId: andiId, name: "Bonus uji", amount: 1_000_000,
+  });
+  check("tambah komponen ad-hoc 201", adj.status === 201);
+  const adjThrow = await owner("POST", `/api/tenants/${tenantId}/payroll-adjustments`, {
+    period: "2026-09", employeeId: andiId, name: "Potongan salah", amount: -500_000,
+  });
+  const adjList = await owner("GET", `/api/tenants/${tenantId}/payroll-adjustments?period=2026-09`);
+  check("daftar komponen periode berisi 2 (belum terpakai)", adjList.json?.adjustments?.length === 2 && adjList.json.adjustments.every((a) => a.runId === null));
+  const delAdj = await owner("DELETE", `/api/tenants/${tenantId}/payroll-adjustments/${adjThrow.json?.id}`);
+  check("hapus komponen belum terpakai 200", delAdj.status === 200);
+
+  // Jalankan penggajian 2026-09 → Andi: bruto 6jt (5jt + bonus 1jt), cicilan kasbon 1jt terpotong.
+  const run9 = await owner("POST", `/api/tenants/${tenantId}/payroll-runs`, {
+    period: "2026-09", cashAccountId: kas.id, paymentDate: "2026-09-15",
+  });
+  check("penggajian 2026-09 dengan bonus 201", run9.status === 201, `→ ${JSON.stringify(run9.json)}`);
+  const runs9 = await owner("GET", `/api/tenants/${tenantId}/payroll-runs`);
+  const run9row = runs9.json?.runs?.find((r) => r.period === "2026-09");
+  const slipAndi = run9row?.payslips?.find((p) => p.employeeName === "Andi Karyawan");
+  check(
+    "slip Andi memuat bonus (bruto 6jt, komponen +1jt) & cicilan kasbon 1jt",
+    slipAndi?.gross === 6_000_000 && slipAndi?.adjustmentsTotal === 1_000_000 && slipAndi?.loanDeduction === 1_000_000,
+    `→ ${JSON.stringify(slipAndi)}`,
+  );
+  const loansAfter = await owner("GET", `/api/tenants/${tenantId}/employee-loans`);
+  const loanAfter = loansAfter.json?.loans?.find((l) => l.id === loan.json?.id);
+  check("saldo kasbon berkurang jadi 1jt setelah run", loanAfter?.balance === 1_000_000 && loanAfter?.status === "active");
+  const delUsed = await owner("DELETE", `/api/tenants/${tenantId}/payroll-adjustments/${adj.json?.id}`);
+  check("hapus komponen yang sudah terpakai DITOLAK 409", delUsed.status === 409);
+
+  // Cuti & izin: annual 3 hari disetujui → saldo cuti Andi 12 → 9; pengajuan > saldo ditolak.
+  const leave = await owner("POST", `/api/tenants/${tenantId}/leave-requests`, {
+    employeeId: andiId, type: "annual", startDate: "2026-09-20", endDate: "2026-09-22", note: "Acara keluarga",
+  });
+  check("ajukan cuti tahunan 3 hari 201", leave.status === 201 && leave.json?.days === 3, `→ ${JSON.stringify(leave.json)}`);
+  const viewerLeave = await viewer("POST", `/api/tenants/${tenantId}/leave-requests`, {
+    employeeId: andiId, type: "sick", startDate: "2026-09-20", endDate: "2026-09-20",
+  });
+  check("viewer DITOLAK mengajukan cuti (403)", viewerLeave.status === 403);
+  const approveLeave = await owner("PATCH", `/api/tenants/${tenantId}/leave-requests/${leave.json?.id}`, { status: "approved" });
+  check("setujui cuti 200", approveLeave.status === 200);
+  const empsAfterLeave = await owner("GET", `/api/tenants/${tenantId}/employees`);
+  const andiAfter = empsAfterLeave.json?.employees?.find((e) => e.id === andiId);
+  check("saldo cuti Andi berkurang 12 → 9 setelah cuti tahunan disetujui", andiAfter?.leaveBalance === 9, `→ ${andiAfter?.leaveBalance}`);
+  const reApprove = await owner("PATCH", `/api/tenants/${tenantId}/leave-requests/${leave.json?.id}`, { status: "rejected" });
+  check("memutuskan cuti yang sudah diputus DITOLAK 409", reApprove.status === 409);
+  const bigLeave = await owner("POST", `/api/tenants/${tenantId}/leave-requests`, {
+    employeeId: andiId, type: "annual", startDate: "2026-10-01", endDate: "2026-10-20",
+  });
+  const bigApprove = await owner("PATCH", `/api/tenants/${tenantId}/leave-requests/${bigLeave.json?.id}`, { status: "approved" });
+  check("setujui cuti melebihi saldo DITOLAK 400", bigApprove.status === 400);
+
+  // Absensi/kehadiran (Fase 6b): upsert per karyawan+tanggal, rekap bulanan, hapus, RBAC.
+  const attMonth = "2026-09";
+  const viewerAtt = await viewer("POST", `/api/tenants/${tenantId}/attendance`, {
+    employeeId: andiId, date: `${attMonth}-01`, status: "hadir",
+  });
+  check("viewer DITOLAK mencatat kehadiran (403)", viewerAtt.status === 403);
+  const att1 = await owner("POST", `/api/tenants/${tenantId}/attendance`, {
+    employeeId: andiId, date: `${attMonth}-01`, status: "hadir", clockIn: "08:00", clockOut: "17:00",
+  });
+  check("catat kehadiran hadir 201", att1.status === 201);
+  const att2 = await owner("POST", `/api/tenants/${tenantId}/attendance`, {
+    employeeId: andiId, date: `${attMonth}-02`, status: "sakit", note: "Demam",
+  });
+  check("catat kehadiran sakit 201", att2.status === 201);
+  const badStatusAtt = await owner("POST", `/api/tenants/${tenantId}/attendance`, {
+    employeeId: andiId, date: `${attMonth}-03`, status: "bolos",
+  });
+  check("status kehadiran tak dikenal DITOLAK 400", badStatusAtt.status === 400);
+  const unknownEmpAtt = await owner("POST", `/api/tenants/${tenantId}/attendance`, {
+    employeeId: "tidak-ada", date: `${attMonth}-03`, status: "hadir",
+  });
+  check("kehadiran karyawan tak dikenal 404", unknownEmpAtt.status === 404);
+  const attList = await owner("GET", `/api/tenants/${tenantId}/attendance?month=${attMonth}`);
+  check("daftar kehadiran memuat 2 catatan Andi", attList.status === 200 && attList.json?.records?.filter((r) => r.employeeId === andiId).length === 2);
+  const andiRecap = attList.json?.recap?.find((r) => r.employeeId === andiId);
+  check("rekap Andi: 1 hadir + 1 sakit", andiRecap?.hadir === 1 && andiRecap?.sakit === 1 && andiRecap?.total === 2, `→ ${JSON.stringify(andiRecap)}`);
+  // Upsert: catat ulang tanggal yang sama → menimpa, bukan menambah baris.
+  const attUpsert = await owner("POST", `/api/tenants/${tenantId}/attendance`, {
+    employeeId: andiId, date: `${attMonth}-01`, status: "izin",
+  });
+  check("upsert kehadiran tanggal sama 201", attUpsert.status === 201);
+  const attList2 = await owner("GET", `/api/tenants/${tenantId}/attendance?month=${attMonth}`);
+  const andiRecap2 = attList2.json?.recap?.find((r) => r.employeeId === andiId);
+  check("upsert menimpa: total tetap 2, kini 1 izin + 1 sakit", andiRecap2?.total === 2 && andiRecap2?.izin === 1 && andiRecap2?.hadir === 0, `→ ${JSON.stringify(andiRecap2)}`);
+  const attToDelete = attList2.json?.records?.find((r) => r.employeeId === andiId && r.date === `${attMonth}-02`);
+  const delAtt = await owner("DELETE", `/api/tenants/${tenantId}/attendance/${attToDelete?.id}`);
+  check("hapus catatan kehadiran 200", delAtt.status === 200);
+  const delUnknownAtt = await owner("DELETE", `/api/tenants/${tenantId}/attendance/tidak-ada`);
+  check("hapus kehadiran tak dikenal 404", delUnknownAtt.status === 404);
+  const attList3 = await owner("GET", `/api/tenants/${tenantId}/attendance?month=${attMonth}`);
+  check("setelah hapus tersisa 1 catatan Andi", attList3.json?.records?.filter((r) => r.employeeId === andiId).length === 1);
+
+  const tbAfterHr = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah kasbon & penggajian bonus", tbAfterHr.json?.balanced === true);
+
+  // --- Aset Tetap (Fase 2p) -------------------------------------------------------
+  // Beroperasi di Agustus (di luar jendela arus kas Juli & tanggal kunci).
+  console.log("11j. Aset Tetap (penyusutan garis lurus + pelepasan)");
+
+  const viewerAsset = await viewer("POST", `/api/tenants/${tenantId}/assets`, {
+    name: "X",
+    acquisitionDate: "2026-08-01",
+    acquisitionCost: 1_000_000,
+    usefulLifeMonths: 12,
+    cashAccountId: kas.id,
+  });
+  check("viewer DITOLAK mendaftarkan aset (403)", viewerAsset.status === 403);
+
+  const asset = await owner("POST", `/api/tenants/${tenantId}/assets`, {
+    name: "Mobil Operasional",
+    category: "Kendaraan",
+    acquisitionDate: "2026-08-01",
+    acquisitionCost: 48_000_000,
+    usefulLifeMonths: 48,
+    residualValue: 0,
+    cashAccountId: kas.id,
+  });
+  check("daftarkan aset 201 (jurnal perolehan otomatis)", asset.status === 201, `→ ${JSON.stringify(asset.json)}`);
+
+  const badResidual = await owner("POST", `/api/tenants/${tenantId}/assets`, {
+    name: "Salah",
+    acquisitionDate: "2026-08-01",
+    acquisitionCost: 10_000_000,
+    usefulLifeMonths: 12,
+    residualValue: 20_000_000,
+    cashAccountId: kas.id,
+  });
+  check("nilai residu ≥ perolehan DITOLAK 400", badResidual.status === 400);
+
+  const assets1 = await owner("GET", `/api/tenants/${tenantId}/assets`);
+  const a1 = assets1.json?.assets?.find((x) => x.id === asset.json.id);
+  check("aset tampil: nilai buku 48jt, penyusutan 1jt/bln", a1?.bookValue === 48_000_000 && a1?.monthlyDepreciation === 1_000_000);
+
+  const dep1 = await owner("POST", `/api/tenants/${tenantId}/assets/depreciation`, { period: "2026-08", date: "2026-08-31" });
+  check("jalankan penyusutan Agustus: 1 aset, total 1jt", dep1.status === 200 && dep1.json?.count === 1 && dep1.json?.total === 1_000_000, `→ ${JSON.stringify(dep1.json)}`);
+
+  const dep2 = await owner("POST", `/api/tenants/${tenantId}/assets/depreciation`, { period: "2026-08", date: "2026-08-31" });
+  check("penyusutan periode sama idempotent (0 aset)", dep2.json?.count === 0);
+
+  const assets2 = await owner("GET", `/api/tenants/${tenantId}/assets`);
+  const a2 = assets2.json?.assets?.find((x) => x.id === asset.json.id);
+  check("setelah susut: akumulasi 1jt, nilai buku 47jt", a2?.accumulatedDepreciation === 1_000_000 && a2?.bookValue === 47_000_000);
+
+  // Revaluasi (Fase 20e) — dilakukan SEBELUM pelepasan, selagi aset masih
+  // aktif. Nilai buku 47jt → nilai wajar 60jt, jadi surplus 13jt masuk EKUITAS.
+  // Yang diperiksa bukan hanya angkanya, tetapi bahwa neraca saldo TETAP
+  // seimbang sesudahnya: jurnal revaluasi menyentuh tiga akun sekaligus dan
+  // salah tanda di salah satunya tidak akan terlihat dari angka surplusnya.
+  const reval = await owner("POST", `/api/tenants/${tenantId}/assets/${asset.json.id}/revaluation`, {
+    revalDate: "2026-08-31",
+    fairValue: 60_000_000,
+    note: "Penilaian appraisal 2026",
+  });
+  check(
+    "revaluasi aset: nilai buku 47jt → wajar 60jt, surplus 13jt",
+    reval.status === 201 && reval.json?.bookValue === 47_000_000 && reval.json?.difference === 13_000_000,
+    `→ ${JSON.stringify(reval.json)}`,
+  );
+
+  const tbAfterReval = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah revaluasi", tbAfterReval.json?.balanced === true);
+
+  const assetsReval = await owner("GET", `/api/tenants/${tenantId}/assets`);
+  const aR = assetsReval.json?.assets?.find((x) => x.id === asset.json.id);
+  check(
+    "metode eliminasi: perolehan jadi 60jt, akumulasi kembali 0, nilai buku 60jt",
+    aR?.acquisitionCost === 60_000_000 && aR?.accumulatedDepreciation === 0 && aR?.bookValue === 60_000_000,
+    `→ ${JSON.stringify(aR && { c: aR.acquisitionCost, a: aR.accumulatedDepreciation, b: aR.bookValue })}`,
+  );
+
+  const revalHist = await owner("GET", `/api/tenants/${tenantId}/assets/${asset.json.id}/revaluations`);
+  check(
+    "riwayat revaluasi tercatat dengan nilai sebelum & sesudah",
+    revalHist.status === 200 && revalHist.json?.items?.[0]?.bookValueBefore === 47_000_000 && revalHist.json?.items?.[0]?.fairValue === 60_000_000,
+  );
+
+  const revalBad = await owner("POST", `/api/tenants/${tenantId}/assets/${asset.json.id}/revaluation`, {
+    revalDate: "2026-08-31",
+    fairValue: -1,
+  });
+  check("revaluasi nilai wajar negatif DITOLAK 400", revalBad.status === 400);
+
+  // Lepas dengan hasil 50jt → RUGI 10jt (50 − nilai buku 60 setelah revaluasi).
+
+  const disp = await owner("POST", `/api/tenants/${tenantId}/assets/${asset.json.id}/dispose`, {
+    disposalDate: "2026-08-31",
+    proceeds: 50_000_000,
+    cashAccountId: kas.id,
+  });
+  check(
+    "lepas aset setelah revaluasi: nilai buku 60jt, RUGI pelepasan 10jt",
+    disp.status === 201 && disp.json?.bookValue === 60_000_000 && disp.json?.gain === -10_000_000,
+    `→ ${JSON.stringify(disp.json)}`,
+  );
+
+  const assets3 = await owner("GET", `/api/tenants/${tenantId}/assets`);
+  check("aset berstatus dilepas", assets3.json?.assets?.find((x) => x.id === asset.json.id)?.status === "disposed");
+
+  const dispAgain = await owner("POST", `/api/tenants/${tenantId}/assets/${asset.json.id}/dispose`, {
+    disposalDate: "2026-08-31",
+    proceeds: 0,
+    cashAccountId: kas.id,
+  });
+  check("lepas aset yang sudah dilepas DITOLAK 400", dispAgain.status === 400);
+
+  const tbAfterAssets = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah penyusutan & pelepasan", tbAfterAssets.json?.balanced === true);
+
+  // --- Saldo menurun & penyusutan fiskal (Fase 22d) ------------------------------
+  //
+  // ⚠️ Dua hal yang tidak akan ditangkap neraca saldo, dan karena itu diperiksa
+  // di sini secara terpisah:
+  //   1. saldo menurun yang tidak pernah SELESAI — sifatnya asimtotik, jadi
+  //      tanpa aturan penutup asetnya menyisakan nilai buku selamanya;
+  //   2. angka fiskal yang ikut DIJURNAL — jurnalnya seimbang, jadi neraca
+  //      saldo tetap hijau sementara asetnya tersusut dua kali.
+  // Ditaruh SESUDAH revaluasi & pelepasan, bukan sebelumnya: blok ini
+  // menjalankan penyusutan September yang menyapu SELURUH aset aktif, termasuk
+  // Mobil Operasional milik blok di atas. Ditaruh lebih awal, nilai bukunya
+  // bergeser 47jt → 46jt dan cek revaluasi tetangga merah — bukan karena
+  // fiturnya rusak, melainkan karena blok ini mengubah dunia di sekitarnya.
+  console.log("11n2. Saldo menurun & penyusutan fiskal (Fase 22d)");
+
+  /** Saldo buku besar satu akun dari neraca saldo (debit - kredit). */
+  const saldoAkun22d = async (code) => {
+    const r = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+    const row = (r.json?.rows ?? []).find((x) => x.code === code);
+    return row ? row.debit - row.credit : 0;
+  };
+
+  const asetSm = await owner("POST", `/api/tenants/${tenantId}/assets`, {
+    name: "Mesin Produksi",
+    category: "Mesin",
+    acquisitionDate: "2026-08-01",
+    acquisitionCost: 24_000_000,
+    usefulLifeMonths: 24,
+    residualValue: 0,
+    cashAccountId: kas.id,
+    depreciationMethod: "saldo_menurun",
+    taxGroup: "kel1",
+  });
+  check("22d daftarkan aset saldo menurun 201", asetSm.status === 201, `→ ${JSON.stringify(asetSm.json)}`);
+
+  const bangunanSm = await owner("POST", `/api/tenants/${tenantId}/assets`, {
+    name: "Ruko",
+    acquisitionDate: "2026-08-01",
+    acquisitionCost: 100_000_000,
+    usefulLifeMonths: 240,
+    residualValue: 0,
+    cashAccountId: kas.id,
+    taxGroup: "bangunan_permanen",
+    taxMethod: "saldo_menurun",
+  });
+  // Rute pembuatan aset memakai `flatten()`, jadi pesannya ada di `issues`, bukan
+  // di `error` — asersinya menyebut keduanya supaya tidak lulus karena 400 saja.
+  check(
+    "22d bangunan DITOLAK memakai saldo menurun fiskal (UU PPh Ps. 11 ayat 6)",
+    bangunanSm.status === 400 && JSON.stringify(bangunanSm.json ?? {}).toLowerCase().includes("bangunan"),
+    `→ ${bangunanSm.status} ${JSON.stringify(bangunanSm.json)}`,
+  );
+
+  const asetsSm = await owner("GET", `/api/tenants/${tenantId}/assets`);
+  const smRow = asetsSm.json?.assets?.find((x) => x.id === asetSm.json.id);
+  check(
+    "22d angsuran pertama saldo menurun = 2/24 × 24jt = 2jt (dua kali garis lurus)",
+    smRow?.monthlyDepreciation === 2_000_000 && smRow?.depreciationMethod === "saldo_menurun",
+    `→ ${smRow?.monthlyDepreciation} ${smRow?.depreciationMethod}`,
+  );
+
+  const depSm = await owner("POST", `/api/tenants/${tenantId}/assets/depreciation`, { period: "2026-09", date: "2026-09-30" });
+  check("22d jalankan penyusutan September 200", depSm.status === 200, `→ ${JSON.stringify(depSm.json)}`);
+  const asetsSm2 = await owner("GET", `/api/tenants/${tenantId}/assets`);
+  const smRow2 = asetsSm2.json?.assets?.find((x) => x.id === asetSm.json.id);
+  check(
+    "22d angsuran KEDUA lebih kecil — dasarnya nilai buku, bukan harga perolehan",
+    smRow2?.accumulatedDepreciation === 2_000_000 && smRow2?.monthlyDepreciation < 2_000_000 && smRow2?.monthlyDepreciation > 0,
+    `→ akum=${smRow2?.accumulatedDepreciation} berikutnya=${smRow2?.monthlyDepreciation}`,
+  );
+
+  // Permintaan yang TIDAK menyebut medan baru sama sekali harus berperilaku
+  // persis seperti sebelum fase ini — itu pertanyaan kompatibilitas yang
+  // sesungguhnya, dan hanya bisa dijawab aset yang belum direvaluasi maupun
+  // dilepas (keduanya mengubah dasar penyusutan karena alasan lain).
+  const asetLama = await owner("POST", `/api/tenants/${tenantId}/assets`, {
+    name: "Laptop Admin",
+    acquisitionDate: "2026-08-01",
+    acquisitionCost: 24_000_000,
+    usefulLifeMonths: 24,
+    residualValue: 0,
+    cashAccountId: kas.id,
+  });
+  const asetsLama = await owner("GET", `/api/tenants/${tenantId}/assets`);
+  const glRow = asetsLama.json?.assets?.find((x) => x.id === asetLama.json.id);
+  check(
+    "22d permintaan tanpa medan baru tetap garis lurus 1jt/bln (bawaan skema, bukan kebetulan)",
+    asetLama.status === 201 && glRow?.monthlyDepreciation === 1_000_000 && glRow?.depreciationMethod === "garis_lurus",
+    `→ ${glRow?.monthlyDepreciation} ${glRow?.depreciationMethod}`,
+  );
+
+  const setTax = await owner("PATCH", `/api/tenants/${tenantId}/assets/${asset.json.id}/tax`, { taxGroup: "kel2" });
+  check("22d setel kelompok harta aset yang sudah ada 200", setTax.status === 200, `→ ${setTax.status}`);
+
+  // Penjaga bangunan diperiksa ulang terhadap kelompok yang BERLAKU, bukan cuma
+  // medan yang dikirim: `taxMethod` sendirian pada aset berkelompok bangunan.
+  const setBangunan = await owner("PATCH", `/api/tenants/${tenantId}/assets/${asset.json.id}/tax`, { taxGroup: "bangunan_permanen" });
+  check("22d ubah kelompok jadi bangunan 200", setBangunan.status === 200);
+  const setMetodeSaja = await owner("PATCH", `/api/tenants/${tenantId}/assets/${asset.json.id}/tax`, { taxMethod: "saldo_menurun" });
+  check(
+    "22d taxMethod sendirian pada aset BANGUNAN tetap ditolak (penjaga melihat kelompok yang berlaku)",
+    setMetodeSaja.status === 400,
+    `→ ${setMetodeSaja.status} ${JSON.stringify(setMetodeSaja.json)}`,
+  );
+  await owner("PATCH", `/api/tenants/${tenantId}/assets/${asset.json.id}/tax`, { taxGroup: "kel2" });
+
+  const viewerTax = await viewer("PATCH", `/api/tenants/${tenantId}/assets/${asetSm.json.id}/tax`, { taxGroup: "kel1" });
+  check("22d viewer DITOLAK menyetel kelompok harta (403)", viewerTax.status === 403, `→ ${viewerTax.status}`);
+
+  const akumSebelumFiskal = await saldoAkun22d("1-1510");
+  const fiskal = await owner("GET", `/api/tenants/${tenantId}/assets/tax-depreciation?year=2026`);
+  check(
+    "22d laporan fiskal terbaca dengan ketiga totalnya",
+    fiskal.status === 200 &&
+      typeof fiskal.json?.totalKomersial === "number" &&
+      typeof fiskal.json?.totalFiskal === "number" &&
+      fiskal.json?.totalKoreksi === fiskal.json.totalFiskal - fiskal.json.totalKomersial,
+    `→ ${fiskal.status} ${JSON.stringify(fiskal.json && { k: fiskal.json.totalKomersial, f: fiskal.json.totalFiskal, kor: fiskal.json.totalKoreksi })}`,
+  );
+  check(
+    "22d INVARIAN: membaca laporan fiskal TIDAK menyentuh Akumulasi Penyusutan (angka fiskal tak dijurnal)",
+    (await saldoAkun22d("1-1510")) === akumSebelumFiskal,
+    `→ ${akumSebelumFiskal} → ${await saldoAkun22d("1-1510")}`,
+  );
+  check(
+    "22d fiskal BERBEDA dari komersial — kalau sama, kelompok hartanya tidak dipakai sama sekali",
+    fiskal.json?.totalFiskal !== fiskal.json?.totalKomersial && fiskal.json?.totalKoreksi !== 0,
+    `→ komersial=${fiskal.json?.totalKomersial} fiskal=${fiskal.json?.totalFiskal}`,
+  );
+  const barisSm = (fiskal.json?.baris ?? []).find((b) => b.asetId === asetSm.json.id);
+  check(
+    "22d aset Kelompok 1 disusutkan fiskal atas umur 48 bulan, bukan umur komersialnya",
+    barisSm && barisSm.kelompok === "kel1" && barisSm.fiskal > 0,
+    `→ ${JSON.stringify(barisSm)}`,
+  );
+
+  const fiskalTahunSalah = await owner("GET", `/api/tenants/${tenantId}/assets/tax-depreciation?year=20xx`);
+  check("22d tahun tidak valid → 400", fiskalTahunSalah.status === 400, `→ ${fiskalTahunSalah.status}`);
+
+  const tbFiskal = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("22d neraca saldo tetap seimbang sesudah siklus penyusutan 22d", tbFiskal.json?.balanced === true);
+
+
+  // --- Proyek (Fase 2q) -----------------------------------------------------------
+  // Jurnal ber-tag bertanggal Agustus (di luar jendela arus kas Juli).
+  console.log("11k. Proyek (tagging biaya/pendapatan + profitabilitas)");
+
+  const viewerProject = await viewer("POST", `/api/tenants/${tenantId}/projects`, { code: "X", name: "Coba" });
+  check("viewer DITOLAK membuat proyek (403)", viewerProject.status === 403);
+
+  const project = await owner("POST", `/api/tenants/${tenantId}/projects`, {
+    code: "prj-01",
+    name: "Renovasi Kantor Klien A",
+    budget: 8_000_000,
+  });
+  check("buat proyek 201 (kode di-uppercase)", project.status === 201);
+  const projectId = project.json?.id;
+
+  const dupProject = await owner("POST", `/api/tenants/${tenantId}/projects`, { code: "PRJ-01", name: "Lain" });
+  check("kode proyek ganda DITOLAK 409", dupProject.status === 409);
+
+  // Tag pendapatan 10jt & biaya 4jt ke proyek lewat jurnal manual.
+  await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-08-05",
+    memo: "Termin proyek A",
+    projectId,
+    lines: [
+      { accountId: kas.id, debit: 10_000_000, credit: 0 },
+      { accountId: penjualan.id, debit: 0, credit: 10_000_000 },
+    ],
+  });
+  await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-08-06",
+    memo: "Biaya material proyek A",
+    projectId,
+    lines: [
+      { accountId: expenseAcc.id, debit: 4_000_000, credit: 0 },
+      { accountId: kas.id, debit: 0, credit: 4_000_000 },
+    ],
+  });
+
+  const badProjJournal = await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-08-05",
+    projectId: "proyek-tidak-ada",
+    lines: [
+      { accountId: kas.id, debit: 1000, credit: 0 },
+      { accountId: penjualan.id, debit: 0, credit: 1000 },
+    ],
+  });
+  check("jurnal dengan proyek tak dikenal DITOLAK 400", badProjJournal.status === 400);
+
+  const projList = await owner("GET", `/api/tenants/${tenantId}/projects`);
+  const p1 = projList.json?.projects?.find((x) => x.id === projectId);
+  check(
+    "profitabilitas proyek: pendapatan 10jt, biaya 4jt, laba 6jt",
+    p1?.revenue === 10_000_000 && p1?.cost === 4_000_000 && p1?.profit === 6_000_000,
+    `→ ${JSON.stringify(p1 && { r: p1.revenue, c: p1.cost, p: p1.profit })}`,
+  );
+
+  // Tugas proyek.
+  const task = await owner("POST", `/api/tenants/${tenantId}/projects/${projectId}/tasks`, { name: "Pasang plafon" });
+  check("tambah tugas proyek 201", task.status === 201);
+  const detail = await owner("GET", `/api/tenants/${tenantId}/projects/${projectId}`);
+  check("detail proyek: 1 tugas + 2 entri jurnal ber-tag", detail.json?.tasks?.length === 1 && detail.json?.entries?.length === 2);
+  const setTask = await owner("PATCH", `/api/tenants/${tenantId}/projects/${projectId}/tasks/${task.json.id}`, { status: "done" });
+  check("ubah status tugas 200", setTask.status === 200 && setTask.json?.status === "done");
+
+  const setProjStatus = await owner("PATCH", `/api/tenants/${tenantId}/projects/${projectId}/status`, { status: "completed" });
+  check("ubah status proyek jadi selesai 200", setProjStatus.status === 200);
+
+  const tbAfterProject = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah jurnal proyek", tbAfterProject.json?.balanced === true);
+
+  // --- Proyek lanjut (Fase 5g): termin, RAB, papan tugas, timesheet ----------------
+  console.log("11k2. Proyek lanjut (termin → faktur, RAB, progres tugas, timesheet)");
+
+  const viewerMs = await viewer("POST", `/api/tenants/${tenantId}/projects/${projectId}/milestones`, { name: "X", amount: 1000 });
+  check("viewer DITOLAK menambah termin (403)", viewerMs.status === 403);
+
+  // Proyek jasa baru dengan pelanggan (agar bisa menagih termin).
+  const projSvc = await owner("POST", `/api/tenants/${tenantId}/projects`, {
+    code: "PRJ-JASA-5G",
+    name: "Jasa Desain 5g",
+    contactId: newCust.id,
+    budget: 5_000_000,
+  });
+  check("buat proyek jasa ber-pelanggan 201", projSvc.status === 201);
+  const projSvcId = projSvc.json?.id;
+
+  const ms1 = await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/milestones`, { name: "Uang muka", amount: 5_000_000 });
+  check("tambah termin 201", ms1.status === 201);
+  const badMs = await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/milestones`, { name: "X", amount: 0 });
+  check("termin nominal 0 DITOLAK 400", badMs.status === 400);
+
+  const invMs = await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/milestones/${ms1.json?.id}/invoice`, {
+    invoiceDate: "2026-07-20",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+  });
+  check("buat faktur dari termin 201 (5jt)", invMs.status === 201 && invMs.json?.total === 5_000_000, `→ ${JSON.stringify(invMs.json)}`);
+
+  const detailSvc = await owner("GET", `/api/tenants/${tenantId}/projects/${projSvcId}`);
+  const invoicedMs = detailSvc.json?.milestones?.find((m) => m.id === ms1.json?.id);
+  check(
+    "termin jadi 'invoiced' + tertaut faktur, pendapatan proyek 5jt",
+    invoicedMs?.status === "invoiced" && Boolean(invoicedMs?.invoiceNo) && detailSvc.json?.revenue === 5_000_000,
+    `→ ${JSON.stringify({ st: invoicedMs?.status, rev: detailSvc.json?.revenue })}`,
+  );
+
+  const reInvMs = await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/milestones/${ms1.json?.id}/invoice`, {
+    invoiceDate: "2026-07-20", taxRate: 0, warehouseId: whUtama.id,
+  });
+  check("faktur termin kedua kali DITOLAK 400", reInvMs.status === 400);
+  const delInvMs = await owner("DELETE", `/api/tenants/${tenantId}/projects/${projSvcId}/milestones/${ms1.json?.id}`);
+  check("hapus termin yang sudah difakturkan DITOLAK 409", delInvMs.status === 409);
+
+  // Proyek tanpa pelanggan tidak bisa menagih termin.
+  const projNoCust = await owner("POST", `/api/tenants/${tenantId}/projects`, { code: "PRJ-NOCUST-5G", name: "Tanpa Pelanggan" });
+  const msNoCust = await owner("POST", `/api/tenants/${tenantId}/projects/${projNoCust.json?.id}/milestones`, { name: "DP", amount: 1_000_000 });
+  const invNoCust = await owner("POST", `/api/tenants/${tenantId}/projects/${projNoCust.json?.id}/milestones/${msNoCust.json?.id}/invoice`, {
+    invoiceDate: "2026-07-20", taxRate: 0, warehouseId: whUtama.id,
+  });
+  check("faktur termin proyek tanpa pelanggan DITOLAK 400", invNoCust.status === 400);
+
+  // RAB: dua baris anggaran → plannedCost 5jt.
+  await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/budgets`, { category: "Material", plannedAmount: 3_000_000 });
+  await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/budgets`, { category: "Tenaga kerja", plannedAmount: 2_000_000 });
+  const detailBudget = await owner("GET", `/api/tenants/${tenantId}/projects/${projSvcId}`);
+  check("RAB: 2 baris, total anggaran 5jt", detailBudget.json?.budgets?.length === 2 && detailBudget.json?.plannedCost === 5_000_000);
+  const viewerProjBudget = await viewer("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/budgets`, { category: "X", plannedAmount: 1000 });
+  check("viewer DITOLAK menambah RAB (403)", viewerProjBudget.status === 403);
+
+  // Timesheet: 10 jam × 100rb → estimasi biaya tenaga kerja 1jt (informatif, tak dijurnal).
+  const te1 = await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/time-entries`, { entryDate: "2026-07-18", hours: 10, hourlyRate: 100_000, note: "Desain" });
+  check("catat timesheet 201", te1.status === 201);
+  const detailTime = await owner("GET", `/api/tenants/${tenantId}/projects/${projSvcId}`);
+  check("timesheet: estimasi biaya tenaga kerja 1jt", detailTime.json?.laborCost === 1_000_000 && detailTime.json?.timeEntries?.length === 1);
+
+  // Papan tugas: 2 tugas, 1 selesai → progres 50%.
+  const ta1 = await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/tasks`, { name: "Survei" });
+  await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/tasks`, { name: "Gambar kerja" });
+  await owner("PATCH", `/api/tenants/${tenantId}/projects/${projSvcId}/tasks/${ta1.json?.id}`, { status: "done" });
+  const detailProg = await owner("GET", `/api/tenants/${tenantId}/projects/${projSvcId}`);
+  check("progres proyek = 50% (1 dari 2 tugas selesai)", detailProg.json?.progressPct === 50, `→ ${detailProg.json?.progressPct}`);
+
+  // --- Proyek PM serius (Fase 6c): penanggung jawab, prioritas, beban kerja -------
+  const pmTask = await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/tasks`, {
+    name: "Pasang instalasi listrik", assigneeId: andiId, priority: "high", dueDate: "2026-09-30",
+  });
+  check("tambah tugas dengan PJ + prioritas 201", pmTask.status === 201);
+  const badAssignTask = await owner("POST", `/api/tenants/${tenantId}/projects/${projSvcId}/tasks`, {
+    name: "Tugas PJ salah", assigneeId: "karyawan-tidak-ada",
+  });
+  check("tambah tugas PJ tak dikenal 404", badAssignTask.status === 404);
+  const detailPm = await owner("GET", `/api/tenants/${tenantId}/projects/${projSvcId}`);
+  const pmTaskRow = detailPm.json?.tasks?.find((t) => t.id === pmTask.json?.id);
+  check("tugas memuat penanggung jawab & prioritas", pmTaskRow?.assigneeName === "Andi Karyawan" && pmTaskRow?.priority === "high", `→ ${JSON.stringify(pmTaskRow)}`);
+  check("beban kerja (workload) tersedia & terisi", Array.isArray(detailPm.json?.workload) && detailPm.json.workload.length >= 1);
+  const andiWorkload = detailPm.json?.workload?.find((w) => w.assigneeId === andiId);
+  check("beban kerja Andi: 1 tugas terbuka (high)", andiWorkload?.openTasks === 1 && andiWorkload?.todo === 1, `→ ${JSON.stringify(andiWorkload)}`);
+  // Perbarui: ubah prioritas & kosongkan PJ.
+  const pmUpdate = await owner("PATCH", `/api/tenants/${tenantId}/projects/${projSvcId}/tasks/${pmTask.json?.id}`, {
+    priority: "low", assigneeId: null,
+  });
+  check("perbarui prioritas + kosongkan PJ 200", pmUpdate.status === 200);
+  const badAssignUpdate = await owner("PATCH", `/api/tenants/${tenantId}/projects/${projSvcId}/tasks/${pmTask.json?.id}`, { assigneeId: "karyawan-tidak-ada" });
+  check("perbarui PJ tak dikenal 404", badAssignUpdate.status === 404);
+  const detailPm2 = await owner("GET", `/api/tenants/${tenantId}/projects/${projSvcId}`);
+  const pmTaskRow2 = detailPm2.json?.tasks?.find((t) => t.id === pmTask.json?.id);
+  check("PJ dikosongkan & prioritas jadi low", pmTaskRow2?.assigneeId === null && pmTaskRow2?.priority === "low", `→ ${JSON.stringify(pmTaskRow2)}`);
+  const viewerTaskUpd = await viewer("PATCH", `/api/tenants/${tenantId}/projects/${projSvcId}/tasks/${pmTask.json?.id}`, { priority: "high" });
+  check("viewer DITOLAK memperbarui tugas (403)", viewerTaskUpd.status === 403);
+
+  const tbAfterProjectExtras = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah termin & faktur proyek", tbAfterProjectExtras.json?.balanced === true);
+
+  // --- Multi mata uang (Fase 2r) --------------------------------------------------
+  // Beroperasi di Agustus (di luar jendela arus kas Juli & tanggal kunci).
+  console.log("11l. Multi mata uang (faktur valas + selisih kurs)");
+
+  const viewerCur = await viewer("PUT", `/api/tenants/${tenantId}/currencies`, { code: "USD", name: "Dolar", rate: 16000 });
+  check("viewer DITOLAK menetapkan kurs (403)", viewerCur.status === 403);
+
+  const editIdr = await owner("PUT", `/api/tenants/${tenantId}/currencies`, { code: "IDR", name: "Rupiah", rate: 2 });
+  check("mengubah kurs IDR (basis) DITOLAK 400", editIdr.status === 400);
+
+  const setUsd = await owner("PUT", `/api/tenants/${tenantId}/currencies`, { code: "USD", name: "Dolar AS", rate: 16000 });
+  check("tetapkan kurs USD 200", setUsd.status === 200);
+  const curList = await owner("GET", `/api/tenants/${tenantId}/currencies`);
+  check("daftar mata uang berisi IDR (basis) + USD", curList.json?.currencies?.length === 2 && curList.json.currencies.some((c) => c.code === "USD" && c.rate === 16000));
+
+  // Stok untuk dijual dalam USD.
+  const prodUsd = await owner("POST", `/api/tenants/${tenantId}/products`, { sku: "BRG-USD", name: "Barang Ekspor", unit: "pcs", sellPrice: 0, buyPrice: 100_000 });
+  await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id,
+    invoiceDate: "2026-08-01",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodUsd.json.id, qty: 10, unitPrice: 100_000 }],
+  });
+
+  const noRate = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-08-10",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    currency: "USD",
+    lines: [{ productId: prodUsd.json.id, qty: 1, unitPrice: 1000 }],
+  });
+  check("faktur valas tanpa kurs DITOLAK 400", noRate.status === 400);
+
+  const eurInv = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-08-10",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    currency: "EUR",
+    exchangeRate: 17000,
+    lines: [{ productId: prodUsd.json.id, qty: 1, unitPrice: 1000 }],
+  });
+  check("faktur mata uang tak terdaftar DITOLAK 400", eurInv.status === 400);
+
+  // Faktur 1000 USD @ 16.000 → 16.000.000 IDR di buku.
+  const usdInv = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-08-10",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    currency: "USD",
+    exchangeRate: 16000,
+    lines: [{ productId: prodUsd.json.id, qty: 1, unitPrice: 1000 }],
+  });
+  check("faktur USD 1000 @16.000 → total 16jt IDR", usdInv.status === 201 && usdInv.json?.total === 16_000_000, `→ ${JSON.stringify(usdInv.json)}`);
+
+  const usdDocs = await owner("GET", `/api/tenants/${tenantId}/invoices`);
+  const usdDoc = usdDocs.json?.docs?.find((d) => d.id === usdInv.json.id);
+  check("faktur menyimpan valas (USD, foreignTotal 1000, kurs 16.000)", usdDoc?.currency === "USD" && usdDoc?.foreignTotal === 1000 && usdDoc?.exchangeRate === 16000);
+
+  // Terima 1000 USD saat kurs naik ke 16.500 → selisih kurs laba 500rb.
+  const usdPay = await owner("POST", `/api/tenants/${tenantId}/payments`, {
+    refType: "invoice",
+    refId: usdInv.json.id,
+    accountId: kas.id,
+    foreignAmount: 1000,
+    exchangeRate: 16500,
+    paymentDate: "2026-08-15",
+  });
+  check(
+    "pelunasan USD @16.500 → lunas + selisih kurs laba 500rb",
+    usdPay.status === 201 && usdPay.json?.settled === true && usdPay.json?.forexGain === 500_000,
+    `→ ${JSON.stringify(usdPay.json)}`,
+  );
+
+  const tbAfterFx = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah faktur & pelunasan valas", tbAfterFx.json?.balanced === true);
+
+  // --- Revaluasi saldo valas akhir periode (Fase 22a) ---------------------------
+  //
+  // Yang diperiksa di sini BUKAN sekadar "jurnalnya terbentuk". Piutang disimpan
+  // dalam IDR pada kurs FAKTUR, dan pelunasan menghitung selisih kurs dari kurs
+  // itu — jadi revaluasi yang tidak dibalik akan (a) memisahkan GL Piutang dari
+  // subledger faktur diam-diam, dan (b) membuat selisih kursnya terhitung DUA
+  // KALI saat faktur dilunasi. Neraca saldo tetap seimbang pada kedua kasus,
+  // jadi keseimbangan tidak membuktikan apa pun di sini.
+  console.log("11l2. Revaluasi saldo valas akhir periode (Fase 22a)");
+
+  // Faktur USD 2.000 @15.000 = 30jt IDR, sengaja DIBIARKAN belum lunas.
+  const fxOpen = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-08-10",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    currency: "USD",
+    exchangeRate: 15_000,
+    lines: [{ productId: prodUsd.json.id, qty: 2, unitPrice: 1000 }],
+  });
+  check("22a faktur USD 2.000 @15.000 belum lunas → 30jt IDR", fxOpen.status === 201 && fxOpen.json?.total === 30_000_000, `→ ${JSON.stringify(fxOpen.json)}`);
+
+  const fxViewer = await viewer("POST", `/api/tenants/${tenantId}/forex-revaluation`, { asOf: "2026-08-31" });
+  check("22a viewer DITOLAK menjalankan revaluasi (403)", fxViewer.status === 403);
+
+  const fxBadDate = await owner("POST", `/api/tenants/${tenantId}/forex-revaluation`, { asOf: "31-08-2026" });
+  check("22a tanggal tidak valid DITOLAK 400", fxBadDate.status === 400);
+
+  // Kurs penutup naik 15.000 → 16.000. Sisa 2.000 USD → selisih laba 2jt.
+  await owner("PUT", `/api/tenants/${tenantId}/currencies`, { code: "USD", name: "Dolar AS", rate: 16_000 });
+
+  const bsSebelum = await owner("GET", `/api/tenants/${tenantId}/reports/balance-sheet?asOf=2026-08-31`);
+  const piutangSebelum = bsSebelum.json?.assets?.find((a) => a.code === "1-1200")?.amount ?? 0;
+
+  const fxRev = await owner("POST", `/api/tenants/${tenantId}/forex-revaluation`, { asOf: "2026-08-31" });
+  check(
+    "22a revaluasi → laba belum terealisasi 2jt (2.000 USD × selisih 1.000)",
+    fxRev.status === 201 && fxRev.json?.labaBersih === 2_000_000,
+    `→ ${JSON.stringify(fxRev.json)}`,
+  );
+  check("22a revaluasi menghasilkan jurnal utama DAN jurnal pembalik", Boolean(fxRev.json?.entryNo) && Boolean(fxRev.json?.entryNoPembalik) && fxRev.json?.entryNo !== fxRev.json?.entryNoPembalik, `→ ${fxRev.json?.entryNo} / ${fxRev.json?.entryNoPembalik}`);
+
+  // Faktur USD yang SUDAH lunas tidak boleh ikut direvaluasi: kalau ikut,
+  // jumlah dokumennya 2 dan selisihnya membengkak.
+  check("22a faktur valas yang sudah lunas TIDAK ikut direvaluasi", fxRev.json?.jumlahDokumen === 1, `→ ${fxRev.json?.jumlahDokumen} dokumen`);
+
+  const bsSesudah = await owner("GET", `/api/tenants/${tenantId}/reports/balance-sheet?asOf=2026-08-31`);
+  const piutangSesudah = bsSesudah.json?.assets?.find((a) => a.code === "1-1200")?.amount ?? 0;
+  check(
+    "22a pada tanggal revaluasi, GL Piutang NAIK 2jt (nilai wajar akhir periode)",
+    piutangSesudah - piutangSebelum === 2_000_000,
+    `→ ${piutangSebelum} → ${piutangSesudah}`,
+  );
+
+  // ⚠️ CEK INTI FASE INI. Sesudah tanggal pembalik, GL Piutang harus KEMBALI ke
+  // nilai kurs faktur — kalau tidak, ia berpisah dari subledger dan selisih
+  // kursnya akan terhitung dua kali saat faktur dilunasi.
+  const bsPembalik = await owner("GET", `/api/tenants/${tenantId}/reports/balance-sheet?asOf=2026-09-01`);
+  const piutangPembalik = bsPembalik.json?.assets?.find((a) => a.code === "1-1200")?.amount ?? 0;
+  check(
+    "22a SESUDAH pembalik, GL Piutang kembali ke kurs faktur — tidak berpisah dari subledger",
+    piutangPembalik === piutangSebelum,
+    `→ ${piutangSebelum} vs ${piutangPembalik}`,
+  );
+
+  const plRev = await owner("GET", `/api/tenants/${tenantId}/reports/income-statement?from=2026-08-01&to=2026-08-31`);
+  const labaKursAgt = (plRev.json?.income ?? []).find((r) => r.code === "4-3000")?.amount ?? 0;
+  // Agustus memuat laba kurs TEREALISASI 500rb (pelunasan @16.500 di blok
+  // sebelumnya) DITAMBAH 2jt belum terealisasi dari revaluasi ini.
+  check("22a laba selisih kurs belum terealisasi masuk Laba Rugi Agustus", labaKursAgt === 2_500_000, `→ ${labaKursAgt}`);
+
+  const tbRev = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("22a neraca saldo TETAP seimbang setelah revaluasi + pembalik", tbRev.json?.balanced === true);
+
+  // Kurs dikembalikan supaya blok setelah ini tidak terpengaruh.
+  await owner("PUT", `/api/tenants/${tenantId}/currencies`, { code: "USD", name: "Dolar AS", rate: 16_000 });
+
+  // Tanggal sebelum faktur valas mana pun: TIDAK ada saldo untuk direvaluasi.
+  // Yang dijaga di sini adalah "jangan posting jurnal kosong" — jawabannya 400
+  // dengan alasan, bukan sepasang jurnal bernilai nol yang mengotori buku besar.
+  //
+  // Jalur periode-terkunci TIDAK bisa diuji dari sini dan itu dinyatakan apa
+  // adanya: buku terkunci s.d. 2026-07-10 sementara satu-satunya faktur valas
+  // bertanggal Agustus, jadi tanggal mana pun di dalam periode terkunci pasti
+  // berhenti lebih dulu di "tidak ada saldo valas". Yang menanggung jalur itu
+  // adalah `postJournal()` yang sama — sudah diuji lewat closing-entry (409).
+  const fxKosong = await owner("POST", `/api/tenants/${tenantId}/forex-revaluation`, { asOf: "2026-07-05" });
+  check(
+    "22a tanpa saldo valas → 400 beralasan, BUKAN jurnal nol",
+    fxKosong.status === 400 && String(fxKosong.json?.error ?? "").includes("Tidak ada saldo valas"),
+    `→ ${fxKosong.status} ${JSON.stringify(fxKosong.json)}`,
+  );
+
+  // --- Kas kecil sistem dana tetap (Fase 22c) -----------------------------------
+  //
+  // Ditaruh di sini (tenant utama, sesudah kunci periode 2026-07-10 dan sebelum
+  // siklus langganan yang menjatuhkannya ke `past_due`) supaya semua tanggal
+  // jurnalnya sah dan tenantnya masih boleh menulis.
+  //
+  // ⚠️ Yang dijaga blok ini BUKAN keseimbangan jurnal. Jurnal pengisian maupun
+  // jurnal selisih SELALU seimbang, termasuk pada arah yang terbalik dan pada
+  // jumlah yang salah — neraca saldo hijau pada semua desain yang keliru.
+  // Yang benar-benar membedakan hanya dua invarian saldo:
+  //   1. sesudah pengisian, saldo buku besar `1-1050` == dana tetap, PERSIS;
+  //   2. sesudah opname,   saldo buku besar `1-1050` == hitungan fisik, PERSIS.
+  console.log("11l3. Kas kecil sistem dana tetap (Fase 22c)");
+
+  const akunKk = (await owner("GET", `/api/tenants/${tenantId}/accounts`)).json.accounts;
+  const kkAkunId = akunKk.find((a) => a.code === "1-1050")?.id;
+  const bebanKantorId = akunKk.find((a) => a.code === "5-4000")?.id;
+  check("22c akun 1-1050 & 5-4900 tersemai migrasi 0044", Boolean(kkAkunId) && akunKk.some((a) => a.code === "5-4900"), `→ 1-1050=${kkAkunId}`);
+
+  /** Saldo buku besar satu akun dari neraca saldo (debit - kredit). */
+  const saldoKode = async (code) => {
+    const r = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+    const row = (r.json?.rows ?? []).find((x) => x.code === code);
+    return row ? row.debit - row.credit : 0;
+  };
+  /** Total beban di neraca saldo — penjaga anti hitung-ganda pengisian ulang. */
+  const totalBeban = async () => {
+    const r = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+    return (r.json?.rows ?? [])
+      .filter((x) => x.code.startsWith("5-"))
+      .reduce((t, x) => t + x.debit - x.credit, 0);
+  };
+
+  const kkAwal = await owner("GET", `/api/tenants/${tenantId}/petty-cash`);
+  check(
+    "22c akun 1-1050 Kas Kecil tersemai migrasi & status terbaca",
+    kkAwal.status === 200 && kkAwal.json?.danaTetap === 0 && kkAwal.json?.terakhirDiisi === null,
+    `→ ${kkAwal.status} ${JSON.stringify(kkAwal.json)}`,
+  );
+
+  // Dana tetap belum disetel → pengisian ditolak dengan alasan, bukan jurnal nol.
+  const kkTanpaDana = await owner("POST", `/api/tenants/${tenantId}/petty-cash/replenish`, { sourceAccountId: kasAcc.id, entryDate: "2026-08-11" });
+  check(
+    "22c pengisian sebelum dana tetap disetel → 400 beralasan",
+    kkTanpaDana.status === 400 && String(kkTanpaDana.json?.error ?? "").includes("dana tetap"),
+    `→ ${kkTanpaDana.status} ${JSON.stringify(kkTanpaDana.json)}`,
+  );
+
+  const kkViewerSet = await viewer("PATCH", `/api/tenants/${tenantId}/petty-cash`, { danaTetap: 2_000_000 });
+  check("22c viewer DITOLAK menyetel dana tetap (403)", kkViewerSet.status === 403, `→ ${kkViewerSet.status}`);
+
+  const kkSet = await owner("PATCH", `/api/tenants/${tenantId}/petty-cash`, { danaTetap: 2_000_000 });
+  check(
+    "22c dana tetap tersimpan & kekurangan = dana tetap saat kotak kosong",
+    kkSet.status === 200 && kkSet.json?.danaTetap === 2_000_000 && kkSet.json?.kekurangan === 2_000_000,
+    `→ ${kkSet.status} ${JSON.stringify(kkSet.json)}`,
+  );
+
+  const kkSelf = await owner("POST", `/api/tenants/${tenantId}/petty-cash/replenish`, { sourceAccountId: kkAkunId, entryDate: "2026-08-11" });
+  check(
+    "22c kas kecil DITOLAK jadi sumber pengisiannya sendiri (jurnal seimbang tapi nihil)",
+    kkSelf.status === 400 && String(kkSelf.json?.error ?? "").includes("sendiri"),
+    `→ ${kkSelf.status} ${JSON.stringify(kkSelf.json)}`,
+  );
+
+  const kasSebelumIsi = await saldoKode("1-1000");
+  const bebanSebelumIsi = await totalBeban();
+  const kkIsi = await owner("POST", `/api/tenants/${tenantId}/petty-cash/replenish`, { sourceAccountId: kasAcc.id, entryDate: "2026-08-11" });
+  check(
+    "22c pengisian pertama = dana tetap penuh",
+    kkIsi.status === 201 && kkIsi.json?.jumlah === 2_000_000,
+    `→ ${kkIsi.status} ${JSON.stringify(kkIsi.json)}`,
+  );
+  const kkSaldoIsi = await saldoKode("1-1050");
+  check(
+    "22c INVARIAN: saldo buku besar kas kecil == dana tetap sesudah pengisian",
+    kkSaldoIsi === 2_000_000,
+    `→ ${kkSaldoIsi}`,
+  );
+  const kasSesudahIsi = await saldoKode("1-1000");
+  check(
+    "22c kas sumber berkurang persis sebesar pengisian (uang berpindah, tidak tercipta)",
+    kasSebelumIsi - kasSesudahIsi === 2_000_000,
+    `→ ${kasSebelumIsi} - ${kasSesudahIsi}`,
+  );
+  check(
+    "22c pengisian ulang TIDAK menambah beban (bon sudah dibebankan saat dicatat)",
+    (await totalBeban()) === bebanSebelumIsi,
+    `→ ${await totalBeban()} vs ${bebanSebelumIsi}`,
+  );
+
+  const kkPenuh = await owner("POST", `/api/tenants/${tenantId}/petty-cash/replenish`, { sourceAccountId: kasAcc.id, entryDate: "2026-08-11" });
+  check(
+    "22c kotak sudah penuh → 400, bukan jurnal nol atau isi dobel",
+    kkPenuh.status === 400 && String(kkPenuh.json?.error ?? "").includes("penuh"),
+    `→ ${kkPenuh.status} ${JSON.stringify(kkPenuh.json)}`,
+  );
+
+  // Dua bon kas kecil, dijurnal seperti pengeluaran biasa (debit beban, kredit
+  // kas kecil) — jalur yang dipakai halaman Catat Transaksi.
+  const bon1 = await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-08-12",
+    memo: "Bon kas kecil — parkir & materai",
+    lines: [
+      { accountId: bebanKantorId, debit: 150_000, credit: 0 },
+      { accountId: kkAkunId, debit: 0, credit: 150_000 },
+    ],
+  });
+  const bon2 = await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-08-13",
+    memo: "Bon kas kecil — galon & kopi",
+    lines: [
+      { accountId: bebanKantorId, debit: 350_000, credit: 0 },
+      { accountId: kkAkunId, debit: 0, credit: 350_000 },
+    ],
+  });
+  check("22c dua bon kas kecil terjurnal", bon1.status === 201 && bon2.status === 201, `→ ${bon1.status}/${bon2.status}`);
+
+  const kkPakai = await owner("GET", `/api/tenants/${tenantId}/petty-cash`);
+  check(
+    "22c kekurangan DIHITUNG dari saldo buku besar, bukan diketik",
+    kkPakai.json?.saldoBuku === 1_500_000 && kkPakai.json?.kekurangan === 500_000 && kkPakai.json?.terpakaiPersen === 25,
+    `→ ${JSON.stringify(kkPakai.json)}`,
+  );
+
+  // Opname: kotak nyatanya berisi 1.480.000 — kurang 20.000 dari catatan.
+  const kkOpnameViewer = await viewer("POST", `/api/tenants/${tenantId}/petty-cash/count`, { hitunganFisik: 1_480_000, entryDate: "2026-08-14" });
+  check("22c viewer DITOLAK mencatat opname (403)", kkOpnameViewer.status === 403, `→ ${kkOpnameViewer.status}`);
+
+  const bebanSebelumOpname = await totalBeban();
+  const kkKurang = await owner("POST", `/api/tenants/${tenantId}/petty-cash/count`, { hitunganFisik: 1_480_000, entryDate: "2026-08-14", note: "bon parkir hilang" });
+  check(
+    "22c opname kurang → selisih negatif & jurnal terbit",
+    kkKurang.status === 201 && kkKurang.json?.selisih === -20_000 && kkKurang.json?.arah === "kurang" && Boolean(kkKurang.json?.entryNo),
+    `→ ${kkKurang.status} ${JSON.stringify(kkKurang.json)}`,
+  );
+  const kkSaldoOpname = await saldoKode("1-1050");
+  check(
+    "22c INVARIAN ARAH: saldo buku besar kas kecil == hitungan fisik sesudah opname kurang",
+    kkSaldoOpname === 1_480_000,
+    `→ ${kkSaldoOpname}`,
+  );
+  check(
+    "22c selisih kurang menaikkan beban Selisih Kas persis 20.000 (arah terbalik akan menurunkannya)",
+    (await saldoKode("5-4900")) === 20_000 && (await totalBeban()) - bebanSebelumOpname === 20_000,
+    `→ 5-4900=${await saldoKode("5-4900")} Δbeban=${(await totalBeban()) - bebanSebelumOpname}`,
+  );
+
+  // Arah sebaliknya: kotak ternyata berisi 1.505.000 — lebih 25.000.
+  const kkLebih = await owner("POST", `/api/tenants/${tenantId}/petty-cash/count`, { hitunganFisik: 1_505_000, entryDate: "2026-08-15" });
+  check(
+    "22c opname lebih → selisih positif",
+    kkLebih.status === 201 && kkLebih.json?.selisih === 25_000 && kkLebih.json?.arah === "lebih",
+    `→ ${kkLebih.status} ${JSON.stringify(kkLebih.json)}`,
+  );
+  check(
+    "22c INVARIAN ARAH: saldo buku besar kas kecil == hitungan fisik sesudah opname lebih",
+    (await saldoKode("1-1050")) === 1_505_000,
+    `→ ${await saldoKode("1-1050")}`,
+  );
+  check(
+    "22c selisih lebih MENGURANGI akun Selisih Kas yang sama (20.000 - 25.000 = -5.000)",
+    (await saldoKode("5-4900")) === -5_000,
+    `→ ${await saldoKode("5-4900")}`,
+  );
+
+  const kkPas = await owner("POST", `/api/tenants/${tenantId}/petty-cash/count`, { hitunganFisik: 1_505_000, entryDate: "2026-08-15" });
+  check(
+    "22c opname cocok → tidak ada jurnal sama sekali",
+    kkPas.status === 200 && kkPas.json?.selisih === 0 && kkPas.json?.entryNo === null,
+    `→ ${kkPas.status} ${JSON.stringify(kkPas.json)}`,
+  );
+
+  const kkKunci = await owner("POST", `/api/tenants/${tenantId}/petty-cash/count`, { hitunganFisik: 1_400_000, entryDate: "2026-07-01" });
+  check(
+    "22c opname di periode terkunci → 409, bukan 500",
+    kkKunci.status === 409,
+    `→ ${kkKunci.status} ${JSON.stringify(kkKunci.json)}`,
+  );
+
+  const tbKk = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("22c neraca saldo tetap seimbang sesudah seluruh siklus kas kecil", tbKk.json?.balanced === true, `→ ${JSON.stringify(tbKk.json?.totalDebit)}/${JSON.stringify(tbKk.json?.totalCredit)}`);
+
+  // --- Proyeksi arus kas 30/60/90 hari (Fase 22f) --------------------------------
+  //
+  // Rute BACA-SAJA. Yang dijaga: saldo awalnya benar-benar saldo buku besar kas
+  // (bukan angka lain yang kebetulan mirip), embernya berantai, dan membaca
+  // laporan ini tidak menyentuh buku besar sama sekali.
+  console.log("11n4. Proyeksi arus kas 30/60/90 hari (Fase 22f)");
+
+  const saldoKasSblm = await saldoAkun22d("1-1000");
+  const jmlJurnalSblm = (await owner("GET", `/api/tenants/${tenantId}/journal-entries?limit=1`)).json?.total;
+  const proy = await owner("GET", `/api/tenants/${tenantId}/reports/cash-projection`);
+  check(
+    "22f proyeksi terbaca dengan tiga ember 30/60/90",
+    proy.status === 200 && proy.json?.ember?.length === 3 && proy.json.ember.map((e) => e.hari).join(",") === "30,60,90",
+    `→ ${proy.status} ${JSON.stringify(proy.json?.ember?.map((e) => e.hari))}`,
+  );
+  check(
+    "22f saldo awal = saldo buku besar akun kas/bank sistem, bukan angka lain",
+    typeof proy.json?.saldoAwal === "number" && proy.json.saldoAwal !== 0,
+    `→ saldoAwal=${proy.json?.saldoAwal}`,
+  );
+  check(
+    "22f saldo akhir tiap ember BERANTAI (ember n = ember n-1 + bersih n)",
+    proy.json.ember.every((e, i) => {
+      const sebelum = i === 0 ? proy.json.saldoAwal : proy.json.ember[i - 1].saldoAkhir;
+      return e.saldoAkhir === sebelum + e.bersih;
+    }),
+    `→ ${JSON.stringify(proy.json.ember.map((e) => e.saldoAkhir))}`,
+  );
+  check(
+    "22f masuk & keluar dipisah, bukan cuma angka bersih",
+    proy.json.ember.every((e) => e.masuk >= 0 && e.keluar >= 0 && e.bersih === e.masuk - e.keluar),
+    `→ ${JSON.stringify(proy.json.ember[0])}`,
+  );
+  check(
+    "22f INVARIAN: membaca proyeksi TIDAK membuat jurnal & tidak menggeser saldo kas",
+    (await saldoAkun22d("1-1000")) === saldoKasSblm &&
+      (await owner("GET", `/api/tenants/${tenantId}/journal-entries?limit=1`)).json?.total === jmlJurnalSblm,
+    `→ kas ${saldoKasSblm} → ${await saldoAkun22d("1-1000")}`,
+  );
+  check(
+    "22f arus memuat sumbernya (piutang/hutang/kontrak) supaya angkanya bisa ditelusuri",
+    Array.isArray(proy.json?.arus) &&
+      proy.json.arus.every((a) => ["piutang", "hutang", "kontrak"].includes(a.sumber)),
+    `→ ${[...new Set((proy.json?.arus ?? []).map((a) => a.sumber))].join(",")}`,
+  );
+  check(
+    "22f hutang masuk sebagai arus NEGATIF, piutang positif",
+    (proy.json?.arus ?? []).filter((a) => a.sumber === "hutang").every((a) => a.jumlah < 0) &&
+      (proy.json?.arus ?? []).filter((a) => a.sumber === "piutang").every((a) => a.jumlah > 0),
+    `→ ${JSON.stringify((proy.json?.arus ?? []).slice(0, 2))}`,
+  );
+
+  const proyViewer = await viewer("GET", `/api/tenants/${tenantId}/reports/cash-projection`);
+  check("22f viewer BOLEH membaca proyeksi (200)", proyViewer.status === 200, `→ ${proyViewer.status}`);
+
+  // ⚠️ Invarian yang KETIADAANNYA membuat cacat ini lolos sejak Fase 22c:
+  // laporan arus kas dan proyeksinya berdampingan di satu layar, tetapi tidak
+  // ada satu pun cek yang menuntut keduanya menyebut saldo kas yang SAMA.
+  // Laporan arus kas dulu memakai `1-1000, 1-1100` saja, sehingga isi kas kecil
+  // hilang dari saldo akhirnya tanpa ada yang merah.
+  const hariIniProy = proy.json.hariIni;
+  const afArus = await owner(
+    "GET",
+    `/api/tenants/${tenantId}/reports/cash-flow?from=2000-01-01&to=${hariIniProy}`,
+  );
+  check(
+    "22f INVARIAN: saldo akhir laporan arus kas s/d hari ini == saldo awal proyeksi (definisi 'kas' tunggal)",
+    afArus.json?.closingBalance === proy.json.saldoAwal,
+    `→ arus kas ${afArus.json?.closingBalance} vs proyeksi ${proy.json.saldoAwal}`,
+  );
+
+  // --- Harga bertingkat per grup pelanggan (Fase 23a) ---------------------------
+  //
+  // Harga di sini DISARANKAN, bukan ditegakkan — tak ada jalur tulis yang
+  // memeriksanya. Karena itu yang dijaga blok ini adalah RESOLUSInya: angka apa
+  // yang diusulkan kepada layar, untuk pelanggan mana, pada satuan apa.
+  //
+  // Dua di antaranya adalah cacat yang tidak akan terlihat di layar bila salah:
+  // harga Rp 0 (barang bonus) yang diam-diam kembali ke harga normal, dan grup
+  // yang sudah diarsip tetapi harganya masih dipakai.
+  console.log("11n5. Harga bertingkat per grup pelanggan (Fase 23a)");
+
+  const hbGrup = await owner("POST", `/api/tenants/${tenantId}/price-groups`, { name: "Grosir 23a" });
+  check("23a buat grup harga 201", hbGrup.status === 201, `→ ${hbGrup.status}`);
+  const hbGrupId = hbGrup.json?.id;
+
+  const hbGrupDup = await owner("POST", `/api/tenants/${tenantId}/price-groups`, { name: "Grosir 23a" });
+  check("23a nama grup ganda DITOLAK", hbGrupDup.status === 409 || hbGrupDup.status === 400, `→ ${hbGrupDup.status}`);
+
+  // Produk khusus blok ini: satuan besar 1 dus = 24 pcs, supaya arah konversi
+  // harga benar-benar teruji dan tidak menumpang produk blok lain.
+  const hbProd = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "BRG-23A",
+    name: "Sirup Grosir 23a",
+    unit: "pcs",
+    sellPrice: 12_000,
+    buyPrice: 8_000,
+    uomSecondary: "dus",
+    uomFactor: 24,
+  });
+  const hbProdId = hbProd.json?.id;
+  const hbBonus = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "BRG-23A-BONUS",
+    name: "Gelas Bonus 23a",
+    unit: "pcs",
+    sellPrice: 5_000,
+    buyPrice: 3_000,
+  });
+  const hbBonusId = hbBonus.json?.id;
+
+  const hbPelanggan = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "customer",
+    name: "Toko Grosir 23a",
+    priceGroupId: hbGrupId,
+  });
+  const hbPelangganId = hbPelanggan.json?.id;
+  const hbPelangganEcer = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "customer",
+    name: "Pembeli Ecer 23a",
+  });
+  const hbEcerId = hbPelangganEcer.json?.id;
+
+  const hbSet = await owner(
+    "PUT",
+    `/api/tenants/${tenantId}/price-groups/${hbGrupId}/items/${hbProdId}`,
+    { unitPrice: 9_500 },
+  );
+  check("23a isi harga khusus 200", hbSet.status === 200, `→ ${hbSet.status}`);
+
+  // Rp 0 = gratis. Inilah baris yang membedakan "belum diatur" dari "bonus".
+  const hbSetBonus = await owner(
+    "PUT",
+    `/api/tenants/${tenantId}/price-groups/${hbGrupId}/items/${hbBonusId}`,
+    { unitPrice: 0 },
+  );
+  check("23a harga khusus Rp 0 DITERIMA (barang bonus)", hbSetBonus.status === 200, `→ ${hbSetBonus.status}`);
+
+  const hbItems = await owner("GET", `/api/tenants/${tenantId}/price-groups/${hbGrupId}/items`);
+  check(
+    "23a daftar harga memuat kedua produk beserta harga dasarnya",
+    hbItems.status === 200 &&
+      hbItems.json?.items?.length === 2 &&
+      hbItems.json.items.find((i) => i.productId === hbProdId)?.sellPrice === 12_000,
+    `→ ${hbItems.status} ${JSON.stringify(hbItems.json?.items?.map((i) => [i.sku, i.unitPrice]))}`,
+  );
+
+  const hbResolve = await owner(
+    "GET",
+    `/api/tenants/${tenantId}/price-groups/resolve?contactId=${hbPelangganId}`,
+  );
+  check(
+    "23a resolve mengembalikan nama grup + harga khususnya",
+    hbResolve.status === 200 &&
+      hbResolve.json?.groupName === "Grosir 23a" &&
+      hbResolve.json?.prices?.[hbProdId] === 9_500,
+    `→ ${JSON.stringify(hbResolve.json)}`,
+  );
+  check(
+    "23a harga Rp 0 IKUT TERBAWA di resolve, bukan hilang karena falsy",
+    hbResolve.json?.prices?.[hbBonusId] === 0 && hbBonusId in (hbResolve.json?.prices ?? {}),
+    `→ ${JSON.stringify(hbResolve.json?.prices)}`,
+  );
+
+  const hbResolveEcer = await owner(
+    "GET",
+    `/api/tenants/${tenantId}/price-groups/resolve?contactId=${hbEcerId}`,
+  );
+  check(
+    "23a pelanggan TANPA grup dapat daftar harga kosong (pakai harga dasar)",
+    hbResolveEcer.status === 200 &&
+      hbResolveEcer.json?.groupName === null &&
+      Object.keys(hbResolveEcer.json?.prices ?? {}).length === 0,
+    `→ ${JSON.stringify(hbResolveEcer.json)}`,
+  );
+
+  check(
+    "23a viewer BOLEH membaca daftar harga (200)",
+    (await viewer("GET", `/api/tenants/${tenantId}/price-groups/${hbGrupId}/items`)).status === 200,
+  );
+  check(
+    "23a viewer DITOLAK menulis harga (403)",
+    (
+      await viewer("PUT", `/api/tenants/${tenantId}/price-groups/${hbGrupId}/items/${hbProdId}`, {
+        unitPrice: 1,
+      })
+    ).status === 403,
+  );
+
+  // Hapus = kembali ke harga dasar. Dibedakan dari menyetel 0 di atas.
+  const hbHapus = await owner(
+    "DELETE",
+    `/api/tenants/${tenantId}/price-groups/${hbGrupId}/items/${hbProdId}`,
+  );
+  const hbResolveSetelahHapus = await owner(
+    "GET",
+    `/api/tenants/${tenantId}/price-groups/resolve?contactId=${hbPelangganId}`,
+  );
+  check(
+    "23a hapus harga khusus → produk itu hilang dari resolve (kembali ke harga dasar)",
+    hbHapus.status === 200 && !(hbProdId in (hbResolveSetelahHapus.json?.prices ?? {})),
+    `→ ${JSON.stringify(hbResolveSetelahHapus.json?.prices)}`,
+  );
+  check(
+    "23a menghapus satu harga TIDAK menyentuh harga produk lain di grup yang sama",
+    hbResolveSetelahHapus.json?.prices?.[hbBonusId] === 0,
+    `→ ${JSON.stringify(hbResolveSetelahHapus.json?.prices)}`,
+  );
+
+  // Grup diarsip → pelanggannya kembali ke harga dasar, tanpa perlu menyentuh
+  // datanya. Kalau ini tidak dijaga, mengarsipkan grup terlihat berhasil di
+  // layar Master Data padahal harganya masih dipakai diam-diam di faktur.
+  await owner("PUT", `/api/tenants/${tenantId}/price-groups/${hbGrupId}/items/${hbProdId}`, {
+    unitPrice: 9_500,
+  });
+  await owner("POST", `/api/tenants/${tenantId}/price-groups/${hbGrupId}/archive`);
+  const hbResolveArsip = await owner(
+    "GET",
+    `/api/tenants/${tenantId}/price-groups/resolve?contactId=${hbPelangganId}`,
+  );
+  check(
+    "23a grup DIARSIP → pelanggannya kembali ke harga dasar",
+    hbResolveArsip.json?.groupName === null &&
+      Object.keys(hbResolveArsip.json?.prices ?? {}).length === 0,
+    `→ ${JSON.stringify(hbResolveArsip.json)}`,
+  );
+  check(
+    "23a mengisi harga pada grup terarsip DITOLAK 404",
+    (
+      await owner("PUT", `/api/tenants/${tenantId}/price-groups/${hbGrupId}/items/${hbProdId}`, {
+        unitPrice: 1_000,
+      })
+    ).status === 404,
+  );
+
+  // --- Harga bertingkat: dokumen yang SUDAH menyimpan harganya (Fase 23b) -------
+  //
+  // ⚠️ Yang TIDAK bisa dijaga di sini: "penawaran untuk pelanggan bergrup
+  // tersimpan pada harga grup". Harga grup disarankan oleh LAYAR; API menerima
+  // `unitPrice` apa pun yang dikirim pemanggil (keputusan 23a: disarankan,
+  // bukan ditegakkan). Cek semacam itu hanya akan menguji smoke-nya sendiri.
+  // Karena itu ia hidup di ui-sim `F46`, bukan di sini.
+  //
+  // Yang MEMANG milik server, dan itulah isi blok ini: dokumen yang sudah
+  // menyimpan harganya tidak boleh dihitung ulang dari daftar harga hari ini.
+  // Kontrak dan penawaran adalah harga yang sudah dijanjikan ke pelanggan;
+  // menghitungnya ulang diam-diam mengubah kesepakatan.
+  console.log("11n6. Harga tersimpan tidak dihitung ulang (Fase 23b)");
+
+  const hbGrup2 = await owner("POST", `/api/tenants/${tenantId}/price-groups`, { name: "Grosir 23b" });
+  const hbGrup2Id = hbGrup2.json?.id;
+  const hbJasa = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "JASA-23B",
+    name: "Langganan Grosir 23b",
+    unit: "bulan",
+    sellPrice: 500_000,
+    buyPrice: 0,
+    isService: true,
+  });
+  const hbJasaId = hbJasa.json?.id;
+  const hbPel2 = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "customer",
+    name: "Pelanggan Kontrak 23b",
+    priceGroupId: hbGrup2Id,
+  });
+  const hbPel2Id = hbPel2.json?.id;
+
+  await owner("PUT", `/api/tenants/${tenantId}/price-groups/${hbGrup2Id}/items/${hbJasaId}`, {
+    unitPrice: 400_000,
+  });
+
+  const hbKontrak = await owner("POST", `/api/tenants/${tenantId}/contracts`, {
+    code: "LGN-23B",
+    contactId: hbPel2Id,
+    name: "Langganan 23b",
+    frequency: "monthly",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    startDate: "2026-07-15",
+    // Harga grup saat kontrak dibuat — inilah yang disepakati.
+    lines: [{ productId: hbJasaId, qty: 1, unitPrice: 400_000 }],
+  });
+  check("23b kontrak dibuat pada harga grup 400rb", hbKontrak.status === 201, `→ ${hbKontrak.status}`);
+
+  const hbTagih1 = await owner("POST", `/api/tenants/${tenantId}/contracts/run-billing`, {
+    date: "2026-07-15",
+  });
+  check(
+    "23b tagihan pertama terbit pada harga kontrak (400rb)",
+    hbTagih1.json?.issued >= 1 && hbTagih1.json?.total >= 400_000,
+    `→ ${JSON.stringify(hbTagih1.json)}`,
+  );
+
+  // Daftar harga dinaikkan DI ANTARA dua penerbitan. Kalau faktur berulang
+  // menghitung ulang dari daftar harga, tagihan kedua ikut naik — dan pelanggan
+  // ditagih di luar kesepakatan tanpa ada yang mengubah kontraknya.
+  await owner("PUT", `/api/tenants/${tenantId}/price-groups/${hbGrup2Id}/items/${hbJasaId}`, {
+    unitPrice: 950_000,
+  });
+  const hbTagih2 = await owner("POST", `/api/tenants/${tenantId}/contracts/run-billing`, {
+    date: "2026-08-15",
+  });
+  const hbFaktur = (await owner("GET", `/api/tenants/${tenantId}/invoices?limit=200`)).json?.docs ?? [];
+  const hbFakturKontrak = hbFaktur.filter((d) => d.contactName === "Pelanggan Kontrak 23b");
+  check(
+    "23b INVARIAN: daftar harga naik di antara dua penerbitan TIDAK mengubah tagihan kontrak",
+    hbTagih2.json?.issued >= 1 && hbFakturKontrak.every((d) => d.total === 400_000),
+    `→ ${JSON.stringify(hbFakturKontrak.map((d) => d.total))}`,
+  );
+
+  // Penawaran → faktur: konversi memakai harga penawaran, bukan daftar hari ini.
+  const hbQuote = await owner("POST", `/api/tenants/${tenantId}/quotations`, {
+    contactId: hbPel2Id,
+    quoteDate: "2026-08-01",
+    taxRate: 0,
+    lines: [{ productId: hbJasaId, qty: 2, unitPrice: 400_000 }],
+  });
+  await owner("PATCH", `/api/tenants/${tenantId}/quotations/${hbQuote.json?.id}/status`, {
+    status: "accepted",
+  });
+  // Daftar harga sudah 950rb sejak beberapa baris di atas.
+  const hbKonversi = await owner(
+    "POST",
+    `/api/tenants/${tenantId}/quotations/${hbQuote.json?.id}/convert`,
+    { warehouseId: whUtama.id, invoiceDate: "2026-08-02" },
+  );
+  const hbFaktur2 = (await owner("GET", `/api/tenants/${tenantId}/invoices?limit=200`)).json?.docs ?? [];
+  const hbDariQuote = hbFaktur2.find((d) => d.docNo === hbKonversi.json?.docNo);
+  check(
+    "23b INVARIAN: konversi penawaran memakai harga PENAWARAN (800rb), bukan daftar harga hari ini",
+    hbKonversi.status === 201 && hbDariQuote?.total === 800_000,
+    `→ ${hbKonversi.status} total=${hbDariQuote?.total}`,
+  );
+
+  // --- Kalender pajak Indonesia (Fase 22e) --------------------------------------
+  //
+  // Yang dijaga di sini adalah PENYARINGAN, bukan tanggalnya: tanggal sudah
+  // ditutup 23 uji unit. Kalender yang menampilkan PPN kepada non-PKP melatih
+  // orang mengabaikan seluruh isinya — kerusakan yang tak seorang pun laporkan
+  // sebagai bug, cuma ditinggalkan.
+  console.log("11n3. Kalender pajak Indonesia (Fase 22e)");
+
+  const kalKosong = await owner("GET", `/api/tenants/${tenantId}/tax/calendar`);
+  check(
+    "22e kalender terbaca dengan profil & daftar tenggat",
+    kalKosong.status === 200 && Array.isArray(kalKosong.json?.tenggat) && typeof kalKosong.json?.profil === "object",
+    `→ ${kalKosong.status} ${JSON.stringify(kalKosong.json?.profil)}`,
+  );
+  check(
+    "22e profil bawaan non-PKP → TIDAK ada tenggat PPN",
+    kalKosong.json?.profil?.pkp === false && !kalKosong.json.tenggat.some((t) => t.jenis === "ppn"),
+    `→ pkp=${kalKosong.json?.profil?.pkp} jenis=${[...new Set((kalKosong.json?.tenggat ?? []).map((t) => t.jenis))].join(",")}`,
+  );
+  check(
+    "22e 'punya karyawan' DIBACA dari data, bukan dari setelan",
+    kalKosong.json?.profil?.adaKaryawan === true,
+    `→ adaKaryawan=${kalKosong.json?.profil?.adaKaryawan}`,
+  );
+
+  const setPkp = await owner("PATCH", `/api/tenants/${tenantId}/settings`, { pkp: true });
+  check("22e setel profil PKP 200", setPkp.status === 200, `→ ${setPkp.status}`);
+  const kalPkp = await owner("GET", `/api/tenants/${tenantId}/tax/calendar`);
+  check(
+    "22e sesudah PKP dinyalakan, tenggat PPN MUNCUL — profilnya benar-benar dipakai",
+    kalPkp.json?.tenggat?.some((t) => t.jenis === "ppn"),
+    `→ ${[...new Set((kalPkp.json?.tenggat ?? []).map((t) => t.jenis))].join(",")}`,
+  );
+  check(
+    "22e PPN setor & lapor jatuh pada AKHIR bulan berikutnya (tanggal UU)",
+    (kalPkp.json?.tenggat ?? [])
+      .filter((t) => t.jenis === "ppn")
+      .every((t) => /-(28|29|30|31)$/.test(t.tanggalUu)),
+    `→ ${(kalPkp.json?.tenggat ?? []).filter((t) => t.jenis === "ppn").map((t) => t.tanggalUu).join(",")}`,
+  );
+
+  const setUmkm = await owner("PATCH", `/api/tenants/${tenantId}/settings`, { pphFinalUmkm: true });
+  check("22e setel PPh Final UMKM 200", setUmkm.status === 200);
+  const kalUmkm = await owner("GET", `/api/tenants/${tenantId}/tax/calendar`);
+  check(
+    "22e pengguna PPh Final UMKM diberi PPh Final, dan PPh 25 HILANG (bukan keduanya)",
+    kalUmkm.json?.tenggat?.some((t) => t.jenis === "pph_final") &&
+      !kalUmkm.json.tenggat.some((t) => t.jenis === "pph25"),
+    `→ ${[...new Set((kalUmkm.json?.tenggat ?? []).map((t) => t.jenis))].join(",")}`,
+  );
+
+  check(
+    "22e tenggat yang ditampilkan tidak pernah LEBIH AWAL dari tanggal UU (pergeseran selalu maju)",
+    (kalUmkm.json?.tenggat ?? []).every((t) => t.tanggal >= t.tanggalUu),
+    `→ ${(kalUmkm.json?.tenggat ?? []).filter((t) => t.tanggal < t.tanggalUu).length} pelanggaran`,
+  );
+
+  const notifPajak = await owner("GET", `/api/tenants/${tenantId}/notifications`);
+  check(
+    "22e tenggat pajak ikut muncul di lonceng notifikasi",
+    (notifPajak.json?.notifications ?? []).some((n) => n.type === "tenggat_pajak"),
+    `→ jenis=${[...new Set((notifPajak.json?.notifications ?? []).map((n) => n.type))].join(",")}`,
+  );
+  check(
+    "22e notifikasi pajak menyatakan hari libur belum diperhitungkan",
+    (notifPajak.json?.notifications ?? [])
+      .filter((n) => n.type === "tenggat_pajak")
+      .every((n) => String(n.detail).includes("libur nasional")),
+    `→ ${JSON.stringify((notifPajak.json?.notifications ?? []).find((n) => n.type === "tenggat_pajak")?.detail)}`,
+  );
+
+  const kalViewer = await viewer("GET", `/api/tenants/${tenantId}/tax/calendar`);
+  check("22e viewer BOLEH membaca kalender (200)", kalViewer.status === 200, `→ ${kalViewer.status}`);
+
+  // Dikembalikan supaya blok-blok sesudahnya melihat profil yang sama seperti
+  // sebelum blok ini — pelajaran 22d: blok yang mengubah dunia di sekitarnya
+  // membuat tetangganya merah tanpa ada yang rusak.
+  await owner("PATCH", `/api/tenants/${tenantId}/settings`, { pkp: false, pphFinalUmkm: false });
+
+  // --- Kontrak & tagihan berulang (Fase 2s) --------------------------------------
+  // Tanggal setelah kunci 2026-07-10; faktur = piutang (tak sentuh arus kas Juli).
+  console.log("11m. Kontrak & tagihan berulang (produk jasa)");
+
+  // Produk jasa: faktur tak butuh stok.
+  const svc = await owner("POST", `/api/tenants/${tenantId}/products`, { sku: "JASA-01", name: "Jasa Maintenance Bulanan", unit: "bln", sellPrice: 500_000, isService: true });
+  check("tambah produk jasa 201", svc.status === 201);
+
+  const viewerContract = await viewer("POST", `/api/tenants/${tenantId}/contracts`, { code: "X", contactId: customer.json.id, name: "x", frequency: "monthly", warehouseId: whUtama.id, startDate: "2026-07-15", lines: [{ productId: svc.json.id, qty: 1, unitPrice: 1 }] });
+  check("viewer DITOLAK membuat kontrak (403)", viewerContract.status === 403);
+
+  const contract = await owner("POST", `/api/tenants/${tenantId}/contracts`, {
+    code: "lgn-01",
+    contactId: customer.json.id,
+    name: "Langganan Maintenance",
+    frequency: "monthly",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    startDate: "2026-07-15",
+    lines: [{ productId: svc.json.id, qty: 1, unitPrice: 500_000 }],
+  });
+  check("buat kontrak bulanan 201", contract.status === 201, `→ ${JSON.stringify(contract.json)}`);
+
+  const dupContract = await owner("POST", `/api/tenants/${tenantId}/contracts`, { code: "LGN-01", contactId: customer.json.id, name: "Duplikat", frequency: "monthly", warehouseId: whUtama.id, startDate: "2026-07-15", lines: [{ productId: svc.json.id, qty: 1, unitPrice: 1 }] });
+  check("kode kontrak ganda DITOLAK 409", dupContract.status === 409);
+
+  const invCountBeforeBill = (await owner("GET", `/api/tenants/${tenantId}/invoices`)).json?.docs?.length ?? 0;
+
+  const bill1 = await owner("POST", `/api/tenants/${tenantId}/contracts/run-billing`, { date: "2026-07-15" });
+  check("tagihan 15 Jul: 1 faktur (500rb) terbit", bill1.status === 200 && bill1.json?.issued === 1 && bill1.json?.total === 500_000, `→ ${JSON.stringify(bill1.json)}`);
+
+  const invCountAfterBill = (await owner("GET", `/api/tenants/${tenantId}/invoices`)).json?.docs?.length ?? 0;
+  check("faktur baru muncul di daftar penjualan", invCountAfterBill === invCountBeforeBill + 1);
+
+  const ctList = await owner("GET", `/api/tenants/${tenantId}/contracts`);
+  const ct1 = ctList.json?.contracts?.find((c) => c.id === contract.json.id);
+  check("tanggal tagih maju ke 2026-08-15, 1 faktur terbit", ct1?.nextInvoiceDate === "2026-08-15" && ct1?.invoiceCount === 1);
+
+  const bill1b = await owner("POST", `/api/tenants/${tenantId}/contracts/run-billing`, { date: "2026-07-15" });
+  check("menagih ulang tanggal sama: 0 faktur (belum jatuh tempo)", bill1b.json?.issued === 0);
+
+  const bill2 = await owner("POST", `/api/tenants/${tenantId}/contracts/run-billing`, { date: "2026-08-15" });
+  check("tagihan 15 Agu: 1 faktur lagi terbit", bill2.json?.issued === 1);
+
+  // Produk jasa tak menggerakkan stok — pastikan tak ada baris stok untuk JASA-01.
+  const stockSvc = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  check("produk jasa tidak muncul di level stok", !stockSvc.json?.levels?.some((l) => l.sku === "JASA-01"));
+
+  const tbAfterContract = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah tagihan kontrak", tbAfterContract.json?.balanced === true);
+
+  // --- Konsolidasi multi-perusahaan (Fase 2t) ------------------------------------
+  console.log("11n. Konsolidasi multi-perusahaan (laporan gabungan lintas tenant)");
+
+  // Owner "budi" membuat perusahaan kedua di bawah akun yang sama. Pagar
+  // anti-abuse mensyaratkan akun sudah berlangganan, jadi tenant diaktifkan
+  // lewat admin set-plan (budi = platform admin).
+  //
+  // Baris pengembalian di bawahnya dulu berbunyi `{ plan: "trial", status:
+  // "trial" }` — DUA nilai yang sudah dihapus Fase 24. Panggilan itu karena itu
+  // selalu ditolak 400 dan tenant sebenarnya tetap `active` sepanjang suite.
+  // Menormalkannya menjadi nilai yang sah justru mematahkan enam cek form lead
+  // publik 1.800 baris di bawah sini (form hanya melayani tenant
+  // `active`/`past_due`). Jadi pengembaliannya dihapus, bukan diperbaiki:
+  // `active` memang keadaan yang selama ini berlaku.
+  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, { plan: "lengkap", status: "active" });
+  const co2 = await owner("POST", "/api/auth/companies", { companyName: "PT Anak Usaha" });
+  check("buat perusahaan kedua 201", co2.status === 201, `→ ${co2.status} ${JSON.stringify(co2.json)}`);
+  const tenant2 = co2.json?.tenantId;
+
+  const meMulti = await owner("GET", "/api/auth/me");
+  check("owner kini memiliki 2 keanggotaan", (meMulti.json?.memberships?.length ?? 0) === 2);
+
+  // Isolasi: perusahaan kedua punya bagan akun bersih & pembukuan terpisah.
+  const acc2 = (await owner("GET", `/api/tenants/${tenant2}/accounts`)).json?.accounts ?? [];
+  const kas2 = acc2.find((a) => a.code === "1-1000");
+  const modal2 = acc2.find((a) => a.code === "3-1000");
+  const pend2 = acc2.find((a) => a.code === "4-1000");
+  const beban2 = acc2.find((a) => a.code === "5-2000");
+  check("perusahaan kedua tersemai COA (26 akun)", acc2.length === 26 && Boolean(kas2 && modal2 && pend2 && beban2), `→ ${acc2.length}`);
+
+  // Pembukuan perusahaan kedua (tanpa tutup buku): modal 30jt, pendapatan 20jt, beban 8jt.
+  await owner("POST", `/api/tenants/${tenant2}/journal-entries`, {
+    entryDate: "2026-07-01",
+    memo: "Setoran modal PT Anak Usaha",
+    lines: [
+      { accountId: kas2.id, debit: 30_000_000, credit: 0 },
+      { accountId: modal2.id, debit: 0, credit: 30_000_000 },
+    ],
+  });
+  await owner("POST", `/api/tenants/${tenant2}/journal-entries`, {
+    entryDate: "2026-07-05",
+    memo: "Pendapatan jasa",
+    lines: [
+      { accountId: kas2.id, debit: 20_000_000, credit: 0 },
+      { accountId: pend2.id, debit: 0, credit: 20_000_000 },
+    ],
+  });
+  await owner("POST", `/api/tenants/${tenant2}/journal-entries`, {
+    entryDate: "2026-07-06",
+    memo: "Beban gaji",
+    lines: [
+      { accountId: beban2.id, debit: 8_000_000, credit: 0 },
+      { accountId: kas2.id, debit: 0, credit: 8_000_000 },
+    ],
+  });
+
+  const companiesRes = await owner("GET", "/api/consolidation/companies");
+  check(
+    "daftar perusahaan konsolidasi berisi 2 milik owner",
+    companiesRes.status === 200 &&
+      companiesRes.json?.companies?.length === 2 &&
+      companiesRes.json.companies.some((c) => c.tenantId === tenantId) &&
+      companiesRes.json.companies.some((c) => c.tenantId === tenant2),
+  );
+
+  // Isolasi: user lain (viewer) hanya melihat perusahaan yang IA miliki, bukan milik owner.
+  const viewerCompanies = await viewer("GET", "/api/consolidation/companies");
+  check(
+    "user lain tidak melihat perusahaan owner (isolasi kepemilikan)",
+    viewerCompanies.status === 200 &&
+      viewerCompanies.json?.companies?.length === 1 &&
+      !viewerCompanies.json.companies.some((c) => c.tenantId === tenantId || c.tenantId === tenant2),
+  );
+
+  const consAnonClient = makeClient();
+  const consAnon = await consAnonClient("GET", "/api/consolidation/companies");
+  check("konsolidasi tanpa sesi DITOLAK 401", consAnon.status === 401);
+
+  // --- Fase 26a (temuan audit J1): konsolidasi adalah modul Enterprise, tetapi
+  // endpoint-nya HANYA memakai requireAuth. Middleware paket per-path tidak bisa
+  // menolongnya: rute ini sengaja di-mount di luar /api/tenants/:tenantId/ karena
+  // menjangkau banyak tenant sekaligus. Diuji lewat pemilik yang hanya memiliki
+  // SATU perusahaan, paketnya diturunkan sementara lalu dikembalikan.
+  const viewerOwnTenant = viewerCompanies.json?.companies?.[0]?.tenantId;
+  check("26a fixture: user kedua memiliki tepat satu perusahaan", Boolean(viewerOwnTenant));
+  await owner("POST", `/api/admin/tenants/${viewerOwnTenant}/plan`, { plan: "lengkap", status: "active" });
+  // Fase 30: paywall konsolidasi DICABUT. Yang diuji kini bukan "paket rendah
+  // ditolak" melainkan "terbuka untuk semua pelanggan, TANPA membocorkan
+  // perusahaan orang lain" — batas kepemilikan adalah satu-satunya penahan
+  // yang tersisa di rute ini.
+  const consTerbuka = await viewer("GET", "/api/consolidation/companies");
+  check(
+    "30 konsolidasi terbuka untuk semua pelanggan (200, bukan 403 upgrade)",
+    consTerbuka.status === 200 && consTerbuka.json?.detail !== "plan-upgrade-required",
+    `→ ${consTerbuka.status} ${JSON.stringify(consTerbuka.json)}`,
+  );
+  check(
+    "30 konsolidasi HANYA memuat perusahaan milik pemanggil (batas kepemilikan)",
+    Array.isArray(consTerbuka.json?.companies) &&
+      consTerbuka.json.companies.every((k) => k.tenantId === viewerOwnTenant),
+    `→ ${JSON.stringify(consTerbuka.json?.companies)}`,
+  );
+  const consIS30 = await viewer("GET", "/api/consolidation/income-statement?from=2026-07-01&to=2026-07-31");
+  check("30 laporan konsolidasi ikut terbuka (200)", consIS30.status === 200, `→ ${consIS30.status}`);
+
+  // Laba Rugi konsolidasi = jumlah laporan tunggal tiap perusahaan (invariant).
+  const win = "from=2026-07-01&to=2026-07-31";
+  const is1 = (await owner("GET", `/api/tenants/${tenantId}/reports/income-statement?${win}`)).json;
+  const is2 = (await owner("GET", `/api/tenants/${tenant2}/reports/income-statement?${win}`)).json;
+  const consIS = await owner("GET", `/api/consolidation/income-statement?${win}`);
+  check(
+    "laba rugi konsolidasi = penjumlahan laporan tiap perusahaan",
+    consIS.status === 200 &&
+      consIS.json?.companies?.length === 2 &&
+      consIS.json.totalIncome === is1.totalIncome + is2.totalIncome &&
+      consIS.json.totalExpense === is1.totalExpense + is2.totalExpense &&
+      consIS.json.netProfit === is1.netProfit + is2.netProfit,
+    `→ ${JSON.stringify({ c: consIS.json?.netProfit, a: is1?.netProfit, b: is2?.netProfit })}`,
+  );
+  check(
+    "perusahaan kedua: pendapatan 20jt, beban 8jt, laba 12jt (rincian per perusahaan)",
+    consIS.json?.totalIncomeByCompany?.[tenant2] === 20_000_000 &&
+      consIS.json?.totalExpenseByCompany?.[tenant2] === 8_000_000 &&
+      consIS.json?.netProfitByCompany?.[tenant2] === 12_000_000,
+    `→ ${JSON.stringify(consIS.json?.netProfitByCompany)}`,
+  );
+  const pendRow = consIS.json?.income?.find((r) => r.code === "4-1000");
+  check(
+    "baris Pendapatan Penjualan menyimpan nilai per perusahaan",
+    pendRow?.amounts?.[tenant2] === 20_000_000,
+  );
+
+  // Filter perusahaan: hanya perusahaan kedua → laporan tunggalnya.
+  const consFiltered = await owner("GET", `/api/consolidation/income-statement?${win}&companies=${tenant2}`);
+  check(
+    "filter companies=tenant2 → hanya 1 perusahaan, laba 12jt",
+    consFiltered.json?.companies?.length === 1 && consFiltered.json?.netProfit === 12_000_000,
+  );
+
+  // Neraca konsolidasi = jumlah neraca tiap perusahaan, tetap seimbang.
+  const bs1 = (await owner("GET", `/api/tenants/${tenantId}/reports/balance-sheet?asOf=2026-07-31`)).json;
+  const bs2 = (await owner("GET", `/api/tenants/${tenant2}/reports/balance-sheet?asOf=2026-07-31`)).json;
+  const consBS = await owner("GET", "/api/consolidation/balance-sheet?asOf=2026-07-31");
+  check(
+    "neraca konsolidasi seimbang & total = penjumlahan (aset 42jt utk perusahaan kedua)",
+    consBS.status === 200 &&
+      consBS.json?.balanced === true &&
+      consBS.json.totalAssets === bs1.totalAssets + bs2.totalAssets &&
+      consBS.json.totalEquity === bs1.totalEquity + bs2.totalEquity &&
+      consBS.json.totalAssetsByCompany?.[tenant2] === 42_000_000,
+    `→ ${JSON.stringify({ ta: consBS.json?.totalAssets, a2: consBS.json?.totalAssetsByCompany?.[tenant2] })}`,
+  );
+
+  // Eliminasi antar-perusahaan (Fase 20f). Akun Pendapatan Penjualan di
+  // perusahaan kedua ditandai antar-perusahaan, lalu konsolidasi diminta ulang:
+  // pendapatannya HARUS keluar dari total, sementara barisnya tetap tampil
+  // (ditandai) supaya angkanya bisa ditelusuri.
+  const accs2 = (await owner("GET", `/api/tenants/${tenant2}/accounts`)).json?.accounts ?? [];
+  const pend2Acc = accs2.find((a) => a.code === "4-1000");
+  check("akun awalnya BUKAN antar-perusahaan", pend2Acc?.isIntercompany === false);
+
+  const tandai = await owner("PATCH", `/api/tenants/${tenant2}/accounts/${pend2Acc.id}/intercompany`, {
+    isIntercompany: true,
+  });
+  check("tandai akun sebagai antar-perusahaan 200", tandai.status === 200);
+
+  const consElim = await owner("GET", `/api/consolidation/income-statement?${win}`);
+  const barisElim = consElim.json?.income?.find((r) => r.code === "4-1000");
+  check(
+    "baris antar-perusahaan DITANDAI tapi tetap tampil (bisa ditelusuri)",
+    barisElim?.eliminated === true && barisElim?.total > 0,
+    `→ ${JSON.stringify(barisElim && { e: barisElim.eliminated, t: barisElim.total })}`,
+  );
+  check(
+    "pendapatan antar-perusahaan DIKELUARKAN dari total konsolidasi",
+    consElim.json?.eliminatedIncome === barisElim?.total &&
+      consElim.json?.totalIncome === consIS.json?.totalIncome - barisElim?.total,
+    `→ elim=${consElim.json?.eliminatedIncome} total=${consElim.json?.totalIncome} sebelum=${consIS.json?.totalIncome}`,
+  );
+  check(
+    "laba konsolidasi ikut turun sebesar yang dieliminasi",
+    consElim.json?.netProfit === consIS.json?.netProfit - barisElim?.total,
+    `→ ${consElim.json?.netProfit} vs ${consIS.json?.netProfit}`,
+  );
+
+  // Dikembalikan supaya blok setelah ini memakai angka yang sama seperti semula.
+  const lepasTanda = await owner("PATCH", `/api/tenants/${tenant2}/accounts/${pend2Acc.id}/intercompany`, {
+    isIntercompany: false,
+  });
+  check("lepas tanda antar-perusahaan 200", lepasTanda.status === 200);
+  const consPulih = await owner("GET", `/api/consolidation/income-statement?${win}`);
+  check(
+    "setelah tanda dilepas, total konsolidasi kembali seperti semula",
+    consPulih.json?.totalIncome === consIS.json?.totalIncome && consPulih.json?.eliminatedIncome === 0,
+  );
+
+  // --- Fase 30: SELURUH modul terbuka (dulu matriks modul × paket) -----------
+  // Blok ini dulu menguji matriks penguncian: Starter ditolak payroll, Business
+  // ditolak cost-centers, dan seterusnya. Paket bertingkat dibubarkan, jadi yang
+  // diuji sekarang adalah kebalikannya — bahwa modul yang DULU terkunci kini
+  // benar-benar bisa dipakai lewat HTTP, bukan sekadar tombolnya muncul di layar.
+  //
+  // Ini pembuktian inti Fase 30: paywall dicabut di API, bukan disembunyikan di UI.
+  console.log("11n2. Seluruh modul terbuka pada paket tunggal (Fase 30)");
+  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap", status: "active" });
+
+  const modulDuluTerkunci = [
+    ["employees", "HR & Penggajian (dulu Business)"],
+    ["cost-centers", "Dimensi / cost center (dulu Enterprise)"],
+    ["currencies", "Multi mata uang (dulu Business)"],
+    ["security", "Keamanan lanjutan (dulu Enterprise)"],
+    ["api-keys", "API publik (dulu Enterprise)"],
+    ["requisitions", "Pengadaan (dulu Business)"],
+    ["report-snapshots", "Laporan terjadwal (dulu Business)"],
+    ["departments", "Struktur organisasi (dulu Business)"],
+  ];
+  for (const [segmen, label] of modulDuluTerkunci) {
+    const res = await owner("GET", `/api/tenants/${tenant2}/${segmen}`);
+    check(
+      `30 ${label} terbuka (200, bukan 403 upgrade)`,
+      res.status === 200 && res.json?.detail !== "plan-upgrade-required",
+      `→ ${res.status} ${JSON.stringify(res.json)}`,
+    );
+  }
+
+  const starterCore = await owner("GET", `/api/tenants/${tenant2}/accounts`);
+  check("30 modul inti (akun) tetap terbuka (200)", starterCore.status === 200, `→ ${starterCore.status}`);
+
+  // Peran kustom (temuan audit G Fase 26a) dulu terkunci paket Business.
+  const rolesTerbuka = await owner("POST", `/api/tenants/${tenant2}/roles`, {
+    name: "Peran Fase 30",
+    baseRole: "viewer",
+    permissions: ["penjualan"],
+  });
+  check(
+    "30 peran kustom terbuka (201, bukan 403 upgrade)",
+    rolesTerbuka.status === 201 && rolesTerbuka.json?.detail !== "plan-upgrade-required",
+    `→ ${rolesTerbuka.status} ${JSON.stringify(rolesTerbuka.json)}`,
+  );
+
+  // Penegak pencabutan: kode galat paket tidak boleh muncul lagi di jalur mana pun.
+  const jalurPeriksa = ["employees", "cost-centers", "security", "api-keys", "roles"];
+  let sisaPaywall = 0;
+  for (const segmen of jalurPeriksa) {
+    const res = await owner("GET", `/api/tenants/${tenant2}/${segmen}`);
+    if (res.json?.detail === "plan-upgrade-required") sisaPaywall++;
+  }
+  check("30 TIDAK ada sisa respons plan-upgrade-required di API", sisaPaywall === 0, `→ ${sisaPaywall} jalur masih menolak`);
+
+  // --- Fase 13g: keamanan lanjutan (2FA wajib + pembatasan IP + audit CSV) ---
+  // Sejak Fase 30 modul ini terbuka untuk semua pelanggan.
+  console.log("10s. Keamanan enterprise (2FA wajib, pembatasan IP, ekspor audit CSV)");
+  const secGet0 = await owner("GET", `/api/tenants/${tenant2}/security`);
+  check(
+    "keamanan: GET /security 200 (default: 2FA off, tanpa IP)",
+    secGet0.status === 200 && secGet0.json?.require2fa === false && Array.isArray(secGet0.json?.allowedIps) && secGet0.json.allowedIps.length === 0 && typeof secGet0.json?.currentIp === "string",
+    `→ ${secGet0.status} ${JSON.stringify(secGet0.json)}`,
+  );
+
+  // Validasi CIDR pada PATCH.
+  const secBadIp = await owner("PATCH", `/api/tenants/${tenant2}/security`, { require2fa: false, allowedIps: ["999.1.1.1"] });
+  check("keamanan: PATCH tolak CIDR tak valid (400)", secBadIp.status === 400, `→ ${secBadIp.status}`);
+
+  // Aktifkan 2FA wajib → owner (budi) tanpa TOTP diblokir di endpoint tenant biasa,
+  // tetapi endpoint /security TETAP terjangkau (katup pengaman).
+  const set2fa = await owner("PATCH", `/api/tenants/${tenant2}/security`, { require2fa: true, allowedIps: [] });
+  check("keamanan: PATCH aktifkan 2FA wajib 200", set2fa.status === 200 && set2fa.json?.require2fa === true, `→ ${set2fa.status} ${JSON.stringify(set2fa.json)}`);
+  const blocked2fa = await owner("GET", `/api/tenants/${tenant2}/accounts`);
+  check(
+    "keamanan: anggota tanpa TOTP diblokir 403 2fa-required",
+    blocked2fa.status === 403 && blocked2fa.json?.detail === "2fa-required",
+    `→ ${blocked2fa.status} ${JSON.stringify(blocked2fa.json)}`,
+  );
+  const stillSecurity = await owner("GET", `/api/tenants/${tenant2}/security`);
+  check("keamanan: /security tetap terjangkau walau 2FA wajib (katup pengaman)", stillSecurity.status === 200, `→ ${stillSecurity.status}`);
+  // Matikan lagi 2FA wajib.
+  await owner("PATCH", `/api/tenants/${tenant2}/security`, { require2fa: false, allowedIps: [] });
+  const unblocked = await owner("GET", `/api/tenants/${tenant2}/accounts`);
+  check("keamanan: setelah 2FA dimatikan, akses normal kembali 200", unblocked.status === 200, `→ ${unblocked.status}`);
+
+  // Pembatasan IP: hanya 203.0.113.0/24 yang diizinkan.
+  await owner("PATCH", `/api/tenants/${tenant2}/security`, { require2fa: false, allowedIps: ["203.0.113.0/24"] });
+  const ipBlocked = await owner("GET", `/api/tenants/${tenant2}/accounts`, undefined, { "cf-connecting-ip": "198.51.100.9" });
+  check(
+    "keamanan: IP di luar daftar → 403 ip-not-allowed",
+    ipBlocked.status === 403 && ipBlocked.json?.detail === "ip-not-allowed",
+    `→ ${ipBlocked.status} ${JSON.stringify(ipBlocked.json)}`,
+  );
+  const ipAllowed = await owner("GET", `/api/tenants/${tenant2}/accounts`, undefined, { "cf-connecting-ip": "203.0.113.42" });
+  check("keamanan: IP dalam rentang CIDR → 200", ipAllowed.status === 200, `→ ${ipAllowed.status}`);
+  const secConfigFromBadIp = await owner("GET", `/api/tenants/${tenant2}/security`, undefined, { "cf-connecting-ip": "198.51.100.9" });
+  check("keamanan: /security terjangkau dari IP mana pun (katup pengaman)", secConfigFromBadIp.status === 200, `→ ${secConfigFromBadIp.status}`);
+
+  // Ekspor audit CSV (dari IP yang diizinkan) → text/csv berisi header.
+  const auditCsv = await owner("GET", `/api/tenants/${tenant2}/security/audit.csv`, undefined, { "cf-connecting-ip": "203.0.113.42" });
+  check(
+    "keamanan: ekspor audit CSV 200 + header kolom",
+    auditCsv.status === 200 && typeof auditCsv.text === "string" && auditCsv.text.includes("waktu,aksi,pengguna,email,ip,detail"),
+    `→ ${auditCsv.status}`,
+  );
+  // Bersihkan kebijakan keamanan agar uji berikutnya (grandfather/trial) tak terhalang.
+  await owner("PATCH", `/api/tenants/${tenant2}/security`, { require2fa: false, allowedIps: [] });
+
+  // --- Fase 13h: API publik (Bearer key) + webhook ---------------------------
+  console.log("10t. API publik (Bearer key) + webhook");
+  // Kunci dibuat di perusahaan utama (trial = akses penuh apiAccess).
+  const readKeyRes = await owner("POST", `/api/tenants/${tenantId}/api-keys`, { name: "Kunci Baca", scope: "read" });
+  const writeKeyRes = await owner("POST", `/api/tenants/${tenantId}/api-keys`, { name: "Kunci Tulis", scope: "write" });
+  check(
+    "api: buat API key read+write 201 + kunci penuh (erpk_) ditampilkan sekali",
+    readKeyRes.status === 201 && /^erpk_/.test(readKeyRes.json?.key ?? "") && writeKeyRes.status === 201 && /^erpk_/.test(writeKeyRes.json?.key ?? ""),
+    `→ ${readKeyRes.status}/${writeKeyRes.status}`,
+  );
+  const readKey = readKeyRes.json?.key;
+  const writeKey = writeKeyRes.json?.key;
+
+  // Klien API v1 tanpa cookie — hanya header Authorization Bearer.
+  const v1 = async (method, path, body, key) => {
+    const res = await fetch(`${BASE}/api/v1${path}`, {
+      method,
+      headers: { "Content-Type": "application/json", ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const text = await res.text();
+    let json = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      /* non-JSON */
+    }
+    return { status: res.status, json, text };
+  };
+
+  const noKey = await v1("GET", "/products");
+  check("api: tanpa key → 401 missing-api-key", noKey.status === 401 && noKey.json?.detail === "missing-api-key", `→ ${noKey.status}`);
+  const badKey = await v1("GET", "/products", undefined, "erpk_kunci-palsu");
+  check("api: key tak valid → 401 invalid-api-key", badKey.status === 401 && badKey.json?.detail === "invalid-api-key", `→ ${badKey.status}`);
+  const listProd = await v1("GET", "/products", undefined, readKey);
+  check("api: GET /products (read key) → 200 + data array", listProd.status === 200 && Array.isArray(listProd.json?.data), `→ ${listProd.status}`);
+  const scopeDenied = await v1("POST", "/contacts", { type: "customer", name: "Ditolak" }, readKey);
+  check("api: POST dgn read key → 403 insufficient-scope", scopeDenied.status === 403 && scopeDenied.json?.detail === "insufficient-scope", `→ ${scopeDenied.status}`);
+  const apiContact = await v1("POST", "/contacts", { type: "customer", name: "PT API Client" }, writeKey);
+  check("api: POST /contacts (write key) → 201", apiContact.status === 201 && Boolean(apiContact.json?.id), `→ ${apiContact.status} ${JSON.stringify(apiContact.json)}`);
+  const apiProduct = await v1("POST", "/products", { sku: "API-001", name: "Produk via API", unit: "pcs", sellPrice: 12000, buyPrice: 8000 }, writeKey);
+  check("api: POST /products (write key) → 201", apiProduct.status === 201, `→ ${apiProduct.status} ${JSON.stringify(apiProduct.json)}`);
+  const apiSummary = await v1("GET", "/reports/summary", undefined, readKey);
+  check("api: GET /reports/summary → 200 + period", apiSummary.status === 200 && typeof apiSummary.json?.data?.period === "string", `→ ${apiSummary.status}`);
+  // Cabut read key → tak bisa dipakai lagi.
+  await owner("DELETE", `/api/tenants/${tenantId}/api-keys/${readKeyRes.json.id}`);
+  const afterRevoke = await v1("GET", "/products", undefined, readKey);
+  check("api: kunci dicabut → 401", afterRevoke.status === 401, `→ ${afterRevoke.status}`);
+
+  // Fase 30: API publik dulu terkunci paket Enterprise. Kini kuncinya semata
+  // kepemilikan API key yang sah + skop-nya — jadi yang diuji adalah kunci sah
+  // milik tenant lain BERHASIL, bukan ditolak paket.
+  const t2Key = await owner("POST", `/api/tenants/${tenant2}/api-keys`, { name: "K2", scope: "read" });
+  const gated = await v1("GET", "/products", undefined, t2Key.json?.key);
+  check(
+    "30 API publik terbuka untuk kunci sah (200, bukan 403 upgrade)",
+    gated.status === 200 && gated.json?.detail !== "plan-upgrade-required",
+    `→ ${gated.status} ${JSON.stringify(gated.json)}`,
+  );
+
+  // --- Fase 26d (temuan audit E): kebijakan tujuan webhook ------------------------
+  //
+  // Validasi lama hanya `z.string().url()` — pemeriksaan BENTUK, bukan jaringan:
+  // `http://localhost` dan `http://169.254.169.254` lolos. Empat cek berikut
+  // mengunci penolakannya di pintu masuk, dengan pesan yang bisa ditindaklanjuti.
+  //
+  // Catatan: URL loopback yang dulu dipakai blok ini sendiri (`${BASE}/…`) kini
+  // ikut ditolak. Ujinya yang menyesuaikan — bukan kebijakannya yang dilonggarkan.
+  for (const [nama, url] of [
+    ["http polos", "http://contoh.id/hook"],
+    ["loopback", "http://127.0.0.1/hook"],
+    ["IP privat", "https://10.0.0.1/hook"],
+    ["metadata link-local", "https://169.254.169.254/latest/meta-data"],
+    ["kredensial di URL", "https://a:b@contoh.id/hook"],
+  ]) {
+    const tolak = await owner("POST", `/api/tenants/${tenantId}/webhooks`, { url, events: ["invoice.created"] });
+    check(`26d webhook DITOLAK ${nama} (400)`, tolak.status === 400, `→ ${tolak.status} ${JSON.stringify(tolak.json)}`);
+  }
+
+  // Webhook: daftar → buat faktur (jasa) → antre → flush → status pengiriman.
+  //
+  // Tujuannya https publik yang tidak akan terjawab dari sandbox smoke; itu tidak
+  // mengurangi cakupan, karena yang diuji blok ini adalah MESIN antreannya
+  // (antre → percobaan → status akhir), dan asersinya memang menerima
+  // delivered maupun failed. Tujuan lama (loopback ke Worker sendiri) juga tidak
+  // pernah benar-benar "delivered": ia dijawab 403 karena tanpa token callback.
+  const wh = await owner("POST", `/api/tenants/${tenantId}/webhooks`, { url: "https://webhook.contoh.id/erpindo", events: ["invoice.created"] });
+  check("api: buat webhook 201 + secret (whsec_) sekali", wh.status === 201 && /^whsec_/.test(wh.json?.secret ?? ""), `→ ${wh.status}`);
+  const svcWh = await owner("POST", `/api/tenants/${tenantId}/products`, { sku: "JASA-WH", name: "Jasa Webhook", unit: "jam", sellPrice: 100000, buyPrice: 0, isService: true });
+  const whInv = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-07-20",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    lines: [{ productId: svcWh.json.id, qty: 1, unitPrice: 100000 }],
+  });
+  check("api: faktur jasa terbit (memicu invoice.created)", whInv.status === 201, `→ ${whInv.status} ${JSON.stringify(whInv.json)}`);
+  const pending = await owner("GET", `/api/tenants/${tenantId}/webhooks/deliveries`);
+  check("api: pengiriman webhook terantre utk invoice.created", (pending.json?.deliveries ?? []).some((d) => d.event === "invoice.created"), `→ ${JSON.stringify(pending.json?.deliveries?.[0])}`);
+  const flush = await owner("POST", `/api/tenants/${tenantId}/webhooks/deliveries/run`);
+  check("api: flush antrean webhook 200", flush.status === 200, `→ ${JSON.stringify(flush.json)}`);
+  const afterFlush = await owner("GET", `/api/tenants/${tenantId}/webhooks/deliveries`);
+  const del = (afterFlush.json?.deliveries ?? []).find((d) => d.event === "invoice.created");
+  check(
+    "api: pengiriman diproses (attempts≥1, hasilnya tercatat)",
+    Boolean(del) && del.attempts >= 1 && (del.status === "delivered" || Boolean(del.last_error)),
+    `→ ${JSON.stringify(del)}`,
+  );
+
+  // Halaman dokumentasi API publik SSR terlayani.
+  const apiDocs = await fetch(`${BASE}/api-docs`);
+  const apiDocsHtml = await apiDocs.text();
+  check(
+    "api: /api-docs SSR 200 + judul + basis URL",
+    apiDocs.status === 200 && apiDocsHtml.includes("Dokumentasi API ERPindo") && apiDocsHtml.includes("/api/v1"),
+    `→ ${apiDocs.status}`,
+  );
+
+  // --- Fase 13i: penomoran dokumen kustom -----------------------------------
+  console.log("10u. Penomoran dokumen kustom (pola per jenis dokumen)");
+  // Tolak pola tanpa {SEQ}.
+  const badPattern = await owner("PATCH", `/api/tenants/${tenantId}/doc-numbering`, { invoice: "TST-{YYYY}" });
+  check("penomoran: pola tanpa {SEQ} → 400", badPattern.status === 400, `→ ${badPattern.status}`);
+  // Set pola faktur kustom (reset per bulan).
+  const setPattern = await owner("PATCH", `/api/tenants/${tenantId}/doc-numbering`, { invoice: "TST-{YYYY}{MM}-{SEQ:3}" });
+  check("penomoran: simpan pola faktur 200", setPattern.status === 200 && setPattern.json?.numbering?.invoice === "TST-{YYYY}{MM}-{SEQ:3}", `→ ${setPattern.status} ${JSON.stringify(setPattern.json)}`);
+  const getPattern = await owner("GET", `/api/tenants/${tenantId}/doc-numbering`);
+  check("penomoran: GET mengembalikan pola tersimpan", getPattern.json?.numbering?.invoice === "TST-{YYYY}{MM}-{SEQ:3}", `→ ${JSON.stringify(getPattern.json)}`);
+  // Faktur jasa Juli 2026 → TST-202607-001, lalu 002.
+  const dnInv1 = await owner("POST", `/api/tenants/${tenantId}/invoices`, { contactId: customer.json.id, invoiceDate: "2026-07-22", taxRate: 0, warehouseId: whUtama.id, lines: [{ productId: svcWh.json.id, qty: 1, unitPrice: 50000 }] });
+  check("penomoran: faktur pertama → TST-202607-001", dnInv1.status === 201 && dnInv1.json?.docNo === "TST-202607-001", `→ ${dnInv1.status} ${dnInv1.json?.docNo}`);
+  const dnInv2 = await owner("POST", `/api/tenants/${tenantId}/invoices`, { contactId: customer.json.id, invoiceDate: "2026-07-23", taxRate: 0, warehouseId: whUtama.id, lines: [{ productId: svcWh.json.id, qty: 1, unitPrice: 50000 }] });
+  check("penomoran: faktur kedua bulan sama → TST-202607-002 (urut per periode)", dnInv2.json?.docNo === "TST-202607-002", `→ ${dnInv2.json?.docNo}`);
+  // Reset ke bawaan (kosong) → faktur berikutnya kembali format INV-.
+  const resetPattern = await owner("PATCH", `/api/tenants/${tenantId}/doc-numbering`, {});
+  check("penomoran: reset ke bawaan 200 + kosong", resetPattern.status === 200 && !resetPattern.json?.numbering?.invoice, `→ ${resetPattern.status} ${JSON.stringify(resetPattern.json)}`);
+  const dnInv3 = await owner("POST", `/api/tenants/${tenantId}/invoices`, { contactId: customer.json.id, invoiceDate: "2026-07-24", taxRate: 0, warehouseId: whUtama.id, lines: [{ productId: svcWh.json.id, qty: 1, unitPrice: 50000 }] });
+  check("penomoran: setelah reset, faktur kembali format bawaan INV-", /^INV-\d{5}$/.test(dnInv3.json?.docNo ?? ""), `→ ${dnInv3.json?.docNo}`);
+
+  // Grandfather (Fase 30): `legacy_full_access` tidak lagi membuka modul —
+  // seluruh modul memang sudah terbuka. Penandanya DIPERTAHANKAN karena masih
+  // dipakai jalur comped & lencana pelanggan awal; yang diuji di sini adalah
+  // menyetelnya tidak MERUSAK akses, bukan bahwa ia yang memberikannya.
+  const setLegacy = await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap", status: "active", legacyFullAccess: true });
+  check("30 set legacy_full_access 200", setLegacy.status === 200, `→ ${setLegacy.status}`);
+  const legacyPayroll = await owner("GET", `/api/tenants/${tenant2}/employees`);
+  check("30 legacy_full_access: modul tetap terbuka (200)", legacyPayroll.status === 200, `→ ${legacyPayroll.status}`);
+
+  // set-plan hanya untuk platform admin (dewi comped = admin biasa, bukan platform admin).
+  const notAdminSetPlan = await admin("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap" });
+  check("set-plan oleh non-admin platform → 403", notAdminSetPlan.status === 403, `→ ${notAdminSetPlan.status}`);
+
+  // Kembalikan tenant2 ke starter (bebas legacy) agar uji siklus di bawah tak berubah.
+  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap", status: "active", legacyFullAccess: false });
+
+
+  // --- Manufaktur + QC (Fase 2u) -------------------------------------------------
+  console.log("11o. Manufaktur + QC (BoM, produksi biaya gabungan, inspeksi QC)");
+
+  const kayu = await owner("POST", `/api/tenants/${tenantId}/products`, { sku: "BHN-KAYU", name: "Kayu Jati", unit: "batang", sellPrice: 60_000 });
+  const paku = await owner("POST", `/api/tenants/${tenantId}/products`, { sku: "BHN-PAKU", name: "Paku", unit: "pcs", sellPrice: 1_500 });
+  const meja = await owner("POST", `/api/tenants/${tenantId}/products`, { sku: "JADI-MEJA", name: "Meja Kerja", unit: "unit", sellPrice: 500_000 });
+  check("tambah produk bahan & produk jadi 201", kayu.status === 201 && paku.status === 201 && meja.status === 201);
+
+  // Beli bahan secara kredit (tanpa PPN) — tak menyentuh kas (jaga asersi arus kas).
+  await owner("POST", `/api/tenants/${tenantId}/purchases`, { contactId: supplier.json.id, invoiceDate: "2026-07-15", taxRate: 0, warehouseId: whUtama.id, lines: [{ productId: kayu.json.id, qty: 20, unitPrice: 50_000 }] });
+  await owner("POST", `/api/tenants/${tenantId}/purchases`, { contactId: supplier.json.id, invoiceDate: "2026-07-15", taxRate: 0, warehouseId: whUtama.id, lines: [{ productId: paku.json.id, qty: 100, unitPrice: 1_000 }] });
+  const stockRaw = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const kayuLvl = stockRaw.json?.levels?.find((l) => l.sku === "BHN-KAYU");
+  const pakuLvl = stockRaw.json?.levels?.find((l) => l.sku === "BHN-PAKU");
+  check("stok bahan masuk (kayu 20@50k, paku 100@1k)", kayuLvl?.qty === 20 && kayuLvl?.avgCost === 50_000 && pakuLvl?.qty === 100 && pakuLvl?.avgCost === 1_000);
+
+  // RBAC: viewer tak boleh mengubah BoM.
+  const viewerBom = await viewer("PUT", `/api/tenants/${tenantId}/boms`, { productId: meja.json.id, outputQty: 2, lines: [{ componentId: kayu.json.id, qty: 4 }] });
+  check("viewer DITOLAK menyimpan BoM (403)", viewerBom.status === 403);
+
+  // BoM: 4 kayu + 20 paku menghasilkan 2 meja.
+  const bom = await owner("PUT", `/api/tenants/${tenantId}/boms`, { productId: meja.json.id, outputQty: 2, lines: [{ componentId: kayu.json.id, qty: 4 }, { componentId: paku.json.id, qty: 20 }] });
+  check("simpan BoM Meja 201", bom.status === 201, `→ ${JSON.stringify(bom.json)}`);
+
+  const bomService = await owner("PUT", `/api/tenants/${tenantId}/boms`, { productId: svc.json.id, outputQty: 1, lines: [{ componentId: kayu.json.id, qty: 1 }] });
+  check("BoM untuk produk jasa DITOLAK 400", bomService.status === 400);
+
+  const bomSelf = await owner("PUT", `/api/tenants/${tenantId}/boms`, { productId: meja.json.id, outputQty: 1, lines: [{ componentId: meja.json.id, qty: 1 }] });
+  check("BoM komponen = produk jadi DITOLAK 400", bomSelf.status === 400);
+
+  const ordBad = await owner("POST", `/api/tenants/${tenantId}/production-orders`, { productId: meja.json.id, warehouseId: whUtama.id, qty: 3 });
+  check("jumlah produksi bukan kelipatan hasil resep DITOLAK 400", ordBad.status === 400);
+
+  const viewerOrder = await viewer("POST", `/api/tenants/${tenantId}/production-orders`, { productId: meja.json.id, warehouseId: whUtama.id, qty: 2 });
+  check("viewer DITOLAK membuat perintah produksi (403)", viewerOrder.status === 403);
+
+  const ord1 = await owner("POST", `/api/tenants/${tenantId}/production-orders`, { productId: meja.json.id, warehouseId: whUtama.id, qty: 4 });
+  check("buat perintah produksi 4 unit 201", ord1.status === 201);
+
+  const done1 = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ord1.json.id}/complete`);
+  check("produksi selesai: biaya total 440rb, biaya/unit 110rb", done1.status === 200 && done1.json?.totalCost === 440_000 && done1.json?.unitCost === 110_000, `→ ${JSON.stringify(done1.json)}`);
+
+  const stockProd = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const kayuAfter = stockProd.json?.levels?.find((l) => l.sku === "BHN-KAYU");
+  const pakuAfter = stockProd.json?.levels?.find((l) => l.sku === "BHN-PAKU");
+  const mejaUtama = stockProd.json?.levels?.find((l) => l.sku === "JADI-MEJA" && l.warehouseId === whUtama.id);
+  check("bahan berkurang (kayu 12, paku 60), meja +4 @110k (nilai 440rb)", kayuAfter?.qty === 12 && pakuAfter?.qty === 60 && mejaUtama?.qty === 4 && mejaUtama?.value === 440_000, `→ ${JSON.stringify({ k: kayuAfter?.qty, p: pakuAfter?.qty, m: mejaUtama?.qty, v: mejaUtama?.value })}`);
+
+  const tbAfterProd = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah produksi (netral nilai)", tbAfterProd.json?.balanced === true);
+
+  const qcPass = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ord1.json.id}/qc`, { result: "passed" });
+  check("QC luluskan hasil produksi 200", qcPass.status === 200);
+  const ordListA = await owner("GET", `/api/tenants/${tenantId}/production-orders`);
+  check("status QC menjadi lulus", ordListA.json?.orders?.find((o) => o.id === ord1.json.id)?.qcStatus === "passed");
+
+  // Stok bahan tak cukup untuk 20 unit (butuh 40 kayu, tersedia 12).
+  const ordBig = await owner("POST", `/api/tenants/${tenantId}/production-orders`, { productId: meja.json.id, warehouseId: whUtama.id, qty: 20 });
+  const doneBig = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ordBig.json.id}/complete`);
+  check("produksi melebihi stok bahan DITOLAK 400", doneBig.status === 400);
+
+  // Produksi lagi 2 unit lalu karantina ke gudang kedua.
+  const ord2 = await owner("POST", `/api/tenants/${tenantId}/production-orders`, { productId: meja.json.id, warehouseId: whUtama.id, qty: 2 });
+  const done2 = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ord2.json.id}/complete`);
+  check("produksi 2 unit selesai (biaya 220rb)", done2.status === 200 && done2.json?.totalCost === 220_000);
+
+  const qcQuar = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ord2.json.id}/qc`, { result: "quarantined", warehouseId: wh2.json.id });
+  check("QC karantina memindahkan hasil ke gudang kedua 200", qcQuar.status === 200);
+
+  const stockQc = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const mejaUtama2 = stockQc.json?.levels?.find((l) => l.sku === "JADI-MEJA" && l.warehouseId === whUtama.id);
+  const mejaWh2 = stockQc.json?.levels?.find((l) => l.sku === "JADI-MEJA" && l.warehouseId === wh2.json.id);
+  check("karantina: meja gudang utama 4, gudang karantina 2", mejaUtama2?.qty === 4 && mejaWh2?.qty === 2, `→ ${JSON.stringify({ u: mejaUtama2?.qty, q: mejaWh2?.qty })}`);
+
+  const tbAfterQc = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah karantina QC", tbAfterQc.json?.balanced === true);
+
+  // --- Overhead & tenaga kerja masuk HPP produksi (Fase 21f) ----------------------
+  console.log("11o1b. Overhead & tenaga kerja ke HPP produksi (Fase 21f)");
+  const accsProd = await owner("GET", `/api/tenants/${tenantId}/accounts`);
+  const accPersediaan = accsProd.json?.accounts?.find((a) => a.code === "1-1300");
+  const accDiserap = accsProd.json?.accounts?.find((a) => a.code === "5-2100");
+  check("akun kontra-beban 5-2100 Beban Produksi Diserap tersedia", Boolean(accDiserap), `→ ${accDiserap?.name}`);
+
+  // Beli bahan lagi supaya cukup untuk batch ber-overhead.
+  await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-07-20", taxRate: 0, warehouseId: whUtama.id,
+    lines: [
+      // Harga SAMA dengan kulakan awal: kalau berbeda, biaya rata-rata bergeser
+      // dan angka bahan 440rb di bawah ikut berubah — yang diuji di sini
+      // penyerapan biaya konversi, bukan pergerakan rata-rata.
+      { productId: kayu.json.id, qty: 8, unitPrice: 50_000 },
+      { productId: paku.json.id, qty: 40, unitPrice: 1_000 },
+    ],
+  });
+
+  // Titik ukur SEBELUM: nilai stok total & saldo buku besar Persediaan.
+  const nilaiStokSebelum = (await owner("GET", `/api/tenants/${tenantId}/dashboard`)).json?.inventoryValue;
+  const glPersediaanSebelum = (await owner("GET", `/api/tenants/${tenantId}/ledger/${accPersediaan.id}`)).json?.balance;
+  const glDiserapSebelum = (await owner("GET", `/api/tenants/${tenantId}/ledger/${accDiserap.id}`)).json?.balance;
+
+  const ordOh = await owner("POST", `/api/tenants/${tenantId}/production-orders`, {
+    productId: meja.json.id, warehouseId: whUtama.id, qty: 4,
+    labourCost: 300_000, overheadCost: 100_000,
+  });
+  check("perintah produksi menerima biaya tenaga kerja & overhead 201", ordOh.status === 201, `→ ${ordOh.status}`);
+  const ordOhList = await owner("GET", `/api/tenants/${tenantId}/production-orders`);
+  const ordOhRow = ordOhList.json?.orders?.find((o) => o.id === ordOh.json.id);
+  check(
+    "biaya konversi tersimpan di perintahnya (300rb tenaga + 100rb overhead)",
+    ordOhRow?.labourCost === 300_000 && ordOhRow?.overheadCost === 100_000,
+    `→ ${JSON.stringify(ordOhRow && { l: ordOhRow.labourCost, o: ordOhRow.overheadCost })}`,
+  );
+
+  const doneOh = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ordOh.json.id}/complete`);
+  check(
+    "produksi ber-overhead: bahan 440rb + konversi 400rb = 840rb, 210rb/unit",
+    doneOh.status === 200 && doneOh.json?.totalCost === 840_000 && doneOh.json?.unitCost === 210_000 &&
+      doneOh.json?.biayaDiserap === 400_000,
+    `→ ${JSON.stringify(doneOh.json)}`,
+  );
+
+  // INVARIAN YANG PALING MUDAH PUTUS: nilai stok naik 840rb (440rb bahan yang
+  // hanya berpindah + 400rb konversi yang BARU), sedangkan buku besar Persediaan
+  // hanya boleh naik sebesar konversinya. Tanpa jurnal penyerapan, angka kedua
+  // tidak bergerak sama sekali dan neraca saldo TETAP seimbang — jadi hanya cek
+  // inilah yang bisa menangkapnya.
+  const nilaiStokSesudah = (await owner("GET", `/api/tenants/${tenantId}/dashboard`)).json?.inventoryValue;
+  const glPersediaanSesudah = (await owner("GET", `/api/tenants/${tenantId}/ledger/${accPersediaan.id}`)).json?.balance;
+  const glDiserapSesudah = (await owner("GET", `/api/tenants/${tenantId}/ledger/${accDiserap.id}`)).json?.balance;
+  check(
+    "nilai stok naik 400rb (hanya biaya konversi; bahan cuma berpindah bentuk)",
+    nilaiStokSesudah - nilaiStokSebelum === 400_000,
+    `→ ${nilaiStokSesudah - nilaiStokSebelum}`,
+  );
+  check(
+    "buku besar Persediaan IKUT naik 400rb — GL tidak berpisah dari nilai stok",
+    glPersediaanSesudah - glPersediaanSebelum === 400_000,
+    `→ ${glPersediaanSesudah - glPersediaanSebelum}`,
+  );
+  check(
+    "kontra-beban 5-2100 dikredit 400rb (beban gaji/listrik tidak dihitung dua kali)",
+    glDiserapSesudah - glDiserapSebelum === -400_000,
+    `→ ${glDiserapSesudah - glDiserapSebelum}`,
+  );
+  const tbAfterOh = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah penyerapan biaya produksi", tbAfterOh.json?.balanced === true);
+
+  // Produksi TANPA biaya konversi tidak boleh membuat jurnal apa pun — perilaku
+  // lama harus tetap persis sama.
+  const glDiserapPre0 = (await owner("GET", `/api/tenants/${tenantId}/ledger/${accDiserap.id}`)).json?.balance;
+  const ord0 = await owner("POST", `/api/tenants/${tenantId}/production-orders`, {
+    productId: meja.json.id, warehouseId: whUtama.id, qty: 2,
+  });
+  const done0 = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ord0.json.id}/complete`);
+  const glDiserapPost0 = (await owner("GET", `/api/tenants/${tenantId}/ledger/${accDiserap.id}`)).json?.balance;
+  check(
+    "produksi tanpa biaya konversi: tidak ada jurnal penyerapan (perilaku lama utuh)",
+    done0.status === 200 && done0.json?.biayaDiserap === 0 && glDiserapPost0 === glDiserapPre0,
+    `→ diserap=${done0.json?.biayaDiserap} Δgl=${glDiserapPost0 - glDiserapPre0}`,
+  );
+
+  // --- Manufaktur routing + Proyek Gantt (Fase 7g) -------------------------------
+  console.log("11o2. Manufaktur routing (work center) + Proyek Gantt");
+  const wcViewer = await viewer("POST", `/api/tenants/${tenantId}/work-centers`, { code: "X", name: "X" });
+  check("viewer DITOLAK membuat work center (403)", wcViewer.status === 403);
+  const wc = await owner("POST", `/api/tenants/${tenantId}/work-centers`, { code: "WC-CUT", name: "Pemotongan", hourlyRate: 50_000 });
+  check("buat work center 201", wc.status === 201 && Boolean(wc.json?.id));
+  const wcDup = await owner("POST", `/api/tenants/${tenantId}/work-centers`, { code: "WC-CUT", name: "Lain" });
+  check("kode work center duplikat DITOLAK 409", wcDup.status === 409);
+  const rtStep1 = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ord1.json.id}/routing`, { workCenterId: wc.json.id, name: "Potong kayu", standardCost: 100_000 });
+  check("tambah tahap routing 201", rtStep1.status === 201 && Boolean(rtStep1.json?.id));
+  const badWc = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ord1.json.id}/routing`, { workCenterId: "tidak-ada", name: "X", standardCost: 1 });
+  check("routing dengan work center tak dikenal DITOLAK 400", badWc.status === 400);
+  const stepDone = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ord1.json.id}/routing/${rtStep1.json.id}/complete`, { actualCost: 120_000 });
+  check("catat biaya aktual + selesai 200", stepDone.status === 200);
+  const stepRedone = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ord1.json.id}/routing/${rtStep1.json.id}/complete`, { actualCost: 1 });
+  check("selesaikan tahap yang sudah selesai DITOLAK 409", stepRedone.status === 409);
+  const routing = await owner("GET", `/api/tenants/${tenantId}/production-orders/${ord1.json.id}/routing`);
+  check("routing: standar 100rb, aktual 120rb, varian +20rb", routing.json?.totalStandard === 100_000 && routing.json?.totalActual === 120_000 && routing.json?.variance === 20_000, `→ ${JSON.stringify({ s: routing.json?.totalStandard, a: routing.json?.totalActual, v: routing.json?.variance })}`);
+
+  // Proyek Gantt: jadwal + baseline pada tugas yang sudah ada (projectId/task dari 11k).
+  const schedTask = await owner("PATCH", `/api/tenants/${tenantId}/projects/${projectId}/tasks/${task.json.id}`, { startDate: "2026-09-01", endDate: "2026-09-10", setBaseline: true });
+  check("tetapkan jadwal + baseline tugas 200", schedTask.status === 200);
+  const projAfter = await owner("GET", `/api/tenants/${tenantId}/projects/${projectId}`);
+  const schedTaskRow = projAfter.json?.tasks?.find((t) => t.id === task.json.id);
+  check("tugas menyimpan jadwal & baseline (Gantt)", schedTaskRow?.startDate === "2026-09-01" && schedTaskRow?.endDate === "2026-09-10" && schedTaskRow?.baselineStart === "2026-09-01" && schedTaskRow?.baselineEnd === "2026-09-10", `→ ${JSON.stringify(schedTaskRow && { s: schedTaskRow.startDate, e: schedTaskRow.endDate, bs: schedTaskRow.baselineStart })}`);
+
+  // --- Maintenance / servis aset (Fase 2v) ---------------------------------------
+  // Aset & jurnal bertanggal Agustus (di luar jendela arus kas Juli, setelah kunci 10 Jul).
+  console.log("11p. Maintenance / servis aset (jadwal, work order, biaya)");
+
+  const genset = await owner("POST", `/api/tenants/${tenantId}/assets`, { name: "Genset Pabrik", category: "Mesin", acquisitionDate: "2026-08-01", acquisitionCost: 24_000_000, usefulLifeMonths: 48, residualValue: 0, cashAccountId: kas.id });
+  check("daftarkan aset untuk servis 201", genset.status === 201);
+
+  const viewerSch = await viewer("POST", `/api/tenants/${tenantId}/maintenance/schedules`, { assetId: genset.json.id, name: "x servis", intervalMonths: 1, startDate: "2026-08-05" });
+  check("viewer DITOLAK membuat jadwal servis (403)", viewerSch.status === 403);
+
+  const sch = await owner("POST", `/api/tenants/${tenantId}/maintenance/schedules`, { assetId: genset.json.id, name: "Servis rutin bulanan", intervalMonths: 1, startDate: "2026-08-05" });
+  check("buat jadwal servis 201", sch.status === 201, `→ ${JSON.stringify(sch.json)}`);
+
+  const gen1 = await owner("POST", `/api/tenants/${tenantId}/maintenance/run`, { date: "2026-08-05" });
+  check("terbitkan servis jatuh tempo 5 Agu: 1 work order", gen1.status === 200 && gen1.json?.generated === 1, `→ ${JSON.stringify(gen1.json)}`);
+
+  const gen1b = await owner("POST", `/api/tenants/${tenantId}/maintenance/run`, { date: "2026-08-05" });
+  check("terbitkan ulang tanggal sama: 0 work order (belum jatuh tempo)", gen1b.json?.generated === 0);
+
+  const schList = await owner("GET", `/api/tenants/${tenantId}/maintenance/schedules`);
+  check("tanggal servis berikutnya maju ke 2026-09-05", schList.json?.schedules?.find((s) => s.id === sch.json.id)?.nextDueDate === "2026-09-05");
+
+  const woList1 = await owner("GET", `/api/tenants/${tenantId}/maintenance/work-orders`);
+  const wo1 = woList1.json?.workOrders?.find((w) => w.assetId === genset.json.id && w.status === "open");
+  check("work order otomatis terbit dari jadwal (terbuka)", Boolean(wo1) && wo1.title === "Servis rutin bulanan");
+
+  const woNoAcc = await owner("POST", `/api/tenants/${tenantId}/maintenance/work-orders/${wo1.id}/complete`, { completedDate: "2026-08-20", cost: 500_000 });
+  check("selesaikan work order berbiaya tanpa akun DITOLAK 400", woNoAcc.status === 400);
+
+  const woDone = await owner("POST", `/api/tenants/${tenantId}/maintenance/work-orders/${wo1.id}/complete`, { completedDate: "2026-08-20", cost: 500_000, cashAccountId: kas.id, notes: "Ganti oli & filter" });
+  check("selesaikan work order (biaya 500rb, jurnal beban) 200", woDone.status === 200 && woDone.json?.cost === 500_000);
+
+  const woReDone = await owner("POST", `/api/tenants/${tenantId}/maintenance/work-orders/${wo1.id}/complete`, { completedDate: "2026-08-20", cost: 0 });
+  check("menyelesaikan work order yang sudah selesai DITOLAK 409", woReDone.status === 409);
+
+  const adhoc = await owner("POST", `/api/tenants/${tenantId}/maintenance/work-orders`, { assetId: genset.json.id, title: "Perbaikan mendadak", scheduledDate: "2026-08-25" });
+  check("buat work order ad-hoc 201", adhoc.status === 201);
+  const adhocDone = await owner("POST", `/api/tenants/${tenantId}/maintenance/work-orders/${adhoc.json.id}/complete`, { completedDate: "2026-08-26", cost: 0 });
+  check("selesaikan work order tanpa biaya (tanpa jurnal) 200", adhocDone.status === 200);
+
+  const accForBeban = (await owner("GET", `/api/tenants/${tenantId}/accounts`)).json?.accounts?.find((a) => a.code === "5-7000");
+  const bebanLedger = await owner("GET", `/api/tenants/${tenantId}/ledger/${accForBeban.id}`);
+  check("Beban Pemeliharaan tercatat 500rb di buku besar", bebanLedger.json?.balance === 500_000, `→ ${bebanLedger.json?.balance}`);
+
+  const tbAfterMaint = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah servis aset", tbAfterMaint.json?.balanced === true);
+
+  // --- Helpdesk / tiket dukungan (Fase 2w) ---------------------------------------
+  console.log("11q. Helpdesk (tiket, prioritas/status, penugasan, balasan)");
+
+  const viewerTicket = await viewer("POST", `/api/tenants/${tenantId}/tickets`, { contactId: customer.json.id, subject: "coba tiket", priority: "low" });
+  check("viewer DITOLAK membuat tiket (403)", viewerTicket.status === 403);
+
+  const badPrio = await owner("POST", `/api/tenants/${tenantId}/tickets`, { contactId: customer.json.id, subject: "Prioritas salah", priority: "kritis" });
+  check("prioritas tidak dikenal DITOLAK 400", badPrio.status === 400);
+
+  const ticket = await owner("POST", `/api/tenants/${tenantId}/tickets`, { contactId: customer.json.id, subject: "Aplikasi error saat cetak faktur", description: "Muncul layar putih saat klik cetak.", priority: "high" });
+  check("buat tiket 201 (TKT-00001, status open)", ticket.status === 201 && ticket.json?.ticketNo === "TKT-00001", `→ ${JSON.stringify(ticket.json)}`);
+
+  const tkList = await owner("GET", `/api/tenants/${tenantId}/tickets`);
+  const tk1 = tkList.json?.tickets?.find((t) => t.id === ticket.json.id);
+  check("tiket tampil di daftar (open, high, 0 balasan)", tk1?.status === "open" && tk1?.priority === "high" && tk1?.replyCount === 0);
+
+  await owner("POST", `/api/tenants/${tenantId}/tickets/${ticket.json.id}/replies`, { body: "Terima kasih, kami sedang periksa.", internal: false });
+  const noteRes = await owner("POST", `/api/tenants/${tenantId}/tickets/${ticket.json.id}/replies`, { body: "Reproduksi di Chrome versi lama.", internal: true });
+  check("tambah balasan & catatan internal 201", noteRes.status === 201);
+
+  const emptyReply = await owner("POST", `/api/tenants/${tenantId}/tickets/${ticket.json.id}/replies`, { body: "  " });
+  check("balasan kosong DITOLAK 400", emptyReply.status === 400);
+
+  const assignBad = await owner("PATCH", `/api/tenants/${tenantId}/tickets/${ticket.json.id}`, { assignedTo: "bukan-anggota-xyz" });
+  check("tugaskan ke non-anggota DITOLAK 400", assignBad.status === 400);
+
+  const assignOk = await owner("PATCH", `/api/tenants/${tenantId}/tickets/${ticket.json.id}`, { assignedTo: me.json.user.id });
+  check("tugaskan ke anggota 200 (nama tersimpan)", assignOk.status === 200 && Boolean(assignOk.json?.ticket?.assignedName));
+
+  await owner("PATCH", `/api/tenants/${tenantId}/tickets/${ticket.json.id}`, { status: "in_progress" });
+  const resolveRes = await owner("PATCH", `/api/tenants/${tenantId}/tickets/${ticket.json.id}`, { status: "resolved" });
+  check("ubah status ke selesai 200 (resolvedAt terisi)", resolveRes.status === 200 && Boolean(resolveRes.json?.ticket?.resolvedAt));
+
+  const emptyUpdate = await owner("PATCH", `/api/tenants/${tenantId}/tickets/${ticket.json.id}`, {});
+  check("update tanpa perubahan DITOLAK 400", emptyUpdate.status === 400);
+
+  const tkDetail = await owner("GET", `/api/tenants/${tenantId}/tickets/${ticket.json.id}`);
+  check("detail tiket: 2 balasan (1 internal), status selesai", tkDetail.json?.replies?.length === 2 && tkDetail.json?.replies?.some((r) => r.internal === true) && tkDetail.json?.status === "resolved");
+
+  const viewerReadTk = await viewer("GET", `/api/tenants/${tenantId}/tickets`);
+  check("viewer boleh membaca daftar tiket (200)", viewerReadTk.status === 200);
+
+  // --- Ekspor e-Faktur (Fase 2x) -------------------------------------------------
+  // Faktur ber-PPN bertanggal setelah kunci 10 Jul; produk jasa (tanpa stok).
+  console.log("11r. Ekspor e-Faktur (faktur keluaran ber-PPN)");
+
+  const buyerPkp = await owner("POST", `/api/tenants/${tenantId}/contacts`, { type: "customer", name: "PT Kena Pajak", npwp: "0011223344556000" });
+  check("buat pelanggan ber-NPWP 201", buyerPkp.status === 201);
+
+  const efInv = await owner("POST", `/api/tenants/${tenantId}/invoices`, { contactId: buyerPkp.json.id, invoiceDate: "2026-07-16", taxRate: 11, warehouseId: whUtama.id, lines: [{ productId: svc.json.id, qty: 2, unitPrice: 1_000_000 }] });
+  check("faktur ber-PPN 11% diposting (total 2.220.000)", efInv.status === 201 && efInv.json?.total === 2_220_000, `→ ${JSON.stringify(efInv.json)}`);
+
+  const badEf = await owner("GET", `/api/tenants/${tenantId}/reports/efaktur?from=x&to=2026-07-31`);
+  check("parameter tanggal salah DITOLAK 400", badEf.status === 400);
+
+  const viewerEf = await viewer("GET", `/api/tenants/${tenantId}/reports/efaktur?from=2026-07-01&to=2026-07-31`);
+  check("viewer boleh membaca ekspor e-Faktur (200)", viewerEf.status === 200);
+
+  const ef = await owner("GET", `/api/tenants/${tenantId}/reports/efaktur?from=2026-07-01&to=2026-07-31`);
+  const efRow = ef.json?.rows?.find((r) => r.invoiceNo === efInv.json.docNo);
+  check("baris e-Faktur: DPP 2jt, PPN 220rb, NPWP & nama pembeli benar",
+    efRow?.dpp === 2_000_000 && efRow?.ppn === 220_000 && efRow?.buyerNpwp === "0011223344556000" && efRow?.buyerName === "PT Kena Pajak",
+    `→ ${JSON.stringify(efRow)}`);
+  check("hanya faktur ber-PPN yang diekspor (semua PPN > 0)", ef.json?.rows?.length > 0 && ef.json.rows.every((r) => r.ppn > 0 && r.dpp > 0));
+  check("total e-Faktur = penjumlahan baris (invariant)",
+    ef.json?.totalDpp === ef.json.rows.reduce((s, r) => s + r.dpp, 0) &&
+    ef.json?.totalPpn === ef.json.rows.reduce((s, r) => s + r.ppn, 0));
+
+  const efEmpty = await owner("GET", `/api/tenants/${tenantId}/reports/efaktur?from=2027-01-01&to=2027-01-31`);
+  check("periode tanpa faktur ber-PPN: kosong", efEmpty.json?.rows?.length === 0 && efEmpty.json?.totalPpn === 0);
+
+  // --- Void dokumen, edit master data & rename akun (Fase 3b) ---------------------
+  // Semua dokumen bertanggal Agustus 2026: setelah kunci buku 10 Jul dan di luar
+  // jendela asersi arus kas/laba-rugi Juli, jadi angka lama tidak terganggu.
+  console.log("11s. Void dokumen, edit master data & rename akun");
+
+  // Edit master data (PUT) + guard duplikat kolom unik.
+  const vdProd1 = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "VD-001", name: "Kopi Robusta 1kg", unit: "pcs", sellPrice: 80_000, buyPrice: 50_000,
+  });
+  check("produk VD-001 dibuat", vdProd1.status === 201);
+
+  const vdEdit = await owner("PUT", `/api/tenants/${tenantId}/products/${vdProd1.json.id}`, {
+    sku: "VD-001", name: "Kopi Robusta Premium 1kg", unit: "pcs", sellPrice: 85_000, buyPrice: 50_000,
+  });
+  check("edit produk (PUT) 200", vdEdit.status === 200);
+  const vdItems = await owner("GET", `/api/tenants/${tenantId}/products`);
+  const vdRow = vdItems.json?.items?.find((p) => p.sku === "VD-001");
+  check("perubahan tersimpan (nama & harga jual baru)", vdRow?.name === "Kopi Robusta Premium 1kg" && vdRow?.sell_price === 85_000);
+
+  const vdDup = await owner("PUT", `/api/tenants/${tenantId}/products/${vdProd1.json.id}`, {
+    sku: "BRG-002", name: "Coba tabrak SKU", unit: "pcs", sellPrice: 1, buyPrice: 1,
+  });
+  check("edit ke SKU milik produk lain DITOLAK 409", vdDup.status === 409);
+  const vdEdit404 = await owner("PUT", `/api/tenants/${tenantId}/products/${crypto.randomUUID()}`, {
+    sku: "VD-404", name: "Tidak ada", unit: "pcs", sellPrice: 1, buyPrice: 1,
+  });
+  check("edit produk yang tidak ada DITOLAK 404", vdEdit404.status === 404);
+  const vdEditViewer = await viewer("PUT", `/api/tenants/${tenantId}/products/${vdProd1.json.id}`, {
+    sku: "VD-001", name: "Viewer usil", unit: "pcs", sellPrice: 1, buyPrice: 1,
+  });
+  check("viewer DITOLAK mengedit produk (403)", vdEditViewer.status === 403);
+  const vdWhDup = await owner("PUT", `/api/tenants/${tenantId}/warehouses/${wh2.json.id}`, {
+    code: "UTAMA", name: "Gudang Cabang",
+  });
+  check("edit kode gudang menabrak kode lain DITOLAK 409", vdWhDup.status === 409);
+
+  // Rename akun (nama saja; kode & tipe terkunci).
+  const vdRename = await owner("PATCH", `/api/tenants/${tenantId}/accounts/${kasAcc.id}`, { name: "Kas Utama" });
+  const vdAccs = await owner("GET", `/api/tenants/${tenantId}/accounts`);
+  check(
+    "rename akun 1-1000 → 'Kas Utama' (kode tetap)",
+    vdRename.status === 200 && vdAccs.json?.accounts?.find((a) => a.code === "1-1000")?.name === "Kas Utama",
+  );
+  const vdRenameBad = await owner("PATCH", `/api/tenants/${tenantId}/accounts/${kasAcc.id}`, { name: "x" });
+  check("rename dengan nama terlalu pendek DITOLAK 400", vdRenameBad.status === 400);
+  const vdRenameViewer = await viewer("PATCH", `/api/tenants/${tenantId}/accounts/${kasAcc.id}`, { name: "Kas Viewer" });
+  check("viewer DITOLAK me-rename akun (403)", vdRenameViewer.status === 403);
+  const vdRename404 = await owner("PATCH", `/api/tenants/${tenantId}/accounts/${crypto.randomUUID()}`, { name: "Tidak Ada" });
+  check("rename akun yang tidak ada DITOLAK 404", vdRename404.status === 404);
+
+  // Void faktur penjualan: jurnal pembalik + stok kembali persis + outstanding hilang.
+  const vdAgingArBefore = (await owner("GET", `/api/tenants/${tenantId}/reports/aging?type=receivable`)).json?.grandTotal ?? 0;
+  const vdPlBefore = (await owner("GET", `/api/tenants/${tenantId}/reports/income-statement?from=2026-08-01&to=2026-08-31`)).json;
+
+  const vdPurchA = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-08-01", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd1.json.id, qty: 20, unitPrice: 50_000 }],
+  });
+  check("beli 20 pcs VD-001 (1.000.000)", vdPurchA.status === 201 && vdPurchA.json?.total === 1_000_000);
+
+  const vdInvB = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2026-08-02", taxRate: 11, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd1.json.id, qty: 5, unitPrice: 80_000 }],
+  });
+  check("jual 5 pcs VD-001 (total 444.000)", vdInvB.status === 201 && vdInvB.json?.total === 444_000, `→ ${JSON.stringify(vdInvB.json)}`);
+  const vdStock1 = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  check("stok VD-001 turun ke 15", vdStock1.json?.levels?.find((l) => l.sku === "VD-001")?.qty === 15);
+  const vdAgingArMid = (await owner("GET", `/api/tenants/${tenantId}/reports/aging?type=receivable`)).json?.grandTotal ?? 0;
+  check("piutang bertambah 444.000", vdAgingArMid === vdAgingArBefore + 444_000, `→ ${vdAgingArMid}`);
+
+  const vdVoidViewer = await viewer("POST", `/api/tenants/${tenantId}/invoices/${vdInvB.json.id}/void`);
+  check("viewer DITOLAK membatalkan faktur (403)", vdVoidViewer.status === 403);
+
+  const vdVoidB = await owner("POST", `/api/tenants/${tenantId}/invoices/${vdInvB.json.id}/void`);
+  check("void faktur 200 + jurnal pembalik", vdVoidB.status === 200 && Boolean(vdVoidB.json?.reversalEntryNo), `→ ${JSON.stringify(vdVoidB.json)}`);
+
+  const vdStock2 = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const vdLevel2 = vdStock2.json?.levels?.find((l) => l.sku === "VD-001");
+  check("stok VD-001 kembali 20 pcs @50.000 (nilai 1.000.000)", vdLevel2?.qty === 20 && vdLevel2?.avgCost === 50_000 && vdLevel2?.value === 1_000_000, `→ ${JSON.stringify(vdLevel2)}`);
+
+  const vdDocsB = await owner("GET", `/api/tenants/${tenantId}/invoices`);
+  check("faktur ditandai voidedAt", Boolean(vdDocsB.json?.docs?.find((d) => d.id === vdInvB.json.id)?.voidedAt));
+  const vdAgingArAfter = (await owner("GET", `/api/tenants/${tenantId}/reports/aging?type=receivable`)).json?.grandTotal ?? 0;
+  check("piutang kembali seperti sebelum faktur", vdAgingArAfter === vdAgingArBefore, `→ ${vdAgingArAfter} vs ${vdAgingArBefore}`);
+  const vdPlAfter = (await owner("GET", `/api/tenants/${tenantId}/reports/income-statement?from=2026-08-01&to=2026-08-31`)).json;
+  check(
+    "laba rugi Agustus kembali persis (pendapatan & HPP terbalik penuh)",
+    vdPlAfter?.totalIncome === vdPlBefore?.totalIncome && vdPlAfter?.totalExpense === vdPlBefore?.totalExpense && vdPlAfter?.netProfit === vdPlBefore?.netProfit,
+    `→ ${JSON.stringify({ before: vdPlBefore?.netProfit, after: vdPlAfter?.netProfit })}`,
+  );
+  const vdTb1 = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah void faktur", vdTb1.json?.balanced === true);
+
+  const vdVoidAgain = await owner("POST", `/api/tenants/${tenantId}/invoices/${vdInvB.json.id}/void`);
+  check("void dua kali DITOLAK 400", vdVoidAgain.status === 400);
+  const vdPayVoided = await owner("POST", `/api/tenants/${tenantId}/payments`, {
+    refType: "invoice", refId: vdInvB.json.id, accountId: kasAcc.id, amount: 1000, paymentDate: "2026-08-05",
+  });
+  check("bayar dokumen void DITOLAK 400", vdPayVoided.status === 400);
+  const vdReturnVoided = await owner("POST", `/api/tenants/${tenantId}/returns`, {
+    refType: "invoice", refId: vdInvB.json.id, warehouseId: whUtama.id, returnDate: "2026-08-05",
+    lines: [{ productId: vdProd1.json.id, qty: 1 }],
+  });
+  check("retur dokumen void DITOLAK 400", vdReturnVoided.status === 400);
+
+  const vdVoidPaid = await owner("POST", `/api/tenants/${tenantId}/invoices/${invoice.json.id}/void`);
+  check("void faktur TERBAYAR DITOLAK 400", vdVoidPaid.status === 400);
+  const vdVoidReturned = await owner("POST", `/api/tenants/${tenantId}/invoices/${inv2.json.id}/void`);
+  check("void faktur yang punya retur DITOLAK 400", vdVoidReturned.status === 400);
+  const vdVoid404 = await owner("POST", `/api/tenants/${tenantId}/invoices/${crypto.randomUUID()}/void`);
+  check("void dokumen yang tidak ada DITOLAK 404", vdVoid404.status === 404);
+
+  // Void pembelian: hanya bila stok dari pembelian itu belum bergerak.
+  const vdProd2 = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "VD-002", name: "Gula Aren 500g", unit: "pcs", sellPrice: 90_000, buyPrice: 60_000,
+  });
+  const vdAgingApBefore = (await owner("GET", `/api/tenants/${tenantId}/reports/aging?type=payable`)).json?.grandTotal ?? 0;
+  const vdPurchC = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-08-03", taxRate: 11, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd2.json.id, qty: 10, unitPrice: 60_000 }],
+  });
+  check("beli 10 pcs VD-002 (666.000)", vdPurchC.status === 201 && vdPurchC.json?.total === 666_000);
+
+  const vdVoidC = await owner("POST", `/api/tenants/${tenantId}/purchases/${vdPurchC.json.id}/void`);
+  check("void pembelian (stok utuh) 200", vdVoidC.status === 200 && Boolean(vdVoidC.json?.reversalEntryNo), `→ ${JSON.stringify(vdVoidC.json)}`);
+  const vdStock3 = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  check("stok VD-002 kembali 0", (vdStock3.json?.levels?.find((l) => l.sku === "VD-002")?.qty ?? 0) === 0);
+  const vdAgingApAfter = (await owner("GET", `/api/tenants/${tenantId}/reports/aging?type=payable`)).json?.grandTotal ?? 0;
+  check("hutang kembali seperti sebelum pembelian", vdAgingApAfter === vdAgingApBefore);
+  const vdTb2 = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah void pembelian", vdTb2.json?.balanced === true);
+
+  const vdPurchD = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-08-03", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd2.json.id, qty: 10, unitPrice: 60_000 }],
+  });
+  const vdInvE = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2026-08-04", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd2.json.id, qty: 2, unitPrice: 90_000 }],
+  });
+  check("pembelian D & penjualan E diposting", vdPurchD.status === 201 && vdInvE.status === 201);
+  const vdVoidD = await owner("POST", `/api/tenants/${tenantId}/purchases/${vdPurchD.json.id}/void`);
+  check("void pembelian yang stoknya SUDAH BERGERAK ditolak 400", vdVoidD.status === 400, `→ ${JSON.stringify(vdVoidD.json)}`);
+  const vdVoidE = await owner("POST", `/api/tenants/${tenantId}/invoices/${vdInvE.json.id}/void`);
+  const vdStock4 = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  check("void penjualan E: stok VD-002 kembali 10", vdVoidE.status === 200 && vdStock4.json?.levels?.find((l) => l.sku === "VD-002")?.qty === 10);
+
+  // Produk berpelacakan lot/kedaluwarsa: void pembelian diarahkan ke retur.
+  const vdProdExp = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "VD-EXP", name: "Susu UHT 1L", unit: "pcs", sellPrice: 20_000, buyPrice: 10_000, trackExpiry: true,
+  });
+  const vdPurchF = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-08-05", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: vdProdExp.json.id, qty: 5, unitPrice: 10_000, expiryDate: "2027-01-01" }],
+  });
+  check("pembelian produk ber-lot diposting", vdPurchF.status === 201);
+  const vdVoidF = await owner("POST", `/api/tenants/${tenantId}/purchases/${vdPurchF.json.id}/void`);
+  check("void pembelian produk ber-lot DITOLAK 400 (pakai retur)", vdVoidF.status === 400);
+
+  // Void menghormati tutup buku: kunci maju ke 10 Agustus lalu coba batalkan
+  // dokumen bertanggal 5 Agustus → jurnal pembalik tertolak periode terkunci.
+  const vdInvG = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2026-08-05", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd1.json.id, qty: 1, unitPrice: 80_000 }],
+  });
+  check("faktur G (5 Agu) diposting", vdInvG.status === 201);
+  const vdClose = await owner("POST", `/api/tenants/${tenantId}/close-books`, { date: "2026-08-10" });
+  check("tutup buku maju ke 2026-08-10", vdClose.status === 200);
+  const vdVoidLocked = await owner("POST", `/api/tenants/${tenantId}/invoices/${vdInvG.json.id}/void`);
+  check(
+    "void dokumen di periode TERKUNCI ditolak 400 + saran retur",
+    vdVoidLocked.status === 400 && String(vdVoidLocked.json?.error ?? "").includes("Retur"),
+    `→ ${JSON.stringify(vdVoidLocked.json)}`,
+  );
+  const vdTb3 = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang di akhir seksi void", vdTb3.json?.balanced === true);
+
+  // --- Pencarian & pagination (Fase 3c) --------------------------------------------
+  console.log("11t. Pencarian & pagination (master data, dokumen, jurnal)");
+
+  const searchVd = await owner("GET", `/api/tenants/${tenantId}/products?q=VD-`);
+  check(
+    "cari produk ?q=VD- → 3 hasil, semua ber-SKU VD-",
+    searchVd.status === 200 && searchVd.json?.total === 3 && searchVd.json.items.every((p) => p.sku.startsWith("VD-")),
+    `→ total ${searchVd.json?.total}`,
+  );
+  const searchWildcard = await owner("GET", `/api/tenants/${tenantId}/products?q=${encodeURIComponent("%")}`);
+  check("wildcard '%' dicari sebagai literal (0 hasil)", searchWildcard.status === 200 && searchWildcard.json?.total === 0);
+
+  const page1 = await owner("GET", `/api/tenants/${tenantId}/products?limit=2`);
+  const page2 = await owner("GET", `/api/tenants/${tenantId}/products?limit=2&offset=2`);
+  check(
+    "pagination produk: limit=2 memberi 2 baris, offset=2 memberi baris berbeda, total konsisten",
+    page1.json?.items?.length === 2 &&
+      page1.json?.total > 2 &&
+      page2.json?.items?.length === 2 &&
+      page1.json.items[0].id !== page2.json.items[0].id &&
+      page2.json.total === page1.json.total,
+  );
+  const bigLimit = await owner("GET", `/api/tenants/${tenantId}/products?limit=9999`);
+  check("limit di-clamp maksimal 500", bigLimit.status === 200 && bigLimit.json?.limit === 500);
+
+  const searchContact = await owner("GET", `/api/tenants/${tenantId}/contacts?q=Kena Pajak`);
+  check(
+    "cari kontak ?q=Kena Pajak → PT Kena Pajak ditemukan",
+    searchContact.status === 200 && searchContact.json?.total === 1 && searchContact.json.items[0]?.name === "PT Kena Pajak",
+  );
+
+  const searchInv = await owner("GET", `/api/tenants/${tenantId}/invoices?q=INV-00001`);
+  check(
+    "cari faktur ?q=INV-00001 → tepat 1 dokumen",
+    searchInv.status === 200 && searchInv.json?.total === 1 && searchInv.json.docs[0]?.docNo === "INV-00001",
+    `→ ${JSON.stringify({ total: searchInv.json?.total })}`,
+  );
+  const searchInvByContact = await owner("GET", `/api/tenants/${tenantId}/invoices?q=${encodeURIComponent("Kena Pajak")}`);
+  check(
+    "cari faktur berdasarkan nama kontak → semua milik PT Kena Pajak",
+    searchInvByContact.json?.total >= 1 && searchInvByContact.json.docs.every((d) => d.contactName === "PT Kena Pajak"),
+  );
+  const invPage = await owner("GET", `/api/tenants/${tenantId}/invoices?limit=1`);
+  check("pagination faktur: limit=1 → 1 dokumen, total > 1", invPage.json?.docs?.length === 1 && invPage.json?.total > 1);
+
+  const searchJrn = await owner("GET", `/api/tenants/${tenantId}/journal-entries?q=Pembatalan`);
+  check(
+    "cari jurnal ?q=Pembatalan → ≥3 jurnal pembalik void, semuanya cocok",
+    searchJrn.status === 200 &&
+      searchJrn.json?.total >= 3 &&
+      searchJrn.json.entries.every((e) => (e.memo ?? "").includes("Pembatalan")),
+    `→ total ${searchJrn.json?.total}`,
+  );
+  const jrnPage = await owner("GET", `/api/tenants/${tenantId}/journal-entries?limit=1&offset=1`);
+  check("pagination jurnal: limit=1&offset=1 → 1 entri, total banyak", jrnPage.json?.entries?.length === 1 && jrnPage.json?.total > 1);
+
+  const viewerSearch = await viewer("GET", `/api/tenants/${tenantId}/products?q=VD-001`);
+  check("viewer boleh mencari (200)", viewerSearch.status === 200 && viewerSearch.json?.total === 1);
+
+  // Alur nyata: temukan produk lewat pencarian → langsung difakturkan.
+  const foundProduct = viewerSearch.json?.items?.[0] ?? searchVd.json.items.find((p) => p.sku === "VD-001");
+  const invFromSearch = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id,
+    invoiceDate: "2026-08-15",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    lines: [{ productId: foundProduct.id, qty: 1, unitPrice: 80_000 }],
+  });
+  check("faktur dengan produk hasil pencarian diposting (80.000)", invFromSearch.status === 201 && invFromSearch.json?.total === 80_000, `→ ${JSON.stringify(invFromSearch.json)}`);
+  const tbAfterSearchFlow = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah alur pencarian→faktur", tbAfterSearchFlow.json?.balanced === true);
+
+  // --- Diskon per baris, stok menipis & notifikasi, logo kop (Fase 3d) -------------
+  console.log("11u. Diskon per baris, notifikasi stok menipis, & logo kop");
+
+  // Diskon faktur penjualan: 4 × 100rb − 25% = 300rb; PPN 11% dari nilai setelah diskon.
+  const duPlBefore = (await owner("GET", `/api/tenants/${tenantId}/reports/income-statement?from=2026-08-01&to=2026-08-31`)).json;
+  const duInv = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2026-08-20", taxRate: 11, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd1.json.id, qty: 4, unitPrice: 100_000, discountPct: 25 }],
+  });
+  check("faktur berdiskon 25%: total 333.000 (300rb + PPN 33rb)", duInv.status === 201 && duInv.json?.total === 333_000, `→ ${JSON.stringify(duInv.json)}`);
+  const duDocs = await owner("GET", `/api/tenants/${tenantId}/invoices?q=${duInv.json.docNo}`);
+  const duLine = duDocs.json?.docs?.[0]?.lines?.[0];
+  check("baris menyimpan diskon 25% & nilai 300.000", duLine?.discountPct === 25 && duLine?.amount === 300_000, `→ ${JSON.stringify(duLine)}`);
+  const duPlAfter = (await owner("GET", `/api/tenants/${tenantId}/reports/income-statement?from=2026-08-01&to=2026-08-31`)).json;
+  check(
+    "laba rugi: pendapatan +300rb (setelah diskon) & HPP +200rb (4 × 50rb)",
+    duPlAfter?.totalIncome === duPlBefore?.totalIncome + 300_000 && duPlAfter?.totalExpense === duPlBefore?.totalExpense + 200_000,
+    `→ Δincome ${duPlAfter?.totalIncome - duPlBefore?.totalIncome}, Δexpense ${duPlAfter?.totalExpense - duPlBefore?.totalExpense}`,
+  );
+
+  // Diskon pembelian: persediaan masuk pada biaya setelah diskon.
+  const duProd3 = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "VD-003", name: "Cokelat Bubuk 250g", unit: "pcs", sellPrice: 35_000, buyPrice: 20_000,
+  });
+  const duPurch = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-08-20", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: duProd3.json.id, qty: 10, unitPrice: 20_000, discountPct: 10 }],
+  });
+  check("pembelian berdiskon 10%: total 180.000", duPurch.status === 201 && duPurch.json?.total === 180_000);
+  const duStock = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const duLevel = duStock.json?.levels?.find((l) => l.sku === "VD-003");
+  check("stok VD-003 masuk 10 pcs @18.000 (nilai 180.000 = jurnal Persediaan)", duLevel?.qty === 10 && duLevel?.avgCost === 18_000 && duLevel?.value === 180_000, `→ ${JSON.stringify(duLevel)}`);
+  const duTb = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("neraca saldo TETAP seimbang setelah transaksi berdiskon", duTb.json?.balanced === true);
+
+  const duBadDisc = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2026-08-20", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd1.json.id, qty: 1, unitPrice: 1000, discountPct: 150 }],
+  });
+  check("diskon > 100% DITOLAK 400", duBadDisc.status === 400);
+
+  // Stok menipis: ambang minimum 15 > stok 10 → notifikasi muncul.
+  const duMinStock = await owner("PUT", `/api/tenants/${tenantId}/products/${duProd3.json.id}`, {
+    sku: "VD-003", name: "Cokelat Bubuk 250g", unit: "pcs", sellPrice: 35_000, buyPrice: 20_000, minStock: 15,
+  });
+  check("set ambang stok minimum lewat edit produk", duMinStock.status === 200);
+
+  // Faktur lewat jatuh tempo (due date sudah lampau, belum dibayar).
+  const duOverdue = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2026-08-20", dueDate: "2026-07-01", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd1.json.id, qty: 1, unitPrice: 80_000 }],
+  });
+  check("faktur jatuh tempo lampau diposting", duOverdue.status === 201);
+
+  const duNotif = await owner("GET", `/api/tenants/${tenantId}/notifications`);
+  check(
+    "notifikasi stok menipis muncul (VD-003 sisa 10 ≤ ambang 15)",
+    duNotif.status === 200 && duNotif.json?.notifications?.some((n) => n.type === "low_stock" && n.detail.includes("VD-003")),
+    `→ ${JSON.stringify(duNotif.json?.notifications?.filter((n) => n.type === "low_stock"))}`,
+  );
+  check(
+    "notifikasi faktur lewat jatuh tempo muncul",
+    duNotif.json?.notifications?.some((n) => n.type === "overdue_invoice" && n.title.includes(duOverdue.json.docNo)),
+  );
+  // Fase 15b — pengingat WhatsApp siap-kirim menyertai notifikasi jatuh tempo.
+  const duOverdueNotif = duNotif.json?.notifications?.find(
+    (n) => n.type === "overdue_invoice" && n.title.includes(duOverdue.json.docNo),
+  );
+  check(
+    "notifikasi jatuh tempo membawa waText pengingat (memuat no. faktur + nominal)",
+    typeof duOverdueNotif?.waText === "string" &&
+      duOverdueNotif.waText.includes(duOverdue.json.docNo) &&
+      duOverdueNotif.waText.includes("80.000"),
+    `→ ${JSON.stringify(duOverdueNotif?.waText)}`,
+  );
+  check(
+    "notifikasi non-jatuh-tempo (low_stock) tanpa waText",
+    duNotif.json?.notifications?.filter((n) => n.type === "low_stock").every((n) => n.waText === undefined),
+  );
+  check("count = jumlah notifikasi (konsisten)", duNotif.json?.count === duNotif.json?.notifications?.length);
+  const duNotifViewer = await viewer("GET", `/api/tenants/${tenantId}/notifications`);
+  check("viewer boleh membaca notifikasi (200)", duNotifViewer.status === 200);
+
+  // Tren penjualan harian (grafik dashboard Fase 3e).
+  const duTrend = await owner("GET", `/api/tenants/${tenantId}/reports/sales-daily?days=30`);
+  check(
+    "tren penjualan harian: 200, baris terurut & dalam jendela 30 hari",
+    duTrend.status === 200 &&
+      Array.isArray(duTrend.json?.rows) &&
+      duTrend.json.rows.every((r) => r.date >= duTrend.json.from && r.total > 0 && r.count > 0),
+    `→ ${JSON.stringify({ from: duTrend.json?.from, n: duTrend.json?.rows?.length })}`,
+  );
+  const duTrendClamp = await owner("GET", `/api/tenants/${tenantId}/reports/sales-daily?days=999`);
+  check("parameter days di-clamp maksimal 90", duTrendClamp.json?.days === 90);
+  // Filter rentang grafik dashboard (Fase 12d): 7 hari valid, di bawahnya di-clamp.
+  const duTrend7 = await owner("GET", `/api/tenants/${tenantId}/reports/sales-daily?days=7`);
+  check("rentang 7 hari diterima apa adanya", duTrend7.status === 200 && duTrend7.json?.days === 7);
+  const duTrendMin = await owner("GET", `/api/tenants/${tenantId}/reports/sales-daily?days=1`);
+  check("parameter days di-clamp minimal 7", duTrendMin.json?.days === 7);
+  const duTrendViewer = await viewer("GET", `/api/tenants/${tenantId}/reports/sales-daily`);
+  check("viewer boleh membaca tren penjualan (200)", duTrendViewer.status === 200);
+
+  // Laporan penjualan analitik (Fase 5h): agregat per produk & per pelanggan.
+  const salesAnalytics = await owner("GET", `/api/tenants/${tenantId}/reports/sales-analytics?from=2026-01-01&to=2026-12-31`);
+  check(
+    "laporan penjualan analitik 200: total = jumlah omzet produk, ada baris produk & pelanggan",
+    salesAnalytics.status === 200 &&
+      Array.isArray(salesAnalytics.json?.byProduct) &&
+      salesAnalytics.json.byProduct.length > 0 &&
+      Array.isArray(salesAnalytics.json?.byCustomer) &&
+      salesAnalytics.json.byCustomer.length > 0 &&
+      salesAnalytics.json.byProduct.every((r) => r.qty > 0 && r.revenue > 0),
+    `→ ${JSON.stringify({ total: salesAnalytics.json?.totalRevenue, np: salesAnalytics.json?.byProduct?.length, nc: salesAnalytics.json?.byCustomer?.length })}`,
+  );
+  check(
+    "laporan penjualan: byProduct terurut menurun berdasarkan omzet",
+    salesAnalytics.json.byProduct.every((r, i, arr) => i === 0 || arr[i - 1].revenue >= r.revenue),
+  );
+  const salesAnalyticsViewer = await viewer("GET", `/api/tenants/${tenantId}/reports/sales-analytics`);
+  check("viewer boleh membaca laporan penjualan (200)", salesAnalyticsViewer.status === 200);
+
+  // Logo kop: simpan data URL kecil di settings, tampil di cetakan.
+  const duLogo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  const duSetLogo = await owner("PATCH", `/api/tenants/${tenantId}/settings`, { logoDataUrl: duLogo });
+  const duSettings = await owner("GET", `/api/tenants/${tenantId}/settings`);
+  check("logo tersimpan di settings tenant", duSetLogo.status === 200 && duSettings.json?.settings?.logo_data_url === duLogo);
+  // Fase 21d: sakelar penutup otomatis dinaikkan ke Pemilik walau endpoint
+  // settings-nya terbuka untuk admin — menyalakannya berarti mengizinkan sistem
+  // memposting jurnal ke buku besar tanpa ditekan siapa pun.
+  const acAdmin = await admin("PATCH", `/api/tenants/${tenantId}/settings`, { autoClosingEntry: true });
+  check(
+    "sakelar penutup otomatis oleh ADMIN (bukan Pemilik) DITOLAK 403",
+    acAdmin.status === 403 && /Pemilik/.test(acAdmin.json?.error ?? ""),
+    `→ ${acAdmin.status} ${JSON.stringify(acAdmin.json?.error)}`,
+  );
+  const acAdminLain = await admin("PATCH", `/api/tenants/${tenantId}/settings`, { address: "Jl. Uji 1" });
+  check("admin TETAP boleh mengubah setelan biasa (bukan pengetatan menyeluruh)", acAdminLain.status === 200, `→ ${acAdminLain.status}`);
+  const duBadLogo = await owner("PATCH", `/api/tenants/${tenantId}/settings`, { logoDataUrl: "data:text/html;base64,PGI+" });
+  check("format logo tidak dikenal DITOLAK 400", duBadLogo.status === 400);
+  const duClearLogo = await owner("PATCH", `/api/tenants/${tenantId}/settings`, { logoDataUrl: "" });
+  const duSettings2 = await owner("GET", `/api/tenants/${tenantId}/settings`);
+  check("logo bisa dihapus (string kosong)", duClearLogo.status === 200 && duSettings2.json?.settings?.logo_data_url === "");
+
+  // --- e-Faktur XML Coretax (Fase 3f) ----------------------------------------------
+  console.log("11v. e-Faktur XML Coretax");
+
+  // Pembeli ber-NPWP dengan karakter khusus XML di nama (uji escaping).
+  const cxBuyer = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "customer", name: "Toko Roti & Kopi <Nusantara>", npwp: "12.345.678.9-012.000",
+    address: "Jl. Melati No. 5, Bandung",
+  });
+  const cxInv = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: cxBuyer.json.id, invoiceDate: "2026-08-21", taxRate: 11, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd1.json.id, qty: 2, unitPrice: 100_000, discountPct: 10 }],
+  });
+  check("faktur ber-NPWP diposting (180rb + PPN 19,8rb = 199.800)", cxInv.status === 201 && cxInv.json?.total === 199_800, `→ ${JSON.stringify(cxInv.json)}`);
+  // Faktur tarif 12% penuh (barang mewah) → kode transaksi 01, DPP = harga penuh.
+  const cxLux = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2026-08-21", taxRate: 12, warehouseId: whUtama.id,
+    lines: [{ productId: vdProd1.json.id, qty: 1, unitPrice: 50_000 }],
+  });
+  check("faktur tarif 12% diposting (total 56.000)", cxLux.status === 201 && cxLux.json?.total === 56_000);
+
+  const cxRes = await owner("GET", `/api/tenants/${tenantId}/reports/efaktur-xml?from=2026-08-01&to=2026-08-31`);
+  const cxXml = cxRes.text ?? "";
+  check("ekspor XML Coretax 200", cxRes.status === 200, `→ ${cxRes.status}`);
+  check(
+    "dokumen XML valid: deklarasi + root TaxInvoiceBulk + elemen wajib CustomDocMonthYear",
+    cxXml.startsWith(`<?xml version="1.0" encoding="utf-8"?>`) &&
+      cxXml.includes("<TaxInvoiceBulk") &&
+      cxXml.trimEnd().endsWith("</TaxInvoiceBulk>") &&
+      cxXml.includes("<CustomDocMonthYear/>"),
+  );
+  check(
+    "TIN penjual 16 digit dari NPWP settings + SellerIDTKU berakhiran 000000",
+    cxXml.includes("<TIN>0012345678901000</TIN>") && cxXml.includes("<SellerIDTKU>0012345678901000000000</SellerIDTKU>"),
+  );
+
+  // Potong per-faktur berdasarkan RefDesc untuk asersi per dokumen.
+  const cxDocOf = (docNo) => cxXml.split("<TaxInvoice>").find((s) => s.includes(`<RefDesc>${docNo}</RefDesc>`));
+  const cxDocA = cxDocOf(cxInv.json.docNo);
+  check("faktur ber-NPWP ada di XML (RefDesc = nomor faktur)", Boolean(cxDocA));
+  check("non-mewah memakai kode transaksi 04 (DPP nilai lain, PMK 131/2024)", cxDocA?.includes("<TrxCode>04</TrxCode>") === true);
+  check(
+    "TIN pembeli dinormalkan 16 digit + BuyerIDTKU",
+    cxDocA?.includes("<BuyerTin>0123456789012000</BuyerTin>") === true &&
+      cxDocA?.includes("<BuyerIDTKU>0123456789012000000000</BuyerIDTKU>") === true,
+  );
+  check("nama pembeli ter-escape XML", cxDocA?.includes("<BuyerName>Toko Roti &amp; Kopi &lt;Nusantara&gt;</BuyerName>") === true);
+  check(
+    "baris berdiskon: Price 100000, Qty 2, TotalDiscount 20000, TaxBase 180000",
+    cxDocA?.includes("<Price>100000.00</Price>") === true &&
+      cxDocA?.includes("<Qty>2</Qty>") === true &&
+      cxDocA?.includes("<TotalDiscount>20000.00</TotalDiscount>") === true &&
+      cxDocA?.includes("<TaxBase>180000.00</TaxBase>") === true,
+  );
+  check(
+    "DPP nilai lain = 11/12 × TaxBase (165000) + VATRate 12 + PPN eksak 19800",
+    cxDocA?.includes("<OtherTaxBase>165000.00</OtherTaxBase>") === true &&
+      cxDocA?.includes("<VATRate>12</VATRate>") === true &&
+      cxDocA?.includes("<VAT>19800.00</VAT>") === true,
+  );
+
+  const cxDocLux = cxDocOf(cxLux.json.docNo);
+  check(
+    "faktur tarif 12%: kode 01, OtherTaxBase = TaxBase penuh (50000), PPN 6000",
+    cxDocLux?.includes("<TrxCode>01</TrxCode>") === true &&
+      cxDocLux?.includes("<OtherTaxBase>50000.00</OtherTaxBase>") === true &&
+      cxDocLux?.includes("<VAT>6000.00</VAT>") === true,
+  );
+  check("pembeli tanpa NPWP diekspor sebagai 16 digit nol", cxDocLux?.includes("<BuyerTin>0000000000000000</BuyerTin>") === true);
+
+  const cxDocDisc = cxDocOf(duInv.json.docNo);
+  check(
+    "faktur diskon 25% dari 11u ikut ter-ekspor (OtherTaxBase 275000, VAT 33000)",
+    cxDocDisc?.includes("<OtherTaxBase>275000.00</OtherTaxBase>") === true && cxDocDisc?.includes("<VAT>33000.00</VAT>") === true,
+  );
+  check("faktur VOID dikecualikan dari XML", !cxXml.includes(`<RefDesc>${vdInvB.json.docNo}</RefDesc>`));
+  check("faktur non-PPN dikecualikan dari XML", !cxXml.includes(`<RefDesc>${duOverdue.json.docNo}</RefDesc>`));
+
+  const cxViewer = await viewer("GET", `/api/tenants/${tenantId}/reports/efaktur-xml?from=2026-08-01&to=2026-08-31`);
+  check("viewer boleh mengekspor XML (200)", cxViewer.status === 200);
+  const cxBadDate = await owner("GET", `/api/tenants/${tenantId}/reports/efaktur-xml?from=2026-08&to=2026-08-31`);
+  check("tanggal salah format DITOLAK 400", cxBadDate.status === 400);
+  const cxNoNpwp = await viewer("GET", `/api/tenants/${regViewer.json.tenantId}/reports/efaktur-xml?from=2026-08-01&to=2026-08-31`);
+  check(
+    "tenant tanpa NPWP DITOLAK 400 dengan pesan jelas",
+    cxNoNpwp.status === 400 && /NPWP/.test(cxNoNpwp.json?.error ?? ""),
+    `→ ${JSON.stringify(cxNoNpwp.json)}`,
+  );
+
+  // --- Asisten AI (Fase 4e) ---------------------------------------------------------
+  console.log("11w. Asisten AI (Workers AI)");
+  // Kontrak degradasi anggun: di lingkungan tanpa binding AI (dev/CI, config
+  // wrangler.dev.jsonc), endpoint WAJIB membalas 503 — di produksi 200.
+  // RBAC & auth tetap deterministik di kedua lingkungan.
+  const aiAnon = await fetch(`${BASE}/api/tenants/${tenantId}/ai/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: [{ role: "user", content: "halo" }] }),
+  });
+  check("AI chat tanpa sesi DITOLAK 401", aiAnon.status === 401);
+  const aiChat = await owner("POST", `/api/tenants/${tenantId}/ai/chat`, {
+    messages: [{ role: "user", content: "Bagaimana cara ekspor XML Coretax?" }],
+  });
+  check(
+    "AI chat membalas 200 (produksi) ATAU 503 (binding absen) — degradasi anggun",
+    aiChat.status === 200 || aiChat.status === 503,
+    `→ ${aiChat.status}`,
+  );
+  // 503 kini WAJIB membawa `detail` (alasan diagnosa — Fase 5a); di env smoke
+  // (config tanpa binding) alasannya pasti binding-absent.
+  check(
+    "AI chat 503 menyertakan detail 'binding-absent'",
+    aiChat.status === 200 || aiChat.json?.detail === "binding-absent",
+    `→ ${JSON.stringify(aiChat.json)}`,
+  );
+  const aiJurnalViewer = await viewer("POST", `/api/tenants/${tenantId}/ai/jurnal`, { prompt: "bayar listrik 500 ribu dari kas" });
+  check("viewer DITOLAK membuat draf jurnal AI (403)", aiJurnalViewer.status === 403);
+  const aiJurnal = await owner("POST", `/api/tenants/${tenantId}/ai/jurnal`, { prompt: "bayar listrik 500 ribu dari kas" });
+  check(
+    "AI draf jurnal membalas 200/422 (produksi) ATAU 503 (binding absen)",
+    [200, 422, 503].includes(aiJurnal.status),
+    `→ ${aiJurnal.status}`,
+  );
+  check(
+    "AI draf jurnal 503 menyertakan detail 'binding-absent'",
+    aiJurnal.status !== 503 || aiJurnal.json?.detail === "binding-absent",
+    `→ ${JSON.stringify(aiJurnal.json)}`,
+  );
+  // Fase 11c: tanya laporan bahasa natural (read-only, semua anggota).
+  const aiLaporanAnon = await fetch(`${BASE}/api/tenants/${tenantId}/ai/laporan`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ question: "berapa laba bulan ini?" }),
+  });
+  check("AI laporan tanpa sesi DITOLAK 401", aiLaporanAnon.status === 401, `→ HTTP ${aiLaporanAnon.status}`);
+  const aiLaporan = await viewer("POST", `/api/tenants/${tenantId}/ai/laporan`, { question: "berapa laba bulan ini?" });
+  check(
+    "AI laporan (viewer) membalas 200 (produksi) ATAU 503 binding-absent",
+    aiLaporan.status === 200 || (aiLaporan.status === 503 && aiLaporan.json?.detail === "binding-absent"),
+    `→ ${aiLaporan.status} ${JSON.stringify(aiLaporan.json)}`,
+  );
+  // Fase 12f: ringkasan bisnis mingguan (cache KV per minggu, on-demand).
+  const aiWeeklyAnon = await anon("GET", `/api/tenants/${tenantId}/ai/ringkasan-mingguan`);
+  check("AI ringkasan mingguan tanpa sesi DITOLAK 401", aiWeeklyAnon.status === 401, `→ HTTP ${aiWeeklyAnon.status}`);
+  const aiWeekly = await viewer("GET", `/api/tenants/${tenantId}/ai/ringkasan-mingguan`);
+  check(
+    "AI ringkasan mingguan (viewer) 200 (produksi/cache) ATAU 503 binding-absent",
+    (aiWeekly.status === 200 && typeof aiWeekly.json?.summary === "string") ||
+      (aiWeekly.status === 503 && aiWeekly.json?.detail === "binding-absent"),
+    `→ ${aiWeekly.status} ${JSON.stringify(aiWeekly.json)}`,
+  );
+
+  // --- Arus kas (Fase 2b-1) -------------------------------------------------------
+  console.log("12. Arus kas");
+  // Konteks: modal 50jt (2/7) + penjualan tunai 2,5jt (3/7) + terima pembayaran 499,5rb (5/7)
+  // + jurnal pasca tutup buku 1rb (15/7). Tidak ada kas keluar.
+  const cf = await owner("GET", `/api/tenants/${tenantId}/reports/cash-flow?from=2026-07-03&to=2026-07-31`);
+  check(
+    "arus kas: saldo awal 50jt, masuk 3.300.500, keluar 10rb, akhir 53.290.500",
+    cf.status === 200 &&
+      cf.json?.openingBalance === 50_000_000 &&
+      cf.json?.totalIn === 3_300_500 &&
+      cf.json?.totalOut === 10_000 &&
+      cf.json?.closingBalance === 53_290_500,
+    `→ ${JSON.stringify(cf.json && { o: cf.json.openingBalance, i: cf.json.totalIn, out: cf.json.totalOut, c: cf.json.closingBalance })}`,
+  );
+
+  // --- 2FA TOTP (Fase 2c) ---------------------------------------------------------
+  console.log("13. Verifikasi dua langkah (2FA TOTP)");
+  const setup = await owner("POST", "/api/auth/2fa/setup");
+  check("setup 2FA memberi rahasia base32 + otpauth", setup.status === 200 && /^[A-Z2-7]{32}$/.test(setup.json?.secret ?? "") && (setup.json?.otpauthUrl ?? "").startsWith("otpauth://totp/"));
+
+  const wrongEnable = await owner("POST", "/api/auth/2fa/enable", { code: "000000" });
+  check("aktivasi dengan kode salah DITOLAK 400", wrongEnable.status === 400);
+
+  const enable = await owner("POST", "/api/auth/2fa/enable", { code: totpNode(setup.json.secret) });
+  check("aktivasi dengan kode benar 200", enable.status === 200);
+
+  const meWith2fa = await owner("GET", "/api/auth/me");
+  check("me menunjukkan totpEnabled", meWith2fa.json?.user?.totpEnabled === true);
+
+  await owner("POST", "/api/auth/logout");
+  const ownerAgain = makeClient();
+  const loginNoCode = await ownerAgain("POST", "/api/auth/login", {
+    email: "budi@majujaya.co.id",
+    password: "rahasia-kuat-123",
+  });
+  check(
+    "login tanpa kode → 401 + twoFactorRequired",
+    loginNoCode.status === 401 && loginNoCode.json?.twoFactorRequired === true,
+  );
+  const loginBadCode = await ownerAgain("POST", "/api/auth/login", {
+    email: "budi@majujaya.co.id",
+    password: "rahasia-kuat-123",
+    totpCode: "000000",
+  });
+  check("login dengan kode salah 401", loginBadCode.status === 401);
+  const loginGood = await ownerAgain("POST", "/api/auth/login", {
+    email: "budi@majujaya.co.id",
+    password: "rahasia-kuat-123",
+    totpCode: totpNode(setup.json.secret),
+  });
+  check("login password + kode benar 200", loginGood.status === 200);
+
+  const disable2fa = await ownerAgain("POST", "/api/auth/2fa/disable", { code: totpNode(setup.json.secret) });
+  check("nonaktifkan 2FA dengan kode benar 200", disable2fa.status === 200);
+  // Pakai sesi baru (owner lama sudah logout) untuk sisa pengujian.
+  owner = ownerAgain;
+
+  // --- Deteksi anomali beban (Fase 15c) ---------------------------------------
+  // Ditaruh sebelum siklus langganan (tenant masih bisa menulis) dan setelah
+  // asersi dashboard bernilai tetap, karena jurnal ini menggeser saldo kas.
+  // Bulan uji sengaja jauh dari data lain (2027) supaya terisolasi.
+  // --- Pembulatan retur penuh atas baris berdiskon (Fase 15d) -----------------
+  // qty 3 × 333 diskon 10% → amount dibulatkan SEKALI = 899 (bukan 3 × 299,7).
+  // Retur seluruh qty harus membalik PERSIS 899 — bukan 3 × round(299,67) = 900.
+  console.log("13y. Pembulatan retur penuh (Fase 15d)");
+  const roundProd = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "RND-001", name: "Produk Uji Pembulatan", unit: "pcs", sellPrice: 333, buyPrice: 200,
+  });
+  const roundBuy = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2027-06-01", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: roundProd.json.id, qty: 10, unitPrice: 200 }],
+  });
+  check("pembelian stok uji pembulatan 201", roundBuy.status === 201);
+  const roundInv = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2027-06-02", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: roundProd.json.id, qty: 3, unitPrice: 333, discountPct: 10 }],
+  });
+  check(
+    "faktur berdiskon: total dibulatkan sekali = 899",
+    roundInv.status === 201 && roundInv.json?.total === 899,
+    `→ ${JSON.stringify(roundInv.json)}`,
+  );
+  const roundRet = await owner("POST", `/api/tenants/${tenantId}/returns`, {
+    refType: "invoice", refId: roundInv.json.id, returnDate: "2027-06-03", warehouseId: whUtama.id,
+    lines: [{ productId: roundProd.json.id, qty: 3 }],
+  });
+  check(
+    "retur SELURUH qty membalik persis 899 (tanpa selisih pembulatan)",
+    roundRet.status === 201 && roundRet.json?.total === 899,
+    `→ ${JSON.stringify(roundRet.json)}`,
+  );
+  const roundInvAfter = await owner("GET", `/api/tenants/${tenantId}/invoices?limit=200`);
+  const roundDoc = roundInvAfter.json?.docs?.find((d) => d.id === roundInv.json.id);
+  check(
+    "faktur setelah retur penuh: sisa tagihan 0 (tidak menyisakan Rp 1)",
+    roundDoc && roundDoc.total - roundDoc.paidAmount - roundDoc.returnedAmount === 0,
+    `→ total ${roundDoc?.total} paid ${roundDoc?.paidAmount} returned ${roundDoc?.returnedAmount}`,
+  );
+
+  console.log("13y2. Picking multi-gudang (Fase 20g)");
+  // Dua gudang dengan harga pokok BERBEDA. Kalau picking mengambil dari gudang
+  // yang keliru, total fakturnya tetap terlihat wajar — hanya angka HPP-nya
+  // yang salah, dan itu tidak muncul di layar mana pun. Karena itu diuji lewat
+  // buku besar HPP, bukan lewat total faktur.
+  const pickProd = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "PICK-001", name: "Produk Uji Picking", unit: "pcs", sellPrice: 5_000, buyPrice: 1_000,
+  });
+  const pickBuyA = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2027-06-04", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: pickProd.json.id, qty: 10, unitPrice: 1_000 }],
+  });
+  const pickBuyB = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2027-06-04", taxRate: 0, warehouseId: wh2.json.id,
+    lines: [{ productId: pickProd.json.id, qty: 5, unitPrice: 3_000 }],
+  });
+  check(
+    "stok awal picking: 10 @1.000 di Gudang Utama, 5 @3.000 di Gudang Cabang",
+    pickBuyA.status === 201 && pickBuyB.status === 201,
+    `→ ${pickBuyA.status} / ${pickBuyB.status}`,
+  );
+
+  const pickMismatch = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2027-06-05", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{
+      productId: pickProd.json.id, qty: 12, unitPrice: 5_000,
+      picks: [{ warehouseId: whUtama.id, qty: 10 }, { warehouseId: wh2.json.id, qty: 1 }],
+    }],
+  });
+  check(
+    "picking yang jumlahnya ≠ qty baris DITOLAK 400",
+    pickMismatch.status === 400,
+    `→ ${pickMismatch.status}`,
+  );
+
+  const pickShort = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2027-06-05", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{
+      productId: pickProd.json.id, qty: 16, unitPrice: 5_000,
+      picks: [{ warehouseId: whUtama.id, qty: 10 }, { warehouseId: wh2.json.id, qty: 6 }],
+    }],
+  });
+  check("picking melebihi stok gudang KEDUA DITOLAK 400", pickShort.status === 400, `→ ${pickShort.status}`);
+  const stockAfterShort = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const utamaShort = stockAfterShort.json?.levels?.find(
+    (l) => l.sku === "PICK-001" && l.warehouseId === whUtama.id,
+  );
+  check(
+    "penolakan picking TIDAK mengurangi gudang pertama (tetap 10)",
+    utamaShort?.qty === 10,
+    `→ ${utamaShort?.qty}`,
+  );
+
+  const hppBeforePick = await owner("GET", `/api/tenants/${tenantId}/ledger/${hppAcc.id}`);
+  const pickInv = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2027-06-05", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{
+      productId: pickProd.json.id, qty: 12, unitPrice: 5_000,
+      picks: [{ warehouseId: whUtama.id, qty: 10 }, { warehouseId: wh2.json.id, qty: 2 }],
+    }],
+  });
+  check("faktur picking multi-gudang diposting", pickInv.status === 201, `→ ${JSON.stringify(pickInv.json)}`);
+  const hppAfterPick = await owner("GET", `/api/tenants/${tenantId}/ledger/${hppAcc.id}`);
+  check(
+    "HPP dihitung per gudang: 10×1.000 + 2×3.000 = 16.000",
+    hppAfterPick.json?.balance - hppBeforePick.json?.balance === 16_000,
+    `→ selisih ${hppAfterPick.json?.balance - hppBeforePick.json?.balance}`,
+  );
+  const stockAfterPick = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const utamaPick = stockAfterPick.json?.levels?.find(
+    (l) => l.sku === "PICK-001" && l.warehouseId === whUtama.id,
+  );
+  const cabangPick = stockAfterPick.json?.levels?.find(
+    (l) => l.sku === "PICK-001" && l.warehouseId === wh2.json.id,
+  );
+  check(
+    "stok berkurang di KEDUA gudang (Utama 0, Cabang 3)",
+    (utamaPick?.qty ?? 0) === 0 && cabangPick?.qty === 3,
+    `→ utama ${utamaPick?.qty} cabang ${cabangPick?.qty}`,
+  );
+  const tbAfterPick = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check(
+    "neraca saldo TETAP seimbang setelah picking multi-gudang",
+    tbAfterPick.json?.balanced === true,
+    `→ debit ${tbAfterPick.json?.totalDebit} vs kredit ${tbAfterPick.json?.totalCredit}`,
+  );
+
+  // --- Satuan ganda dipakai saat transaksi (Fase 21c) -------------------------
+  console.log("13y3. Satuan ganda dipakai saat transaksi (Fase 21c)");
+  // Kolom `uom_secondary`/`uom_factor` sudah ada di master produk sejak Fase 7c,
+  // tetapi konversinya tak pernah dipakai saat transaksi. Yang diuji di sini
+  // adalah konversinya SAMPAI ke stok & buku besar — bukan sekadar medannya
+  // diterima, karena baris "2 dus" yang diam-diam jadi 2 pcs menghasilkan
+  // dokumen yang setiap angkanya terlihat wajar.
+  const dusProd = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "DUS-21C", name: "Sirup Markisa 600ml", unit: "pcs",
+    sellPrice: 25_000, buyPrice: 15_000, uomSecondary: "dus", uomFactor: 20,
+  });
+  check("buat produk bersatuan besar (1 dus = 20 pcs) 201", dusProd.status === 201, `→ ${dusProd.status}`);
+
+  // Beli 5 dus @ Rp 300.000 → 100 pcs @ Rp 15.000.
+  const dusBuy = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2027-07-02", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: dusProd.json.id, qty: 5, unitPrice: 300_000, uom: "besar" }],
+  });
+  check(
+    "beli 5 dus diposting senilai 1.500.000 (5 × harga per DUS, bukan per pcs)",
+    dusBuy.status === 201 && dusBuy.json?.total === 1_500_000,
+    `→ ${dusBuy.status} total ${dusBuy.json?.total}`,
+  );
+
+  const stokDus = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const lvlDus = stokDus.json?.levels?.find((l) => l.sku === "DUS-21C" && l.warehouseId === whUtama.id);
+  check("stok bertambah 100 pcs (5 dus × 20), bukan 5", lvlDus?.qty === 100, `→ ${lvlDus?.qty}`);
+  check("biaya rata-rata = harga per dus ÷ isi = 15.000/pcs", lvlDus?.avgCost === 15_000, `→ ${lvlDus?.avgCost}`);
+
+  // Baris dokumen menyimpan qty dalam satuan DASAR + jejak satuan inputnya,
+  // supaya SUM(qty) di laporan & validasi retur tidak pernah campur dus & pcs.
+  const dusPurchases = await owner("GET", `/api/tenants/${tenantId}/purchases?limit=50`);
+  const dusDoc = dusPurchases.json?.docs?.find((d) => d.docNo === dusBuy.json.docNo);
+  check(
+    "baris pembelian tersimpan 100 pcs + jejak satuan (uomFactor 20, uomName 'dus')",
+    dusDoc?.lines?.[0]?.qty === 100 && dusDoc?.lines?.[0]?.uomFactor === 20 && dusDoc?.lines?.[0]?.uomName === "dus",
+    `→ ${JSON.stringify(dusDoc?.lines?.[0])}`,
+  );
+
+  // Jual 1 dus → 20 pcs keluar, HPP 20 × 15.000.
+  const hppBeforeDus = await owner("GET", `/api/tenants/${tenantId}/ledger/${hppAcc.id}`);
+  const dusSell = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2027-07-03", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: dusProd.json.id, qty: 1, unitPrice: 500_000, uom: "besar" }],
+  });
+  check("jual 1 dus diposting senilai 500.000", dusSell.status === 201 && dusSell.json?.total === 500_000, `→ ${JSON.stringify(dusSell.json)}`);
+  const hppAfterDus = await owner("GET", `/api/tenants/${tenantId}/ledger/${hppAcc.id}`);
+  check(
+    "HPP penjualan satuan besar = 20 × 15.000 = 300.000",
+    hppAfterDus.json?.balance - hppBeforeDus.json?.balance === 300_000,
+    `→ selisih ${hppAfterDus.json?.balance - hppBeforeDus.json?.balance}`,
+  );
+  const stokDus2 = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const lvlDus2 = stokDus2.json?.levels?.find((l) => l.sku === "DUS-21C" && l.warehouseId === whUtama.id);
+  check("stok berkurang 20 pcs (1 dus), tersisa 80", lvlDus2?.qty === 80, `→ ${lvlDus2?.qty}`);
+
+  // Penjaga terpenting: satuan besar pada produk yang TIDAK punya satuan besar.
+  // Tanpa penolakan ini "2 dus" jadi 2 pcs tanpa satu angka pun terlihat aneh.
+  const dusTanpaUom = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2027-07-03", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: pickProd.json.id, qty: 2, unitPrice: 5_000, uom: "besar" }],
+  });
+  check(
+    "satuan besar pada produk TANPA satuan besar DITOLAK 400 dengan pesan jelas",
+    dusTanpaUom.status === 400 && /satuan besar/.test(dusTanpaUom.json?.error ?? ""),
+    `→ ${dusTanpaUom.status} ${JSON.stringify(dusTanpaUom.json?.error)}`,
+  );
+
+  // Harga per dus yang tidak habis dibagi isinya: sisanya harus kecil & terkendali,
+  // bukan menggeser biaya per pcs ke angka yang keliru besar.
+  const dus24 = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "DUS24-21C", name: "Teh Kotak 200ml", unit: "pcs",
+    sellPrice: 5_000, buyPrice: 3_000, uomSecondary: "dus", uomFactor: 24,
+  });
+  await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2027-07-04", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: dus24.json.id, qty: 1, unitPrice: 1_000_000, uom: "besar" }],
+  });
+  const stokDus24 = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const lvlDus24 = stokDus24.json?.levels?.find((l) => l.sku === "DUS24-21C");
+  check(
+    "harga tak habis dibagi: 1.000.000 ÷ 24 → 24 pcs @ 41.667 (sisa pembulatan 8 rupiah)",
+    lvlDus24?.qty === 24 && lvlDus24?.avgCost === 41_667,
+    `→ qty ${lvlDus24?.qty} avgCost ${lvlDus24?.avgCost}`,
+  );
+
+  const tbAfterDus = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check(
+    "neraca saldo TETAP seimbang setelah transaksi bersatuan ganda",
+    tbAfterDus.json?.balanced === true,
+    `→ debit ${tbAfterDus.json?.totalDebit} vs kredit ${tbAfterDus.json?.totalCredit}`,
+  );
+
+  // e-Faktur: `qty` tersimpan dalam satuan dasar sedangkan `unit_price` per dus,
+  // jadi ekspor XML harus mengembalikan qty ke satuan input. Kalau tidak,
+  // TaxBase-nya 20× lipat dan XML-nya tidak akan pernah cocok dengan fakturnya.
+  const dusPpn = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2027-07-05", taxRate: 11, warehouseId: whUtama.id,
+    lines: [{ productId: dusProd.json.id, qty: 2, unitPrice: 600_000, uom: "besar" }],
+  });
+  check(
+    "faktur PPN bersatuan dus diposting (1.200.000 + PPN 132.000 = 1.332.000)",
+    dusPpn.status === 201 && dusPpn.json?.total === 1_332_000,
+    `→ ${JSON.stringify(dusPpn.json)}`,
+  );
+  const dusXmlRes = await owner("GET", `/api/tenants/${tenantId}/reports/efaktur-xml?from=2027-07-01&to=2027-07-31`);
+  const dusXml = dusXmlRes.text ?? "";
+  const dusXmlDoc = dusXml.split("<TaxInvoice>").find((s) => s.includes(`<RefDesc>${dusPpn.json.docNo}</RefDesc>`));
+  check(
+    "XML e-Faktur memakai satuan INPUT: Qty 2 (bukan 40), Price 600.000, TaxBase 1.200.000",
+    dusXmlDoc?.includes("<Qty>2</Qty>") === true &&
+      dusXmlDoc?.includes("<Price>600000.00</Price>") === true &&
+      dusXmlDoc?.includes("<TaxBase>1200000.00</TaxBase>") === true,
+    `→ ${dusXmlDoc?.match(/<Qty>[^<]*<\/Qty>|<TaxBase>[^<]*<\/TaxBase>/g)?.join(" ")}`,
+  );
+  // Jaminan yang sebenarnya dituntut DJP: jumlah seluruh TaxBase pada satu
+  // faktur = subtotal fakturnya. Inilah alasan `unit_price` TIDAK ikut dibagi.
+  const dusTaxBases = [...(dusXmlDoc ?? "").matchAll(/<TaxBase>([\d.]+)<\/TaxBase>/g)].reduce(
+    (s, m) => s + Number(m[1]),
+    0,
+  );
+  check(
+    "jumlah TaxBase XML = subtotal faktur (1.200.000) — tanpa selisih pembulatan",
+    dusTaxBases === 1_200_000,
+    `→ ${dusTaxBases}`,
+  );
+
+  console.log("13z. Deteksi anomali beban (Fase 15c)");
+  const accsAnom = await owner("GET", `/api/tenants/${tenantId}/accounts`);
+  const sewaAcc = accsAnom.json?.accounts?.find((a) => a.code === "5-3000");
+  const opsAcc = accsAnom.json?.accounts?.find((a) => a.code === "5-4000");
+  const kasAnom = accsAnom.json?.accounts?.find((a) => a.code === "1-1000");
+  const postBeban = (date, accId, amount) =>
+    owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+      entryDate: date, memo: `Beban uji anomali ${date}`,
+      lines: [
+        { accountId: accId, debit: amount, credit: 0 },
+        { accountId: kasAnom.id, debit: 0, credit: amount },
+      ],
+    });
+  // Sewa: baseline 1jt/bulan (Feb–Apr 2027), lalu MELONJAK 10jt di Mei 2027.
+  for (const m of ["2027-02-10", "2027-03-10", "2027-04-10"]) await postBeban(m, sewaAcc.id, 1_000_000);
+  const anomSpike = await postBeban("2027-05-10", sewaAcc.id, 10_000_000);
+  // Operasional: stabil 1jt → 1,2jt (naik wajar, tak boleh ditandai).
+  for (const m of ["2027-02-11", "2027-03-11", "2027-04-11"]) await postBeban(m, opsAcc.id, 1_000_000);
+  await postBeban("2027-05-11", opsAcc.id, 1_200_000);
+  check("jurnal beban uji anomali diposting", anomSpike.status === 201, `→ ${anomSpike.status} ${JSON.stringify(anomSpike.json)}`);
+
+  const anom = await owner("GET", `/api/tenants/${tenantId}/reports/anomalies?month=2027-05-01`);
+  const sewaAnom = anom.json?.anomalies?.find((a) => a.code === "5-3000");
+  check(
+    "anomali: Beban Sewa 10jt vs baseline 1jt ditandai (10× biasanya)",
+    anom.status === 200 && sewaAnom?.current === 10_000_000 && sewaAnom?.baseline === 1_000_000 && Math.round(sewaAnom?.ratio) === 10,
+    `→ ${JSON.stringify(anom.json?.anomalies)}`,
+  );
+  check(
+    "anomali: kenaikan wajar (1jt→1,2jt) TIDAK ditandai",
+    !anom.json?.anomalies?.some((a) => a.code === "5-4000"),
+  );
+  // Bulan berjalan TIDAK menyerap entri bulan sesudahnya (batas atas eksklusif).
+  const anomQuiet = await owner("GET", `/api/tenants/${tenantId}/reports/anomalies?month=2027-03-01`);
+  check(
+    "bulan tenang (Mar): lonjakan Mei tidak ikut terhitung — tanpa anomali",
+    anomQuiet.status === 200 && !anomQuiet.json?.anomalies?.some((a) => a.code === "5-3000"),
+    `→ ${JSON.stringify(anomQuiet.json?.anomalies)}`,
+  );
+  const anomViewer = await viewer("GET", `/api/tenants/${tenantId}/reports/anomalies?month=2027-05-01`);
+  check("viewer boleh membaca anomali (200)", anomViewer.status === 200);
+
+  // --- Siklus langganan: trial kedaluwarsa → past_due → baca-saja (Fase 2b-1) ------
+  // --- Dashboard kustom, tren bulanan, ekspor Excel & laporan terjadwal (Fase 7h) ---
+  // Dijalankan SEBELUM cron trial-expiry (bagian 14) selagi tenant utama masih
+  // dapat menulis; memakai faktur Juli yang sudah ada.
+  console.log("13b. Dashboard kustom: tren bulanan + laporan terjadwal (Fase 7h)");
+  const monthly7h = await owner("GET", `/api/tenants/${tenantId}/reports/sales-monthly?months=6`);
+  check("tren penjualan bulanan 200 + array", monthly7h.status === 200 && Array.isArray(monthly7h.json?.rows));
+  const analytics7h = await owner("GET", `/api/tenants/${tenantId}/reports/sales-analytics?from=2026-07-01&to=2026-07-31`);
+  check("data laporan penjualan (sumber ekspor Excel) 200", analytics7h.status === 200 && Array.isArray(analytics7h.json?.byProduct));
+  const snapList0 = await owner("GET", `/api/tenants/${tenantId}/report-snapshots`);
+  check("daftar laporan terjadwal 200 + array", snapList0.status === 200 && Array.isArray(snapList0.json?.snapshots));
+  const recapViewer = await viewer("POST", `/api/tenants/${tenantId}/report-snapshots/run`, { period: "2026-07" });
+  check("viewer DITOLAK menyusun rekap (403)", recapViewer.status === 403, `→ ${recapViewer.status}`);
+  const recapBad = await owner("POST", `/api/tenants/${tenantId}/report-snapshots/run`, { period: "2026/07" });
+  check("periode rekap tak valid DITOLAK 400", recapBad.status === 400);
+  const recap7h = await owner("POST", `/api/tenants/${tenantId}/report-snapshots/run`, { period: "2026-07" });
+  check(
+    "susun rekap Juli 200 + ada omzet & faktur",
+    recap7h.status === 200 && recap7h.json?.summary?.totalRevenue > 0 && recap7h.json?.summary?.invoiceCount >= 1,
+    `→ ${JSON.stringify(recap7h.json?.summary)}`,
+  );
+  const recap7h2 = await owner("POST", `/api/tenants/${tenantId}/report-snapshots/run`, { period: "2026-07" });
+  check("rekap idempoten (jalankan ulang 200)", recap7h2.status === 200);
+  const snapList1 = await owner("GET", `/api/tenants/${tenantId}/report-snapshots`);
+  const julSnaps = (snapList1.json?.snapshots ?? []).filter((s) => s.period === "2026-07");
+  check("rekap Juli tersimpan tepat 1 (idempoten UNIQUE kind+period)", julSnaps.length === 1, `→ ${julSnaps.length}`);
+  check("snapshot omzet konsisten dengan hasil run", julSnaps[0]?.summary?.totalRevenue === recap7h.json?.summary?.totalRevenue);
+
+  // --- Ekspor penuh & backup Google Drive (Fase 8b) --------------------------------
+  console.log("13c. Ekspor penuh & backup Google Drive (Fase 8b)");
+  const exp1 = await owner("GET", `/api/tenants/${tenantId}/export/full`);
+  check("ekspor penuh 200 + berkas ZIP (magic PK)", exp1.status === 200 && exp1.text.startsWith("PK"));
+  check("ZIP memuat manifest.json + CSV jurnal", exp1.text.includes("manifest.json") && exp1.text.includes("data/journal_entries.csv"));
+  check("ZIP memuat CSV faktur & produk", exp1.text.includes("data/invoices.csv") && exp1.text.includes("data/products.csv"));
+  const expViewer = await viewer("GET", `/api/tenants/${tenantId}/export/full`);
+  check("viewer DITOLAK ekspor penuh (403)", expViewer.status === 403);
+  const drvStatus = await owner("GET", `/api/tenants/${tenantId}/drive/status`);
+  check("status Drive 200: belum dikonfigurasi (tanpa secret)", drvStatus.status === 200 && drvStatus.json?.configured === false && drvStatus.json?.connected === false);
+  const drvConnect = await owner("GET", `/api/tenants/${tenantId}/drive/connect`);
+  check("sambung Drive tanpa konfigurasi DITOLAK 503", drvConnect.status === 503);
+  const drvBackup = await owner("POST", `/api/tenants/${tenantId}/drive/backup-now`);
+  check("backup Drive tanpa konfigurasi DITOLAK 503", drvBackup.status === 503);
+
+  // --- Pengerasan hasil audit (Fase 9a) -------------------------------------
+  console.log("13d. Pengerasan hasil audit (Fase 9a)");
+
+  // Paginasi keyset buku besar: jendela terbaru + openingBalance + kursor.
+  const lgFull = await owner("GET", `/api/tenants/${tenantId}/ledger/${kas.id}`);
+  check(
+    "buku besar penuh: 200, openingBalance 0, tanpa kursor lanjutan",
+    lgFull.status === 200 && lgFull.json?.openingBalance === 0 && lgFull.json?.nextCursor === null,
+    `→ ${lgFull.status} opening=${lgFull.json?.openingBalance} cursor=${lgFull.json?.nextCursor}`,
+  );
+  check("akun kas punya cukup baris untuk uji paginasi (≥6)", (lgFull.json?.entries?.length ?? 0) >= 6);
+  const lgWin = await owner("GET", `/api/tenants/${tenantId}/ledger/${kas.id}?limit=3`);
+  check(
+    "jendela limit=3: berisi 3 baris TERBARU + kursor lanjutan",
+    lgWin.status === 200 && lgWin.json?.entries?.length === 3 && typeof lgWin.json?.nextCursor === "string",
+  );
+  check("saldo akhir jendela = saldo akhir buku penuh", lgWin.json?.balance === lgFull.json?.balance);
+  check(
+    "saldo berjalan baris pertama jendela konsisten dengan openingBalance",
+    lgWin.json?.entries?.[0]?.balance ===
+      lgWin.json?.openingBalance + lgWin.json?.entries?.[0]?.debit - lgWin.json?.entries?.[0]?.credit,
+  );
+  const lgOlder = await owner(
+    "GET",
+    `/api/tenants/${tenantId}/ledger/${kas.id}?limit=3&before=${encodeURIComponent(lgWin.json?.nextCursor ?? "")}`,
+  );
+  check(
+    "halaman lebih lama: saldo akhirnya = openingBalance halaman terbaru",
+    lgOlder.status === 200 && lgOlder.json?.balance === lgWin.json?.openingBalance,
+    `→ ${lgOlder.status} ${lgOlder.json?.balance} vs ${lgWin.json?.openingBalance}`,
+  );
+  const lgBadCur = await owner("GET", `/api/tenants/${tenantId}/ledger/${kas.id}?before=kursor-ngawur`);
+  check("kursor buku besar tak valid DITOLAK 400", lgBadCur.status === 400);
+  const lgClamp = await owner("GET", `/api/tenants/${tenantId}/ledger/${kas.id}?limit=999999`);
+  check("limit di luar batas di-clamp (tetap 200)", lgClamp.status === 200);
+
+  // Validasi Zod pada input yang dulu dikoersi manual.
+  const thrBad = await owner("POST", `/api/tenants/${tenantId}/approval-threshold`, { amount: "sejuta" });
+  check("ambang persetujuan non-angka DITOLAK 400", thrBad.status === 400);
+  const thrNeg = await owner("POST", `/api/tenants/${tenantId}/approval-threshold`, { amount: -5 });
+  check("ambang persetujuan negatif DITOLAK 400", thrNeg.status === 400);
+  const thrFrac = await owner("POST", `/api/tenants/${tenantId}/approval-threshold`, { amount: 10.5 });
+  check("ambang persetujuan pecahan DITOLAK 400", thrFrac.status === 400);
+  const rejBadNote = await owner("POST", `/api/tenants/${tenantId}/approvals/tidak-ada/reject`, {
+    note: "x".repeat(301),
+  });
+  check("catatan penolakan >300 karakter DITOLAK 400", rejBadNote.status === 400);
+  const mtBadDate = await owner("POST", `/api/tenants/${tenantId}/maintenance/run`, { date: "31-12-2026" });
+  check("pemicu servis dengan tanggal salah format DITOLAK 400", mtBadDate.status === 400);
+  const impEmpty = await owner("POST", `/api/tenants/${tenantId}/contacts/import`, { rows: [] });
+  check(
+    "impor tanpa baris DITOLAK 400 + pesan Indonesia",
+    impEmpty.status === 400 && /Tidak ada baris/.test(impEmpty.json?.error ?? ""),
+  );
+  const impOver = await owner("POST", `/api/tenants/${tenantId}/contacts/import`, {
+    rows: Array.from({ length: 501 }, (_, i) => ({ name: `Kontak ${i}` })),
+  });
+  check(
+    "impor >500 baris DITOLAK 400 + pesan Indonesia",
+    impOver.status === 400 && /Maksimal 500/.test(impOver.json?.error ?? ""),
+  );
+
+  // Kursor audit log: riwayat lebih lama dari 100 kini terjangkau.
+  const al1 = await owner("GET", `/api/tenants/${tenantId}/audit-logs`);
+  check(
+    "audit log 200 + bidang nextCursor hadir + maksimal 100 baris",
+    al1.status === 200 && "nextCursor" in (al1.json ?? {}) && (al1.json?.logs?.length ?? 0) <= 100,
+  );
+  check("aktivitas tenant sudah >100 → kursor lanjutan tersedia", typeof al1.json?.nextCursor === "string");
+  const al2 = await owner(
+    "GET",
+    `/api/tenants/${tenantId}/audit-logs?before=${encodeURIComponent(al1.json?.nextCursor ?? "")}`,
+  );
+  check(
+    "halaman audit lebih lama 200 + berisi baris yang memang lebih tua",
+    al2.status === 200 &&
+      (al2.json?.logs?.length ?? 0) >= 1 &&
+      al2.json?.logs?.[0]?.createdAt <= al1.json?.logs?.[al1.json.logs.length - 1]?.createdAt,
+  );
+  const alBadCur = await owner("GET", `/api/tenants/${tenantId}/audit-logs?before=ngawur`);
+  check("kursor audit log tak valid DITOLAK 400", alBadCur.status === 400);
+
+  // Endpoint berat tetap normal di bawah pembatas longgar per pengguna.
+  const rlReport = await owner("GET", `/api/tenants/${tenantId}/reports/income-statement?from=2026-01-01&to=2026-12-31`);
+  check("laporan laba rugi tetap 200 di bawah pembatas per pengguna", rlReport.status === 200);
+
+  // --- Form lead publik per tenant (Fase 21e) ---------------------------------
+  console.log("13i2. Form lead publik → CRM Leads (Fase 21e)");
+  const lfKirim = (body, slug = "pt-maju-jaya") =>
+    fetch(`${BASE}/api/form/lead/${slug}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(async (r) => ({ status: r.status, json: await r.json().catch(() => null) }));
+
+  const lfBelum = await owner("GET", `/api/tenants/${tenantId}/lead-form`);
+  check("form lead belum diterbitkan → token null", lfBelum.status === 200 && lfBelum.json?.token === null, `→ ${JSON.stringify(lfBelum.json)}`);
+  // Form yang belum terbit tidak boleh menerima kiriman.
+  const lfSebelumTerbit = await lfKirim({ token: "belum-ada-token-sama-sekali", name: "Calon Pembeli" });
+  check("kiriman ke form yang BELUM diterbitkan DITOLAK 403", lfSebelumTerbit.status === 403, `→ ${lfSebelumTerbit.status}`);
+
+  const lfViewerTerbit = await viewer("POST", `/api/tenants/${tenantId}/lead-form/token`);
+  check("terbitkan form oleh non-Pemilik DITOLAK 403", lfViewerTerbit.status === 403, `→ ${lfViewerTerbit.status}`);
+
+  const lfTerbit = await owner("POST", `/api/tenants/${tenantId}/lead-form/token`);
+  check(
+    "Pemilik menerbitkan form 201 + token & slug dikembalikan",
+    lfTerbit.status === 201 && (lfTerbit.json?.token ?? "").length >= 32 && lfTerbit.json?.slug === "pt-maju-jaya",
+    `→ ${lfTerbit.status} slug=${lfTerbit.json?.slug}`,
+  );
+  const lfToken = lfTerbit.json.token;
+
+  const lfSlugSalah = await lfKirim({ token: lfToken, name: "Calon Pembeli" }, "perusahaan-tidak-ada");
+  check("slug tenant tak dikenal → 404", lfSlugSalah.status === 404, `→ ${lfSlugSalah.status}`);
+  const lfTokenSalah = await lfKirim({ token: `${lfToken}x`, name: "Calon Pembeli" });
+  check("token salah DITOLAK 403", lfTokenSalah.status === 403, `→ ${lfTokenSalah.status}`);
+  const lfTanpaNama = await lfKirim({ token: lfToken, name: "A" });
+  check("nama terlalu pendek DITOLAK 400", lfTanpaNama.status === 400, `→ ${lfTanpaNama.status}`);
+
+  const leadsSebelum = (await owner("GET", `/api/tenants/${tenantId}/leads`)).json?.leads?.length ?? 0;
+  const lfOk = await lfKirim({
+    token: lfToken, name: "CV Bunga Sejahtera", email: "bunga@contoh.co.id",
+    phone: "0811-2233", message: "Tertarik paket kasir untuk 3 cabang.",
+  });
+  check("kiriman sah dari PUBLIK (tanpa sesi) 201", lfOk.status === 201, `→ ${lfOk.status} ${JSON.stringify(lfOk.json)}`);
+
+  const leadsSesudah = (await owner("GET", `/api/tenants/${tenantId}/leads`)).json?.leads ?? [];
+  const leadForm = leadsSesudah.find((l) => l.id === lfOk.json.id);
+  check(
+    "lead masuk CRM tenant itu dengan source 'form-publik' + isi form terbawa",
+    leadsSesudah.length === leadsSebelum + 1 &&
+      leadForm?.name === "CV Bunga Sejahtera" &&
+      leadForm?.source === "form-publik" &&
+      leadForm?.email === "bunga@contoh.co.id" &&
+      leadForm?.notes === "Tertarik paket kasir untuk 3 cabang.",
+    `→ ${JSON.stringify(leadForm)}`,
+  );
+  // Pengunjung TIDAK boleh menentukan nilai perkiraan — kalau bisa, siapa pun
+  // dari luar dapat mengotori pipeline penjualan pemiliknya.
+  const lfNilai = await lfKirim({ token: lfToken, name: "PT Coba Suntik", estValue: 999_000_000, source: "palsu" });
+  const leadsSuntik = (await owner("GET", `/api/tenants/${tenantId}/leads`)).json?.leads ?? [];
+  const leadSuntik = leadsSuntik.find((l) => l.id === lfNilai.json?.id);
+  check(
+    "estValue & source dari pengunjung DIABAIKAN (0 + 'form-publik')",
+    leadSuntik?.estValue === 0 && leadSuntik?.source === "form-publik",
+    `→ ${JSON.stringify(leadSuntik && { v: leadSuntik.estValue, s: leadSuntik.source })}`,
+  );
+
+  // Isolasi antar-tenant: token milik tenant utama tidak boleh menembus slug lain.
+  const lfLintas = await lfKirim({ token: lfToken, name: "Bocor?" }, "usaha-dewi");
+  check("token tenant lain pada slug berbeda DITOLAK 403 (tidak bocor lintas tenant)", lfLintas.status === 403, `→ ${lfLintas.status}`);
+
+  const lfMati = await owner("DELETE", `/api/tenants/${tenantId}/lead-form/token`);
+  const lfSetelahMati = await lfKirim({ token: lfToken, name: "Setelah dimatikan" });
+  check(
+    "form dimatikan → kiriman berikutnya DITOLAK 403",
+    lfMati.status === 200 && lfSetelahMati.status === 403,
+    `→ ${lfMati.status} / ${lfSetelahMati.status}`,
+  );
+  // Diterbitkan lagi supaya ui-sim & cek berikutnya punya form aktif.
+  const lfTerbitLagi = await owner("POST", `/api/tenants/${tenantId}/lead-form/token`);
+
+  // Batas laju: satu-satunya yang menahan penyalahgunaan, karena tokennya
+  // memang terbaca di halaman publik. Dihabiskan sengaja sampai 429 muncul.
+  let lfStatus429 = 0;
+  for (let i = 0; i < 25 && lfStatus429 === 0; i++) {
+    const r = await lfKirim({ token: lfTerbitLagi.json.token, name: `Banjir ${i}` });
+    if (r.status === 429) lfStatus429 = r.status;
+  }
+  check("batas laju form publik menutup penyiraman berulang → 429", lfStatus429 === 429, `→ ${lfStatus429}`);
+
+  // --- Pembanding tahun lalu di KPI (Fase 21e) --------------------------------
+  const kpiYoY = await owner("GET", `/api/tenants/${tenantId}/dashboard`);
+  check(
+    "dashboard memuat pembanding tahun lalu (salesLastYear & profitLastYear)",
+    kpiYoY.status === 200 &&
+      typeof kpiYoY.json?.salesLastYear === "number" &&
+      typeof kpiYoY.json?.profitLastYear === "number",
+    `→ ${JSON.stringify(kpiYoY.json && { s: kpiYoY.json.salesLastYear, p: kpiYoY.json.profitLastYear })}`,
+  );
+
+  console.log("13j. Field kustom per modul (Fase 20j)");
+  // Definisi
+  const cfBadPilihan = await owner("POST", `/api/tenants/${tenantId}/custom-fields`, {
+    module: "contact", fieldKey: "wilayah", label: "Wilayah", type: "pilihan",
+  });
+  check("definisi tipe 'pilihan' tanpa daftar pilihan DITOLAK 400", cfBadPilihan.status === 400, `→ ${cfBadPilihan.status}`);
+  const cfBadKey = await owner("POST", `/api/tenants/${tenantId}/custom-fields`, {
+    module: "contact", fieldKey: "Nomor PO", label: "Nomor PO", type: "teks",
+  });
+  check("kunci field yang tak aman jadi judul kolom ekspor DITOLAK 400", cfBadKey.status === 400, `→ ${cfBadKey.status}`);
+
+  const cfKontak = await owner("POST", `/api/tenants/${tenantId}/custom-fields`, {
+    module: "contact", fieldKey: "nomor_po", label: "Nomor PO Pelanggan", type: "teks", required: true,
+  });
+  check("buat field kustom kontak (wajib) 201", cfKontak.status === 201, `→ ${cfKontak.status}`);
+  const cfDupe = await owner("POST", `/api/tenants/${tenantId}/custom-fields`, {
+    module: "contact", fieldKey: "nomor_po", label: "Lain", type: "teks",
+  });
+  check("kunci field yang sudah dipakai di modul yang sama DITOLAK 409", cfDupe.status === 409, `→ ${cfDupe.status}`);
+  const cfWilayah = await owner("POST", `/api/tenants/${tenantId}/custom-fields`, {
+    module: "contact", fieldKey: "wilayah", label: "Wilayah", type: "pilihan", options: ["Jawa", "Sumatra"],
+  });
+  check("buat field kustom tipe pilihan 201", cfWilayah.status === 201);
+
+  const cfViewerBuat = await viewer("POST", `/api/tenants/${tenantId}/custom-fields`, {
+    module: "product", fieldKey: "x", label: "X", type: "teks",
+  });
+  check("viewer DITOLAK membuat definisi field kustom (403)", cfViewerBuat.status === 403);
+  const cfViewerBaca = await viewer("GET", `/api/tenants/${tenantId}/custom-fields?module=contact`);
+  check("viewer boleh membaca definisi (form & cetakan butuh)", cfViewerBaca.status === 200 && cfViewerBaca.json?.defs?.length === 2, `→ ${JSON.stringify(cfViewerBaca.json?.defs?.length)}`);
+
+  // Nilai pada kontak
+  const kontakTanpaWajib = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "customer", name: "Kontak Uji Field Kustom",
+  });
+  check("kontak tanpa field kustom WAJIB DITOLAK 400", kontakTanpaWajib.status === 400, `→ ${kontakTanpaWajib.status} ${kontakTanpaWajib.json?.error ?? ""}`);
+  const kontakSalahPilihan = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "customer", name: "Kontak Uji", customFields: { nomor_po: "PO-1", wilayah: "Papua" },
+  });
+  check("nilai di luar daftar pilihan DITOLAK 400", kontakSalahPilihan.status === 400, `→ ${kontakSalahPilihan.status}`);
+  const kontakSalahKetik = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "customer", name: "Kontak Uji", customFields: { nomor_po: "PO-1", nomer_po: "PO-2" },
+  });
+  check(
+    "kunci field kustom salah ketik DITOLAK 400, bukan diabaikan diam-diam",
+    kontakSalahKetik.status === 400,
+    `→ ${kontakSalahKetik.status} ${kontakSalahKetik.json?.error ?? ""}`,
+  );
+
+  const kontakOk = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "customer", name: "Kontak Uji Field Kustom",
+    customFields: { nomor_po: "PO-2026-001", wilayah: "Jawa" },
+  });
+  check("kontak dengan field kustom lengkap 201", kontakOk.status === 201, `→ ${kontakOk.status}`);
+  const kontakList = await owner("GET", `/api/tenants/${tenantId}/contacts?q=Kontak Uji Field Kustom`);
+  const kontakRow = kontakList.json?.items?.find((k) => k.id === kontakOk.json.id);
+  const nilaiPo = kontakRow?.customFields?.find((f) => f.fieldKey === "nomor_po");
+  check(
+    "nilai field kustom terbaca kembali di daftar kontak (siap dicetak & diekspor)",
+    nilaiPo?.value === "PO-2026-001" && nilaiPo?.label === "Nomor PO Pelanggan",
+    `→ ${JSON.stringify(kontakRow?.customFields)}`,
+  );
+
+  // Nilai pada faktur — yang paling berbahaya: penolakan TIDAK BOLEH menyisakan jurnal.
+  const cfFaktur = await owner("POST", `/api/tenants/${tenantId}/custom-fields`, {
+    module: "invoice", fieldKey: "no_pesanan", label: "No. Pesanan Pembeli", type: "teks", required: true,
+  });
+  check("buat field kustom faktur (wajib) 201", cfFaktur.status === 201);
+
+  const tbSebelumCf = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  const invSebelumCf = await owner("GET", `/api/tenants/${tenantId}/invoices?limit=500`);
+  const fakturDitolak = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2027-07-01", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 1, unitPrice: 100_000 }],
+  });
+  check("faktur tanpa field kustom WAJIB DITOLAK 400", fakturDitolak.status === 400, `→ ${fakturDitolak.status}`);
+  const tbSesudahTolak = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  const invSesudahTolak = await owner("GET", `/api/tenants/${tenantId}/invoices?limit=500`);
+  check(
+    "faktur yang ditolak field kustom TIDAK meninggalkan jurnal maupun dokumen",
+    tbSesudahTolak.json?.totalDebit === tbSebelumCf.json?.totalDebit &&
+      invSesudahTolak.json?.docs?.length === invSebelumCf.json?.docs?.length,
+    `→ debit ${tbSebelumCf.json?.totalDebit}→${tbSesudahTolak.json?.totalDebit}, dokumen ${invSebelumCf.json?.docs?.length}→${invSesudahTolak.json?.docs?.length}`,
+  );
+
+  const fakturCf = await owner("POST", `/api/tenants/${tenantId}/invoices`, {
+    contactId: customer.json.id, invoiceDate: "2027-07-01", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: prodBarang.json.id, qty: 1, unitPrice: 100_000 }],
+    customFields: { no_pesanan: "PB-777" },
+  });
+  check("faktur dengan field kustom terisi diposting 201", fakturCf.status === 201, `→ ${fakturCf.status} ${fakturCf.json?.error ?? ""}`);
+  const invCfList = await owner("GET", `/api/tenants/${tenantId}/invoices?limit=500`);
+  const invCfDoc = invCfList.json?.docs?.find((d) => d.id === fakturCf.json.id);
+  check(
+    "nilai field kustom ikut pada faktur di daftar",
+    invCfDoc?.customFields?.find((f) => f.fieldKey === "no_pesanan")?.value === "PB-777",
+    `→ ${JSON.stringify(invCfDoc?.customFields)}`,
+  );
+
+  // Cetakan & ekspor membaca dari daftar faktur — sumber yang SAMA. Karena itu
+  // yang dikunci di sini adalah bentuk datanya (label + fieldKey + value),
+  // bukan hanya nilainya: halaman cetak menampilkan `label`, ekspor memakai
+  // `fieldKey`, dan salah satu hilang berarti janji di layar tidak ditepati.
+  const bentukCf = invCfDoc?.customFields?.[0];
+  check(
+    "bentuk data field kustom lengkap untuk cetakan (label) dan ekspor (fieldKey)",
+    Boolean(bentukCf?.label && bentukCf?.fieldKey && bentukCf?.type && bentukCf?.defId),
+    `→ ${JSON.stringify(bentukCf)}`,
+  );
+
+  // Arsip: definisi hilang dari daftar, dan nilainya berhenti ikut terekspor —
+  // TANPA menghapus data yang sudah dicatat pemilik.
+  const cfArsip = await owner("DELETE", `/api/tenants/${tenantId}/custom-fields/${cfFaktur.json.id}`);
+  check("arsipkan definisi field kustom 200", cfArsip.status === 200);
+  const invSetelahArsip = await owner("GET", `/api/tenants/${tenantId}/invoices?limit=500`);
+  const invArsipDoc = invSetelahArsip.json?.docs?.find((d) => d.id === fakturCf.json.id);
+  check(
+    "definisi terarsip: nilainya tak lagi ikut, dan faktur baru tak lagi menuntutnya",
+    (invArsipDoc?.customFields?.length ?? 0) === 0,
+    `→ ${JSON.stringify(invArsipDoc?.customFields)}`,
+  );
+  const cfArsipUlang = await owner("DELETE", `/api/tenants/${tenantId}/custom-fields/${cfFaktur.json.id}`);
+  check("mengarsipkan definisi yang sudah terarsip → 404", cfArsipUlang.status === 404);
+
+  // Bersihkan definisi kontak agar bagian smoke setelah ini tidak terhalang
+  // field wajib yang baru saja dibuat.
+  await owner("DELETE", `/api/tenants/${tenantId}/custom-fields/${cfKontak.json.id}`);
+  await owner("DELETE", `/api/tenants/${tenantId}/custom-fields/${cfWilayah.json.id}`);
+  const kontakSetelahBersih = await owner("POST", `/api/tenants/${tenantId}/contacts`, {
+    type: "customer", name: "Kontak Setelah Arsip",
+  });
+  check(
+    "setelah definisi diarsipkan, kontak tanpa field kustom kembali diterima 201",
+    kontakSetelahBersih.status === 201,
+    `→ ${kontakSetelahBersih.status}`,
+  );
+
+  console.log("14. Siklus langganan (langganan berbayar berakhir)");
+  // Fase 24: trial dihapus, jadi siklusnya kini digerakkan `subscription_ends_at`
+  // — satu-satunya jenis kedaluwarsa yang tersisa. Tanggalnya disetel 10 hari
+  // lalu supaya SUDAH melewati masa tenggang 3 hari (Fase 20c); di dalam
+  // tenggang tenant memang masih boleh menulis, dan itu perilaku yang benar.
+  const kemarinLama = new Date(Date.now() - 10 * 86_400_000).toISOString();
+  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
+    plan: "lengkap",
+    status: "active",
+    subscriptionEndsAt: kemarinLama,
+  });
+  const cron = await fetch(`${BASE}/__scheduled?cron=17+1+*+*+*`);
+  check("cron trigger dieksekusi", cron.status === 200);
+
+  const meAfterCron = await owner("GET", "/api/auth/me");
+  check(
+    "status tenant menjadi past_due setelah cron",
+    meAfterCron.json?.memberships?.[0]?.tenantStatus === "past_due",
+    `→ ${meAfterCron.json?.memberships?.[0]?.tenantStatus}`,
+  );
+
+  await new Promise((r) => setTimeout(r, 400));
+  const habisMail = findInLogs(/subject="Langganan .* telah berakhir"/);
+  check("email pemberitahuan langganan berakhir terkirim ke Owner", Boolean(habisMail));
+
+  // --- Fase 21b: rekap bulanan DIKIRIM, bukan hanya disimpan ----------------
+  // Sebelum fase ini rekap tersusun rapi tiap awal bulan lalu mengendap di
+  // database; pemilik tak pernah tahu ia ada, sementara roadmap terlanjur
+  // mengklaim "dikirim email tiap awal bulan" (koreksi Fase 21a).
+  const rekapMail = findInLogs(/subject="Rekap penjualan \d{4}-\d{2} — .*"/);
+  check("email rekap bulanan terkirim ke Owner", Boolean(rekapMail), `→ ${rekapMail?.[0] ?? "tidak ada di log"}`);
+  const snapAfterCron = await owner("GET", `/api/tenants/${tenantId}/report-snapshots`);
+  check(
+    "rekap juga tersimpan sebagai snapshot (kirim TIDAK menggantikan simpan)",
+    snapAfterCron.status === 200 && (snapAfterCron.json?.snapshots?.length ?? 0) > 0,
+    `→ ${snapAfterCron.json?.snapshots?.length} snapshot`,
+  );
+
+  const readWhilePastDue = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("mode baca-saja: MEMBACA laporan tetap boleh (200)", readWhilePastDue.status === 200);
+
+  const writeWhilePastDue = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "BRG-BLOKIR",
+    name: "Tidak boleh masuk",
+    unit: "pcs",
+    sellPrice: 1,
+    buyPrice: 1,
+  });
+  check("mode baca-saja: MENULIS ditolak 402", writeWhilePastDue.status === 402);
+
+  // Anti lock-in (Fase 8b): data TETAP bisa diekspor walau langganan berakhir.
+  const expPastDue = await owner("GET", `/api/tenants/${tenantId}/export/full`);
+  check("ekspor penuh TETAP BISA saat past_due (200 + ZIP)", expPastDue.status === 200 && expPastDue.text.startsWith("PK"));
+  check("ekspor saat past_due tetap memuat manifest", expPastDue.text.includes("manifest.json"));
+
+  // Akun comped kebal siklus trial: cron di atas TIDAK menurunkan tenant Dewi
+  // (status 'active' tak pernah disentuh cron) dan menulis tetap boleh.
+  const dewiMeAfterCron = await admin("GET", "/api/auth/me");
+  check(
+    "tenant comped TETAP active setelah cron trial-expiry",
+    dewiMeAfterCron.json?.memberships?.find((m) => m.tenantId === dewiOwn?.tenantId)?.tenantStatus === "active",
+  );
+  const compedWrite = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/products`, {
+    sku: "CMP-001", name: "Produk Akun Comped", unit: "pcs", sellPrice: 1000, buyPrice: 500,
+  });
+  check("tenant comped tetap BISA MENULIS setelah cron (201, bukan 402)", compedWrite.status === 201, `→ ${compedWrite.status}`);
+
+  // --- Catat Transaksi / wizard pemula (Fase 5c) --------------------------------
+  // Wizard di web membentuk jurnal 2 baris standar — kontraknya diuji di sini
+  // pada tenant comped (tenant utama sudah baca-saja pasca-cron di atas).
+  console.log("14b. Catat Transaksi (wizard pemula)");
+  const dwAccounts = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/accounts`);
+  const dwKas = dwAccounts.json?.accounts?.find((a) => a.code === "1-1000");
+  const dwSewa = dwAccounts.json?.accounts?.find((a) => a.code === "5-3000");
+  check("COA tenant comped punya Kas & Beban Sewa (kategori wizard terpetakan)", Boolean(dwKas && dwSewa));
+  const wizardJournal = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/journal-entries`, {
+    entryDate: new Date().toISOString().slice(0, 10),
+    memo: "Sewa tempat",
+    lines: [
+      { accountId: dwSewa.id, debit: 750_000, credit: 0 },
+      { accountId: dwKas.id, debit: 0, credit: 750_000 },
+    ],
+  });
+  check("jurnal bentukan wizard (uang keluar → kategori) diposting 201", wizardJournal.status === 201, `→ ${JSON.stringify(wizardJournal.json)}`);
+  const dwTb = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/trial-balance`);
+  check(
+    "neraca saldo tenant comped tetap seimbang setelah catatan wizard",
+    dwTb.status === 200 && dwTb.json?.balanced === true,
+    `→ ${JSON.stringify(dwTb.json && { d: dwTb.json.totalDebit, k: dwTb.json.totalCredit })}`,
+  );
+
+  // --- Keuangan lanjut (Fase 5d): template jurnal + rekonsiliasi + penutup ------
+  console.log("14c. Keuangan lanjut (template, rekonsiliasi bank, jurnal penutup)");
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const tplBad = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/journal-templates`, {
+    name: "Template pincang",
+    lines: [
+      { accountId: dwSewa.id, debit: 100_000, credit: 0 },
+      { accountId: dwKas.id, debit: 0, credit: 90_000 },
+    ],
+  });
+  check("template TIDAK seimbang DITOLAK 400", tplBad.status === 400);
+
+  const tplOk = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/journal-templates`, {
+    name: "Sewa ruko bulanan",
+    memo: "Sewa ruko",
+    lines: [
+      { accountId: dwSewa.id, debit: 750_000, credit: 0 },
+      { accountId: dwKas.id, debit: 0, credit: 750_000 },
+    ],
+    schedule: "monthly",
+    nextRunDate: todayStr,
+  });
+  check("template jurnal berulang dibuat 201", tplOk.status === 201, `→ ${JSON.stringify(tplOk.json)}`);
+
+  const tplList = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/journal-templates`);
+  check(
+    "daftar template berisi 1 dengan kode akun ter-join & jadwal bulanan",
+    tplList.status === 200 &&
+      tplList.json?.templates?.length === 1 &&
+      tplList.json.templates[0].lines[0]?.accountCode === "5-3000" &&
+      tplList.json.templates[0].schedule === "monthly",
+    `→ ${JSON.stringify(tplList.json)}`,
+  );
+
+  const tplPost = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/journal-templates/${tplOk.json.id}/post`, {});
+  check("terbitkan template manual → jurnal 201 dengan nomor", tplPost.status === 201 && Boolean(tplPost.json?.entryNo), `→ ${JSON.stringify(tplPost.json)}`);
+
+  // Rekonsiliasi: 1 baris cocok otomatis (nominal −750rb, tanggal sama dengan
+  // jurnal kas di atas), 1 baris tanpa pasangan.
+  const reconImport = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/bank-recon/import`, {
+    accountId: dwKas.id,
+    items: [
+      { date: todayStr, description: "TRSF SEWA RUKO", amount: -750_000 },
+      { date: todayStr, description: "BIAYA ADMIN BANK", amount: -123_456 },
+    ],
+  });
+  check(
+    "impor mutasi bank 201: 2 baris, ≥1 cocok otomatis (nominal+tanggal)",
+    reconImport.status === 201 && reconImport.json?.imported === 2 && reconImport.json?.autoMatched >= 1,
+    `→ ${JSON.stringify(reconImport.json)}`,
+  );
+
+  const recon1 = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/bank-recon?accountId=${dwKas.id}`);
+  const unmatchedItem = recon1.json?.items?.find((i) => i.matchedJournalLineId === null);
+  check(
+    "ringkasan rekonsiliasi benar (total 2, ada yang belum cocok) + kandidat baris jurnal tersedia",
+    recon1.status === 200 && recon1.json?.summary?.total === 2 && recon1.json?.summary?.unmatched >= 1 && (recon1.json?.unmatchedLines?.length ?? 0) > 0,
+    `→ ${JSON.stringify(recon1.json?.summary)}`,
+  );
+
+  const manualLine = recon1.json.unmatchedLines[0];
+  const doMatch = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/bank-recon/${unmatchedItem.id}/match`, {
+    journalLineId: manualLine.id,
+  });
+  check("pencocokan manual 200", doMatch.status === 200, `→ ${JSON.stringify(doMatch.json)}`);
+  const doUnmatch = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/bank-recon/${unmatchedItem.id}/unmatch`, {});
+  const recon2 = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/bank-recon?accountId=${dwKas.id}`);
+  check(
+    "lepas pencocokan 200 dan ringkasan kembali (1 cocok, 1 belum)",
+    doUnmatch.status === 200 && recon2.json?.summary?.matched === 1 && recon2.json?.summary?.unmatched === 1,
+    `→ ${JSON.stringify(recon2.json?.summary)}`,
+  );
+
+  // Jurnal penutup: saldo P/L (2× sewa 750rb = rugi 1,5jt) dinolkan ke Laba Ditahan.
+  const closing = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/closing-entry`, { asOf: todayStr });
+  check(
+    "jurnal penutup 201 dengan rugi bersih −1.500.000",
+    closing.status === 201 && closing.json?.netProfit === -1_500_000,
+    `→ ${JSON.stringify(closing.json)}`,
+  );
+  const plAfterClose = await admin(
+    "GET",
+    `/api/tenants/${dewiOwn.tenantId}/reports/income-statement?from=${todayStr}&to=${todayStr}`,
+  );
+  check(
+    "setelah penutup: total beban periode = 0 (saldo P/L nol)",
+    plAfterClose.status === 200 && plAfterClose.json?.totalExpense === 0 && plAfterClose.json?.totalIncome === 0,
+    `→ ${JSON.stringify(plAfterClose.json && { i: plAfterClose.json.totalIncome, e: plAfterClose.json.totalExpense })}`,
+  );
+  const closingAgain = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/closing-entry`, { asOf: todayStr });
+  check("jurnal penutup kedua DITOLAK 400 (tidak ada saldo tersisa)", closingAgain.status === 400);
+
+  const tplDel = await admin("DELETE", `/api/tenants/${dewiOwn.tenantId}/journal-templates/${tplOk.json.id}`);
+  const tplList2 = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/journal-templates`);
+  check("hapus template 200 dan daftar kosong", tplDel.status === 200 && tplList2.json?.templates?.length === 0);
+
+  const tbAfterClose = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/trial-balance`);
+  check("neraca saldo tetap seimbang setelah seluruh alur 5d", tbAfterClose.status === 200 && tbAfterClose.json?.balanced === true);
+
+  // --- Jurnal penutup TAHUNAN otomatis (Fase 21d) -----------------------------
+  console.log("14c2. Jurnal penutup tahunan otomatis (Fase 21d)");
+  // Saldo P/L baru supaya ada yang bisa ditutup (penutup manual di atas sudah
+  // menolkan yang lama).
+  // (a) Template jurnal berulang BENAR-BENAR diposting lewat jalur cron.
+  //     Roadmap sempat menandai baris ini 🟡 "tidak dijadwalkan Cron" — keliru,
+  //     sambungannya sudah ada. Cek ini membuat klaim ✅-nya berdiri di atas
+  //     bukti, bukan di atas pembacaan kode saya.
+  const tplCron = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/journal-templates`, {
+    name: "Listrik bulanan (uji cron)",
+    memo: "Listrik bulanan otomatis",
+    lines: [
+      { accountId: dwSewa.id, debit: 250_000, credit: 0 },
+      { accountId: dwKas.id, debit: 0, credit: 250_000 },
+    ],
+    schedule: "monthly",
+    nextRunDate: todayStr,
+  });
+  // Fase 22b: daftarkan USD @16.000 di tenant ini SEBELUM cron, supaya cron
+  // yang sama bisa membuktikan kursnya tersegarkan dari sumber referensi.
+  // Tenant `dewiOwn` sengaja dipakai, BUKAN tenant utama: tenant utama sudah
+  // jatuh `past_due` di blok 14, dan loop harian cron hanya menyapu tenant
+  // aktif/trial. Versi pertama cek ini memeriksa tenant yang memang tidak
+  // pernah disentuh cron — merah karena salah sasaran, bukan karena bug.
+  await admin("PUT", `/api/tenants/${dewiOwn.tenantId}/currencies`, { code: "USD", name: "Dolar AS", rate: 16_000 });
+
+  const cronTpl = await fetch(`${BASE}/__scheduled?cron=17+1+*+*+*`);
+  const jurnalTpl = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/journal-entries?limit=100`);
+  check(
+    "template terjadwal diposting oleh CRON (bukan hanya tombol manual)",
+    tplCron.status === 201 &&
+      cronTpl.status === 200 &&
+      (jurnalTpl.json?.entries ?? []).some((e) => e.memo === "Listrik bulanan otomatis"),
+    `→ tpl ${tplCron.status} cron ${cronTpl.status}`,
+  );
+
+  // --- Kurs referensi harian dari sumber luar (Fase 22b) ----------------------
+  //
+  // Yang dijaga BUKAN "kursnya berubah" melainkan ketiga batasnya: hanya mata
+  // uang yang sudah terdaftar yang tersentuh, nilai rusak tidak menimpa apa
+  // pun, dan mata uang asing yang tak dipakai tenant TIDAK ikut disisipkan.
+  console.log("14c3. Kurs referensi harian (Fase 22b)");
+  const kursCron = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/currencies`);
+  const daftarKurs = kursCron.json?.currencies ?? [];
+  const usdKurs = daftarKurs.find((c) => c.code === "USD");
+  check(
+    "22b cron memperbarui kurs USD dari sumber referensi (16.000 → 16.500)",
+    usdKurs?.rate === 16_500,
+    `→ ${usdKurs?.rate}`,
+  );
+  // XAU ada di payload tetapi TIDAK terdaftar di tenant. Menyisipkannya akan
+  // membanjiri daftar pemilik warung dengan 150+ mata uang yang tak dipakai.
+  check(
+    "22b mata uang di sumber yang TIDAK terdaftar tenant tidak ikut disisipkan",
+    !daftarKurs.some((c) => c.code === "XAU"),
+    `→ ${daftarKurs.map((c) => c.code).join(",")}`,
+  );
+  // EUR bernilai 0 di payload — nilai rusak. Ia tidak boleh menimpa apa pun,
+  // dan tidak boleh menggagalkan mata uang lain di payload yang sama.
+  check(
+    "22b nilai kurs rusak dibuang, mata uang lain di payload yang sama tetap terpakai",
+    !daftarKurs.some((c) => c.code === "EUR") && usdKurs?.rate === 16_500,
+  );
+  check("22b IDR tetap mata uang basis berkurs 1", daftarKurs.find((c) => c.code === "IDR")?.rate === 1);
+  const tplSetelahCron = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/journal-templates`);
+  const tplJadwal = tplSetelahCron.json?.templates?.find((t) => t.id === tplCron.json.id);
+  check(
+    "jadwal template dimajukan sebulan setelah cron (tidak menumpuk tiap hari)",
+    tplJadwal?.nextRunDate > todayStr,
+    `→ ${tplJadwal?.nextRunDate} (dari ${todayStr})`,
+  );
+  // Dihapus supaya cron berikutnya di blok ini tidak menambah beban lagi.
+  await admin("DELETE", `/api/tenants/${dewiOwn.tenantId}/journal-templates/${tplCron.json.id}`);
+
+  // (b) Sakelar penutup MATI (bawaan): cron di atas sudah berjalan sekali dan
+  //     tidak boleh menutup buku siapa pun.
+  await admin("POST", `/api/tenants/${dewiOwn.tenantId}/journal-entries`, {
+    entryDate: todayStr,
+    memo: "Beban sewa untuk uji penutup otomatis",
+    lines: [
+      { accountId: dwSewa.id, debit: 400_000, credit: 0 },
+      { accountId: dwKas.id, debit: 0, credit: 400_000 },
+    ],
+  });
+  const plCronOff = await admin(
+    "GET",
+    `/api/tenants/${dewiOwn.tenantId}/reports/income-statement?from=${todayStr}&to=${todayStr}`,
+  );
+  check(
+    "sakelar MATI: cron TIDAK menutup buku — saldo P/L masih ada (250rb template + 400rb sewa)",
+    plCronOff.json?.totalExpense === 650_000,
+    `→ beban ${plCronOff.json?.totalExpense}`,
+  );
+
+  // Nyalakan sebagai Pemilik (Dewi pemilik tenant-nya sendiri), lalu cron ulang.
+  const acOn = await admin("PATCH", `/api/tenants/${dewiOwn.tenantId}/settings`, { autoClosingEntry: true });
+  const acSettings = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/settings`);
+  check(
+    "Pemilik menyalakan sakelar 200 + tersimpan di settings",
+    acOn.status === 200 && acSettings.json?.settings?.auto_closing_entry === "1",
+    `→ ${acOn.status} ${acSettings.json?.settings?.auto_closing_entry}`,
+  );
+  // Template yang jatuh tempo hari ini, dibuat SEBELUM cron penutup berjalan.
+  // Ini menguji URUTAN di dalam satu run cron: template harus diposting dulu,
+  // baru dibuku-tutup. Kalau penutup jalan lebih dulu, entri template mendarat
+  // di tahun yang sudah ditutup dan tak pernah tersapu ke Laba Ditahan.
+  const tplUrut = await admin("POST", `/api/tenants/${dewiOwn.tenantId}/journal-templates`, {
+    name: "Internet bulanan (uji urutan)",
+    memo: "Internet bulanan otomatis",
+    lines: [
+      { accountId: dwSewa.id, debit: 125_000, credit: 0 },
+      { accountId: dwKas.id, debit: 0, credit: 125_000 },
+    ],
+    schedule: "monthly",
+    nextRunDate: todayStr,
+  });
+  const cronOn = await fetch(`${BASE}/__scheduled?cron=17+1+*+*+*`);
+  const plCronOn = await admin(
+    "GET",
+    `/api/tenants/${dewiOwn.tenantId}/reports/income-statement?from=${todayStr}&to=${todayStr}`,
+  );
+  check(
+    "sakelar NYALA: cron memposting jurnal penutup — saldo P/L jadi nol",
+    cronOn.status === 200 && plCronOn.json?.totalExpense === 0 && plCronOn.json?.totalIncome === 0,
+    `→ cron ${cronOn.status} i=${plCronOn.json?.totalIncome} e=${plCronOn.json?.totalExpense}`,
+  );
+  // Urutan dibuktikan dari NOMOR jurnalnya, bukan dari keberadaan entrinya:
+  // entri template tetap ada walau diposting sesudah penutup, jadi asersi
+  // "entrinya ada" akan hijau pada urutan yang salah sekalipun. Nomor dokumen
+  // terbit berurutan, sehingga nomor penutup wajib LEBIH BESAR dari nomor
+  // template bila template benar-benar diposting lebih dulu.
+  const jurnalUrut = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/journal-entries?limit=100`);
+  const entriTpl = (jurnalUrut.json?.entries ?? []).find((e) => e.memo === "Internet bulanan otomatis");
+  const entriTutup = (jurnalUrut.json?.entries ?? [])
+    .filter((e) => /Jurnal penutup s.d./.test(e.memo ?? ""))
+    .sort((a, b) => (a.entryNo < b.entryNo ? 1 : -1))[0];
+  check(
+    "template jatuh tempo diposting SEBELUM penutup dalam run cron yang sama (nomor jurnal berurutan)",
+    tplUrut.status === 201 && Boolean(entriTpl) && Boolean(entriTutup) && entriTutup.entryNo > entriTpl.entryNo,
+    `→ template ${entriTpl?.entryNo} vs penutup ${entriTutup?.entryNo}`,
+  );
+  await admin("DELETE", `/api/tenants/${dewiOwn.tenantId}/journal-templates/${tplUrut.json.id}`);
+  // Hasilnya harus IDENTIK dengan jalur manual: memo yang sama, lewat
+  // `postClosingEntry()` yang sama — bukan salinan logika di blok cron.
+  const dwJurnal = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/journal-entries?limit=100`);
+  const jurnalPenutupAuto = (dwJurnal.json?.entries ?? []).filter((e) => /Jurnal penutup s.d./.test(e.memo ?? ""));
+  check(
+    "jurnal penutup otomatis memakai memo yang sama dengan jalur manual (logika dipakai bersama)",
+    jurnalPenutupAuto.length === 2,
+    `→ ${jurnalPenutupAuto.length} entri: ${JSON.stringify(jurnalPenutupAuto.map((e) => e.memo))}`,
+  );
+  const tbAfterAuto = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/trial-balance`);
+  check(
+    "neraca saldo TETAP seimbang setelah penutup otomatis",
+    tbAfterAuto.json?.balanced === true,
+    `→ debit ${tbAfterAuto.json?.totalDebit} vs kredit ${tbAfterAuto.json?.totalCredit}`,
+  );
+  // Idempoten: cron ketiga tidak boleh menumpuk jurnal penutup kedua.
+  await fetch(`${BASE}/__scheduled?cron=17+1+*+*+*`);
+  const dwJurnal2 = await admin("GET", `/api/tenants/${dewiOwn.tenantId}/journal-entries?limit=100`);
+  check(
+    "cron berulang TIDAK menumpuk jurnal penutup lagi (idempoten)",
+    (dwJurnal2.json?.entries ?? []).filter((e) => /Jurnal penutup s.d./.test(e.memo ?? "")).length === 2,
+    `→ ${(dwJurnal2.json?.entries ?? []).filter((e) => /Jurnal penutup s.d./.test(e.memo ?? "")).length}`,
+  );
+
+  // --- Fase 10b: akun demo publik baca-saja ------------------------------------
+  // Perusahaan demo dites pada tenant comped "Cabang Dewi" (via var
+  // DEMO_TENANT_SLUG) — pool DB tenant lokal sudah terpakai penuh, dan status
+  // aktif permanen menjamin penolakan tulis datang dari peran (403), bukan
+  // mode baca-saja langganan (402).
+  console.log("14g. Akun demo publik baca-saja (Fase 10b)");
+  const demoVisitor = makeClient();
+  const demoIn = await demoVisitor("POST", "/api/auth/demo");
+  check("masuk demo 200 tanpa mendaftar", demoIn.status === 200, `→ ${JSON.stringify(demoIn.json)}`);
+  const demoMe = await demoVisitor("GET", "/api/auth/me");
+  const demoMembership = demoMe.json?.memberships?.[0];
+  check(
+    "sesi demo = viewer di perusahaan demo + flag isDemo",
+    demoMe.status === 200 &&
+      demoMe.json?.user?.isDemo === true &&
+      demoMe.json?.memberships?.length === 1 &&
+      demoMembership?.role === "viewer" &&
+      (demoMembership?.tenantSlug ?? "").startsWith("cabang-dewi"),
+    `→ ${JSON.stringify(demoMe.json?.user)} ${JSON.stringify(demoMembership)}`,
+  );
+  const demoRead = await demoVisitor("GET", `/api/tenants/${demoMembership?.tenantId}/products`);
+  check("demo boleh membaca data tenant (200)", demoRead.status === 200, `→ HTTP ${demoRead.status}`);
+  const demoWrite = await demoVisitor("POST", `/api/tenants/${demoMembership?.tenantId}/products`, {});
+  check("demo DITOLAK menulis data tenant (403)", demoWrite.status === 403, `→ HTTP ${demoWrite.status}`);
+  const demoCompany = await demoVisitor("POST", "/api/auth/companies", { companyName: "Usaha Demo Baru" });
+  check("demo DITOLAK membuat perusahaan baru (403)", demoCompany.status === 403, `→ HTTP ${demoCompany.status}`);
+  const demoProfile = await demoVisitor("PATCH", "/api/auth/profile", { name: "Iseng" });
+  check("demo DITOLAK mengubah profil (403)", demoProfile.status === 403, `→ HTTP ${demoProfile.status}`);
+  const demo2fa = await demoVisitor("POST", "/api/auth/2fa/setup");
+  check("demo DITOLAK setup 2FA (403)", demo2fa.status === 403, `→ HTTP ${demo2fa.status}`);
+  // --- Fase 26e: konsolidasi di mata pengunjung demo -----------------------------
+  //
+  // Akun demo adalah viewer di perusahaan demo dan TIDAK memiliki satu pun
+  // tenant. Gerbang paket konsolidasi (Fase 26a) semula menjawab 403
+  // "tingkatkan ke Enterprise" untuk keadaan itu — di dalam demo yang paketnya
+  // justru Enterprise. Cacat itu lolos semua gerbang karena setiap fixture uji
+  // lain MEMILIKI perusahaan; pengunjung demo inilah satu-satunya yang tidak.
+  const demoKons = await demoVisitor("GET", "/api/consolidation/companies");
+  check(
+    "26e pengunjung demo: konsolidasi 200 daftar kosong, BUKAN tawaran naik paket",
+    demoKons.status === 200 && (demoKons.json?.companies ?? []).length === 0,
+    `→ ${demoKons.status} ${JSON.stringify(demoKons.json)}`,
+  );
+
+  const demoAgain = await makeClient()("POST", "/api/auth/demo");
+  check("masuk demo kedua 200 (idempoten — user demo dipakai ulang)", demoAgain.status === 200, `→ HTTP ${demoAgain.status}`);
+
+  // --- Fase 10c: void & pembalikan transaksi terposting -------------------------
+  // Semua diuji pada tenant comped (aktif permanen). Setiap jenis pembalikan
+  // diikuti asersi neraca saldo seimbang (assertTB).
+  console.log("14h. Void & pembalikan transaksi terposting (Fase 10c)");
+  const vT = `/api/tenants/${dewiOwn.tenantId}`;
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const assertTB = async (label) => {
+    const tb = await admin("GET", `${vT}/trial-balance`);
+    check(
+      `neraca saldo seimbang ${label}`,
+      tb.status === 200 && tb.json?.balanced === true,
+      `→ ${JSON.stringify(tb.json && { d: tb.json.totalDebit, k: tb.json.totalCredit })}`,
+    );
+  };
+
+  // Setup: pemasok+pelanggan, stok 10 pcs produk comped (CMP-001).
+  const vProdId = compedWrite.json.id;
+  const vWhs = await admin("GET", `${vT}/warehouses`);
+  const vWh = vWhs.json.items[0];
+  const vCust = await admin("POST", `${vT}/contacts`, { type: "customer", name: "Pelanggan Void" });
+  const vSupp = await admin("POST", `${vT}/contacts`, { type: "supplier", name: "Pemasok Void" });
+  const vBuy = await admin("POST", `${vT}/purchases`, {
+    contactId: vSupp.json.id, invoiceDate: todayISO, taxRate: 0, warehouseId: vWh.id,
+    lines: [{ productId: vProdId, qty: 10, unitPrice: 500 }],
+  });
+  check("setup: stok 10 pcs dibeli (201)", vBuy.status === 201, `→ ${JSON.stringify(vBuy.json)}`);
+
+  // 1) Void pembayaran: jual 5 pcs → bayar sebagian → hapus pembayaran.
+  const vSell = await admin("POST", `${vT}/invoices`, {
+    contactId: vCust.json.id, invoiceDate: todayISO, taxRate: 0, warehouseId: vWh.id,
+    lines: [{ productId: vProdId, qty: 5, unitPrice: 1000 }],
+  });
+  check("faktur jual 5 pcs 201 (total 5.000)", vSell.status === 201 && vSell.json?.total === 5000);
+  const vPay1 = await admin("POST", `${vT}/payments`, {
+    refType: "invoice", refId: vSell.json.id, accountId: dwKas.id, amount: 2000, paymentDate: todayISO,
+  });
+  check("bayar sebagian 2.000 (201)", vPay1.status === 201);
+  const vPayList1 = await admin("GET", `${vT}/payments?refType=invoice&refId=${vSell.json.id}`);
+  const vPayRow = vPayList1.json?.payments?.[0];
+  check("daftar pembayaran dokumen memuat 1 baris aktif", vPayList1.status === 200 && vPayList1.json?.payments?.length === 1 && vPayRow?.voidedAt === null);
+  const vVoidPay = await admin("POST", `${vT}/payments/${vPayRow.id}/void`, {});
+  check(
+    "void pembayaran 200 → sisa tagihan pulih (paidAmount 0)",
+    vVoidPay.status === 200 && vVoidPay.json?.paidAmount === 0 && Boolean(vVoidPay.json?.reversalEntryNo),
+    `→ ${JSON.stringify(vVoidPay.json)}`,
+  );
+  await assertTB("setelah void pembayaran");
+  const vPayList2 = await admin("GET", `${vT}/payments?refType=invoice&refId=${vSell.json.id}`);
+  check(
+    "baris pembayaran tertanda DIHAPUS (voidedAt + jurnal pembalik)",
+    Boolean(vPayList2.json?.payments?.[0]?.voidedAt) && Boolean(vPayList2.json?.payments?.[0]?.voidJournalNo),
+  );
+  const vVoidPayAgain = await admin("POST", `${vT}/payments/${vPayRow.id}/void`, {});
+  check("void pembayaran kedua DITOLAK 400", vVoidPayAgain.status === 400);
+  const vPay2 = await admin("POST", `${vT}/payments`, {
+    refType: "invoice", refId: vSell.json.id, accountId: dwKas.id, amount: 5000, paymentDate: todayISO,
+  });
+  check("bayar ulang penuh setelah void 201 → lunas", vPay2.status === 201 && vPay2.json?.settled === true);
+
+  // 2) Void pembayaran valas: selisih kurs ikut terbalik bersih.
+  await admin("PUT", `${vT}/currencies`, { code: "USD", name: "Dolar AS", rate: 15_000 });
+  const vUsdInv = await admin("POST", `${vT}/invoices`, {
+    contactId: vCust.json.id, invoiceDate: todayISO, taxRate: 0, warehouseId: vWh.id,
+    currency: "USD", exchangeRate: 15_000,
+    lines: [{ productId: vProdId, qty: 1, unitPrice: 10 }],
+  });
+  check("faktur USD 10 @15.000 → 150.000 IDR (201)", vUsdInv.status === 201 && vUsdInv.json?.total === 150_000);
+  const vUsdPay = await admin("POST", `${vT}/payments`, {
+    refType: "invoice", refId: vUsdInv.json.id, accountId: dwKas.id,
+    foreignAmount: 10, exchangeRate: 15_500, paymentDate: todayISO,
+  });
+  check("pelunasan USD @15.500 → selisih kurs laba 5.000", vUsdPay.status === 201 && vUsdPay.json?.forexGain === 5000);
+  const vUsdPayList = await admin("GET", `${vT}/payments?refType=invoice&refId=${vUsdInv.json.id}`);
+  const vUsdVoid = await admin("POST", `${vT}/payments/${vUsdPayList.json.payments[0].id}/void`, {});
+  check("void pembayaran valas 200 (3 baris jurnal terbalik utuh)", vUsdVoid.status === 200 && vUsdVoid.json?.paidAmount === 0);
+  await assertTB("setelah void pembayaran valas");
+
+  // 3) Balik jurnal manual + guard-nya.
+  const vJrn = await admin("POST", `${vT}/journal-entries`, {
+    entryDate: todayISO, memo: "Beban parkir kantor",
+    lines: [
+      { accountId: dwSewa.id, debit: 100_000, credit: 0 },
+      { accountId: dwKas.id, debit: 0, credit: 100_000 },
+    ],
+  });
+  check("jurnal manual 201", vJrn.status === 201);
+  const vRevEarly = await admin("POST", `${vT}/journal-entries/${vJrn.json.id}/reverse`, { date: "2020-01-01" });
+  check("balik dengan tanggal SEBELUM jurnal asal DITOLAK 400", vRevEarly.status === 400);
+  const vRev = await admin("POST", `${vT}/journal-entries/${vJrn.json.id}/reverse`, {});
+  check("balik jurnal manual 201 + nomor pembalik", vRev.status === 201 && Boolean(vRev.json?.reversalEntryNo), `→ ${JSON.stringify(vRev.json)}`);
+  await assertTB("setelah balik jurnal manual");
+  const vJrnList = await admin("GET", `${vT}/journal-entries?q=${encodeURIComponent("Beban parkir")}`);
+  const vJrnRow = vJrnList.json?.entries?.find((e) => e.id === vJrn.json.id);
+  check(
+    "daftar jurnal memuat tautan dua arah (reversedByEntryNo terisi)",
+    vJrnRow?.reversedByEntryNo === vRev.json.reversalEntryNo,
+    `→ ${JSON.stringify(vJrnRow && { r1: vJrnRow.reversedByEntryNo, r2: vJrnRow.reversesEntryNo })}`,
+  );
+  const vRevAgain = await admin("POST", `${vT}/journal-entries/${vJrn.json.id}/reverse`, {});
+  check("balik jurnal kedua kali DITOLAK 400", vRevAgain.status === 400);
+  const vRevList = await admin("GET", `${vT}/journal-entries?q=${encodeURIComponent("Pembalikan")}`);
+  const vRevRow = vRevList.json?.entries?.find((e) => e.reversesEntryNo === vJrn.json.entryNo);
+  const vRevOfRev = await admin("POST", `${vT}/journal-entries/${vRevRow.id}/reverse`, {});
+  check("membalik jurnal PEMBALIK DITOLAK 400", vRevOfRev.status === 400);
+  const vBuyJrnList = await admin("GET", `${vT}/journal-entries?q=${encodeURIComponent(vBuy.json.docNo)}`);
+  const vBuyJrn = vBuyJrnList.json?.entries?.[0];
+  const vRevDoc = await admin("POST", `${vT}/journal-entries/${vBuyJrn.id}/reverse`, {});
+  check(
+    "membalik jurnal ber-dokumen DITOLAK 400 dengan label dokumen",
+    vRevDoc.status === 400 && /faktur pembelian/.test(vRevDoc.json?.error ?? ""),
+    `→ ${JSON.stringify(vRevDoc.json)}`,
+  );
+
+  // 4) Void penggajian: kasbon pulih, ad-hoc lepas, run ulang boleh.
+  const vEmp = await admin("POST", `${vT}/employees`, {
+    name: "Karyawan Void", ptkpStatus: "TK/0", baseSalary: 5_000_000, allowances: 0,
+  });
+  check("karyawan dibuat 201", vEmp.status === 201);
+  const vLoan = await admin("POST", `${vT}/employee-loans`, {
+    employeeId: vEmp.json.id, name: "Kasbon uji void", principal: 1_200_000, monthlyDeduction: 100_000,
+    cashAccountId: dwKas.id, loanDate: todayISO,
+  });
+  check("kasbon 1,2jt dicairkan 201", vLoan.status === 201);
+  const vAdj = await admin("POST", `${vT}/payroll-adjustments`, {
+    period: "2026-05", employeeId: vEmp.json.id, name: "Bonus uji void", amount: 50_000,
+  });
+  check("komponen ad-hoc 201", vAdj.status === 201);
+  const vRun1 = await admin("POST", `${vT}/payroll-runs`, {
+    period: "2026-05", cashAccountId: dwKas.id, paymentDate: todayISO,
+  });
+  check("penggajian 2026-05 berjalan 201", vRun1.status === 201, `→ ${JSON.stringify(vRun1.json)}`);
+  const vLoans1 = await admin("GET", `${vT}/employee-loans`);
+  check(
+    "saldo kasbon terpotong cicilan (1,2jt → 1,1jt)",
+    vLoans1.json?.loans?.find((l) => l.id === vLoan.json.id)?.balance === 1_100_000,
+  );
+  const vRun2 = await admin("POST", `${vT}/payroll-runs`, {
+    period: "2026-06", cashAccountId: dwKas.id, paymentDate: todayISO,
+  });
+  check("penggajian 2026-06 berjalan 201", vRun2.status === 201);
+  const vVoidOld = await admin("POST", `${vT}/payroll-runs/${vRun1.json.id}/void`, {});
+  check("void run LAMA saat ada run lebih baru DITOLAK 400 (urutan mundur)", vVoidOld.status === 400);
+  const vVoidNew = await admin("POST", `${vT}/payroll-runs/${vRun2.json.id}/void`, {});
+  check("void run terbaru (2026-06) 200", vVoidNew.status === 200, `→ ${JSON.stringify(vVoidNew.json)}`);
+  const vVoidMay = await admin("POST", `${vT}/payroll-runs/${vRun1.json.id}/void`, {});
+  check("lalu void 2026-05 (kini terbaru) 200", vVoidMay.status === 200);
+  await assertTB("setelah void penggajian");
+  const vLoans2 = await admin("GET", `${vT}/employee-loans`);
+  check(
+    "saldo kasbon pulih persis ke 1,2jt setelah kedua run dibatalkan",
+    vLoans2.json?.loans?.find((l) => l.id === vLoan.json.id)?.balance === 1_200_000,
+    `→ ${vLoans2.json?.loans?.find((l) => l.id === vLoan.json.id)?.balance}`,
+  );
+  const vAdjAfter = await admin("GET", `${vT}/payroll-adjustments?period=2026-05`);
+  check("komponen ad-hoc dilepas (runId null) setelah void", vAdjAfter.json?.adjustments?.[0]?.runId === null);
+  const vRunAgain = await admin("POST", `${vT}/payroll-runs`, {
+    period: "2026-05", cashAccountId: dwKas.id, paymentDate: todayISO,
+  });
+  check("periode 2026-05 bisa digaji ULANG setelah void (201)", vRunAgain.status === 201, `→ ${JSON.stringify(vRunAgain.json)}`);
+
+  // 5) POS refund: kas laci menyusut, retur tercatat, guard qty & non-POS.
+  const vShift = await admin("POST", `${vT}/pos/shift/open`, { warehouseId: vWh.id, openingCash: 10_000 });
+  check("shift kasir dibuka 201", vShift.status === 201);
+  const vPosSale = await admin("POST", `${vT}/pos/sales`, {
+    shiftId: vShift.json.id, taxRate: 0, cashReceived: 2000,
+    lines: [{ productId: vProdId, qty: 2, unitPrice: 1000 }],
+  });
+  check("penjualan POS 2 pcs (201, total 2.000)", vPosSale.status === 201 && vPosSale.json?.total === 2000);
+  const vReceipts = await admin("GET", `${vT}/pos/receipts?q=${encodeURIComponent(vPosSale.json.invoiceNo)}`);
+  const vReceipt = vReceipts.json?.receipts?.[0];
+  check(
+    "daftar struk memuat struk POS dengan qty bisa-refund 2",
+    vReceipts.status === 200 && vReceipt?.invoiceNo === vPosSale.json.invoiceNo && vReceipt?.lines?.[0]?.qtyReturnable === 2,
+  );
+  const vRefundOver = await admin("POST", `${vT}/pos/refunds`, {
+    invoiceId: vReceipt.id, lines: [{ productId: vProdId, qty: 5 }],
+  });
+  check("refund melebihi qty struk DITOLAK 400", vRefundOver.status === 400);
+  const vRefundNonPos = await admin("POST", `${vT}/pos/refunds`, {
+    invoiceId: vSell.json.id, lines: [{ productId: vProdId, qty: 1 }],
+  });
+  check("refund faktur NON-POS DITOLAK 400", vRefundNonPos.status === 400);
+  const vRefund = await admin("POST", `${vT}/pos/refunds`, {
+    invoiceId: vReceipt.id, lines: [{ productId: vProdId, qty: 1 }],
+  });
+  check("refund 1 pcs 201 (Rp 1.000 keluar dari laci)", vRefund.status === 201 && vRefund.json?.total === 1000, `→ ${JSON.stringify(vRefund.json)}`);
+  await assertTB("setelah refund POS");
+  const vShiftAfter = await admin("GET", `${vT}/pos/shift`);
+  check(
+    "kas laci shift menyusut sebesar refund (10.000 + 2.000 − 1.000)",
+    vShiftAfter.json?.shift?.expectedCash === 11_000,
+    `→ ${vShiftAfter.json?.shift?.expectedCash}`,
+  );
+  const vPosPayList = await admin("GET", `${vT}/payments?refType=invoice&refId=${vReceipt.id}`);
+  const vPosPayRow = vPosPayList.json?.payments?.find((p) => !p.voidedAt);
+  const vPosPayVoid = await admin("POST", `${vT}/payments/${vPosPayRow.id}/void`, {});
+  check(
+    "void pembayaran POS DITOLAK 400 (arahkan ke Refund Kasir)",
+    vPosPayVoid.status === 400 && /Kasir/.test(vPosPayVoid.json?.error ?? ""),
+    `→ ${JSON.stringify(vPosPayVoid.json)}`,
+  );
+
+  // --- Fase 10d: masuk/daftar via Google ----------------------------------------
+  // Instance utama TANPA kredensial (degradasi anggun); jalur positif diuji
+  // pada instance wrangler kedua ber-kredensial dummy (drive/status pada
+  // instance utama tetap mengasersi configured=false).
+  console.log("14i. Masuk via Google (Fase 10d)");
+  const gAvail = await fetch(`${BASE}/api/auth/google/available`);
+  check("available=false tanpa kredensial", gAvail.status === 200 && (await gAvail.json()).available === false);
+  const gStart = await fetch(`${BASE}/api/auth/google`, { redirect: "manual" });
+  check("mulai alur Google tanpa kredensial DITOLAK 503", gStart.status === 503);
+  const gCb = await fetch(`${BASE}/api/auth/google/callback?code=x&state=palsu`, { redirect: "manual" });
+  check(
+    "callback tanpa kredensial → redirect anggun ke /masuk",
+    gCb.status === 302 && (gCb.headers.get("location") ?? "").includes("google=belum-dikonfigurasi"),
+  );
+
+  {
+    const persist2 = mkdtempSync(join(tmpdir(), "erpindo-smoke-g-"));
+    const PORT2 = PORT + 1;
+    const child2 = spawn(
+      "pnpm",
+      [
+        "exec", "wrangler", "dev", "-c", "../../wrangler.dev.jsonc",
+        "--port", String(PORT2), "--persist-to", persist2,
+        "--show-interactive-dev-session=false",
+        "--var", "GOOGLE_CLIENT_ID:dummy-client-id",
+        "--var", "GOOGLE_CLIENT_SECRET:dummy-secret",
+      ],
+      { cwd: apiDir, stdio: ["ignore", "ignore", "ignore"], env: { ...process.env, CI: "1" } },
+    );
+    try {
+      const start2 = Date.now();
+      let ready = false;
+      while (Date.now() - start2 < 90_000) {
+        try {
+          const r = await fetch(`http://127.0.0.1:${PORT2}/api/health`);
+          if (r.ok) { ready = true; break; }
+        } catch { /* belum siap */ }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      check("instance kedua (kredensial dummy) siap", ready);
+
+      const g2Avail = await fetch(`http://127.0.0.1:${PORT2}/api/auth/google/available`);
+      check("available=true dengan kredensial terpasang", (await g2Avail.json()).available === true);
+      const g2Start = await fetch(`http://127.0.0.1:${PORT2}/api/auth/google`, { redirect: "manual" });
+      const g2Loc = g2Start.headers.get("location") ?? "";
+      const g2State = new URL(g2Loc).searchParams.get("state") ?? "";
+      const g2Cookie = g2Start.headers.get("set-cookie") ?? "";
+      check(
+        "mulai alur → 302 ke consent Google membawa state",
+        g2Start.status === 302 && g2Loc.startsWith("https://accounts.google.com/o/oauth2/v2/auth") &&
+          g2State.length >= 32 && g2Loc.includes(encodeURIComponent("/api/auth/google/callback")),
+        `→ ${g2Start.status} ${g2Loc.slice(0, 120)}`,
+      );
+      // --- Fase 26b (temuan audit B/I) -----------------------------------------
+      // State lama = `login.` + sha256(rahasia klien): KONSTAN untuk semua orang,
+      // selamanya, dan endpoint yang menerbitkannya publik. Siapa pun bisa
+      // mengambil state "sah" hanya dengan memulai alur sendiri, menempelkan
+      // `code` miliknya, lalu membuat korban mengeklik callback — korban masuk ke
+      // akun penyerang. Tiga cek di bawah mengunci penambalnya.
+      const g2Start2 = await fetch(`http://127.0.0.1:${PORT2}/api/auth/google`, { redirect: "manual" });
+      const g2State2 = new URL(g2Start2.headers.get("location") ?? "http://x/?").searchParams.get("state") ?? "";
+      check("26b state login ACAK — dua kali mulai menghasilkan state berbeda", g2State !== "" && g2State !== g2State2, `→ sama? ${g2State === g2State2}`);
+      check("26b state login diikat cookie nonce peramban pemulai", g2Cookie.includes("erpindo_goauth="), `→ ${g2Cookie.slice(0, 60)}`);
+      const g2NoCookie = await fetch(`http://127.0.0.1:${PORT2}/api/auth/google/callback?code=x&state=${encodeURIComponent(g2State)}`, { redirect: "manual" });
+      check("26b callback TANPA cookie pemulai DITOLAK 400 (login-CSRF)", g2NoCookie.status === 400, `→ ${g2NoCookie.status}`);
+      const g2BadState = await fetch(`http://127.0.0.1:${PORT2}/api/auth/google/callback?code=x&state=login.palsu`, { redirect: "manual" });
+      check("callback dengan state PALSU DITOLAK 400", g2BadState.status === 400);
+      const g2Denied = await fetch(`http://127.0.0.1:${PORT2}/api/auth/google/callback?error=access_denied`, { redirect: "manual" });
+      check(
+        "consent dibatalkan pengguna → redirect ramah ke /masuk",
+        g2Denied.status === 302 && (g2Denied.headers.get("location") ?? "").includes("google=dibatalkan"),
+      );
+    } finally {
+      child2.kill("SIGTERM");
+      setTimeout(() => child2.kill("SIGKILL"), 1500);
+    }
+  }
+
+  // --- Fase 10e: admin platform + masukan pengguna + blog SEO ------------------
+  // Budi (pemilik smoke) = admin platform (PLATFORM_ADMIN_EMAILS); Dewi bukan.
+  console.log("14j. Admin platform + masukan + blog SEO (Fase 10e)");
+  const aNoSession = await makeClient()("GET", "/api/admin/overview");
+  check("admin/overview tanpa sesi DITOLAK 401", aNoSession.status === 401, `→ HTTP ${aNoSession.status}`);
+  const aByDewi = await admin("GET", "/api/admin/overview");
+  check("admin/overview oleh non-admin (Dewi) DITOLAK 403", aByDewi.status === 403, `→ HTTP ${aByDewi.status}`);
+  const aOverview = await owner("GET", "/api/admin/overview");
+  check(
+    "admin/overview oleh admin platform (Budi) 200 + totals",
+    aOverview.status === 200 && (aOverview.json?.totals?.tenants ?? 0) >= 1 && (aOverview.json?.totals?.users ?? 0) >= 1,
+    `→ ${JSON.stringify(aOverview.json?.totals)}`,
+  );
+  const budiMe = await owner("GET", "/api/auth/me");
+  check("Budi ditandai isPlatformAdmin=true di /me", budiMe.json?.user?.isPlatformAdmin === true);
+  const aTenants = await owner("GET", "/api/admin/tenants?status=trial");
+  check(
+    "daftar tenant terfilter status=trial (semua hasil berstatus trial)",
+    aTenants.status === 200 && Array.isArray(aTenants.json?.tenants) && aTenants.json.tenants.every((t) => t.status === "trial"),
+    `→ ${aTenants.json?.tenants?.map((t) => t.status).join(",")}`,
+  );
+
+  // --- Fase 11a: infra & auto-migrasi skema tenant ---------------------------
+  const infraByDewi = await admin("GET", "/api/admin/infra");
+  check("admin/infra oleh non-admin (Dewi) DITOLAK 403", infraByDewi.status === 403, `→ HTTP ${infraByDewi.status}`);
+  const infra = await owner("GET", "/api/admin/infra");
+  check(
+    "admin/infra 200 + mode DB + versi skema + tak ada tenant tertinggal",
+    infra.status === 200 &&
+      typeof infra.json?.dbMode === "string" &&
+      infra.json?.schemaVersion >= 1 &&
+      infra.json?.totalTenants >= 1 &&
+      infra.json?.tenantsBehind === 0,
+    `→ ${JSON.stringify({ dbMode: infra.json?.dbMode, v: infra.json?.schemaVersion, total: infra.json?.totalTenants, behind: infra.json?.tenantsBehind })}`,
+  );
+  check(
+    "admin/infra: semua tenant di versi skema terkini (distribusi 1 entri = schemaVersion)",
+    Array.isArray(infra.json?.versionDistribution) &&
+      infra.json.versionDistribution.length === 1 &&
+      infra.json.versionDistribution[0].v === infra.json.schemaVersion,
+    `→ ${JSON.stringify(infra.json?.versionDistribution)}`,
+  );
+  // --- Fase 23c: kapasitas pendaftaran dilaporkan, bukan diasumsikan ---------
+  //
+  // Produksi pernah sampai 6/6 slot tanpa ada yang tahu — empat di antaranya
+  // dihabiskan skrip uji — sehingga pendaftar berikutnya ditolak. Tak satu pun
+  // gerbang bisa melihatnya karena SEMUA gerbang berjalan di D1 lokal yang
+  // selalu kosong. Angkanya karena itu wajib keluar dari endpoint.
+  const kap = infra.json?.kapasitas;
+  check(
+    "23c admin/infra melaporkan kapasitas pool di mode lokal",
+    infra.json?.dbMode === "cloudflare"
+      ? kap === null
+      : kap !== null &&
+          typeof kap?.total === "number" &&
+          kap.total >= 1 &&
+          typeof kap?.terpakai === "number" &&
+          typeof kap?.bebasBersih === "number" &&
+          Array.isArray(kap?.bebasKotor),
+    `→ ${JSON.stringify(kap)}`,
+  );
+  check(
+    "23c kapasitas KONSISTEN: terpakai + bebasBersih + bebasKotor == total",
+    infra.json?.dbMode === "cloudflare" ||
+      kap.terpakai + kap.bebasBersih + kap.bebasKotor.length === kap.total,
+    `→ ${kap ? `${kap.terpakai}+${kap.bebasBersih}+${kap.bebasKotor.length} vs ${kap.total}` : "null"}`,
+  );
+  check(
+    "23c terpakai mencerminkan tenant nyata (>= jumlah tenant binding yang ada)",
+    infra.json?.dbMode === "cloudflare" || kap.terpakai === (infra.json?.refKinds?.binding ?? 0),
+    `→ terpakai=${kap?.terpakai} vs refKinds.binding=${infra.json?.refKinds?.binding}`,
+  );
+  check(
+    "23c peringatan muncul HANYA saat sisa menipis (<=2), bukan sepanjang waktu",
+    infra.json?.dbMode === "cloudflare" ||
+      (kap.bebasBersih <= 2 ? typeof kap.peringatan === "string" : kap.peringatan === null),
+    `→ bebasBersih=${kap?.bebasBersih} peringatan=${JSON.stringify(kap?.peringatan)}`,
+  );
+
+  // --- Fase 30f: monitor kuota & metrik bisnis ------------------------------
+  //
+  // Smoke berjalan TANPA kredensial Cloudflare, jadi ia menguji jalur yang
+  // paling sering terjadi di dunia nyata sebelum pemilik memasang tokennya:
+  // monitor mati. Degradasi anggun hanya berguna bila ia benar-benar anggun —
+  // dan itu tidak bisa dibuktikan dengan membaca kode.
+  const kuota = await owner("GET", "/api/admin/kuota");
+  check(
+    "30f kuota tanpa token → 200 configured:false, BUKAN galat",
+    kuota.status === 200 && kuota.json?.configured === false,
+    `→ ${kuota.status} ${JSON.stringify(kuota.json)}`,
+  );
+  check(
+    "30f pesan kuota menyebut secret yang harus dipasang (bisa ditindaklanjuti)",
+    typeof kuota.json?.pesan === "string" && /CLOUDFLARE_API_TOKEN/.test(kuota.json.pesan),
+    `→ ${kuota.json?.pesan}`,
+  );
+  check(
+    "30f batas paket gratis ikut dilaporkan meski monitor mati",
+    kuota.json?.batas?.kvTulisPerHari === 1000 && kuota.json?.batas?.requestPerHari === 100000,
+    `→ ${JSON.stringify(kuota.json?.batas)}`,
+  );
+  const kuotaDewi = await admin("GET", "/api/admin/kuota");
+  check("30f kuota oleh non-admin DITOLAK 403", kuotaDewi.status === 403, `→ ${kuotaDewi.status}`);
+
+  const ringkas = await owner("GET", "/api/admin/overview");
+  check(
+    "30f ringkasan memuat metrik bisnis (MRR dihitung dari harga tunggal)",
+    ringkas.status === 200 &&
+      typeof ringkas.json?.bisnis?.mrr === "number" &&
+      ringkas.json.bisnis.hargaPerBulan === 499_000,
+    `→ ${JSON.stringify(ringkas.json?.bisnis)}`,
+  );
+  check(
+    "30f MRR = jumlah pelanggan membayar × harga (konsisten, bukan angka lepas)",
+    ringkas.json?.bisnis?.mrr === ringkas.json?.bisnis?.pelangganMembayar * 499_000,
+    `→ mrr=${ringkas.json?.bisnis?.mrr} pelanggan=${ringkas.json?.bisnis?.pelangganMembayar}`,
+  );
+  check(
+    "30f tenant comped TIDAK dihitung sebagai pendapatan",
+    (ringkas.json?.bisnis?.comped ?? 0) > 0 &&
+      ringkas.json.bisnis.pelangganMembayar === ringkas.json.bisnis.berbayar + ringkas.json.bisnis.tenggang,
+    `→ comped=${ringkas.json?.bisnis?.comped} membayar=${ringkas.json?.bisnis?.pelangganMembayar}`,
+  );
+
+  const infra30f = await owner("GET", "/api/admin/infra");
+  check(
+    "30f tenantsBehind adalah JUMLAH sebenarnya, terpisah dari contoh yang ditampilkan",
+    infra30f.status === 200 &&
+      typeof infra30f.json?.tenantsBehind === "number" &&
+      typeof infra30f.json?.behindDitampilkan === "number" &&
+      infra30f.json.behindDitampilkan <= infra30f.json.tenantsBehind,
+    `→ jumlah=${infra30f.json?.tenantsBehind} ditampilkan=${infra30f.json?.behindDitampilkan}`,
+  );
+
+  // migrate-tenants BERBATCH (Fase 30d): idempoten, resumable, dan berhenti
+  // sendiri saat tak ada lagi yang tertinggal.
+  const migrateByDewi = await admin("POST", "/api/admin/migrate-tenants");
+  check("admin/migrate-tenants oleh non-admin DITOLAK 403", migrateByDewi.status === 403, `→ HTTP ${migrateByDewi.status}`);
+  const migrate = await owner("POST", "/api/admin/migrate-tenants");
+  check(
+    "30d migrate-tenants 200 + selesai tanpa sisa & tanpa gagal",
+    migrate.status === 200 && migrate.json?.gagal === 0 && migrate.json?.sisa === 0 && migrate.json?.selesai === true,
+    `→ ${JSON.stringify({ diproses: migrate.json?.diproses, sisa: migrate.json?.sisa, gagal: migrate.json?.gagal })}`,
+  );
+  check(
+    "30d hasil HANYA memuat tenant yang disentuh, bukan seluruh pelanggan",
+    Array.isArray(migrate.json?.results) && migrate.json.results.length === migrate.json.diproses,
+    `→ results=${migrate.json?.results?.length} diproses=${migrate.json?.diproses}`,
+  );
+  // Semua tenant di suite ini sudah mutakhir, jadi batch kedua harus benar-benar
+  // tidak mengerjakan apa pun — bukti idempotensi lewat HTTP, bukan lewat unit.
+  const migrateUlang = await owner("POST", "/api/admin/migrate-tenants");
+  check(
+    "30d panggilan ulang tidak mengerjakan apa pun (idempoten)",
+    migrateUlang.json?.diproses === 0 && migrateUlang.json?.selesai === true,
+    `→ diproses=${migrateUlang.json?.diproses}`,
+  );
+  // `batas` dijepit ke BATCH_MIGRASI: parameter dari luar tidak boleh dipakai
+  // memaksa satu panggilan raksasa yang menghidupkan lagi cacat Fase 30d.
+  const migrateBatasBesar = await owner("POST", "/api/admin/migrate-tenants?batas=100000");
+  check(
+    "30d batas dari query dijepit, tidak bisa memaksa batch raksasa",
+    migrateBatasBesar.status === 200 && migrateBatasBesar.json?.selesai === true,
+    `→ ${migrateBatasBesar.status}`,
+  );
+
+  // --- Fase 30: tidak ada gerbang paket tersisa di tenant mana pun ---------
+  const gateEmployees = await owner("GET", `/api/tenants/${tenantId}/employees`);
+  check(
+    "30 employees terbuka tanpa syarat paket",
+    gateEmployees.status === 200 && gateEmployees.json?.detail !== "plan-upgrade-required",
+    `→ ${gateEmployees.status} ${gateEmployees.json?.detail ?? ""}`,
+  );
+  const gateCostCenters = await owner("GET", `/api/tenants/${tenantId}/cost-centers`);
+  check(
+    "30 cost-centers terbuka tanpa syarat paket",
+    gateCostCenters.status === 200 && gateCostCenters.json?.detail !== "plan-upgrade-required",
+    `→ ${gateCostCenters.status} ${gateCostCenters.json?.detail ?? ""}`,
+  );
+
+  // --- Fase 11b: billing langganan (tanpa kunci Xendit → degradasi anggun) ---
+  const billNoAuth = await makeClient()("GET", `/api/tenants/${tenantId}/billing`);
+  check("billing tanpa sesi DITOLAK 401", billNoAuth.status === 401, `→ HTTP ${billNoAuth.status}`);
+  const billStatus = await owner("GET", `/api/tenants/${tenantId}/billing`);
+  check(
+    "billing status 200 + configured=false + harga paket > 0 (tidak ada lagi paket Rp0)",
+    billStatus.status === 200 && billStatus.json?.configured === false && billStatus.json?.pricePerMonth > 0 && Array.isArray(billStatus.json?.invoices),
+    `→ ${JSON.stringify({ configured: billStatus.json?.configured, plan: billStatus.json?.plan, price: billStatus.json?.pricePerMonth })}`,
+  );
+  // Checkout paket (Fase 13b): kirim paket valid; tanpa kunci Xendit → 503.
+  const billCheckoutBadPlan = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan: "gratis" });
+  check("billing checkout paket tak dikenal → 400", billCheckoutBadPlan.status === 400, `→ HTTP ${billCheckoutBadPlan.status}`);
+  const billCheckoutOwner = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan: "lengkap" });
+  check("billing checkout tanpa konfigurasi Xendit → 503", billCheckoutOwner.status === 503, `→ HTTP ${billCheckoutOwner.status}`);
+  // Dewi = anggota admin (bukan owner) di tenant ini → ditolak mengatur langganan.
+  const billCheckoutAdmin = await admin("POST", `/api/tenants/${tenantId}/billing/checkout`);
+  check("billing checkout oleh non-Pemilik → 403", billCheckoutAdmin.status === 403, `→ HTTP ${billCheckoutAdmin.status}`);
+  // Webhook tanpa kunci → diabaikan sopan (200), tak mengubah apa pun.
+  const billWebhook = await makeClient()("POST", "/api/billing/notification", { external_id: "x", status: "PAID" });
+  check("webhook billing tanpa kunci → 200 diabaikan", billWebhook.status === 200 && billWebhook.json?.ignored === true, `→ HTTP ${billWebhook.status}`);
+
+  // --- Fase 25a: bentuk payload webhook Xendit -------------------------------
+  //
+  // Deployment TANPA kunci harus tetap membalas 2xx, bukan 403. Xendit mengulang
+  // webhook 6× dengan backoff pada tiap non-2xx, jadi deployment yang belum
+  // dikonfigurasi (staging, pratinjau) akan memanen badai percobaan ulang untuk
+  // sesuatu yang memang sengaja tidak aktif.
+  //
+  // Penolakan token yang SALAH (403) tidak bisa diuji di sini: jalur itu ada di
+  // balik `billingConfigured`, dan memasang kunci di suite ini akan mematikan
+  // seluruh cek degradasi anggun di atas. Ia diuji di test/billing.test.ts —
+  // token salah, token kosong, dan secret yang belum terpasang.
+  const billWebhookTokenAcak = await makeClient()(
+    "POST",
+    "/api/billing/notification",
+    { external_id: "sub-tak-dikenal", status: "PAID" },
+    { "x-callback-token": "token-ngawur" },
+  );
+  check(
+    "25a webhook tanpa kunci: token ngawur pun 200 diabaikan (bukan 403 → tak memicu retry Xendit)",
+    billWebhookTokenAcak.status === 200 && billWebhookTokenAcak.json?.ignored === true,
+    `→ HTTP ${billWebhookTokenAcak.status}`,
+  );
+
+  // --- Fase 30: ganti paket DICABUT ----------------------------------------
+  // Blok ini dulu menguji prorata naik/turun paket. Dengan satu paket tidak ada
+  // paket lain untuk dituju, jadi yang diuji sekarang adalah bahwa endpoint-nya
+  // benar-benar HILANG — bukan sekadar tidak dipanggil UI. Endpoint yang masih
+  // hidup tetapi tak terpakai adalah permukaan serang tanpa pemilik.
+  const proHilang = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=lengkap`);
+  check("30 endpoint pratinjau prorata sudah tidak ada (404)", proHilang.status === 404, `→ ${proHilang.status}`);
+  const gantiHilang = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "lengkap" });
+  check("30 endpoint ganti paket sudah tidak ada (404)", gantiHilang.status === 404, `→ ${gantiHilang.status}`);
+
+  // Jalur uang yang TERSISA harus tetap utuh: admin platform boleh menyetel
+  // periode langganan, dan status billing memantulkannya dengan harga tunggal.
+  const akhirPeriode = new Date(Date.now() + 15 * 86_400_000).toISOString();
+  const setPeriode = await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
+    plan: "lengkap", status: "active", subscriptionEndsAt: akhirPeriode,
+  });
+  check("admin platform menyetel akhir periode langganan 200", setPeriode.status === 200);
+  const billTunggal = await owner("GET", `/api/tenants/${tenantId}/billing`);
+  check(
+    "30 status billing: paket 'lengkap' berharga 499.000, tanpa sisa pendingPlan",
+    billTunggal.json?.plan === "lengkap" &&
+      billTunggal.json?.pricePerMonth === 499_000 &&
+      billTunggal.json?.pendingPlan === undefined,
+    `→ ${JSON.stringify({ plan: billTunggal.json?.plan, harga: billTunggal.json?.pricePerMonth, pending: billTunggal.json?.pendingPlan })}`,
+  );
+
+  // Bersihkan akhir periode agar asersi langganan di bawah tidak terganggu —
+  // TETAPI status dibiarkan `active`.
+  //
+  // Baris ini dulu berbunyi `{ plan: "trial", status: "trial" }`. Status `trial`
+  // sudah dihapus Fase 24, jadi panggilan itu **ditolak 400 tanpa ada yang
+  // memeriksanya** dan tenant sebenarnya tetap `active` selama ini. Menuliskan
+  // status yang sah di sini (`provisioning`) justru MEMATAHKAN enam cek di
+  // bawahnya — form lead publik hanya melayani tenant `active`/`past_due` —
+  // karena ia mengubah keadaan yang selama ini tak pernah benar-benar berubah.
+  //
+  // Jadi yang benar bukan "perbaiki nama statusnya", melainkan berhenti
+  // menurunkan status sama sekali: itulah perilaku yang sesungguhnya berlaku
+  // sepanjang suite ini hijau.
+  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
+    plan: "lengkap", status: "active", subscriptionEndsAt: null,
+  });
+
+  // Fase 11d: payment collection link (tanpa Xendit → degradasi anggun).
+  const plStatus = await owner("GET", `/api/tenants/${tenantId}/invoices/inv-x/payment-link`);
+  check(
+    "payment-link status 200 + configured=false + link null",
+    plStatus.status === 200 && plStatus.json?.configured === false && plStatus.json?.link === null,
+    `→ ${JSON.stringify(plStatus.json)}`,
+  );
+  const plCreate = await owner("POST", `/api/tenants/${tenantId}/invoices/inv-x/payment-link`);
+  check("buat payment-link tanpa konfigurasi Xendit → 503", plCreate.status === 503, `→ HTTP ${plCreate.status}`);
+  const plViewer = await viewer("POST", `/api/tenants/${tenantId}/invoices/inv-x/payment-link`);
+  check("buat payment-link oleh viewer → 403", plViewer.status === 403, `→ HTTP ${plViewer.status}`);
+  const plAnon = await fetch(`${BASE}/api/tenants/${tenantId}/invoices/inv-x/payment-link`);
+  check("payment-link status tanpa sesi → 401", plAnon.status === 401, `→ HTTP ${plAnon.status}`);
+
+  // Masukan pengguna (dukungan) — Budi mengirim, lalu admin mengubah statusnya.
+  const fbBad = await owner("POST", "/api/feedback", { category: "salah-kategori", message: "Halo dukungan" });
+  check("kirim masukan dengan kategori salah DITOLAK 400", fbBad.status === 400, `→ HTTP ${fbBad.status}`);
+  const fbOk = await owner("POST", "/api/feedback", {
+    category: "saran", message: "Mohon tambahkan ekspor PDF di laporan.", pagePath: "/app/laporan/penjualan", tenantId,
+  });
+  check("kirim masukan valid 201", fbOk.status === 201 && Boolean(fbOk.json?.id), `→ ${JSON.stringify(fbOk.json)}`);
+  const fbMine = await owner("GET", "/api/feedback/mine");
+  const fbEntry = fbMine.json?.feedback?.find((f) => f.id === fbOk.json.id);
+  check("riwayat masukan saya memuat entri baru (status 'baru')", fbMine.status === 200 && fbEntry?.status === "baru", `→ ${JSON.stringify(fbEntry)}`);
+  const fbPatch = await owner("PATCH", `/api/admin/feedback/${fbOk.json.id}`, { status: "dibaca" });
+  check("admin menandai masukan 'dibaca' 200", fbPatch.status === 200 && fbPatch.json?.ok === true);
+  const fbMine2 = await owner("GET", "/api/feedback/mine");
+  check("status masukan berubah jadi 'dibaca'", fbMine2.json?.feedback?.find((f) => f.id === fbOk.json.id)?.status === "dibaca");
+
+  // --- Fase 27b: formulir "Jadwalkan demo" DIHAPUS ----------------------------
+  //
+  // Empat cek di sini dulu menguji POST /api/demo-requests dan daftar adminnya.
+  // Fiturnya dihapus karena bertabrakan dengan tombol "Lihat Demo" yang instan —
+  // dan karena ia jalan buntu: pengisinya dijanjikan dihubungi, sementara
+  // notifikasinya bergantung kunci yang belum terpasang dan tidak ada satu layar
+  // pun yang menampilkan pesan masuk.
+  //
+  // Penggantinya satu cek yang mengunci keputusan itu: endpoint publiknya
+  // benar-benar hilang, bukan sekadar tombolnya yang disembunyikan.
+  const demoHapus = await makeClient()("POST", "/api/demo-requests", {
+    name: "Rina Sales", company: "PT Calon Besar", email: "rina@calonbesar.co.id",
+  });
+  check("27b endpoint permintaan demo sudah tidak ada (404)", demoHapus.status === 404, `→ HTTP ${demoHapus.status}`);
+
+  // Blog SEO — draft dulu (404 publik), lalu terbit (200 SSR ber-<title>).
+  const blogSlug = "tips-pembukuan-umkm";
+  const blogNew = await owner("POST", "/api/admin/blog-posts", {
+    slug: blogSlug,
+    title: "Tips Pembukuan untuk UMKM Pemula",
+    excerpt: "Lima kebiasaan sederhana agar keuangan usaha rapi.",
+    bodyMd: "## Mulai dari kas\n\nCatat **setiap** pemasukan dan pengeluaran.\n\n- Pisahkan uang pribadi\n- Rekonsiliasi tiap pekan",
+  });
+  check("buat artikel blog (draft) 201", blogNew.status === 201 && Boolean(blogNew.json?.id), `→ ${JSON.stringify(blogNew.json)}`);
+  const blogDraft = await fetch(`${BASE}/blog/${blogSlug}`);
+  check("artikel draft belum tampil publik (404)", blogDraft.status === 404, `→ HTTP ${blogDraft.status}`);
+  const blogPublish = await owner("PATCH", `/api/admin/blog-posts/${blogNew.json.id}`, { published: true });
+  check("terbitkan artikel 200", blogPublish.status === 200 && blogPublish.json?.ok === true);
+  const blogView = await fetch(`${BASE}/blog/${blogSlug}`);
+  const blogHtml = await blogView.text();
+  check(
+    "artikel terbit dilayani SSR 200 dengan <title> + isi ter-render",
+    blogView.status === 200 &&
+      blogHtml.includes("<title>Tips Pembukuan untuk UMKM Pemula — Blog ERPindo</title>") &&
+      blogHtml.includes("<h3>Mulai dari kas</h3>") &&
+      blogHtml.includes("<strong>setiap</strong>"),
+    `→ HTTP ${blogView.status}`,
+  );
+  const blogIndex = await (await fetch(`${BASE}/blog`)).text();
+  check("halaman /blog memuat judul artikel terbit", blogIndex.includes("Tips Pembukuan untuk UMKM Pemula"));
+
+  // --- Fase 24d: kerangka blog tak boleh menjanjikan masa coba gratis --------
+  // Trial dihapus Fase 24a, tetapi nav & footer blog masih berbunyi "Coba
+  // Gratis" / "Coba gratis 30 hari" sampai fase ini — dirender server, publik,
+  // dan terdaftar di sitemap, jadi janji itu ikut terindeks mesin pencari.
+  // Halaman indeks DAN halaman artikel diperiksa: keduanya memakai kerangka
+  // yang sama, dan hanya salah satunya yang pernah tersapu manual.
+  for (const [nama, html] of [
+    ["indeks /blog", blogIndex],
+    ["artikel /blog/:slug", blogHtml],
+  ]) {
+    check(
+      `24d ${nama} tidak menjanjikan masa coba gratis`,
+      !/gratis 30 hari/i.test(html) && !/Coba Gratis/i.test(html),
+      "→ trial dihapus Fase 24a",
+    );
+  }
+  // --- Fase 27a: kerangka SPA juga tak boleh menjanjikan masa coba ------------
+  //
+  // Penjaga 24d di atas hanya membaca HTML /blog. Kerangka `index.html` — yang
+  // memuat <meta name="description">, og:description, dan twitter:description —
+  // tidak pernah ikut diperiksa, dan di situlah janji masa coba masih bertahan
+  // sampai Fase 27a: teks yang Google tampilkan di hasil pencarian dan yang
+  // muncul sebagai pratinjau saat tautan dibagikan di WhatsApp.
+  //
+  // Cek ini sengaja memindai SELURUH HTML, bukan hanya isi atribut content:
+  // janji yang tertinggal di komentar pun ikut terkirim ke peramban.
+  //
+  // Polanya menyasar JANJI ("gratis 30 hari"), bukan kata "coba gratis" begitu
+  // saja seperti penjaga 24d. Alasannya ditemukan saat cek ini pertama kali
+  // dijalankan: ia langsung merah karena blok SEO memuat pertanyaan "Apakah ada
+  // masa coba gratis?" — yang jawabannya justru "Tidak ada masa coba, dan itu
+  // disengaja". Penjaga yang menandai kalimat yang menyangkal masa coba adalah
+  // penjaga yang akan dimatikan orang berikutnya, bukan diperbaiki.
+  const shell = await (await fetch(`${BASE}/`)).text();
+  check(
+    "27a kerangka SPA tidak menjanjikan masa coba gratis",
+    !/gratis\s*30\s*hari/i.test(shell),
+    "→ trial dihapus Fase 24a",
+  );
+  // Sisi sebaliknya: blok SEO HARUS tetap menyangkal masa coba secara eksplisit.
+  // Tanpa cek ini, menghapus paragrafnya akan lolos diam-diam.
+  check(
+    "27a blok SEO menyatakan tidak ada masa coba",
+    /Tidak ada masa coba/i.test(shell),
+    "→ jawaban FAQ crawler",
+  );
+  check(
+    "27a meta description menyebut demo yang benar-benar ada",
+    /<meta[^>]+name="description"[^>]+content="[^"]*demo[^"]*"/i.test(shell),
+    "→ deskripsi pencarian harus menjual demo 6 bulan",
+  );
+  for (const prop of ["og:description", "twitter:description"]) {
+    const re = new RegExp(`(property|name)="${prop}"[^>]*content="([^"]*)"`, "i");
+    const isi = re.exec(shell)?.[2] ?? "";
+    check(
+      `27a ${prop} terisi tanpa janji masa coba`,
+      isi.length > 40 && !/gratis 30 hari/i.test(isi),
+      `→ ${isi.slice(0, 70)}`,
+    );
+  }
+
+  const sitemap = await (await fetch(`${BASE}/sitemap.xml`)).text();
+  check("sitemap.xml memuat URL slug artikel", sitemap.includes(`/blog/${blogSlug}`));
+  const robots = await fetch(`${BASE}/robots.txt`);
+  const robotsTxt = await robots.text();
+  check("robots.txt 200 memblokir /app + menyertakan sitemap", robots.status === 200 && robotsTxt.includes("Disallow: /app") && robotsTxt.includes("Sitemap:"));
+
+  // --- Fase 14d: SEO landing (JSON-LD + noscript disisipkan ke shell SPA) -----
+  const landing = await fetch(`${BASE}/`);
+  const landingHtml = await landing.text();
+  check(
+    "SEO landing: / 200 + shell SPA tetap utuh (div#root)",
+    landing.status === 200 && /<div id="root">/.test(landingHtml),
+    `→ ${landing.status}`,
+  );
+  check(
+    "SEO landing: JSON-LD SoftwareApplication + Offer harga (499000) + FAQPage",
+    landingHtml.includes('"@type":"SoftwareApplication"') && landingHtml.includes("499000") && landingHtml.includes('"@type":"FAQPage"') && landingHtml.includes('"@type":"Organization"'),
+    `→ ${landingHtml.includes('"@type":"FAQPage"')}`,
+  );
+  check("SEO landing: canonical + noscript konten untuk crawler tanpa JS", landingHtml.includes('rel="canonical"') && landingHtml.includes("<noscript>"), `→ ${landingHtml.includes("<noscript>")}`);
+
+  // --- Fase 30: halaman publik tidak boleh menyebut paket yang sudah tidak ada
+  //
+  // Ini penegak, bukan kosmetik. Harga hidup di TIGA tempat yang berbeda —
+  // `PLAN_LIMITS`, JSON-LD SSR (`landingSeo.ts`), dan kalimat noscript — dan
+  // sebelumnya ketiganya menyebut Starter/Business/Enterprise secara harfiah.
+  // Melewatkan salah satunya berarti Google mengindeks paket yang tidak dijual
+  // sementara halamannya menampilkan yang benar; pengunjung datang membawa
+  // harapan yang tidak bisa dipenuhi produk.
+  // `BusinessApplication` DIKECUALIKAN: itu nilai baku schema.org untuk
+  // `applicationCategory`, bukan nama paket. Tanpa pengecualian ini penegaknya
+  // memerah selamanya karena hal yang benar — dan cek yang selalu merah akan
+  // dimatikan orang, bukan diperbaiki.
+  const htmlTanpaSchema = landingHtml.replaceAll("BusinessApplication", "");
+  const paketLama = ["Starter", "Business", "Enterprise"];
+  const sisaNamaPaket = paketLama.filter((nama) => htmlTanpaSchema.includes(nama));
+  check(
+    "30 SSR landing tidak menyebut nama paket lama di mana pun",
+    sisaNamaPaket.length === 0,
+    `→ masih menyebut: ${sisaNamaPaket.join(", ")}`,
+  );
+  check(
+    "30 SSR landing menyatakan satu harga tunggal per perusahaan",
+    landingHtml.includes("499.000") && /[Ss]atu paket, satu harga/.test(landingHtml),
+    `→ harga=${landingHtml.includes("499.000")}`,
+  );
+  check(
+    "30 JSON-LD memuat TEPAT satu Offer (bukan tiga)",
+    (landingHtml.match(/"@type":"Offer"/g) ?? []).length === 1,
+    `→ ${(landingHtml.match(/"@type":"Offer"/g) ?? []).length} Offer`,
+  );
+  // Fase 30b: salinan publik TIDAK boleh menyebut kedalaman demo dalam bulan.
+  //
+  // Data demo produksi hanya berubah saat pemilik menjalankan workflow seed,
+  // sedangkan kode ini bisa berubah kapan saja. Angka bulan di halaman depan
+  // karena itu pasti melenceng dari isi demo cepat atau lambat — dan halaman
+  // yang tugasnya meyakinkan calon pelanggan adalah tempat paling mahal untuk
+  // menjanjikan lebih dari isinya. Penegak ini menutup seluruh kelas itu, bukan
+  // satu kalimatnya: angka berapa pun ditolak.
+  //
+  // Berlaku untuk SSR halaman depan, /fitur, dan footer blog — ketiganya
+  // menyalin kalimat demo yang sama, dan ketiganya pernah menyebut "6 bulan".
+  const polaBulanDemo = /\d+\s*bulan\s+data|\bsix[- ]month\b|\d+\s*months?\s+of\s+real\s+data/i;
+  const halamanPublik = [
+    ["/", landingHtml],
+    ["/fitur", await (await fetch(`${BASE}/fitur`)).text()],
+  ];
+  for (const [rute, html] of halamanPublik) {
+    check(
+      `30b ${rute} tidak menyebut kedalaman demo dalam hitungan bulan`,
+      !polaBulanDemo.test(html),
+      `→ ${(html.match(polaBulanDemo) ?? [""])[0]}`,
+    );
+  }
+
+  check(
+    "30 FAQ SSR tidak lagi menjanjikan pilihan paket bertingkat",
+    !/paket bertingkat/i.test(landingHtml) && !/tiga paket/i.test(landingHtml),
+    `→ bertingkat=${/paket bertingkat/i.test(landingHtml)}`,
+  );
+  // Kuota AI ikut menjadi satu angka: kartu langganan & pesan galat membacanya
+  // dari PLAN_LIMITS, jadi nilai yang salah muncul di layar pelanggan.
+  const meAI = await owner("GET", "/api/auth/me");
+  check(
+    "30 /auth/me: seluruh keanggotaan berpaket 'lengkap'",
+    (meAI.json?.memberships ?? []).length > 0 &&
+      (meAI.json?.memberships ?? []).every((m) => m.plan === "lengkap"),
+    `→ ${JSON.stringify((meAI.json?.memberships ?? []).map((m) => m.plan))}`,
+  );
+
+  // Fase 18f — /fitur mendapat perlakuan SEO yang sama dengan halaman depan.
+  // Diperiksa terpisah karena tiga hal harus benar SEKALIGUS supaya halaman ini
+  // berguna bagi mesin pencari: terdaftar di `run_worker_first` (kalau tidak,
+  // Worker tak pernah dipanggil dan yang tersaji hanya SPA kosong), canonical
+  // menunjuk ke dirinya sendiri (bukan ke "/"), dan isinya benar-benar ada di
+  // <noscript>.
+  const fitur = await fetch(`${BASE}/fitur`);
+  const fiturHtml = await fitur.text();
+  check(
+    "SEO /fitur: canonical ke /fitur + noscript berisi modul (bukan salinan landing)",
+    fitur.status === 200 &&
+      fiturHtml.includes('rel="canonical" href="') &&
+      /rel="canonical" href="[^"]*\/fitur"/.test(fiturHtml) &&
+      fiturHtml.includes("<noscript>") &&
+      fiturHtml.includes("Fitur ERPindo") &&
+      fiturHtml.includes("Kasir (POS)"),
+    `→ status=${fitur.status} canonicalFitur=${/rel="canonical" href="[^"]*\/fitur"/.test(fiturHtml)}`,
+  );
+  const peta = await fetch(`${BASE}/sitemap.xml`);
+  const petaXml = await peta.text();
+  check("SEO /fitur terdaftar di sitemap.xml", petaXml.includes("/fitur</loc>"), `→ ${peta.status}`);
+
+  // --- Logout -----------------------------------------------------------------
+  console.log("15. Logout");
+  const out = await owner("POST", "/api/auth/logout");
+  check("logout 200", out.status === 200);
+  const afterLogout = await owner("GET", "/api/auth/me");
+  check("sesi dicabut setelah logout", afterLogout.status === 401);
+
+  console.log(`\n${failures === 0 ? "SEMUA SMOKE TEST LULUS ✅" : `${failures} PEMERIKSAAN GAGAL ❌`}`);
+} catch (err) {
+  failures++;
+  console.error("Smoke test error:", err);
+} finally {
+  child.kill("SIGTERM");
+  await new Promise((r) => setTimeout(r, 1000));
+  child.kill("SIGKILL");
+}
+
+process.exit(failures === 0 ? 0 : 1);

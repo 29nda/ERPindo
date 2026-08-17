@@ -1,0 +1,676 @@
+import {
+  disposeAssetSchema,
+  fixedAssetSchema,
+  penyusutanBulanan,
+  ringkasPenyusutanFiskal,
+  runDepreciationSchema,
+  setAssetTaxSchema,
+  KELOMPOK_HARTA_BY_KODE,
+  type BarisPenyusutanFiskal,
+  type ApiFixedAsset,
+  type MetodePenyusutan,
+  revalueAssetSchema,
+  type ApiAssetRevaluation,
+} from "@erpindo/shared";
+import type { SqlExecutor } from "@erpindo/db";
+import { Hono } from "hono";
+import type { AppEnv } from "../env";
+import { accountIdByCode, getLockedBefore, postJournal } from "../lib/accounting";
+import { audit } from "../lib/audit";
+import { getTenantDb } from "../lib/tenantDb";
+import { requireAuth, requireTenantRole } from "../middleware/auth";
+import { clientIp } from "./auth";
+
+/**
+ * Aset Tetap (Fase 2p): register aset, penyusutan garis lurus otomatis
+ * (bulanan via Cron atau manual), dan pelepasan dengan laba/rugi. Akun COA:
+ * Aset Tetap 1-1500, Akumulasi Penyusutan 1-1510, Beban Penyusutan 5-5000,
+ * laba pelepasan → Pendapatan Lain-lain 4-2000, rugi → Beban Operasional 5-4000.
+ */
+
+const ASET_TETAP = "1-1500";
+const AKUM_PENYUSUTAN = "1-1510";
+const BEBAN_PENYUSUTAN = "5-5000";
+const PENDAPATAN_LAIN = "4-2000";
+const BEBAN_LAIN = "5-4000";
+const SURPLUS_REVALUASI = "3-3000";
+
+/**
+ * Bulan keberapa sebuah aset berada pada periode tertentu, mulai 1 (Fase 22d).
+ *
+ * Dibutuhkan saldo menurun, yang angsurannya bergantung pada posisi bulan —
+ * khususnya untuk mengenali bulan TERAKHIR masa manfaat, satu-satunya bulan
+ * yang membuat aset saldo menurun pernah selesai disusutkan.
+ */
+function bulanKeSejakPerolehan(acquisitionDate: string, period: string): number {
+  const [ay, am] = acquisitionDate.slice(0, 7).split("-").map(Number);
+  const [py, pm] = period.split("-").map(Number);
+  return (py! - ay!) * 12 + (pm! - am!) + 1;
+}
+
+/**
+ * Jalankan penyusutan garis lurus untuk satu periode (YYYY-MM). Idempotent:
+ * aset yang sudah punya entri periode itu atau sudah tersusut penuh dilewati.
+ * Memposting satu jurnal gabungan Debit Beban Penyusutan / Kredit Akumulasi.
+ * Dipakai endpoint manual maupun Cron bulanan.
+ */
+export async function runDepreciation(
+  db: SqlExecutor,
+  period: string,
+  date: string,
+  userId: string,
+): Promise<{ count: number; total: number } | { error: string }> {
+  const lockedBefore = await getLockedBefore(db);
+  if (lockedBefore && date <= lockedBefore) {
+    return { error: `Periode sampai ${lockedBefore} sudah ditutup — penyusutan ditolak.` };
+  }
+
+  const { results: assets } = await db
+    .prepare(
+      `SELECT id, acquisition_date, acquisition_cost, residual_value, useful_life_months,
+              accumulated_depreciation, depreciation_method
+       FROM fixed_assets
+       WHERE status = 'active'
+         AND accumulated_depreciation < (acquisition_cost - residual_value)
+         AND id NOT IN (SELECT asset_id FROM depreciation_entries WHERE period = ?)`,
+    )
+    .bind(period)
+    .all<{
+      id: string;
+      acquisition_date: string;
+      acquisition_cost: number;
+      residual_value: number;
+      useful_life_months: number;
+      accumulated_depreciation: number;
+      depreciation_method: string;
+    }>();
+
+  // Angsurannya dihitung fungsi murni bersama (Fase 22d) supaya kalkulator,
+  // laporan fiskal, dan jurnal ini tidak pernah berbeda jawaban.
+  const items = assets
+    .map((a) => ({
+      id: a.id,
+      amount: penyusutanBulanan({
+        harga: a.acquisition_cost,
+        residu: a.residual_value,
+        umurBulan: a.useful_life_months,
+        akumulasi: a.accumulated_depreciation,
+        bulanKe: bulanKeSejakPerolehan(a.acquisition_date, period),
+        metode: (a.depreciation_method as MetodePenyusutan) ?? "garis_lurus",
+      }),
+    }))
+    .filter((x) => x.amount > 0);
+
+  if (items.length === 0) return { count: 0, total: 0 };
+
+  const total = items.reduce((s, x) => s + x.amount, 0);
+  const [beban, akum] = await Promise.all([
+    accountIdByCode(db, BEBAN_PENYUSUTAN),
+    accountIdByCode(db, AKUM_PENYUSUTAN),
+  ]);
+
+  const journal = await postJournal(db, {
+    entryDate: date,
+    memo: `Penyusutan aset ${period}`,
+    createdBy: userId,
+    lines: [
+      { accountId: beban, description: `Beban penyusutan ${period}`, debit: total, credit: 0 },
+      { accountId: akum, description: `Akumulasi penyusutan ${period}`, debit: 0, credit: total },
+    ],
+  });
+
+  for (const it of items) {
+    await db
+      .prepare(
+        `INSERT INTO depreciation_entries (id, asset_id, period, amount, journal_entry_id) VALUES (?, ?, ?, ?, ?)`,
+      )
+      .bind(crypto.randomUUID(), it.id, period, it.amount, journal.id)
+      .run();
+    await db
+      .prepare(`UPDATE fixed_assets SET accumulated_depreciation = accumulated_depreciation + ? WHERE id = ?`)
+      .bind(it.amount, it.id)
+      .run();
+  }
+
+  return { count: items.length, total };
+}
+
+type DisposalLine = { accountId: string; description: string; debit: number; credit: number };
+
+/**
+ * Susun jurnal pelepasan aset (murni, tanpa DB — bisa diuji langsung):
+ * nilai buku = perolehan − akumulasi; laba/rugi = hasil − nilai buku. Jurnal
+ * membalik akumulasi & aset, mencatat kas hasil (bila ada), lalu laba (kredit
+ * Pendapatan Lain) atau rugi (debit Beban Lain). Baris bernilai nol disaring
+ * sehingga jurnal selalu seimbang.
+ */
+export function buildDisposalJournal(params: {
+  assetName: string;
+  acquisitionCost: number;
+  accumulatedDepreciation: number;
+  proceeds: number;
+  accounts: { asetTetap: string; akum: string; pendLain: string; bebanLain: string; cash: string };
+}): { bookValue: number; gain: number; lines: DisposalLine[] } {
+  const { assetName, acquisitionCost, accumulatedDepreciation, proceeds, accounts } = params;
+  const bookValue = acquisitionCost - accumulatedDepreciation;
+  const gain = proceeds - bookValue; // >0 laba, <0 rugi
+  const lines = [
+    { accountId: accounts.akum, description: `Pelepasan ${assetName}`, debit: accumulatedDepreciation, credit: 0 },
+    ...(proceeds > 0
+      ? [{ accountId: accounts.cash, description: `Hasil pelepasan ${assetName}`, debit: proceeds, credit: 0 }]
+      : []),
+    ...(gain < 0 ? [{ accountId: accounts.bebanLain, description: `Rugi pelepasan ${assetName}`, debit: -gain, credit: 0 }] : []),
+    { accountId: accounts.asetTetap, description: `Pelepasan ${assetName}`, debit: 0, credit: acquisitionCost },
+    ...(gain > 0 ? [{ accountId: accounts.pendLain, description: `Laba pelepasan ${assetName}`, debit: 0, credit: gain }] : []),
+  ].filter((l) => l.debit > 0 || l.credit > 0);
+  return { bookValue, gain, lines };
+}
+
+/**
+ * Jurnal revaluasi aset tetap (Fase 20e) — model revaluasi PSAK 16, metode
+ * ELIMINASI: akumulasi penyusutan dinolkan, harga perolehan disetel ke nilai
+ * wajar. Penyusutan setelahnya berjalan lurus dari nilai baru.
+ *
+ * Aljabarnya (C = perolehan, A = akumulasi, B = C − A nilai buku, F = nilai
+ * wajar, D = F − B selisih revaluasi):
+ *
+ *   Dr Akum. Penyusutan   A            (menolkan akumulasi)
+ *   Dr/Cr Aset Tetap      F − C        (menyetel perolehan ke nilai wajar)
+ *   Cr Surplus Revaluasi  D            bila D > 0
+ *   Dr Rugi Revaluasi     −D           bila D < 0
+ *
+ * Seimbang karena D = F − C + A, jadi A + (F − C) − D = 0 identik nol —
+ * bukan kebetulan yang harus dicek satu per satu, melainkan sifat rumusnya.
+ *
+ * KENAIKAN masuk EKUITAS (surplus revaluasi), bukan pendapatan: kenaikan nilai
+ * wajar belum terealisasi. PENURUNAN masuk beban, karena kehati-hatian menuntut
+ * rugi diakui begitu diketahui.
+ */
+export function buildRevaluationJournal(params: {
+  assetName: string;
+  acquisitionCost: number;
+  accumulatedDepreciation: number;
+  fairValue: number;
+  accounts: { asetTetap: string; akum: string; surplus: string; bebanLain: string };
+}): { bookValue: number; difference: number; lines: DisposalLine[] } {
+  const { assetName, acquisitionCost: C, accumulatedDepreciation: A, fairValue: F, accounts } = params;
+  const bookValue = C - A;
+  const difference = F - bookValue;
+  const selisihPerolehan = F - C;
+  const lines: DisposalLine[] = [
+    { accountId: accounts.akum, description: `Revaluasi ${assetName} — nol-kan akumulasi`, debit: A, credit: 0 },
+    {
+      accountId: accounts.asetTetap,
+      description: `Revaluasi ${assetName} — setel ke nilai wajar`,
+      debit: selisihPerolehan > 0 ? selisihPerolehan : 0,
+      credit: selisihPerolehan < 0 ? -selisihPerolehan : 0,
+    },
+    {
+      accountId: difference >= 0 ? accounts.surplus : accounts.bebanLain,
+      description:
+        difference >= 0 ? `Surplus revaluasi ${assetName}` : `Rugi penurunan nilai ${assetName}`,
+      debit: difference < 0 ? -difference : 0,
+      credit: difference > 0 ? difference : 0,
+    },
+  ].filter((l) => l.debit > 0 || l.credit > 0);
+  return { bookValue, difference, lines };
+}
+
+async function listAssets(db: SqlExecutor): Promise<ApiFixedAsset[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT id, name, category, acquisition_date, acquisition_cost, useful_life_months, residual_value,
+              accumulated_depreciation, status, disposed_date, depreciation_method, tax_group, tax_method
+       FROM fixed_assets ORDER BY status, acquisition_date DESC`,
+    )
+    .all<{
+      id: string;
+      name: string;
+      category: string | null;
+      acquisition_date: string;
+      acquisition_cost: number;
+      useful_life_months: number;
+      residual_value: number;
+      accumulated_depreciation: number;
+      status: "active" | "disposed";
+      disposed_date: string | null;
+      depreciation_method: string;
+      tax_group: string | null;
+      tax_method: string | null;
+    }>();
+  // Fase 22d: pada saldo menurun, "penyusutan bulanan" BUKAN angka tetap — ia
+  // mengecil tiap bulan. Yang dilaporkan karena itu angsuran bulan BERIKUTNYA,
+  // dihitung fungsi murni yang sama dengan jurnalnya, bukan rumus rata-rata
+  // yang akan keliru untuk setengah dari aset begitu metodenya bisa dipilih.
+  //
+  // Nomor bulannya diambil dari BANYAKNYA angsuran yang sudah diposting, bukan
+  // dari kalender. Dua alasan: aset yang penyusutannya sempat tertunda beberapa
+  // bulan akan salah hitung kalau memakai tanggal hari ini, dan angka yang
+  // bergantung pada jam dinding membuat ceknya berubah sendiri seiring waktu.
+  const { results: sudah } = await db
+    .prepare(`SELECT asset_id, COUNT(*) AS n FROM depreciation_entries GROUP BY asset_id`)
+    .all<{ asset_id: string; n: number }>();
+  const angsuranTerposting = new Map(sudah.map((r) => [r.asset_id, r.n]));
+  return results.map((a) => ({
+    id: a.id,
+    name: a.name,
+    category: a.category,
+    acquisitionDate: a.acquisition_date,
+    acquisitionCost: a.acquisition_cost,
+    usefulLifeMonths: a.useful_life_months,
+    residualValue: a.residual_value,
+    accumulatedDepreciation: a.accumulated_depreciation,
+    bookValue: a.acquisition_cost - a.accumulated_depreciation,
+    monthlyDepreciation: penyusutanBulanan({
+      harga: a.acquisition_cost,
+      residu: a.residual_value,
+      umurBulan: a.useful_life_months,
+      akumulasi: a.accumulated_depreciation,
+      bulanKe: (angsuranTerposting.get(a.id) ?? 0) + 1,
+      metode: (a.depreciation_method as MetodePenyusutan) ?? "garis_lurus",
+    }),
+    depreciationMethod: (a.depreciation_method as MetodePenyusutan) ?? "garis_lurus",
+    taxGroup: a.tax_group,
+    taxMethod: (a.tax_method as MetodePenyusutan | null) ?? null,
+    status: a.status,
+    disposedDate: a.disposed_date,
+  }));
+}
+
+async function assertCashAccount(db: SqlExecutor, accountId: string): Promise<boolean> {
+  const { results } = await db
+    .prepare(`SELECT type FROM accounts WHERE id = ? AND is_archived = 0`)
+    .bind(accountId)
+    .all<{ type: string }>();
+  return results[0]?.type === "asset";
+}
+
+export const assetRoutes = new Hono<AppEnv>()
+
+  .get("/:tenantId/assets", requireAuth, requireTenantRole("viewer"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    return c.json({ assets: await listAssets(db) });
+  })
+
+  .post("/:tenantId/assets", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = fixedAssetSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      const flat = parsed.error.flatten();
+      return c.json({ error: flat.formErrors[0] ?? "Data tidak valid", issues: flat.fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const input = parsed.data;
+
+    if (!(await assertCashAccount(db, input.cashAccountId))) {
+      return c.json({ error: "Akun pembayar harus akun kas/bank (aset)." }, 400);
+    }
+    const lockedBefore = await getLockedBefore(db);
+    if (lockedBefore && input.acquisitionDate <= lockedBefore) {
+      return c.json({ error: `Periode sampai ${lockedBefore} sudah ditutup.` }, 400);
+    }
+
+    // Jurnal perolehan: Debit Aset Tetap / Kredit Kas-Bank.
+    const asetTetap = await accountIdByCode(db, ASET_TETAP);
+    const journal = await postJournal(db, {
+      entryDate: input.acquisitionDate,
+      memo: `Perolehan aset: ${input.name}`,
+      createdBy: c.get("user").id,
+      lines: [
+        { accountId: asetTetap, description: input.name, debit: input.acquisitionCost, credit: 0 },
+        { accountId: input.cashAccountId, description: input.name, debit: 0, credit: input.acquisitionCost },
+      ],
+    });
+
+    const id = crypto.randomUUID();
+    await db
+      .prepare(
+        `INSERT INTO fixed_assets (id, name, category, acquisition_date, acquisition_cost, useful_life_months,
+                                   residual_value, journal_entry_id, created_by,
+                                   depreciation_method, tax_group, tax_method)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        id,
+        input.name,
+        input.category ?? null,
+        input.acquisitionDate,
+        input.acquisitionCost,
+        input.usefulLifeMonths,
+        input.residualValue,
+        journal.id,
+        c.get("user").id,
+        input.depreciationMethod,
+        input.taxGroup ?? null,
+        input.taxMethod ?? null,
+      )
+      .run();
+
+    await audit(c.env, {
+      action: "asset.registered",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { id, name: input.name, cost: input.acquisitionCost },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, id }, 201);
+  })
+
+  .post("/:tenantId/assets/depreciation", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = runDepreciationSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const result = await runDepreciation(db, parsed.data.period, parsed.data.date, c.get("user").id);
+    if ("error" in result) return c.json({ error: result.error }, 400);
+
+    await audit(c.env, {
+      action: "asset.depreciated",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { period: parsed.data.period, count: result.count, total: result.total },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, ...result });
+  })
+
+  .post("/:tenantId/assets/:id/dispose", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = disposeAssetSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const id = c.req.param("id");
+    const input = parsed.data;
+
+    const { results } = await db
+      .prepare(`SELECT name, acquisition_cost, accumulated_depreciation, status FROM fixed_assets WHERE id = ?`)
+      .bind(id)
+      .all<{ name: string; acquisition_cost: number; accumulated_depreciation: number; status: string }>();
+    const asset = results[0];
+    if (!asset) return c.json({ error: "Aset tidak ditemukan." }, 404);
+    if (asset.status === "disposed") return c.json({ error: "Aset sudah dilepas." }, 400);
+    if (input.proceeds > 0 && !(await assertCashAccount(db, input.cashAccountId))) {
+      return c.json({ error: "Akun penerima harus akun kas/bank (aset)." }, 400);
+    }
+    const lockError = await getLockedBefore(db);
+    if (lockError && input.disposalDate <= lockError) {
+      return c.json({ error: `Periode sampai ${lockError} sudah ditutup.` }, 400);
+    }
+
+    const [asetTetap, akum, pendLain, bebanLain] = await Promise.all([
+      accountIdByCode(db, ASET_TETAP),
+      accountIdByCode(db, AKUM_PENYUSUTAN),
+      accountIdByCode(db, PENDAPATAN_LAIN),
+      accountIdByCode(db, BEBAN_LAIN),
+    ]);
+    const { bookValue, gain, lines } = buildDisposalJournal({
+      assetName: asset.name,
+      acquisitionCost: asset.acquisition_cost,
+      accumulatedDepreciation: asset.accumulated_depreciation,
+      proceeds: input.proceeds,
+      accounts: { asetTetap, akum, pendLain, bebanLain, cash: input.cashAccountId },
+    });
+
+    const journal = await postJournal(db, {
+      entryDate: input.disposalDate,
+      memo: `Pelepasan aset: ${asset.name}`,
+      createdBy: c.get("user").id,
+      lines,
+    });
+
+    await db
+      .prepare(`UPDATE fixed_assets SET status = 'disposed', disposed_date = ? WHERE id = ?`)
+      .bind(input.disposalDate, id)
+      .run();
+
+    await audit(c.env, {
+      action: "asset.disposed",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { id, name: asset.name, proceeds: input.proceeds, gain },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, bookValue, gain, journalNo: journal.entryNo }, 201);
+  })
+
+  /**
+   * Revaluasi aset (Fase 20e) — model revaluasi PSAK 16, metode eliminasi.
+   *
+   * Menolak aset yang sudah dilepas dan menghormati periode terkunci, sama
+   * seperti pelepasan: revaluasi menulis jurnal bertanggal, jadi ia tunduk
+   * pada aturan tutup buku yang sama.
+   */
+  .post("/:tenantId/assets/:id/revaluation", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = revalueAssetSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const id = c.req.param("id");
+    const input = parsed.data;
+
+    const { results } = await db
+      .prepare(`SELECT name, acquisition_cost, accumulated_depreciation, status FROM fixed_assets WHERE id = ?`)
+      .bind(id)
+      .all<{ name: string; acquisition_cost: number; accumulated_depreciation: number; status: string }>();
+    const asset = results[0];
+    if (!asset) return c.json({ error: "Aset tidak ditemukan." }, 404);
+    if (asset.status === "disposed") return c.json({ error: "Aset sudah dilepas, tidak bisa direvaluasi." }, 400);
+    const lockError = await getLockedBefore(db);
+    if (lockError && input.revalDate <= lockError) {
+      return c.json({ error: `Periode sampai ${lockError} sudah ditutup.` }, 400);
+    }
+
+    const [asetTetap, akum, surplus, bebanLain] = await Promise.all([
+      accountIdByCode(db, ASET_TETAP),
+      accountIdByCode(db, AKUM_PENYUSUTAN),
+      accountIdByCode(db, SURPLUS_REVALUASI),
+      accountIdByCode(db, BEBAN_LAIN),
+    ]);
+    const { bookValue, difference, lines } = buildRevaluationJournal({
+      assetName: asset.name,
+      acquisitionCost: asset.acquisition_cost,
+      accumulatedDepreciation: asset.accumulated_depreciation,
+      fairValue: input.fairValue,
+      accounts: { asetTetap, akum, surplus, bebanLain },
+    });
+
+    const journal =
+      lines.length > 0
+        ? await postJournal(db, {
+            entryDate: input.revalDate,
+            memo: `Revaluasi aset: ${asset.name}`,
+            createdBy: c.get("user").id,
+            lines,
+          })
+        : null;
+
+    // Metode eliminasi: perolehan disetel ke nilai wajar, akumulasi dinolkan.
+    // Penyusutan berikutnya berjalan lurus dari nilai baru — konsisten dengan
+    // jurnal di atas, bukan dua kebenaran yang harus disamakan manual.
+    await db
+      .prepare(`UPDATE fixed_assets SET acquisition_cost = ?, accumulated_depreciation = 0 WHERE id = ?`)
+      .bind(input.fairValue, id)
+      .run();
+
+    const revalId = crypto.randomUUID();
+    await db
+      .prepare(
+        `INSERT INTO asset_revaluations
+           (id, asset_id, reval_date, cost_before, accumulated_before, book_value_before, fair_value, difference, journal_entry_id, note, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(revalId, id, input.revalDate, asset.acquisition_cost, asset.accumulated_depreciation, bookValue, input.fairValue, difference, journal ? journal.id : null, input.note ?? null, c.get("user").id)
+      .run();
+
+    await audit(c.env, {
+      action: "asset.revalued",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { id, name: asset.name, bookValue, fairValue: input.fairValue, difference },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, id: revalId, bookValue, difference }, 201);
+  })
+
+  .get("/:tenantId/assets/:id/revaluations", requireAuth, requireTenantRole("viewer"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const { results } = await db
+      .prepare(
+        `SELECT id, reval_date, cost_before, accumulated_before, book_value_before, fair_value, difference, note
+           FROM asset_revaluations WHERE asset_id = ? ORDER BY reval_date DESC, created_at DESC`,
+      )
+      .bind(c.req.param("id"))
+      .all<{ id: string; reval_date: string; cost_before: number; accumulated_before: number; book_value_before: number; fair_value: number; difference: number; note: string | null }>();
+    const items: ApiAssetRevaluation[] = results.map((r) => ({
+      id: r.id,
+      revalDate: r.reval_date,
+      costBefore: r.cost_before,
+      accumulatedBefore: r.accumulated_before,
+      bookValueBefore: r.book_value_before,
+      fairValue: r.fair_value,
+      difference: r.difference,
+      note: r.note,
+    }));
+    return c.json({ items });
+  })
+
+  // -------------------------------------------------------------------------
+  // Metode & kelompok pajak per aset (Fase 22d)
+  // -------------------------------------------------------------------------
+  .patch("/:tenantId/assets/:id/tax", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = setAssetTaxSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "Data tidak valid" }, 400);
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const id = c.req.param("id");
+
+    const asset = (
+      await db.prepare(`SELECT id, tax_group FROM fixed_assets WHERE id = ?`).bind(id).all<{ id: string; tax_group: string | null }>()
+    ).results[0];
+    if (!asset) return c.json({ error: "Aset tidak ditemukan." }, 404);
+
+    // Larangan bangunan diperiksa ULANG terhadap kelompok yang BERLAKU sesudah
+    // perubahan ini — skema hanya melihat medan yang dikirim. Tanpa ini, memberi
+    // `taxMethod: saldo_menurun` sendirian pada aset yang kelompoknya sudah
+    // bangunan akan lolos, karena `taxGroup`-nya tidak ikut dikirim.
+    const kelompokBerlaku = parsed.data.taxGroup !== undefined ? parsed.data.taxGroup : asset.tax_group;
+    if (parsed.data.taxMethod === "saldo_menurun" && kelompokBerlaku && !KELOMPOK_HARTA_BY_KODE[kelompokBerlaku]?.saldoMenurunBoleh) {
+      return c.json({ error: "Bangunan hanya boleh disusutkan garis lurus (UU PPh Ps. 11 ayat 6)." }, 400);
+    }
+
+    const kolom: [string, string | null][] = [];
+    if (parsed.data.depreciationMethod !== undefined) kolom.push(["depreciation_method", parsed.data.depreciationMethod]);
+    if (parsed.data.taxGroup !== undefined) kolom.push(["tax_group", parsed.data.taxGroup ?? null]);
+    if (parsed.data.taxMethod !== undefined) kolom.push(["tax_method", parsed.data.taxMethod ?? null]);
+    if (kolom.length === 0) return c.json({ error: "Tidak ada yang diubah." }, 400);
+
+    await db
+      .prepare(`UPDATE fixed_assets SET ${kolom.map(([k]) => `${k} = ?`).join(", ")} WHERE id = ?`)
+      .bind(...kolom.map(([, v]) => v), id)
+      .run();
+
+    await audit(c.env, {
+      action: "asset.tax_updated",
+      userId: c.get("user").id,
+      tenantId: c.get("tenant").id,
+      detail: { id, ...parsed.data },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true });
+  })
+
+  /**
+   * Penyusutan komersial vs fiskal setahun (Fase 22d).
+   *
+   * ⚠️ Rute ini **hanya membaca**. Angka fiskal TIDAK pernah dijurnal: buku
+   * besar memuat penyusutan komersial, dan yang fiskal cuma dipakai
+   * merekonsiliasi laba komersial ke laba fiskal di SPT. Kalau ia ikut
+   * dijurnal, asetnya tersusut dua kali — dan karena jurnalnya tetap seimbang,
+   * neraca saldo tidak akan menangkapnya.
+   */
+  .get("/:tenantId/assets/tax-depreciation", requireAuth, requireTenantRole("viewer"), async (c) => {
+    const tahun = c.req.query("year") ?? String(new Date().getUTCFullYear());
+    if (!/^\d{4}$/.test(tahun)) return c.json({ error: "Tahun tidak valid (YYYY)." }, 400);
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+
+    const { results: assets } = await db
+      .prepare(
+        `SELECT id, name, acquisition_date, acquisition_cost, residual_value, useful_life_months,
+                depreciation_method, tax_group, tax_method
+         FROM fixed_assets WHERE status = 'active' ORDER BY acquisition_date`,
+      )
+      .all<{
+        id: string;
+        name: string;
+        acquisition_date: string;
+        acquisition_cost: number;
+        residual_value: number;
+        useful_life_months: number;
+        depreciation_method: string;
+        tax_group: string | null;
+        tax_method: string | null;
+      }>();
+
+    // Komersial diambil dari jurnal yang BENAR-BENAR terposting, bukan dihitung
+    // ulang: aset yang penyusutannya belum dijalankan bulan itu memang belum
+    // membebani laba rugi, dan laporan rekonsiliasi harus mencerminkan buku
+    // besar apa adanya — bukan buku besar yang seharusnya.
+    const { results: posted } = await db
+      .prepare(
+        `SELECT d.asset_id AS asset_id, COALESCE(SUM(d.amount), 0) AS total
+         FROM depreciation_entries d WHERE d.period LIKE ? GROUP BY d.asset_id`,
+      )
+      .bind(`${tahun}-%`)
+      .all<{ asset_id: string; total: number }>();
+    const komersialByAset = new Map(posted.map((r) => [r.asset_id, r.total]));
+
+    let tanpaKelompok = 0;
+    const baris: BarisPenyusutanFiskal[] = [];
+    for (const a of assets) {
+      const komersial = komersialByAset.get(a.id) ?? 0;
+      if (!a.tax_group) {
+        tanpaKelompok++;
+        if (komersial > 0) {
+          baris.push({ asetId: a.id, nama: a.name, komersial, fiskal: 0, koreksi: -komersial, kelompok: null });
+        }
+        continue;
+      }
+      const kel = KELOMPOK_HARTA_BY_KODE[a.tax_group];
+      // Umur FISKAL berasal dari kelompok hartanya, bukan dari masa manfaat
+      // komersial — itulah inti "berdampingan": mesin yang komersialnya
+      // disusutkan 5 tahun bisa saja fiskalnya 4 tahun (Kelompok 1).
+      const umurFiskal = kel?.umurBulan ?? a.useful_life_months;
+      const metodeFiskal = (a.tax_method ?? a.depreciation_method) as "garis_lurus" | "saldo_menurun";
+
+      let akum = 0;
+      let fiskal = 0;
+      const totalBulan = bulanKeSejakPerolehan(a.acquisition_date, `${tahun}-12`);
+      for (let bulanKe = 1; bulanKe <= Math.min(totalBulan, umurFiskal); bulanKe++) {
+        const n = penyusutanBulanan({
+          harga: a.acquisition_cost,
+          // Fiskal tidak mengenal nilai residu (UU PPh): seluruh harga
+          // perolehan disusutkan habis. Ini salah satu sumber koreksi fiskal
+          // yang paling sering terlewat.
+          residu: 0,
+          umurBulan: umurFiskal,
+          akumulasi: akum,
+          bulanKe,
+          metode: metodeFiskal,
+        });
+        akum += n;
+        // Hanya bulan-bulan DALAM tahun laporan yang dijumlahkan; bulan-bulan
+        // sebelumnya tetap dihitung karena akumulasinya menentukan angsuran
+        // saldo menurun tahun ini.
+        if (bulanKe > totalBulan - 12) fiskal += n;
+      }
+
+      baris.push({ asetId: a.id, nama: a.name, komersial, fiskal, koreksi: fiskal - komersial, kelompok: a.tax_group });
+    }
+
+    return c.json({ tahun, ...ringkasPenyusutanFiskal(baris, tanpaKelompok) });
+  });

@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, test, build & smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Syntax check ops scripts
+        run: node --check scripts/seed-demo.mjs && node --check scripts/ai-probe.mjs
+
+      - name: Build
+        run: pnpm build
+
+      - name: End-to-end smoke test (wrangler dev, local D1)
+        run: pnpm smoke
+
+  ui-sim:
+    # Simulasi UI penuh (Fase 9b): klik-tembus browser nyata — sapu semua rute
+    # + alur interaktif. Dipromosikan WAJIB pada Fase 9d setelah stabil
+    # berturut-turut di CI.
+    name: UI simulation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: npx playwright-core install chromium
+
+      - name: UI simulation (wrangler dev + Playwright)
+        run: node scripts/ui-sim.mjs
+
+  lint:
+    # Dipromosikan WAJIB pada Fase 12a setelah migrasi ke flat config (ESLint 9)
+    # dan basis kode terbukti bersih.
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: ESLint
+        run: pnpm lint
+
+      # Fase 16t: menjaga kelas bug `{u("kunci")}` di dalam template literal —
+      # di sana ia bukan JSX, jadi teksnya keluar harfiah ke layar/kertas
+      # (struk POS sempat tercetak dengan tulisan `{u("subtotal")}`). Skrip
+      # keluar dengan kode 1 HANYA untuk bug ini; sisa utang terjemahan cuma
+      # dilaporkan dan tidak menggagalkan CI.
+      # Fase 20m: glob DITURUNKAN ke subfolder. Sebelumnya `pages/*.tsx` saja,
+      # sehingga `pages/settings/`, `pages/landing/`, dan `pages/panduan/` tidak
+      # pernah tersapu sama sekali — 219 utang teks di halaman Pengaturan lolos
+      # tanpa terlihat selama seluruh program dwibahasa Fase 19.
+      - name: Penjaga i18n (panggilan u() harfiah)
+        run: |
+          shopt -s globstar
+          node scripts/sapu-i18n.mjs apps/web/src/pages/**/*.tsx apps/web/src/components/**/*.tsx > /dev/null
+        shell: bash
+
