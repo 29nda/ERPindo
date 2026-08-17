@@ -85,6 +85,13 @@ const dev = spawn(
     // sehingga seed bisa membuat perusahaan kedua (PT Demo Sejahtera).
     "--var",
     `COMPED_EMAILS:${EMAIL}`,
+    // Fase 30f: akun simulasi dijadikan admin platform supaya dasbor admin
+    // benar-benar DIRENDER di peramban. Sebelum ini satu-satunya keadaan yang
+    // pernah dilihat ui-sim adalah pesan penolakan "khusus admin platform" —
+    // artinya seluruh isi dasbor (metrik bisnis, kuota, tabel tenant, editor
+    // blog) tidak punya cakupan browser sama sekali.
+    "--var",
+    `PLATFORM_ADMIN_EMAILS:${EMAIL}`,
   ],
   { cwd: path.join(ROOT, "apps/api"), stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, CI: "1" } },
 );
@@ -1097,10 +1104,11 @@ try {
   // F1s — Fase 19r: Dukungan & dashboard admin platform.
   // Rute diverifikasi ke main.tsx: /app/dukungan dan /app/admin.
   //
-  // Untuk /app/admin penandanya adalah pesan "khusus admin platform": akun
-  // simulasi BUKAN admin platform, jadi itulah satu-satunya keadaan halaman
-  // yang benar-benar dirender. Memakai penanda tab admin akan merah walaupun
-  // terjemahannya benar (pelajaran F1c/F1o).
+  // Fase 30f: akun simulasi KINI admin platform (lihat PLATFORM_ADMIN_EMAILS di
+  // spawn wrangler), jadi penandanya bukan lagi pesan penolakan melainkan ISI
+  // dasbornya. Ini pengetatan, bukan pelonggaran: sebelumnya satu-satunya
+  // keadaan yang pernah dilihat peramban adalah layar penolakan, sehingga
+  // terjemahan seluruh dasbor admin tidak pernah diuji sama sekali.
   await gotoRoute("/app/dukungan", 900);
   const dkEn = await page.innerText("body");
   await gotoRoute("/app/admin", 900);
@@ -1112,17 +1120,45 @@ try {
     // sisi web memetakannya sendiri. Tanpa penanda ini kebocoran itu tak
     // terukur — persis jenis kebocoran yang lolos sapuan teks.
     dkEn.includes("Feature suggestion") &&
-    adEn.includes("platform admins only");
+    adEn.includes("Business metrics") &&
+    adEn.includes("Total companies");
   const tanpaDkId =
     !dkEn.includes("Kirim masukan") &&
     !dkEn.includes("Masukan saya") &&
     !dkEn.includes("Saran fitur") &&
-    !adEn.includes("khusus admin platform");
+    !adEn.includes("Metrik bisnis") &&
+    !adEn.includes("Total perusahaan");
   check(
     "F1s isi Dukungan & Admin ikut EN: kartu masukan + label kategori, tanpa teks Indonesia",
     adaDkEn && tanpaDkId,
     `→ EN=${adaDkEn} tanpaID=${tanpaDkId}`,
   );
+
+  // F30f — dasbor admin platform benar-benar dirender di peramban.
+  //
+  // Sebelum fase ini SATU-SATUNYA keadaan halaman ini yang pernah dilihat
+  // ui-sim adalah layar penolakan, sehingga metrik bisnis, kartu kuota, dan
+  // tabel tenant tidak punya cakupan peramban sama sekali — permukaan yang
+  // justru dipakai pemilik untuk menjalankan usahanya.
+  await gotoRoute("/app/admin", 900);
+  const adminTeks = await page.innerText("body");
+  check(
+    "F30f dasbor admin merender kartu metrik bisnis (MRR)",
+    /Recurring revenue|Pendapatan berulang/.test(adminTeks),
+    `→ kartu MRR tidak ditemukan`,
+  );
+  check(
+    "F30f MRR tampil sebagai rupiah, bukan NaN/undefined",
+    /Rp\s?[\d.]+/.test(adminTeks) && !/NaN|undefined/.test(adminTeks),
+    `→ ${(adminTeks.match(/NaN|undefined/) ?? [""])[0]}`,
+  );
+  check(
+    "F30f kartu kuota menjelaskan dirinya saat monitor belum aktif (degradasi anggun)",
+    /CLOUDFLARE_API_TOKEN/.test(adminTeks),
+    `→ pesan kuota tidak ditemukan`,
+  );
+  check("F30f dasbor admin bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+  resetErrors();
 
   // F1v — Fase 20d: tab PPh Unifikasi di halaman Pajak.
   // Rute diverifikasi ke audit-routes.mjs: /app/keuangan/pajak.
@@ -1926,8 +1962,12 @@ try {
     "F17 halaman Dukungan render (judul + form kirim masukan)",
     dukunganBody.includes("Dukungan & Masukan") && dukunganBody.includes("Kirim masukan"),
   );
+  // Menu "Admin" untuk akun INI (Fase 30f: kini admin platform) harus TAMPIL.
+  // Pasangan negatifnya — tersembunyi bagi pengguna biasa — dipindah ke sesi
+  // demo di bagian bawah berkas ini, karena akun demo adalah "pengguna biasa"
+  // yang paling realistis: viewer, tanpa hak platform apa pun.
   const adminNav = await page.locator("aside nav a:visible", { hasText: "Admin" }).count();
-  check("F17 menu 'Admin' tersembunyi untuk pengguna biasa", adminNav === 0, `→ ${adminNav} tautan`);
+  check("F30f menu 'Admin' TAMPIL untuk admin platform", adminNav >= 1, `→ ${adminNav} tautan`);
   check("F17 halaman Dukungan bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
   // F18 — Fase 10f: wizard awal, panduan dalam app, dan tur berpandu.
@@ -2778,6 +2818,21 @@ try {
   const demoBody = await page.innerText("body");
   check("F15 masuk demo tanpa daftar → banner 'Mode demo' tampil", demoBody.includes("Mode demo"));
   check("F15 sesi demo berada di PT Demo Sejahtera", demoBody.includes("PT Demo Sejahtera"));
+  // Pasangan negatif F30f: akun demo adalah viewer tanpa hak platform, jadi
+  // menu Admin TIDAK boleh tampil. Diuji di sini — bukan di sesi utama yang
+  // kini admin platform — supaya penjaga visibilitasnya tidak hilang saat
+  // dasbor admin mulai punya cakupan peramban.
+  const adminNavDemo = await page.locator("aside nav a:visible", { hasText: "Admin" }).count();
+  check("F30f menu 'Admin' tersembunyi untuk pengguna biasa (sesi demo)", adminNavDemo === 0, `→ ${adminNavDemo} tautan`);
+  // Dan bukan cuma menunya: rute langsungnya pun harus menolak.
+  await gotoRoute("/app/admin", 900);
+  const adminDemoTeks = await page.innerText("body");
+  check(
+    "F30f rute /app/admin menolak pengguna biasa, bukan hanya menyembunyikan menunya",
+    /khusus admin platform|platform admins only/i.test(adminDemoTeks),
+    `→ penolakan tidak ditemukan`,
+  );
+
   check("F15 mode demo bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
   // ---------------------------------------------------------------------------

@@ -4,7 +4,10 @@ import { secureHeaders } from "hono/secure-headers";
 import type { AppEnv, Env } from "./env";
 import { DUNNING_MILESTONES, GRACE_DAYS, dunningWindow } from "./lib/dunning";
 import { kirimEmail } from "./lib/mailer";
-import { getTenantDb, migrateAllTenants } from "./lib/tenantDb";
+import { getTenantDb, migrateTenantBatch } from "./lib/tenantDb";
+// Kelas Durable Object WAJIB diekspor dari entry Worker — wrangler mencarinya
+// di sini, bukan di berkas tempat ia didefinisikan (Fase 30e).
+export { RateLimiter } from "./lib/rateLimiter";
 import { accountingRoutes } from "./routes/accounting";
 import { aiRoutes } from "./routes/ai";
 import { approvalEngineRoutes } from "./routes/approvalsEngine";
@@ -217,16 +220,28 @@ async function markMonthlyDone(env: Env, task: string, tenantId: string, month: 
 async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
   await ensureMigrated(env);
 
-  // Sapu migrasi skema tenant: pastikan SETIAP tenant — termasuk yang jarang
-  // dibuka dan hanya disentuh cron — memakai skema terkini sebelum tugas bisnis
-  // di bawah menyentuh database mereka. Murah bila semua sudah mutakhir (hanya
-  // satu SELECT + banding versi). Melengkapi auto-migrasi malas di middleware.
+  // Sapu migrasi skema tenant, SATU BATCH per jalannya cron (Fase 30d).
+  //
+  // Sebelumnya seluruh tenant disapu dalam satu jalan. Pada jumlah besar itu
+  // menembus batas subrequest/CPU Worker dan mati di tengah — sebagian tenant
+  // termigrasi, sebagian tidak. Kini tiap jalan menuntaskan paling banyak
+  // `BATCH_MIGRASI` tenant dan sisanya diteruskan jalan berikutnya; karena
+  // versi hanya naik saat sukses, mengulang selalu aman.
+  //
+  // Murah bila semua sudah mutakhir: kueri terbatasnya tidak mengembalikan
+  // baris apa pun. Melengkapi auto-migrasi malas di middleware, yang tetap
+  // menjadi jaring pengaman bagi tenant yang dibuka sebelum cron sempat jalan.
   try {
-    const migr = await migrateAllTenants(env);
-    const bumped = migr.filter((r) => r.applied.length > 0);
-    const failed = migr.filter((r) => !r.ok);
-    if (bumped.length > 0) console.log(`[cron] migrasi skema tenant: ${bumped.length} tenant dimutakhirkan`);
-    if (failed.length > 0) console.error(`[cron] migrasi skema gagal untuk ${failed.length} tenant: ${failed.map((r) => r.slug).join(", ")}`);
+    const migr = await migrateTenantBatch(env);
+    if (migr.diproses > 0) {
+      console.log(
+        `[cron] migrasi skema tenant: ${migr.berhasil} dimutakhirkan, ${migr.gagal} gagal, sisa ${migr.sisa}`,
+      );
+    }
+    if (migr.gagal > 0) {
+      const rusak = migr.results.filter((r) => !r.ok).map((r) => r.slug).join(", ");
+      console.error(`[cron] migrasi skema gagal untuk ${migr.gagal} tenant: ${rusak}`);
+    }
   } catch (err) {
     console.error(`[cron] sapu migrasi skema tenant galat:`, err);
   }

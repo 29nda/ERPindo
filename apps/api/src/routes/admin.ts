@@ -2,6 +2,7 @@ import {
   blogPostSchema,
   FEEDBACK_STATUSES,
   feedbackSchema,
+  PLAN_LIMITS,
   setTenantPlanSchema,
   type ApiBlogPost,
   type ApiFeedback,
@@ -11,9 +12,10 @@ import {
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { audit } from "../lib/audit";
+import { ambilKuota } from "../lib/kuota";
 import { requireAuth, requirePlatformAdmin } from "../middleware/auth";
 import { rateLimitUser } from "../middleware/rateLimit";
-import { hitungKapasitasPool, migrateAllTenants, pastikanTenantTerprovisi, TENANT_SCHEMA_VERSION } from "../lib/tenantDb";
+import { BATCH_MIGRASI, hitungKapasitasPool, migrateTenantBatch, pastikanTenantTerprovisi, TENANT_SCHEMA_VERSION } from "../lib/tenantDb";
 import { clientIp } from "./auth";
 
 /**
@@ -102,6 +104,71 @@ export const adminRoutes = new Hono<AppEnv>()
       ).all<{ month: string; n: number }>(),
       c.env.DB.prepare(`SELECT COUNT(*) AS n FROM feedback WHERE status = 'baru'`).first<{ n: number }>(),
     ]);
+
+    // --- Metrik bisnis (Fase 30f) -------------------------------------------
+    //
+    // Sampai fase ini dasbor hanya menghitung BADAN: berapa user, berapa tenant.
+    // Angka yang menentukan apakah bisnisnya hidup — pendapatan berulang dan
+    // berapa yang pergi — tidak pernah dihitung di mana pun, sehingga pemilik
+    // harus menaksirnya sendiri dari daftar tenant.
+    //
+    // Seluruhnya dihitung dari control-plane, bukan dari gerbang pembayaran:
+    // Xendit hanya tahu transaksi yang lewat dirinya, sedangkan pelanggan yang
+    // diaktifkan manual (transfer bank — masih cara paling umum di segmen ini)
+    // sama nyatanya dan tetap harus terhitung.
+    const nowIso = new Date().toISOString();
+    const [langganan, umur, churnBulanan] = await Promise.all([
+      // `active` dipecah tiga, karena ketiganya berarti hal yang sangat berbeda
+      // bagi pemilik: berbayar & aman, berbayar & jatuh tempo tetapi masih boleh
+      // menulis (masa tenggang), dan comped (tak pernah menagih).
+      c.env.DB.prepare(
+        `SELECT
+           SUM(CASE WHEN status = 'active' AND subscription_ends_at IS NOT NULL AND subscription_ends_at >= ? THEN 1 ELSE 0 END) AS berbayar,
+           SUM(CASE WHEN status = 'active' AND subscription_ends_at IS NOT NULL AND subscription_ends_at < ? THEN 1 ELSE 0 END) AS tenggang,
+           SUM(CASE WHEN status = 'active' AND subscription_ends_at IS NULL THEN 1 ELSE 0 END) AS comped,
+           SUM(CASE WHEN status = 'past_due' THEN 1 ELSE 0 END) AS menunggak,
+           SUM(CASE WHEN status = 'provisioning' THEN 1 ELSE 0 END) AS belumBayar,
+           SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) AS berhenti
+         FROM tenants`,
+      )
+        .bind(nowIso, nowIso)
+        .first<{
+          berbayar: number;
+          tenggang: number;
+          comped: number;
+          menunggak: number;
+          belumBayar: number;
+          berhenti: number;
+        }>(),
+      // Umur langganan rata-rata (hari sejak mendaftar) untuk tenant yang
+      // BENAR-BENAR membayar. Comped dikecualikan: mereka tidak pernah
+      // memutuskan untuk bertahan, jadi memasukkannya membuat angka ini
+      // terlihat lebih sehat daripada kenyataannya.
+      c.env.DB.prepare(
+        `SELECT AVG(julianday('now') - julianday(created_at)) AS hari
+         FROM tenants WHERE subscription_ends_at IS NOT NULL`,
+      ).first<{ hari: number | null }>(),
+      // Churn: tenant yang jatuh ke past_due/suspended dalam 30 hari terakhir,
+      // dibaca dari audit log — satu-satunya tempat yang menyimpan KAPAN
+      // sebuah langganan berakhir. Kolom `tenants` hanya menyimpan keadaan
+      // sekarang, jadi tanpa ini "berapa yang pergi bulan ini" tak terjawab.
+      c.env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM audit_logs
+         WHERE action = 'billing.subscription_lapsed' AND created_at >= ?`,
+      )
+        .bind(new Date(Date.now() - 30 * 86_400_000).toISOString())
+        .first<{ n: number }>(),
+    ]);
+
+    const berbayar = langganan?.berbayar ?? 0;
+    const tenggang = langganan?.tenggang ?? 0;
+    // MRR menghitung yang berbayar DAN yang masih dalam masa tenggang: mereka
+    // belum pergi, hanya terlambat. Comped TIDAK dihitung — pendapatan yang
+    // tidak pernah ditagih bukan pendapatan, dan angka MRR yang digelembungkan
+    // olehnya adalah cara paling mudah menipu diri sendiri.
+    const pelangganMembayar = berbayar + tenggang;
+    const mrr = pelangganMembayar * PLAN_LIMITS.lengkap.pricePerMonth;
+    const dasarChurn = pelangganMembayar + (churnBulanan?.n ?? 0);
     return c.json({
       totals: { users: users?.n ?? 0, tenants: tenants?.n ?? 0, feedbackBaru: feedbackNew?.n ?? 0 },
       byStatus: Object.fromEntries(byStatus.results.map((r) => [r.status, r.n])),
@@ -116,6 +183,22 @@ export const adminRoutes = new Hono<AppEnv>()
         ownerEmail: r.owner_email,
       })),
       growth: growth.results.reverse(),
+      bisnis: {
+        mrr,
+        hargaPerBulan: PLAN_LIMITS.lengkap.pricePerMonth,
+        pelangganMembayar,
+        berbayar,
+        tenggang,
+        comped: langganan?.comped ?? 0,
+        menunggak: langganan?.menunggak ?? 0,
+        belumBayar: langganan?.belumBayar ?? 0,
+        berhenti: langganan?.berhenti ?? 0,
+        churn30Hari: churnBulanan?.n ?? 0,
+        // Persentase hanya berarti bila ada penyebutnya. Tanpa penjaga ini,
+        // akun tanpa pelanggan menampilkan NaN% di dasbor pemilik.
+        churnPersen: dasarChurn > 0 ? Math.round(((churnBulanan?.n ?? 0) / dasarChurn) * 1000) / 10 : 0,
+        umurRataHari: umur?.hari !== null && umur?.hari !== undefined ? Math.round(umur.hari) : 0,
+      },
     });
   })
 
@@ -189,7 +272,7 @@ export const adminRoutes = new Hono<AppEnv>()
   // dan mendeteksi tenant yang mendekati batas D1.
   // -------------------------------------------------------------------------
   .get("/infra", requireAuth, requirePlatformAdmin, async (c) => {
-    const [total, byVersion, behind, byMode] = await Promise.all([
+    const [total, byVersion, behind, jumlahBehind, byMode] = await Promise.all([
       c.env.DB.prepare(`SELECT COUNT(*) AS n FROM tenants`).first<{ n: number }>(),
       c.env.DB.prepare(
         `SELECT schema_version AS v, COUNT(*) AS n FROM tenants GROUP BY schema_version ORDER BY v`,
@@ -199,6 +282,17 @@ export const adminRoutes = new Hono<AppEnv>()
       )
         .bind(TENANT_SCHEMA_VERSION)
         .all<{ id: string; name: string; slug: string; schema_version: number }>(),
+      // JUMLAH tertinggal dihitung terpisah dari CONTOHNYA (Fase 30f).
+      //
+      // Sebelumnya `tenantsBehind` diisi `behind.results.length` — panjang
+      // daftar yang ber-LIMIT 100. Pada enam tenant angkanya kebetulan benar;
+      // pada 1.000 tenant tertinggal ia melaporkan "100" dan **tetap 100**
+      // sepanjang cron mencicilnya, sehingga pemilik tidak bisa membedakan
+      // seratus dari seribu dan tidak melihat kemajuan sama sekali. Daftarnya
+      // tetap dibatasi 100 — itu contoh untuk ditindaklanjuti, bukan sensus.
+      c.env.DB.prepare(`SELECT COUNT(*) AS n FROM tenants WHERE schema_version < ?`)
+        .bind(TENANT_SCHEMA_VERSION)
+        .first<{ n: number }>(),
       // Sebaran jenis referensi DB: 'binding:' (pool lokal) vs 'uuid:' (D1 dinamis).
       c.env.DB.prepare(
         `SELECT CASE WHEN db_ref LIKE 'uuid:%' THEN 'cloudflare' ELSE 'binding' END AS kind, COUNT(*) AS n
@@ -238,7 +332,9 @@ export const adminRoutes = new Hono<AppEnv>()
       dbMode: c.env.TENANT_DB_MODE,
       schemaVersion: TENANT_SCHEMA_VERSION,
       totalTenants: total?.n ?? 0,
-      tenantsBehind: behind.results.length,
+      tenantsBehind: jumlahBehind?.n ?? 0,
+      /** Contoh tenant tertinggal yang ditampilkan (≤100), bukan seluruhnya. */
+      behindDitampilkan: behind.results.length,
       versionDistribution: byVersion.results,
       refKinds: Object.fromEntries(byMode.results.map((r) => [r.kind, r.n])),
       behind: behind.results.map((r) => ({ id: r.id, name: r.name, slug: r.slug, schemaVersion: r.schema_version })),
@@ -246,25 +342,42 @@ export const adminRoutes = new Hono<AppEnv>()
     });
   })
 
-  // Terapkan migrasi tenant yang tertinggal ke SEMUA tenant (idempoten,
-  // resumable). Dipakai saat rilis skema baru agar tenant idle ikut mutakhir.
+  // -------------------------------------------------------------------------
+  // Monitor kuota Cloudflare (Fase 30f) — supaya keputusan "kapan naik paket"
+  // diambil dari angka, bukan tebakan. Terpisah dari /infra karena memanggil
+  // API eksternal: /infra harus tetap cepat & selalu berhasil, sedangkan kartu
+  // ini boleh gagal sendirian tanpa menyeret layarnya.
+  // -------------------------------------------------------------------------
+  .get("/kuota", requireAuth, requirePlatformAdmin, async (c) => {
+    return c.json(await ambilKuota(c.env));
+  })
+
+  // Terapkan migrasi tenant yang tertinggal — SATU BATCH per panggilan
+  // (Fase 30d; sebelumnya seluruh tenant dalam satu request).
+  //
+  // Idempoten & resumable: panggil berulang sampai `selesai` bernilai true.
+  // Cron harian melakukannya sendiri, jadi endpoint ini untuk operator yang
+  // ingin menuntaskannya SEKARANG setelah rilis skema baru.
+  //
+  // `batas` bisa dikecilkan untuk menguji perilaku batch tanpa membuat ribuan
+  // tenant; nilainya dijepit agar tidak bisa dipakai memaksa satu panggilan
+  // raksasa yang justru menghidupkan kembali cacat yang baru saja diperbaiki.
   .post("/migrate-tenants", requireAuth, requirePlatformAdmin, async (c) => {
-    const results = await migrateAllTenants(c.env);
-    const migrated = results.filter((r) => r.applied.length > 0);
-    const failed = results.filter((r) => !r.ok);
-    await audit(c.env, {
-      action: "admin.tenants_migrated",
-      userId: c.get("user").id,
-      detail: { total: results.length, migrated: migrated.length, failed: failed.length },
-      ip: clientIp(c),
-    });
-    return c.json({
-      schemaVersion: TENANT_SCHEMA_VERSION,
-      total: results.length,
-      migrated: migrated.length,
-      failed: failed.length,
-      results,
-    });
+    const diminta = Number(c.req.query("batas"));
+    const batas = Number.isFinite(diminta) && diminta > 0 ? Math.min(diminta, BATCH_MIGRASI) : BATCH_MIGRASI;
+    const hasil = await migrateTenantBatch(c.env, batas);
+    // Audit hanya saat ada yang benar-benar disentuh: cron memanggil jalur yang
+    // sama tiap hari, dan mencatat "0 tenant dimigrasi" 365× setahun mengubur
+    // baris audit yang berarti.
+    if (hasil.diproses > 0) {
+      await audit(c.env, {
+        action: "admin.tenants_migrated",
+        userId: c.get("user").id,
+        detail: { diproses: hasil.diproses, berhasil: hasil.berhasil, gagal: hasil.gagal, sisa: hasil.sisa },
+        ip: clientIp(c),
+      });
+    }
+    return c.json(hasil);
   })
 
   // -------------------------------------------------------------------------

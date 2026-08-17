@@ -6548,14 +6548,91 @@ try {
     `→ bebasBersih=${kap?.bebasBersih} peringatan=${JSON.stringify(kap?.peringatan)}`,
   );
 
-  // migrate-tenants idempoten: tenant baru sudah mutakhir → 0 dimigrasi, 0 gagal.
+  // --- Fase 30f: monitor kuota & metrik bisnis ------------------------------
+  //
+  // Smoke berjalan TANPA kredensial Cloudflare, jadi ia menguji jalur yang
+  // paling sering terjadi di dunia nyata sebelum pemilik memasang tokennya:
+  // monitor mati. Degradasi anggun hanya berguna bila ia benar-benar anggun —
+  // dan itu tidak bisa dibuktikan dengan membaca kode.
+  const kuota = await owner("GET", "/api/admin/kuota");
+  check(
+    "30f kuota tanpa token → 200 configured:false, BUKAN galat",
+    kuota.status === 200 && kuota.json?.configured === false,
+    `→ ${kuota.status} ${JSON.stringify(kuota.json)}`,
+  );
+  check(
+    "30f pesan kuota menyebut secret yang harus dipasang (bisa ditindaklanjuti)",
+    typeof kuota.json?.pesan === "string" && /CLOUDFLARE_API_TOKEN/.test(kuota.json.pesan),
+    `→ ${kuota.json?.pesan}`,
+  );
+  check(
+    "30f batas paket gratis ikut dilaporkan meski monitor mati",
+    kuota.json?.batas?.kvTulisPerHari === 1000 && kuota.json?.batas?.requestPerHari === 100000,
+    `→ ${JSON.stringify(kuota.json?.batas)}`,
+  );
+  const kuotaDewi = await admin("GET", "/api/admin/kuota");
+  check("30f kuota oleh non-admin DITOLAK 403", kuotaDewi.status === 403, `→ ${kuotaDewi.status}`);
+
+  const ringkas = await owner("GET", "/api/admin/overview");
+  check(
+    "30f ringkasan memuat metrik bisnis (MRR dihitung dari harga tunggal)",
+    ringkas.status === 200 &&
+      typeof ringkas.json?.bisnis?.mrr === "number" &&
+      ringkas.json.bisnis.hargaPerBulan === 499_000,
+    `→ ${JSON.stringify(ringkas.json?.bisnis)}`,
+  );
+  check(
+    "30f MRR = jumlah pelanggan membayar × harga (konsisten, bukan angka lepas)",
+    ringkas.json?.bisnis?.mrr === ringkas.json?.bisnis?.pelangganMembayar * 499_000,
+    `→ mrr=${ringkas.json?.bisnis?.mrr} pelanggan=${ringkas.json?.bisnis?.pelangganMembayar}`,
+  );
+  check(
+    "30f tenant comped TIDAK dihitung sebagai pendapatan",
+    (ringkas.json?.bisnis?.comped ?? 0) > 0 &&
+      ringkas.json.bisnis.pelangganMembayar === ringkas.json.bisnis.berbayar + ringkas.json.bisnis.tenggang,
+    `→ comped=${ringkas.json?.bisnis?.comped} membayar=${ringkas.json?.bisnis?.pelangganMembayar}`,
+  );
+
+  const infra30f = await owner("GET", "/api/admin/infra");
+  check(
+    "30f tenantsBehind adalah JUMLAH sebenarnya, terpisah dari contoh yang ditampilkan",
+    infra30f.status === 200 &&
+      typeof infra30f.json?.tenantsBehind === "number" &&
+      typeof infra30f.json?.behindDitampilkan === "number" &&
+      infra30f.json.behindDitampilkan <= infra30f.json.tenantsBehind,
+    `→ jumlah=${infra30f.json?.tenantsBehind} ditampilkan=${infra30f.json?.behindDitampilkan}`,
+  );
+
+  // migrate-tenants BERBATCH (Fase 30d): idempoten, resumable, dan berhenti
+  // sendiri saat tak ada lagi yang tertinggal.
   const migrateByDewi = await admin("POST", "/api/admin/migrate-tenants");
   check("admin/migrate-tenants oleh non-admin DITOLAK 403", migrateByDewi.status === 403, `→ HTTP ${migrateByDewi.status}`);
   const migrate = await owner("POST", "/api/admin/migrate-tenants");
   check(
-    "admin/migrate-tenants 200 + idempoten (0 gagal, semua tenant tercakup)",
-    migrate.status === 200 && migrate.json?.failed === 0 && migrate.json?.total >= 1 && migrate.json?.migrated === 0,
-    `→ ${JSON.stringify({ total: migrate.json?.total, migrated: migrate.json?.migrated, failed: migrate.json?.failed })}`,
+    "30d migrate-tenants 200 + selesai tanpa sisa & tanpa gagal",
+    migrate.status === 200 && migrate.json?.gagal === 0 && migrate.json?.sisa === 0 && migrate.json?.selesai === true,
+    `→ ${JSON.stringify({ diproses: migrate.json?.diproses, sisa: migrate.json?.sisa, gagal: migrate.json?.gagal })}`,
+  );
+  check(
+    "30d hasil HANYA memuat tenant yang disentuh, bukan seluruh pelanggan",
+    Array.isArray(migrate.json?.results) && migrate.json.results.length === migrate.json.diproses,
+    `→ results=${migrate.json?.results?.length} diproses=${migrate.json?.diproses}`,
+  );
+  // Semua tenant di suite ini sudah mutakhir, jadi batch kedua harus benar-benar
+  // tidak mengerjakan apa pun — bukti idempotensi lewat HTTP, bukan lewat unit.
+  const migrateUlang = await owner("POST", "/api/admin/migrate-tenants");
+  check(
+    "30d panggilan ulang tidak mengerjakan apa pun (idempoten)",
+    migrateUlang.json?.diproses === 0 && migrateUlang.json?.selesai === true,
+    `→ diproses=${migrateUlang.json?.diproses}`,
+  );
+  // `batas` dijepit ke BATCH_MIGRASI: parameter dari luar tidak boleh dipakai
+  // memaksa satu panggilan raksasa yang menghidupkan lagi cacat Fase 30d.
+  const migrateBatasBesar = await owner("POST", "/api/admin/migrate-tenants?batas=100000");
+  check(
+    "30d batas dari query dijepit, tidak bisa memaksa batch raksasa",
+    migrateBatasBesar.status === 200 && migrateBatasBesar.json?.selesai === true,
+    `→ ${migrateBatasBesar.status}`,
   );
 
   // --- Fase 30: tidak ada gerbang paket tersisa di tenant mana pun ---------

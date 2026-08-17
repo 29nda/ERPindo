@@ -261,7 +261,33 @@ export const api = {
         ownerEmail: string | null;
       }[];
       growth: { month: string; n: number }[];
+      /** Metrik bisnis (Fase 30f): pendapatan berulang & pergerakan pelanggan. */
+      bisnis: {
+        mrr: number;
+        hargaPerBulan: number;
+        pelangganMembayar: number;
+        berbayar: number;
+        tenggang: number;
+        comped: number;
+        menunggak: number;
+        belumBayar: number;
+        berhenti: number;
+        churn30Hari: number;
+        churnPersen: number;
+        umurRataHari: number;
+      };
     }>("GET", "/api/admin/overview"),
+  /** Monitor kuota Cloudflare (Fase 30f). Selalu 200; isinya menyatakan sendiri
+   *  apakah monitornya aktif dan apakah pembacaannya berhasil. */
+  adminKuota: () =>
+    request<{
+      configured: boolean;
+      ok?: boolean;
+      pesan?: string;
+      sejak?: string;
+      adaPeringatan?: boolean;
+      pemakaian?: { nama: string; terpakai: number; batas: number; persen: number; waspada: boolean }[];
+    }>("GET", "/api/admin/kuota"),
   adminTenants: (opts?: { q?: string; status?: string; limit?: number; offset?: number }) => {
     const p = new URLSearchParams();
     if (opts?.q) p.set("q", opts.q);

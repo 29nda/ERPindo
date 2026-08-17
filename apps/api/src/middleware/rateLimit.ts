@@ -1,23 +1,48 @@
 import type { MiddlewareHandler } from "hono";
 import type { AppEnv } from "../env";
+import { penghitungDurableObject, type PenghitungBatas } from "../lib/rateLimiter";
 
 /**
- * Rate limiting sederhana berbasis KV: N request per jendela waktu.
- * Cukup untuk menahan brute-force pada endpoint auth; rate limiting
- * yang lebih presisi (Durable Objects / Cloudflare Rate Limiting) menyusul.
+ * Rate limiting: N request per jendela waktu.
+ *
+ * **Backend-nya Durable Object sejak Fase 30e** (dulu KV). Alasan lengkapnya
+ * ada di `lib/rateLimiter.ts`; ringkasnya dua hal:
+ *
+ * 1. KV ditulis pada SETIAP request terjaga, sedangkan kuota tulis KV paket
+ *    gratis hanya **1.000/hari** — tembok yang datang jauh sebelum batas
+ *    100.000 request/hari, dan tetap mahal di paket berbayar pada skala 1.000
+ *    perusahaan.
+ * 2. KV eventually-consistent, jadi dua request bersamaan bisa sama-sama lolos.
+ *    Durable Object single-threaded per kunci, jadi hitungannya tepat.
+ *
+ * Bentuk kunci dan perilaku penolakannya TIDAK berubah, dan itu disengaja:
+ * `test/rateLimit.test.ts` menguji perilaku yang sama persis sebelum dan
+ * sesudah pergantian backend. Yang berpindah adalah tempat menyimpan angkanya,
+ * bukan aturannya.
  */
 
-async function bump(
-  kv: { get(key: string): Promise<string | null>; put(key: string, value: string, opts: { expirationTtl: number }): Promise<void> },
-  kvKey: string,
-  limit: number,
-  windowSeconds: number,
-): Promise<boolean> {
-  const current = Number((await kv.get(kvKey)) ?? "0");
-  if (current >= limit) return false;
-  // KV bersifat eventually-consistent; untuk pembatasan kasar ini cukup.
-  await kv.put(kvKey, String(current + 1), { expirationTtl: windowSeconds * 2 });
-  return true;
+/**
+ * Ambil penghitung dari env.
+ *
+ * Bila binding `RATE_LIMITER` absen, pembatasan **dilewati** — mengikuti pola
+ * degradasi anggun yang sudah baku di repo ini (Workers AI absen → 503;
+ * Resend/Xendit/Google absen → fitur nonaktif dengan pesan jelas). Menggagalkan
+ * seluruh request karena pembatas tidak terpasang akan mengubah fitur pelindung
+ * menjadi titik kegagalan tunggal.
+ *
+ * Uji menyuntikkan penghitungnya lewat `env.__penghitungBatas` — seam yang
+ * dipakai `test/rateLimit.test.ts` supaya perilaku bisa diuji tanpa runtime DO.
+ */
+function ambilPenghitung(env: AppEnv["Bindings"]): PenghitungBatas | null {
+  const suntikan = (env as unknown as { __penghitungBatas?: PenghitungBatas }).__penghitungBatas;
+  if (suntikan) return suntikan;
+  const ns = (env as unknown as { RATE_LIMITER?: DurableObjectNamespace }).RATE_LIMITER;
+  return ns ? penghitungDurableObject(ns) : null;
+}
+
+/** Nomor jendela tetap (fixed window) — sama seperti sebelum Fase 30e. */
+function nomorJendela(windowSeconds: number): number {
+  return Math.floor(Date.now() / (windowSeconds * 1000));
 }
 
 /** Varian per-IP untuk endpoint publik (auth). Tanpa header IP (hanya terjadi
@@ -26,9 +51,10 @@ async function bump(
 export function rateLimit(opts: { key: string; limit: number; windowSeconds: number }): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const ip = c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for");
-    if (ip) {
-      const window = Math.floor(Date.now() / (opts.windowSeconds * 1000));
-      const ok = await bump(c.env.RATE_KV, `rl:${opts.key}:${ip}:${window}`, opts.limit, opts.windowSeconds);
+    const penghitung = ambilPenghitung(c.env);
+    if (ip && penghitung) {
+      const kunci = `rl:${opts.key}:${ip}:${nomorJendela(opts.windowSeconds)}`;
+      const ok = await penghitung.bolehLanjut(kunci, opts.limit, opts.windowSeconds);
       if (!ok) return c.json({ error: "Terlalu banyak percobaan. Coba lagi beberapa saat lagi." }, 429);
     }
     await next();
@@ -43,9 +69,10 @@ export function rateLimitUser(opts: { key: string; limit: number; windowSeconds:
   return async (c, next) => {
     const user = c.get("user") as { id: string } | undefined;
     const subject = user?.id ?? c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for");
-    if (subject) {
-      const window = Math.floor(Date.now() / (opts.windowSeconds * 1000));
-      const ok = await bump(c.env.RATE_KV, `rlu:${opts.key}:${subject}:${window}`, opts.limit, opts.windowSeconds);
+    const penghitung = ambilPenghitung(c.env);
+    if (subject && penghitung) {
+      const kunci = `rlu:${opts.key}:${subject}:${nomorJendela(opts.windowSeconds)}`;
+      const ok = await penghitung.bolehLanjut(kunci, opts.limit, opts.windowSeconds);
       if (!ok) return c.json({ error: "Terlalu banyak permintaan. Coba lagi beberapa saat lagi." }, 429);
     }
     await next();

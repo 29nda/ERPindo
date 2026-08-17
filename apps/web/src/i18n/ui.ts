@@ -418,6 +418,30 @@ export const UI = {
   seluruhModulTerbuka: { id: "Seluruh modul terbuka", en: "Every module unlocked" },
   perpanjangLangganan: { id: "Perpanjang langganan", en: "Renew subscription" },
   perBulanSingkat: { id: "bln", en: "mo" },
+  // Fase 30f — metrik bisnis dashboard admin.
+  adMetrikBisnis: { id: "Metrik bisnis", en: "Business metrics" },
+  adDescMetrikBisnis: {
+    id: "Pendapatan berulang & pergerakan pelanggan, dihitung dari control-plane.",
+    en: "Recurring revenue & customer movement, computed from the control plane.",
+  },
+  adMrr: { id: "Pendapatan berulang (MRR)", en: "Recurring revenue (MRR)" },
+  adPelangganMembayar: { id: "Pelanggan membayar", en: "Paying customers" },
+  adAman: { id: "aman", en: "current" },
+  adTenggang: { id: "tenggang", en: "in grace" },
+  adComped: { id: "gratis", en: "comped" },
+  adChurn30: { id: "Berhenti (30 hari)", en: "Churned (30 days)" },
+  adDariPelanggan: { id: "dari pelanggan", en: "of customers" },
+  adUmurLangganan: { id: "Umur langganan", en: "Subscription age" },
+  adHariRataRata: { id: "hari rata-rata", en: "days on average" },
+  adKuota: { id: "Kuota Cloudflare (24 jam)", en: "Cloudflare quota (24 hours)" },
+  adDescKuota: {
+    id: "Pemakaian terhadap batas paket gratis. Peringatan muncul di 70% — sebelum pelanggan melihat Error 1027.",
+    en: "Usage against the free-plan limits. A warning appears at 70% — before customers see Error 1027.",
+  },
+  adKuotaWaspada: {
+    id: "Ada kuota yang melewati 70%. Siapkan peningkatan ke Workers Paid sebelum batasnya tercapai.",
+    en: "A quota has passed 70%. Prepare the upgrade to Workers Paid before the limit is reached.",
+  },
   fiturStarter: { id: "Akuntansi, penjualan, POS, stok, pajak", en: "Accounting, sales, POS, stock, tax" },
   fiturBusiness: {
     id: "+ HR, proyek, manufaktur, pengadaan, CRM",

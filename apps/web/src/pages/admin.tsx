@@ -119,6 +119,45 @@ export function AdminPage() {
   );
 }
 
+function KartuKuota() {
+  const u = useUi();
+  const q = useQuery({ queryKey: ["admin-kuota"], queryFn: api.adminKuota });
+  const d = q.data;
+  if (!d) return null;
+  return (
+    <Card>
+      <CardHeader title={u("adKuota")} description={u("adDescKuota")} />
+      <CardBody>
+        {!d.configured || !d.ok ? (
+          // Monitor mati atau pembacaannya gagal adalah keadaan yang SAH, bukan
+          // galat: kartunya menjelaskan dirinya sendiri dan sisa dasbor utuh.
+          <Alert tone={d.configured ? "error" : "info"}>{d.pesan}</Alert>
+        ) : (
+          <div className="space-y-3">
+            {d.adaPeringatan ? <Alert tone="error">{u("adKuotaWaspada")}</Alert> : null}
+            {(d.pemakaian ?? []).map((p) => (
+              <div key={p.nama}>
+                <div className="flex items-baseline justify-between text-sm">
+                  <span className="text-slate-600 dark:text-slate-300">{p.nama}</span>
+                  <span className="num tabular-nums text-slate-500 dark:text-slate-400">
+                    {p.terpakai.toLocaleString("id-ID")} / {p.batas.toLocaleString("id-ID")} ({p.persen}%)
+                  </span>
+                </div>
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                  <div
+                    className={`h-full rounded-full ${p.waspada ? "bg-amber-500" : "bg-emerald-500"}`}
+                    style={{ width: `${Math.min(p.persen, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
+
 function OverviewTab() {
   const u = useUi();
   const q = useQuery({ queryKey: ["admin-overview"], queryFn: api.adminOverview });
@@ -134,8 +173,50 @@ function OverviewTab() {
     { label: u("adMasukanBaru"), value: d.totals.feedbackBaru },
   ];
   const maxGrowth = Math.max(...d.growth.map((g) => g.n), 1);
+  const b = d.bisnis;
   return (
     <div className="space-y-6">
+      {/* Metrik bisnis (Fase 30f) dipisahkan dari hitungan badan di bawahnya
+          dan diletakkan PALING ATAS: pemilik membuka layar ini untuk tahu
+          apakah usahanya hidup, bukan untuk menghitung baris tabel. */}
+      <Card>
+        <CardHeader title={u("adMetrikBisnis")} description={u("adDescMetrikBisnis")} />
+        <CardBody>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">{u("adMrr")}</div>
+              <div className="num mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                Rp {b.mrr.toLocaleString("id-ID")}
+              </div>
+              <div className="text-xs text-slate-400">
+                {b.pelangganMembayar} × Rp {b.hargaPerBulan.toLocaleString("id-ID")}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">{u("adPelangganMembayar")}</div>
+              <div className="mt-1 text-2xl font-bold tabular-nums">{b.pelangganMembayar}</div>
+              <div className="text-xs text-slate-400">
+                {b.berbayar} {u("adAman")} · {b.tenggang} {u("adTenggang")} · {b.comped} {u("adComped")}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">{u("adChurn30")}</div>
+              <div
+                className={`mt-1 text-2xl font-bold tabular-nums ${b.churn30Hari > 0 ? "text-amber-600 dark:text-amber-400" : ""}`}
+              >
+                {b.churn30Hari}
+              </div>
+              <div className="text-xs text-slate-400">{b.churnPersen}% {u("adDariPelanggan")}</div>
+            </div>
+            <div>
+              <div className="text-sm text-slate-500 dark:text-slate-400">{u("adUmurLangganan")}</div>
+              <div className="mt-1 text-2xl font-bold tabular-nums">{b.umurRataHari}</div>
+              <div className="text-xs text-slate-400">{u("adHariRataRata")}</div>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((s) => (
           <Card key={s.label}>
@@ -146,6 +227,8 @@ function OverviewTab() {
           </Card>
         ))}
       </div>
+
+      <KartuKuota />
 
       <Card>
         <CardHeader title={u("adPendaftaranPerBulan")} description={u("adDescPendaftaran")} />

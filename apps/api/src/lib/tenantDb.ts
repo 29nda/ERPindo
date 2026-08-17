@@ -352,6 +352,17 @@ export async function ensureTenantMigrated(
   return TENANT_SCHEMA_VERSION;
 }
 
+/**
+ * Berapa tenant yang dimigrasi dalam SATU pemanggilan.
+ *
+ * Angkanya konservatif dengan sengaja. Di mode `cloudflare` setiap tenant
+ * berarti beberapa panggilan REST ke D1 — satu per pernyataan migrasi yang
+ * tertinggal — jadi biaya per tenant bukan satu subrequest melainkan belasan.
+ * 25 menjaga pemanggilan terburuk tetap jauh di bawah batas 10.000 subrequest
+ * dan CPU 5 menit, sambil tetap menuntaskan 1.000 tenant dalam 40 putaran cron.
+ */
+export const BATCH_MIGRASI = 25;
+
 export type TenantMigrationResult = {
   id: string;
   slug: string;
@@ -362,25 +373,59 @@ export type TenantMigrationResult = {
   error?: string;
 };
 
+export type MigrasiBatchResult = {
+  /** Tenant yang BENAR-BENAR disentuh pemanggilan ini. */
+  diproses: number;
+  berhasil: number;
+  gagal: number;
+  /** Tenant yang masih tertinggal SESUDAH batch ini. */
+  sisa: number;
+  /** `true` bila tidak ada lagi yang tertinggal — pemanggil boleh berhenti. */
+  selesai: boolean;
+  schemaVersion: number;
+  results: TenantMigrationResult[];
+};
+
 /**
- * Terapkan migrasi tenant yang tertinggal ke SEMUA tenant. Dipakai saat rilis
- * skema baru agar tenant yang jarang/tak pernah dibuka (mis. hanya disentuh
- * cron) tetap termutakhirkan. Per-tenant di-try/catch terpisah: satu tenant
- * gagal tidak menghentikan sisanya (resumable — jalankan lagi untuk mencoba
- * ulang yang gagal, karena versi hanya dinaikkan saat sukses).
+ * Terapkan migrasi tenant yang tertinggal, **satu batch per pemanggilan**.
+ *
+ * ## Cacat yang membuat fungsi ini ditulis ulang (Fase 30d)
+ *
+ * Versi sebelumnya memutari **seluruh** tenant dalam **satu** request. Pada
+ * enam tenant itu tak terasa; pada 1.000 tenant di mode `cloudflare` batas
+ * 10.000 subrequest dan CPU 5 menit **pasti** tertembus — dan cara ia gagal
+ * adalah yang terburuk: migrasi mati di tengah, sebagian tenant termigrasi dan
+ * sebagian tidak, tanpa ada yang tahu batasnya di mana.
+ *
+ * Dua perubahan, dan keduanya perlu:
+ *
+ * 1. **Kueri hanya mengambil yang tertinggal**, dibatasi `LIMIT`. Versi lama
+ *    menarik SEMUA tenant lalu melewati yang sudah mutakhir di dalam loop —
+ *    pekerjaan yang sia-sia tepat pada jumlah yang membuatnya mahal.
+ * 2. **Hasil hanya memuat yang disentuh.** Versi lama mengembalikan satu baris
+ *    per tenant termasuk yang tidak diapa-apakan, sehingga respons `/admin/
+ *    migrate-tenants` tumbuh linear terhadap jumlah pelanggan.
+ *
+ * Urutannya `schema_version` menaik: tenant yang paling tertinggal ditangani
+ * lebih dulu, karena merekalah yang paling mungkin rusak bila dibiarkan.
+ *
+ * Tetap resumable per-tenant seperti sebelumnya: versi hanya dinaikkan saat
+ * sukses, dan tiap tenant di-try/catch sendiri sehingga satu kegagalan tidak
+ * menghentikan sisanya.
  */
-export async function migrateAllTenants(env: Env): Promise<TenantMigrationResult[]> {
+export async function migrateTenantBatch(env: Env, batas = BATCH_MIGRASI): Promise<MigrasiBatchResult> {
   const { results } = await env.DB.prepare(
-    `SELECT id, slug, db_ref, schema_version FROM tenants ORDER BY created_at`,
-  ).all<{ id: string; slug: string; db_ref: string; schema_version: number }>();
+    `SELECT id, slug, db_ref, schema_version FROM tenants
+     WHERE schema_version < ?
+     ORDER BY schema_version, created_at
+     LIMIT ?`,
+  )
+    .bind(TENANT_SCHEMA_VERSION, batas)
+    .all<{ id: string; slug: string; db_ref: string; schema_version: number }>();
 
   const out: TenantMigrationResult[] = [];
   for (const t of results) {
     const from = t.schema_version;
-    if (from >= TENANT_SCHEMA_VERSION) {
-      out.push({ id: t.id, slug: t.slug, from, to: from, applied: [], ok: true });
-      continue;
-    }
     try {
       const db = getTenantDb(env, t.db_ref);
       const applied = await applyMigrations(db, TENANT_MIGRATIONS);
@@ -392,7 +437,27 @@ export async function migrateAllTenants(env: Env): Promise<TenantMigrationResult
       out.push({ id: t.id, slug: t.slug, from, to: from, applied: [], ok: false, error: (err as Error).message });
     }
   }
-  return out;
+
+  // Sisa dihitung SESUDAH batch berjalan, bukan diperkirakan dari selisih —
+  // tenant yang gagal tetap terhitung tertinggal, dan itu memang benar.
+  const sisaRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM tenants WHERE schema_version < ?`)
+    .bind(TENANT_SCHEMA_VERSION)
+    .first<{ n: number }>();
+  const sisa = sisaRow?.n ?? 0;
+  const gagal = out.filter((r) => !r.ok).length;
+
+  return {
+    diproses: out.length,
+    berhasil: out.length - gagal,
+    gagal,
+    sisa,
+    // "Selesai" berarti tak ada lagi yang tertinggal. Bila SEMUA sisa adalah
+    // tenant yang gagal, `selesai` tetap false — dan itu disengaja: pemanggil
+    // harus tahu ada yang belum beres, bukan disuguhi kabar baik palsu.
+    selesai: sisa === 0,
+    schemaVersion: TENANT_SCHEMA_VERSION,
+    results: out,
+  };
 }
 
 export { TENANT_SCHEMA_VERSION };

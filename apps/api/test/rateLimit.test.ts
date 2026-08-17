@@ -3,13 +3,31 @@ import { describe, expect, it } from "vitest";
 import type { AppEnv } from "../src/env";
 import { rateLimit, rateLimitUser } from "../src/middleware/rateLimit";
 
-/** KV mock in-memory secukupnya untuk fixed-window counter. */
-function makeKv() {
-  const store = new Map<string, string>();
+/**
+ * Penghitung in-memory yang meniru Durable Object (Fase 30e).
+ *
+ * Menggantikan tiruan KV. Perilaku yang diuji SENGAJA tidak berubah satu pun:
+ * seluruh asersi di bawah ini sama persis dengan sebelum pergantian backend —
+ * itulah buktinya bahwa yang berpindah adalah tempat menyimpan angkanya, bukan
+ * aturan pembatasannya.
+ *
+ * `tulis` menghitung berapa kali status disimpan. Dipakai satu uji khusus untuk
+ * mengunci sifat yang menjadi ALASAN fase ini ada: penghitungan tidak lagi
+ * memakan kuota tulis KV, dan request yang DITOLAK tidak menulis apa-apa.
+ */
+function makePenghitung() {
+  const store = new Map<string, number>();
+  let tulis = 0;
   return {
-    get: async (key: string) => store.get(key) ?? null,
-    put: async (key: string, value: string) => {
-      store.set(key, value);
+    tulis: () => tulis,
+    penghitung: {
+      async bolehLanjut(kunci: string, limit: number) {
+        const n = store.get(kunci) ?? 0;
+        if (n >= limit) return false;
+        store.set(kunci, n + 1);
+        tulis++;
+        return true;
+      },
     },
   };
 }
@@ -24,7 +42,7 @@ function appWith(mw: ReturnType<typeof rateLimit>, user?: { id: string }) {
   return app;
 }
 
-const env = () => ({ RATE_KV: makeKv() }) as unknown as AppEnv["Bindings"];
+const env = () => ({ __penghitungBatas: makePenghitung().penghitung }) as unknown as AppEnv["Bindings"];
 
 describe("rateLimit per-IP", () => {
   it("melewati batas → 429; di bawah batas → 200", async () => {
@@ -50,6 +68,56 @@ describe("rateLimit per-IP", () => {
     expect((await app.request("/x", {}, e)).status).toBe(200);
     expect((await app.request("/x", {}, e)).status).toBe(200);
     expect((await app.request("/x", {}, e)).status).toBe(200);
+  });
+});
+
+describe("backend Durable Object (Fase 30e)", () => {
+  it("request yang DITOLAK tidak menulis status apa pun", async () => {
+    // Inti alasan fase ini ada. Versi KV menulis pada setiap request terjaga
+    // termasuk yang ditolak, sehingga penyerang yang membanjiri endpoint login
+    // justru MEMPERCEPAT habisnya kuota tulis 1.000/hari paket gratis —
+    // pembatas yang seharusnya melindungi malah menjadi jalur menjatuhkannya.
+    const h = makePenghitung();
+    const e = { __penghitungBatas: h.penghitung } as unknown as AppEnv["Bindings"];
+    const app = appWith(rateLimit({ key: "t", limit: 2, windowSeconds: 60 }));
+    const req = () => app.request("/x", { headers: { "cf-connecting-ip": "5.5.5.5" } }, e);
+    await req();
+    await req();
+    expect(h.tulis()).toBe(2);
+    await req(); // ditolak
+    await req(); // ditolak
+    expect(h.tulis()).toBe(2);
+  });
+
+  it("tanpa binding penghitung → pembatasan DILEWATI, bukan menggagalkan request", async () => {
+    // Degradasi anggun, pola yang sudah baku di repo ini. Menggagalkan seluruh
+    // request karena pembatas tidak terpasang akan mengubah fitur pelindung
+    // menjadi titik kegagalan tunggal.
+    const app = appWith(rateLimit({ key: "t", limit: 1, windowSeconds: 60 }));
+    const kosong = {} as unknown as AppEnv["Bindings"];
+    const req = () => app.request("/x", { headers: { "cf-connecting-ip": "7.7.7.7" } }, kosong);
+    expect((await req()).status).toBe(200);
+    expect((await req()).status).toBe(200);
+  });
+
+  it("TIDAK menyentuh RATE_KV sama sekali", async () => {
+    // Penegak pencabutan: bila seseorang mengembalikan jalur KV, uji ini gagal.
+    let disentuh = false;
+    const e = {
+      __penghitungBatas: makePenghitung().penghitung,
+      RATE_KV: {
+        get: async () => {
+          disentuh = true;
+          return null;
+        },
+        put: async () => {
+          disentuh = true;
+        },
+      },
+    } as unknown as AppEnv["Bindings"];
+    const app = appWith(rateLimit({ key: "t", limit: 5, windowSeconds: 60 }));
+    await app.request("/x", { headers: { "cf-connecting-ip": "8.8.8.8" } }, e);
+    expect(disentuh).toBe(false);
   });
 });
 

@@ -8,6 +8,13 @@ export type WorkersAi = {
 export type Env = {
   DB: D1Database;
   RATE_KV: KVNamespace;
+  /**
+   * Penghitung rate limit berbasis Durable Object (Fase 30e), menggantikan
+   * tulis-KV-per-request. OPSIONAL: bila binding tidak terpasang, pembatasan
+   * dilewati alih-alih menggagalkan request — pola degradasi anggun yang sama
+   * dengan binding opsional lain di berkas ini.
+   */
+  RATE_LIMITER?: DurableObjectNamespace;
   ASSETS: Fetcher;
 
   /** Workers AI (Asisten erpindo). Opsional: absen di dev/CI → endpoint AI membalas 503. */

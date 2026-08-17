@@ -6,7 +6,7 @@ import {
   getTenantDb,
   hitungKapasitasPool,
   KapasitasTenantPenuhError,
-  migrateAllTenants,
+  migrateTenantBatch,
   pastikanTenantTerprovisi,
   provisionTenantDb,
 } from "../src/lib/tenantDb";
@@ -101,14 +101,33 @@ function fakeTenantDb(opts: { seeded?: string[]; failOnRun?: boolean } = {}) {
   return { exec, get touched() { return touched; }, get count() { return migrations.size; } };
 }
 
-/** Control-plane tiruan: hanya tabel `tenants` (SELECT semua + UPDATE versi). */
+/**
+ * Control-plane tiruan untuk tabel `tenants`.
+ *
+ * **Menghormati `WHERE schema_version < ?` dan `LIMIT`** (Fase 30d), bukan
+ * mengembalikan semua baris apa pun kuerinya. Tiruan yang mengabaikan klausa
+ * penyaring akan meluluskan migrasi berbatch yang justru TIDAK berbatch —
+ * yaitu persis cacat yang uji ini ada untuk mencegahnya.
+ */
 function fakeControlPlane(rows: { id: string; slug: string; db_ref: string; schema_version: number }[]) {
   return {
     prepare(sql: string) {
       const handle = (params: unknown[]) => ({
         async all<T = unknown>(): Promise<{ results: T[] }> {
-          if (/FROM tenants/i.test(sql)) return { results: rows as T[] };
-          return { results: [] };
+          if (!/FROM tenants/i.test(sql)) return { results: [] };
+          let out = [...rows];
+          if (/schema_version\s*<\s*\?/i.test(sql)) {
+            const batas = params[0] as number;
+            out = out.filter((r) => r.schema_version < batas);
+          }
+          if (/ORDER BY schema_version/i.test(sql)) {
+            out.sort((a, b) => a.schema_version - b.schema_version);
+          }
+          if (/LIMIT\s*\?/i.test(sql)) {
+            const limit = params[params.length - 1] as number;
+            out = out.slice(0, limit);
+          }
+          return { results: out as T[] };
         },
         async run() {
           if (/UPDATE tenants SET schema_version/i.test(sql)) {
@@ -119,6 +138,10 @@ function fakeControlPlane(rows: { id: string; slug: string; db_ref: string; sche
           return {};
         },
         async first<T = unknown>(): Promise<T | null> {
+          if (/COUNT\(\*\)/i.test(sql) && /schema_version\s*<\s*\?/i.test(sql)) {
+            const batas = params[0] as number;
+            return { n: rows.filter((r) => r.schema_version < batas).length } as T;
+          }
           return null;
         },
       });
@@ -152,7 +175,7 @@ describe("ensureTenantMigrated", () => {
   });
 });
 
-describe("migrateAllTenants", () => {
+describe("migrateTenantBatch (Fase 30d)", () => {
   it("mutakhir dilewati, tertinggal dimigrasi, gagal terisolasi (resumable)", async () => {
     const fresh = fakeTenantDb();
     const stale = fakeTenantDb();
@@ -169,17 +192,19 @@ describe("migrateAllTenants", () => {
       BROKEN: broken.exec,
     } as unknown as Env;
 
-    const results = await migrateAllTenants(env);
+    const hasil = await migrateTenantBatch(env);
     const pick = (id: string) => {
-      const r = results.find((x) => x.id === id);
+      const r = hasil.results.find((x) => x.id === id);
       if (!r) throw new Error(`hasil migrasi tenant ${id} tidak ada`);
       return r;
     };
 
-    // Mutakhir: dilewati tanpa menyentuh DB.
-    expect(pick("t-fresh").ok).toBe(true);
-    expect(pick("t-fresh").applied).toEqual([]);
+    // Tenant MUTAKHIR tidak muncul di hasil sama sekali — kuerinya menyaringnya
+    // di database, bukan loop yang melewatinya. Pada 1.000 tenant, perbedaan
+    // itulah yang menentukan apakah pemanggilan ini murah atau mahal.
+    expect(hasil.results.some((r) => r.id === "t-fresh")).toBe(false);
     expect(fresh.touched).toBe(false);
+    expect(hasil.diproses).toBe(2);
 
     // Tertinggal: semua migrasi diterapkan + versi control-plane naik.
     expect(pick("t-stale").ok).toBe(true);
@@ -190,6 +215,74 @@ describe("migrateAllTenants", () => {
     expect(pick("t-broken").ok).toBe(false);
     expect(pick("t-broken").error).toMatch(/meledak/);
     expect(rows.find((r) => r.id === "t-broken")?.schema_version).toBe(0);
+
+    // Satu tenant masih tertinggal → BELUM selesai. Kabar baik palsu di sini
+    // akan membuat cron berhenti memanggil dan tenant rusak tinggal rusak.
+    expect(hasil.gagal).toBe(1);
+    expect(hasil.sisa).toBe(1);
+    expect(hasil.selesai).toBe(false);
+  });
+
+  it("50 tenant: berhenti di batas batch lalu MELANJUTKAN, bukan mengulang", async () => {
+    // Inti Fase 30d. Versi lama memutari seluruh tenant dalam satu request;
+    // pada jumlah besar itu menembus batas subrequest/CPU Worker dan mati di
+    // tengah — sebagian termigrasi, sebagian tidak, tanpa penanda posisi.
+    const dbs = new Map<string, ReturnType<typeof fakeTenantDb>>();
+    const rows = Array.from({ length: 50 }, (_, i) => {
+      const binding = `T${i}`;
+      dbs.set(binding, fakeTenantDb());
+      return { id: `t${i}`, slug: `tenant-${i}`, db_ref: `binding:${binding}`, schema_version: 0 };
+    });
+    const env = {
+      DB: fakeControlPlane(rows),
+      ...Object.fromEntries([...dbs].map(([k, v]) => [k, v.exec])),
+    } as unknown as Env;
+
+    const batas = 20;
+    const b1 = await migrateTenantBatch(env, batas);
+    expect(b1.diproses).toBe(20);
+    expect(b1.sisa).toBe(30);
+    expect(b1.selesai).toBe(false);
+
+    const b2 = await migrateTenantBatch(env, batas);
+    expect(b2.diproses).toBe(20);
+    expect(b2.sisa).toBe(10);
+    // MELANJUTKAN, bukan mengulang: tak satu pun tenant batch pertama muncul lagi.
+    const idBatch1 = new Set(b1.results.map((r) => r.id));
+    expect(b2.results.some((r) => idBatch1.has(r.id))).toBe(false);
+
+    const b3 = await migrateTenantBatch(env, batas);
+    expect(b3.diproses).toBe(10);
+    expect(b3.sisa).toBe(0);
+    expect(b3.selesai).toBe(true);
+
+    // Seluruh 50 tenant benar-benar termigrasi, masing-masing TEPAT sekali.
+    expect(rows.every((r) => r.schema_version === TENANT_SCHEMA_VERSION)).toBe(true);
+    expect(b1.diproses + b2.diproses + b3.diproses).toBe(50);
+
+    // Panggilan sesudah selesai tidak mengerjakan apa pun (idempoten).
+    const b4 = await migrateTenantBatch(env, batas);
+    expect(b4.diproses).toBe(0);
+    expect(b4.selesai).toBe(true);
+  });
+
+  it("tenant paling tertinggal ditangani lebih dulu", async () => {
+    // Urutan `schema_version` menaik, bukan `created_at`: tenant yang paling
+    // jauh tertinggal paling mungkin rusak bila dibiarkan menunggu.
+    const dbs = new Map<string, ReturnType<typeof fakeTenantDb>>();
+    const versi = [5, 1, 9, 3];
+    const rows = versi.map((v, i) => {
+      const binding = `V${i}`;
+      dbs.set(binding, fakeTenantDb());
+      return { id: `t${i}`, slug: `v${v}`, db_ref: `binding:${binding}`, schema_version: v };
+    });
+    const env = {
+      DB: fakeControlPlane(rows),
+      ...Object.fromEntries([...dbs].map(([k, v]) => [k, v.exec])),
+    } as unknown as Env;
+
+    const hasil = await migrateTenantBatch(env, 2);
+    expect(hasil.results.map((r) => r.from)).toEqual([1, 3]);
   });
 });
 
