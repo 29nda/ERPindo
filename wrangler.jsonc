@@ -19,26 +19,34 @@
     "run_worker_first": ["/api/*", "/__scheduled", "/blog", "/blog/*", "/sitemap.xml", "/robots.txt", "/api-docs", "/", "/fitur"]
   },
 
+  // ID di bawah menunjuk sumber daya di akun Cloudflare yang MENERIMA deploy.
+  //
+  // Diperbarui seluruhnya pada 17 Agustus 2026: ID sebelumnya milik akun lain
+  // dan **404 di akun ini** — Worker ter-deploy dengan sukses tetapi setiap
+  // request yang menyentuh database gagal, karena binding D1 dan KV terikat
+  // pada akun dan tidak bisa menunjuk lintas akun berapa pun ID-nya.
+  //
+  // Seluruh database dibuat di region APAC (terdekat ke Indonesia).
   "d1_databases": [
     // Control-plane: akun, tenant, langganan.
     {
       "binding": "DB",
       "database_name": "erpindo-control-plane",
-      "database_id": "2979c39c-bf54-42c4-8486-e843897b3006"
+      "database_id": "c525c4e3-9f7a-42ea-bc78-f0035f2dece2"
     },
     // Pool database tenant. Di mode "local" (dev/test & produksi awal) tenant
     // baru dipetakan ke pool ini; migrasi ke D1 dinamis via REST API tinggal
     // mengganti TENANT_DB_MODE ke "cloudflare" + secret API token.
-    { "binding": "TENANT_DB_1", "database_name": "erpindo-tenant-1", "database_id": "a9a77374-03b6-40e6-94ca-ce1f0eedd766" },
-    { "binding": "TENANT_DB_2", "database_name": "erpindo-tenant-2", "database_id": "ee503edd-654d-4dab-b147-7630fac2e064" },
-    { "binding": "TENANT_DB_3", "database_name": "erpindo-tenant-3", "database_id": "b4b65e36-80f2-49ac-a305-003150cde427" },
-    { "binding": "TENANT_DB_4", "database_name": "erpindo-tenant-4", "database_id": "75f03aab-902d-4c04-b6b1-207bd4c70d73" },
-    { "binding": "TENANT_DB_5", "database_name": "erpindo-tenant-5", "database_id": "7064c569-1dad-4795-ae55-2e1f302f10cb" },
-    { "binding": "TENANT_DB_6", "database_name": "erpindo-tenant-6", "database_id": "1457a4c8-e7db-47af-b993-300ccf6a928a" }
+    { "binding": "TENANT_DB_1", "database_name": "erpindo-tenant-1", "database_id": "d5eab9f6-0a14-4c2c-995d-967e0d136b39" },
+    { "binding": "TENANT_DB_2", "database_name": "erpindo-tenant-2", "database_id": "48e88c27-351e-4c92-b895-f7f943ed2019" },
+    { "binding": "TENANT_DB_3", "database_name": "erpindo-tenant-3", "database_id": "51d31dd0-1b67-435e-b103-47b841707088" },
+    { "binding": "TENANT_DB_4", "database_name": "erpindo-tenant-4", "database_id": "7573b5b1-c59e-4d4e-9279-55b9d0e93133" },
+    { "binding": "TENANT_DB_5", "database_name": "erpindo-tenant-5", "database_id": "b71c597b-0f40-426f-b08b-d17ec79fa122" },
+    { "binding": "TENANT_DB_6", "database_name": "erpindo-tenant-6", "database_id": "19529a13-ca43-467d-8a1b-278b52d03476" }
   ],
 
   "kv_namespaces": [
-    { "binding": "RATE_KV", "id": "fb7b923a51294221986d0b067a9a7a4c" }
+    { "binding": "RATE_KV", "id": "f84f208b97034a33b7748b3eaf14827d" }
   ],
 
   // Penghitung rate limit (Fase 30e). Menggantikan tulis-KV-per-request, yang

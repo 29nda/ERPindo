@@ -84,6 +84,13 @@ Target 1.000 perusahaan **mustahil** di paket gratis — bukan karena kodenya,
 melainkan karena empat batas keras sekaligus. Pada 10 pelanggan saja pendapatan
 Anda sudah Rp 5.000.000/bulan, sehingga $5 menjadi tidak relevan.
 
+> **Sudah dikerjakan (17 Agustus 2026):** tujuh database D1 + satu KV namespace
+> sudah **dibuat di akun Anda** lewat connector, dan `wrangler.jsonc` sudah
+> menunjuk ke ID aslinya. Sebelum ini Worker ter-deploy dengan sukses tetapi
+> menunjuk sumber daya yang tidak ada — deploy hijau, aplikasi mati. Langkah di
+> bawah ini kini murni soal **menembus batas 6 perusahaan**, bukan membuat
+> aplikasinya hidup.
+
 **Langkah, berurutan:**
 
 1. **Naikkan ke Workers Paid.** dash.cloudflare.com → Workers & Pages →
