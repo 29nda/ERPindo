@@ -27,17 +27,23 @@ Menyediakan ERP terjangkau berbahasa Indonesia yang mencakup Keuangan & Akuntans
 
 🚀 **Produk matang & terdeploy** — 40+ modul (akuntansi inti, penjualan/pembelian, POS, stok, pajak PPN/e-Faktur, HR & payroll, manufaktur, proyek, CRM, dll.), billing langganan, asisten AI, API publik + webhook, dan dukungan dwibahasa (ID/EN). Papan status untuk pemilik produk: [docs/STATUS.md](docs/STATUS.md) · log pekerjaan: [docs/log/](docs/log/).
 
-### Pemaketan (per perusahaan / bulan · pengguna tak terbatas di semua paket)
+### Harga — satu paket, satu harga (Fase 30)
 
-| Paket | Harga | Cakupan |
-|---|---|---|
-| **Starter** | Rp499.000 | Akuntansi inti, penjualan/pembelian, POS, stok, pajak, laporan |
-| **Business** | Rp999.000 | + operasional: HR & payroll, manufaktur, proyek, pengadaan, CRM, dll. |
-| **Enterprise** | Rp2.499.000 | + skala: multi-entitas & konsolidasi, keamanan lanjutan (2FA/IP), API publik & webhook |
+**Rp499.000 / perusahaan / bulan.** Seluruh 40+ modul terbuka, pengguna tak terbatas.
 
-Perbedaan paket berdasarkan **kedalaman operasional & skala**, bukan jumlah pengguna. Pelanggan lama di-*grandfather* akses penuh. Rencana lengkap: [docs/04-rencana-monetisasi-tier.md](docs/04-rencana-monetisasi-tier.md).
+Paket bertingkat (Starter/Business/Enterprise) dibubarkan pada Fase 30. Alasannya
+penjualan, bukan kode: pembedanya dulu "kedalaman operasional", dan calon pelanggan
+tidak bisa menilai kedalaman yang belum pernah dipakainya — yang benar-benar terjadi
+adalah UKM membeli paket termurah, menemukan penggajian terkunci di bulan kedua,
+lalu merasa dijebak.
 
-**Tidak ada masa coba gratis** (dihapus Fase 24a): pendaftar baru lahir berstatus `provisioning` — bisa masuk, belum punya database, dan **database perusahaannya dibuat saat pembayaran pertama masuk**. Calon pelanggan menilai produk lewat demo publik di `/demo`.
+Harganya **per perusahaan, bukan per pengguna**: menambah karyawan tidak menambah
+tagihan. Terhadap ERP yang menagih per kepala, ERPindo sudah lebih murah mulai
+**2 pengguna**.
+
+**Tidak ada masa coba gratis** (dihapus Fase 24a): pendaftar baru lahir berstatus `provisioning` — bisa masuk, belum punya database, dan **database perusahaannya dibuat saat pembayaran pertama masuk**. Calon pelanggan menilai produk lewat demo publik berisi riwayat 12 bulan penuh di seluruh modul.
+
+**Langkah yang menunggu pemilik** (Workers Paid, seed demo, token analitik): [docs/langkah-pemilik.md](docs/langkah-pemilik.md).
 
 ## Menjalankan Secara Lokal
 
@@ -49,4 +55,8 @@ pnpm dev:api      # wrangler dev di http://127.0.0.1:8787 (API + aplikasi)
 pnpm dev:web      # vite di http://127.0.0.1:5173 (proxy /api ke :8787)
 ```
 
-Validasi: `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` + `node scripts/ui-sim.mjs` + `pnpm lint` (per 14 Agustus 2026: smoke = **1.088** skenario end-to-end terhadap wrangler dev; ui-sim = **337** cek Chromium nyata; unit = **482**). Jumlah cek hanya boleh naik.
+Validasi: `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` + `node scripts/ui-sim.mjs` + `pnpm lint` (per 17 Agustus 2026: smoke = **1.129** skenario end-to-end terhadap wrangler dev; ui-sim = **356** cek Chromium nyata; unit = **597**; total **2.082**). Jumlah cek hanya boleh naik.
+
+Kesehatan demo diperiksa terpisah dengan **mengueri**, bukan membaca kode:
+`node scripts/verifikasi-demo.mjs` menyemai demo ke wrangler dev lalu menolak
+menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.

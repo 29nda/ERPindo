@@ -33,11 +33,37 @@ import { penghitungDurableObject, type PenghitungBatas } from "../lib/rateLimite
  * Uji menyuntikkan penghitungnya lewat `env.__penghitungBatas` — seam yang
  * dipakai `test/rateLimit.test.ts` supaya perilaku bisa diuji tanpa runtime DO.
  */
+let sudahMemperingatkan = false;
+
 function ambilPenghitung(env: AppEnv["Bindings"]): PenghitungBatas | null {
   const suntikan = (env as unknown as { __penghitungBatas?: PenghitungBatas }).__penghitungBatas;
   if (suntikan) return suntikan;
   const ns = (env as unknown as { RATE_LIMITER?: DurableObjectNamespace }).RATE_LIMITER;
-  return ns ? penghitungDurableObject(ns) : null;
+  if (ns) return penghitungDurableObject(ns);
+
+  // PERUBAHAN PERILAKU yang disadari (temuan audit Fase 30g).
+  //
+  // Versi KV gagal TERTUTUP bila bindingnya hilang: `kv.get` melempar dan
+  // seluruh endpoint terjaga menjawab 500. Versi ini gagal TERBUKA — request
+  // diteruskan tanpa dibatasi.
+  //
+  // Terbuka dipilih dengan sengaja: pembatas laju melindungi dari brute-force,
+  // sedangkan gagal-tertutup mematikan login, pendaftaran, dan demo sekaligus.
+  // Salah konfigurasi seharusnya tidak menjatuhkan seluruh pintu masuk aplikasi.
+  //
+  // Tetapi gagal terbuka DIAM-DIAM tidak bisa diterima: proteksi brute-force
+  // yang mati tanpa jejak adalah cacat yang bisa bertahan berbulan-bulan.
+  // Karena itu dicatat ke log — sekali per isolate, supaya tidak membanjiri
+  // Workers Logs (yang batas gratisnya 200.000 baris/hari) dengan satu baris
+  // per request.
+  if (!sudahMemperingatkan) {
+    sudahMemperingatkan = true;
+    console.error(
+      "[rateLimit] binding RATE_LIMITER TIDAK terpasang — pembatasan laju NONAKTIF. " +
+        "Periksa blok durable_objects di wrangler.jsonc.",
+    );
+  }
+  return null;
 }
 
 /** Nomor jendela tetap (fixed window) — sama seperti sebelum Fase 30e. */

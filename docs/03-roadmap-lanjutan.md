@@ -459,8 +459,23 @@ per paket + webhook aktivasi (Fase 11b/13b), read-only saat menunggak, akun comp
 (`COMPED_EMAILS`). Landing dwibahasa (ID/EN) dengan **kalkulator per-pengguna implisit**,
 tabel perbandingan **kategori** (tanpa merek), form **Jadwalkan Demo**, halaman Layanan.
 
-**Sudah selesai (Fase 13):**
-- ✅ Struktur 4 paket + penegakan modul per-path (13a) & billing per paket + upsell UI (13b).
+**DIBUBARKAN (Fase 30) — struktur paket bertingkat tidak ada lagi:**
+- ✅ **Satu paket Rp 499.000/perusahaan/bulan, seluruh modul terbuka.** Starter/
+  Business/Enterprise dibubarkan beserta seluruh mesin penegakannya:
+  `MODULE_MIN_PLAN`, `requirePlanModule`, prorata ganti paket, dan respons
+  403 `plan-upgrade-required`. Alasannya penjualan, bukan kode — pembeda lama
+  ("kedalaman operasional") tidak bisa dinilai calon pelanggan yang belum
+  memakainya. Butir-butir Fase 13 di bawah dipertahankan sebagai catatan
+  sejarah; sebagian sudah tidak berlaku.
+- ✅ **Skala 1000 perusahaan (Fase 30d–30f):** migrasi skema tenant berbatch &
+  resumable, rate limit pindah dari KV ke Durable Object (lepas dari kuota
+  1.000 tulis/hari), hitungan tenant tertinggal diperbaiki, metrik bisnis
+  (MRR/churn) + monitor kuota Cloudflare di dasbor admin.
+- ✅ **Demo publik 12 bulan (Fase 30c)** + `scripts/verifikasi-demo.mjs` yang
+  membuktikannya lewat kueri, bukan pembacaan kode.
+
+**Sudah selesai (Fase 13) — sebagian digantikan Fase 30:**
+- ⚠️ ~~Struktur 4 paket + penegakan modul per-path (13a) & billing per paket + upsell UI (13b).~~ **Dicabut Fase 30.**
 - ✅ Halaman harga + reposisi landing + form demo + halaman Layanan (13c).
 - ✅ Multibahasa ID/EN — landing, shell aplikasi, dashboard (13d/13e), lalu
   **dituntaskan ke SELURUH aplikasi pada Fase 19** (19c–19u): 40+ halaman,
@@ -517,3 +532,6 @@ pemilik dikerjakan begitu prasyaratnya tersedia.
 > Item yang menunggu keterlibatan pemilik: kunci Xendit, aktivasi R2, API key
 > Biteship/Tokopedia/Shopee, token WhatsApp (Fonnte/WA Business), dan API token Cloudflare untuk
 > provisioning D1 dinamis.
+>
+> **Tiga di antaranya kini mendesak dan berurutan** — daftar langkahnya beserta
+> cara memverifikasi tiap langkah: **[docs/langkah-pemilik.md](./langkah-pemilik.md)**.

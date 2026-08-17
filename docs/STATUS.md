@@ -3,7 +3,7 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 14 Agustus 2026
+**Terakhir diperbarui:** 17 Agustus 2026
 
 ## Di mana kita sekarang?
 
@@ -302,15 +302,34 @@
 54. **Dashboard modern & panduan mulai** *(baru — Fase 3e)*: grafik tren penjualan 30 hari dengan tooltip, widget faktur lewat jatuh tempo, feed aktivitas terakhir, dan **checklist "Mulai cepat"** berprogres untuk perusahaan baru (hilang otomatis saat lengkap). Halaman daftar/masuk bergaya split modern; setiap halaman kini punya paragraf pengantar; nama menu dan judul halaman konsisten (Maintenance menjadi Pemeliharaan).
 55. **Ekspor e-Faktur XML Coretax** *(baru — Fase 3f)*: satu klik "Unduh XML Coretax" di halaman Ekspor e-Faktur menghasilkan berkas XML yang **langsung bisa diimpor ke Coretax DJP** (format satu-satunya yang diterima sejak 2025). Sistem otomatis memakai kode transaksi yang benar — 04 dengan DPP nilai lain 11/12 untuk barang non-mewah (PMK 131/2024), 01 untuk tarif 12% penuh — menormalkan NPWP ke TIN 16 digit, dan mengecualikan faktur yang dibatalkan/non-PPN. CSV rekap tetap tersedia.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.075 skenario ujian end-to-end + 453 unit test + 336 cek simulasi UI browser nyata**, totalnya **1.864 pemeriksaan**. Di atas itu ada dua gerbang lagi yang juga wajib lulus: pemeriksa tipe data dan pemeriksa standar kode (wajib sejak Fase 12a). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+56. **Satu harga untuk semuanya** *(baru — Fase 30)*: paket bertingkat Starter/Business/Enterprise **dibubarkan**. Kini **satu paket Rp 499.000 per perusahaan per bulan**, seluruh 40+ modul terbuka, pengguna tetap tak terbatas. Tidak ada lagi fitur yang terkunci di balik paket yang lebih mahal — penggajian, manufaktur, konsolidasi, API publik, dan keamanan lanjutan tersedia untuk semua pelanggan sejak hari pertama.
+57. **Dasbor pemilik: uang, bukan cuma jumlah** *(baru — Fase 30)*: halaman Admin kini menampilkan **pendapatan berulang (MRR)**, jumlah pelanggan yang membayar (dipisah: aman / masa tenggang / gratis), berapa yang berhenti dalam 30 hari, dan umur langganan rata-rata. Ditambah **monitor kuota Cloudflare** yang memperingatkan di 70% — supaya Anda menaikkan paket sebelum pelanggan melihat aplikasi mati, bukan sesudah.
+58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
+59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-*Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 13 Agustus 2026, bukan disalin dari catatan.*
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.129 skenario ujian end-to-end + 597 unit test + 356 cek simulasi UI browser nyata**, totalnya **2.082 pemeriksaan**. Di atas itu ada dua gerbang lagi yang juga wajib lulus: pemeriksa tipe data dan pemeriksa standar kode (wajib sejak Fase 12a). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+
+*Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 17 Agustus 2026, bukan disalin dari catatan.*
 
 ## Apakah sudah bisa diakses di internet?
 
 **Ya — jalur deploy otomatis sudah aktif.** Anda telah menghubungkan repo GitHub ke Cloudflare (Workers Builds), dan infrastruktur produksi sudah dibuat di akun Cloudflare Anda: 1 database pusat + 6 database tenant (D1) + penyimpanan rate-limit (KV). Setiap perubahan yang masuk ke versi utama kini otomatis di-build dan di-deploy oleh Cloudflare. Alamat aplikasi bisa dilihat di dashboard Cloudflare → Workers & Pages → **erpindo** (format `erpindo.<nama-akun>.workers.dev`; domain sendiri bisa dipasang kapan saja lewat menu yang sama).
 
-Catatan kapasitas: mode saat ini memakai pool **6 database tenant** (cukup untuk 6 perusahaan pertama / masa pengembangan). Peralihan ke pembuatan database dinamis tanpa batas bukan lagi rencana di atas kertas — jalurnya sudah dimatangkan dan diuji di Fase 11a, jadi menaikkan kapasitas tinggal memindah saklar `TENANT_DB_MODE` ke `cloudflare` (runbooknya di `docs/log/2026-07-17-fase-11a-skala-migrasi.md`).
+Catatan kapasitas: mode saat ini memakai pool **6 database tenant**. Perusahaan ke-7 akan **ditolak** sampai Anda menaikkan akun ke Workers Paid ($5/bulan) dan memasang dua secret. Ini satu-satunya penghalang yang tersisa menuju ribuan pelanggan, dan langkahnya — beserta urutan yang tidak boleh dibalik — ada di **[docs/langkah-pemilik.md](./langkah-pemilik.md)**.
+
+Kenapa $5 memang diperlukan, dengan angka: paket gratis Cloudflare membatasi 100.000 request/hari, **1.000 tulisan penyimpanan cepat/hari**, dan 100.000 baris database ditulis/hari. Target 1.000 perusahaan mustahil di dalamnya — bukan karena kodenya, melainkan karena empat batas keras sekaligus. Pada 10 pelanggan saja pendapatan Anda sudah Rp 5.000.000/bulan, sehingga $5 menjadi tidak relevan.
+
+## Yang menunggu Anda sekarang
+
+Pekerjaan kode sudah selesai. **Tiga hal tersisa dan ketiganya hanya bisa Anda kerjakan**, karena semuanya menuntut akses ke akun Cloudflare Anda:
+
+1. **Semai ulang demo publik** → demo produksi masih 6 bulan sampai workflow-nya dijalankan (±20 menit, gratis).
+2. **Workers Paid + D1 dinamis** → menembus batas 6 perusahaan ($5/bulan).
+3. **Token analitik** → menyalakan monitor kuota di dasbor (±5 menit, gratis).
+
+Langkah rincinya, beserta cara memverifikasi tiap langkah berhasil: **[docs/langkah-pemilik.md](./langkah-pemilik.md)**.
+
+Halaman depan sengaja **tidak menyebut angka bulan demo** sama sekali, jadi tidak ada janji yang meleset selama Anda belum sempat mengerjakan nomor 1.
 
 ## Yang dikerjakan berikutnya — setelah Fase 22
 
