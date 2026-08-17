@@ -1,4 +1,4 @@
-import { PLAN_LIMITS, PLANS } from "@erpindo/shared";
+import { FAQ_RICH_RESULT, PLAN_LIMITS, PLANS } from "@erpindo/shared";
 import { Hono, type Context } from "hono";
 import type { AppEnv, Env } from "../env";
 
@@ -16,14 +16,23 @@ function origin(env: Env, reqUrl: string): string {
   return (env.APP_URL ?? new URL(reqUrl).origin).replace(/\/$/, "");
 }
 
-/** FAQ ringkas untuk rich result — selaras dengan FAQ di landing. */
-const FAQ: [q: string, a: string][] = [
-  ["Apakah ERPindo cocok untuk usaha kecil sampai perusahaan menengah?", "Ya. ERPindo dipakai dari toko pertama hingga grup perusahaan. Satu paket, satu harga, seluruh modul terbuka — tidak ada fitur yang terkunci di balik paket yang lebih mahal."],
-  ["Apakah pengguna dibatasi?", "Tidak. Pengguna tak terbatas, dan harganya per perusahaan — bukan per orang. Menambah karyawan tidak menambah tagihan."],
-  ["Apakah ada masa coba gratis?", "Tidak ada masa coba, dan itu disengaja. Sebagai gantinya ada demo publik berisi data nyata di seluruh modul — bisa ditelusuri tanpa mendaftar dan tanpa kartu kredit. Berlangganan baru diperlukan saat Anda mulai mencatat data sendiri."],
-  ["Apakah mendukung pajak Indonesia?", "Ya: PPN, PPh 21 (metode TER), dan ekspor e-Faktur/Coretax."],
-  ["Apakah data saya aman dan bisa diekspor?", "Data tiap perusahaan terpisah (satu database per perusahaan) dan bisa diekspor kapan saja sebagai CSV/ZIP, termasuk setelah langganan berakhir."],
-];
+/**
+ * FAQ untuk rich result — DIIMPOR, bukan ditulis ulang di sini (Fase 31c).
+ *
+ * Sampai fase ini berkas ini memuat daftarnya sendiri berisi lima tanya-jawab,
+ * dengan komentar "selaras dengan FAQ di landing". Daftar itu **tidak punya
+ * satu pun pertanyaan yang sama** dengan FAQ yang benar-benar tampil di
+ * halaman. Keduanya berpisah entah sejak kapan, dan tidak ada gerbang yang
+ * bisa melihatnya: tak satu berkas pun memuat kedua daftar sekaligus.
+ *
+ * Itu bukan soal kerapian. Panduan data terstruktur Google menuntut isi
+ * `FAQPage` benar-benar tampak di halaman yang sama — markup yang menjanjikan
+ * jawaban yang tidak ada di halaman bisa membuat rich result-nya dicabut.
+ *
+ * Kini keduanya membaca `FAQ_LANDING` dari `@erpindo/shared`, dan uji
+ * `packages/shared/test/landing.test.ts` mengunci agar tidak berpisah lagi.
+ */
+const FAQ = FAQ_RICH_RESULT;
 
 function jsonLd(base: string): string {
   // Satu paket, satu penawaran (Fase 30). Tetap berbentuk daftar karena

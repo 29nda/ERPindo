@@ -25,7 +25,7 @@ import { readFileSync, globSync } from "node:fs";
  * memakai pita gelap yang memang harus gelap di kedua tema, dan keduanya
  * ditulis ulang total di Fase 31c. Ambangnya turun lagi di sana.
  */
-const AMBANG = { slate: 106, dark: 344 };
+const AMBANG = { slate: 88, dark: 335 };
 
 const RINCI = process.argv.includes("--rinci");
 const files = globSync("apps/web/src/**/*.tsx").sort();

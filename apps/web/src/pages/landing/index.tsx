@@ -1,11 +1,11 @@
 import { ASSUMED_PER_USER_PRICE, perUserMonthlyCost, PLAN_LIMITS } from "@erpindo/shared";
 import { Link } from "@tanstack/react-router";
-import { Check, Eye, Menu, Moon, Plus, Sparkles, Sun, X } from "lucide-react";
+import { Check, Eye, Plus, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import { api } from "../../api/client";
-import { BrandWordmark, Button, useDarkMode } from "../../components/ui";
+import { BrandWordmark, Button } from "../../components/ui";
+import { PublicHeader, TAUTAN_BERANDA } from "../../components/publik";
 import { pick, useLang, type Lang } from "../../i18n";
-import { LangSwitcher } from "../../i18n/LangSwitcher";
 import {
   CATEGORY_COMPARISON,
   CATEGORY_COMPARISON_HEADERS,
@@ -25,90 +25,9 @@ import {
  * gambar produk asli (WebP) dilayani statis dari /landing/*.
  */
 
-const NAV_LINKS: [string, { id: string; en: string }][] = [
-  ["/fitur", { id: "Fitur", en: "Features" }],
-  ["#harga", { id: "Harga", en: "Pricing" }],
-  ["/panduan", { id: "Panduan", en: "Guide" }],
-  ["#faq", { id: "FAQ", en: "FAQ" }],
-];
-
 /** Helper pilih string sesuai bahasa aktif (landing). */
 function L(lang: Lang, id: string, en: string): string {
   return lang === "en" ? en : id;
-}
-
-function Header() {
-  const { dark, toggle } = useDarkMode();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const lang = useLang();
-  return (
-    <header className="sticky top-0 z-30 border-b border-line bg-slate-50/90 backdrop-blur dark:bg-slate-950/90">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
-        <span className="flex h-16 items-center gap-2">
-          <BrandWordmark className="h-8" />
-        </span>
-        <nav className="flex items-center gap-1">
-          {NAV_LINKS.map(([href, label]) => (
-            <a
-              key={href}
-              href={href}
-              className="hidden rounded-lg px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-surface-muted hover:text-ink md:block"
-            >
-              {label[lang]}
-            </a>
-          ))}
-          <LangSwitcher className="hidden sm:inline-flex" />
-          <button
-            onClick={toggle}
-            className="rounded p-1.5 text-ink-muted hover:bg-slate-200/60 dark:hover:bg-slate-800"
-            aria-label={L(lang, "Ganti tema terang/gelap", "Toggle light/dark theme")}
-            title={L(lang, "Ganti tema terang/gelap", "Toggle light/dark theme")}
-          >
-            {dark ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
-          </button>
-          <Link to="/masuk" className="hidden sm:block">
-            <Button variant="ghost" size="sm">{L(lang, "Masuk", "Sign in")}</Button>
-          </Link>
-          <Link to="/daftar">
-            {/* Fase 24d: trial dihapus di 24a — bilah atas tak lagi menjanjikan gratis. */}
-            <Button size="sm">{L(lang, "Daftar", "Sign up")}</Button>
-          </Link>
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            className="rounded p-1.5 text-ink-muted hover:bg-slate-200/60 md:hidden dark:hover:bg-slate-800"
-            aria-label={menuOpen ? "Tutup menu" : "Buka menu"}
-            aria-expanded={menuOpen}
-          >
-            {menuOpen ? <X className="size-5" aria-hidden /> : <Menu className="size-5" aria-hidden />}
-          </button>
-        </nav>
-      </div>
-      {menuOpen ? (
-        <nav className="border-t border-line bg-surface-sunken px-4 py-1.5 md:hidden">
-          {NAV_LINKS.map(([href, label]) => (
-            <a
-              key={href}
-              href={href}
-              onClick={() => setMenuOpen(false)}
-              className="block rounded px-2.5 py-2 text-[13px] font-medium text-ink hover:bg-slate-200/60 dark:hover:bg-slate-800"
-            >
-              {label[lang]}
-            </a>
-          ))}
-          <Link
-            to="/masuk"
-            onClick={() => setMenuOpen(false)}
-            className="block rounded px-2.5 py-2 text-[13px] font-medium text-ink hover:bg-slate-200/60 sm:hidden dark:hover:bg-slate-800"
-          >
-            {L(lang, "Masuk", "Sign in")}
-          </Link>
-          <div className="px-2.5 py-2 sm:hidden">
-            <LangSwitcher />
-          </div>
-        </nav>
-      ) : null}
-    </header>
-  );
 }
 
 /**
@@ -797,7 +716,7 @@ function StickyMobileCta() {
 export function LandingPage() {
   return (
     <div className="flex min-h-full flex-col bg-surface-sunken text-ink">
-      <Header />
+      <PublicHeader tautan={TAUTAN_BERANDA} beranda />
       {/* pb ekstra di mobile agar CTA lengket tak menutup konten akhir */}
       <main className="flex-1 pb-20 sm:pb-0">
         <Hero />

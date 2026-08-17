@@ -1,10 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Check, Menu, Moon, Sun, X } from "lucide-react";
-import { useState } from "react";
-import { BrandWordmark, Button, useDarkMode } from "../components/ui";
+import { ArrowRight, Check } from "lucide-react";
+import { BrandWordmark, Button } from "../components/ui";
 import { pick, useLang, type Lang } from "../i18n";
-import { LangSwitcher } from "../i18n/LangSwitcher";
-import { useUi } from "../i18n/ui";
+import { PublicHeader } from "../components/publik";
 import { MODUL_DETAIL } from "./landing/fiturDetail";
 
 /**
@@ -27,79 +25,11 @@ function L(lang: Lang, id: string, en: string): string {
   return lang === "en" ? en : id;
 }
 
-function Header() {
-  const u = useUi();
-  const { dark, toggle } = useDarkMode();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const lang = useLang();
-  const tautan: [string, { id: string; en: string }][] = [
-    ["/", { id: "Beranda", en: "Home" }],
-    ["/#harga", { id: "Harga", en: "Pricing" }],
-    ["/panduan", { id: "Panduan", en: "Guide" }],
-    ["/#faq", { id: "FAQ", en: "FAQ" }],
-  ];
-  return (
-    <header className="sticky top-0 z-30 border-b border-line bg-slate-50/90 backdrop-blur dark:bg-slate-950/90">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
-        <a href="/" className="flex h-16 items-center gap-2">
-          <BrandWordmark className="h-8" />
-        </a>
-        <nav className="flex items-center gap-1">
-          {tautan.map(([href, label]) => (
-            <a
-              key={href}
-              href={href}
-              className="hidden rounded-lg px-3 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-surface-muted hover:text-ink md:block"
-            >
-              {label[lang]}
-            </a>
-          ))}
-          <LangSwitcher className="hidden sm:inline-flex" />
-          <button
-            onClick={toggle}
-            className="rounded-lg p-2 text-ink-muted hover:bg-slate-200/60 dark:hover:bg-slate-800"
-            aria-label={u("ftGantiTema")}
-            title={u("ftGantiTema")}
-          >
-            {dark ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
-          </button>
-          <Link to="/daftar">
-            {/* Fase 24d: trial dihapus di 24a — bilah atas tak lagi menjanjikan gratis. */}
-            <Button size="sm">{L(lang, "Daftar", "Sign up")}</Button>
-          </Link>
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            className="flex size-11 shrink-0 items-center justify-center rounded-lg text-ink-muted hover:bg-slate-200/60 md:hidden dark:hover:bg-slate-800"
-            aria-label={menuOpen ? "Tutup menu" : "Buka menu"}
-            aria-expanded={menuOpen}
-          >
-            {menuOpen ? <X className="size-5" aria-hidden /> : <Menu className="size-5" aria-hidden />}
-          </button>
-        </nav>
-      </div>
-      {menuOpen ? (
-        <nav className="border-t border-line bg-surface-sunken px-4 py-2 md:hidden">
-          {tautan.map(([href, label]) => (
-            <a
-              key={href}
-              href={href}
-              onClick={() => setMenuOpen(false)}
-              className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink hover:bg-slate-200/60 dark:hover:bg-slate-800"
-            >
-              {label[lang]}
-            </a>
-          ))}
-        </nav>
-      ) : null}
-    </header>
-  );
-}
-
 export function FiturPage() {
   const lang = useLang();
   return (
     <div className="flex min-h-full flex-col bg-surface-sunken text-ink">
-      <Header />
+      <PublicHeader />
       <main className="flex-1">
         <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24">
           <h1 className="max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl">
