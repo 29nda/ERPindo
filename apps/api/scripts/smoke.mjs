@@ -21,7 +21,35 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 // Config dev = wrangler.jsonc minus binding "ai" (butuh kredensial remote).
 const { makeDevConfig } = await import(join(apiDir, "../../scripts/make-dev-config.mjs"));
-makeDevConfig();
+const devConfigPath = makeDevConfig();
+
+/**
+ * Penjaga kebocoran var produksi ke lingkungan dev (Fase 30j).
+ *
+ * `APP_URL` produksi berawalan `https://`, dan `setSessionCookie` memakai
+ * awalan itu untuk memutuskan `secure: true`. Bila var itu ikut terbawa ke
+ * `wrangler dev`, cookie sesi ditandai Secure padahal disajikan lewat
+ * `http://127.0.0.1` — peramban membuangnya diam-diam dan SELURUH suite ini
+ * runtuh di langkah login, dengan ratusan cek tak berhubungan yang memerah.
+ *
+ * Diperiksa DI SINI, sebelum server dinyalakan, supaya kegagalannya menyebut
+ * sebabnya alih-alih membiarkan penyelidik menelusuri ratusan cek merah.
+ * Polanya sengaja umum: var produksi apa pun yang ditambahkan kelak dan lupa
+ * dibuang akan tertangkap oleh cek yang sama.
+ */
+{
+  const { readFileSync } = await import("node:fs");
+  const isiDev = readFileSync(devConfigPath, "utf8");
+  const bocor = ["APP_URL"].filter((v) => new RegExp(`"${v}"\\s*:`).test(isiDev));
+  if (bocor.length > 0) {
+    console.error(
+      `\n✗ Var produksi bocor ke wrangler.dev.jsonc: ${bocor.join(", ")}\n` +
+        `  Buang di scripts/make-dev-config.mjs sebelum melanjutkan.\n`,
+    );
+    process.exit(1);
+  }
+  console.log("  ✓ 30j var produksi tidak bocor ke konfigurasi dev (APP_URL)");
+}
 
 let failures = 0;
 function check(name, cond, extra = "") {

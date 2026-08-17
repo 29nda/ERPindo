@@ -12,7 +12,7 @@
 
 | Yang diperiksa | Kenyataan |
 | --- | --- |
-| Aplikasi | **Sudah live** di `erpindo.nurudhuhaalamin.workers.dev`, auto-deploy dari GitHub |
+| Aplikasi | **Sudah live** di `erpindo.29nurudhuhaalamin.workers.dev`, auto-deploy dari GitHub |
 | Kapasitas | **sisa 3 dari 6** slot perusahaan (terpakai: Softtin, PT Demo Sejahtera, CV Demo Cabang) |
 | Demo publik | **sehat** — 6 bulan data, neraca seimbang, laporan konsolidasi terisi |
 | `COMPED_EMAILS` | **terpasang & terbukti** (probe menjawab `comped : YA`) |

@@ -2,7 +2,7 @@ import { applyMigrations, CONTROL_PLANE_MIGRATIONS } from "@erpindo/db";
 import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import type { AppEnv, Env } from "./env";
-import { DUNNING_MILESTONES, GRACE_DAYS, dunningWindow } from "./lib/dunning";
+import { DUNNING_MILESTONES, GRACE_DAYS, dunningWindow, tautanPengaturan } from "./lib/dunning";
 import { kirimEmail } from "./lib/mailer";
 import { getTenantDb, migrateTenantBatch } from "./lib/tenantDb";
 // Kelas Durable Object WAJIB diekspor dari entry Worker — wrangler mencarinya
@@ -313,7 +313,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
       const kvKey = `notified:dunning:tenggang:${tenant.id}`;
       if (await env.RATE_KV.get(kvKey)) continue;
       const apa = "Langganan";
-      const tautan = env.APP_URL ? `\n\n${env.APP_URL}/app/pengaturan` : "\n\nBuka menu Pengaturan.";
+      const tautan = tautanPengaturan(env.APP_URL, "Buka menu Pengaturan.");
       for (const owner of await ownerEmails(env, tenant.id)) {
         await kirimEmail(env, {
           to: owner.email,
@@ -356,7 +356,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
 
       const apa = "Langganan";
       const ajakan = "Perpanjang langganan agar operasional tidak terputus.";
-      const tautan = env.APP_URL ? `\n\n${env.APP_URL}/app/pengaturan` : "\n\nBuka menu Pengaturan untuk memperpanjang.";
+      const tautan = tautanPengaturan(env.APP_URL, "Buka menu Pengaturan untuk memperpanjang.");
       for (const owner of await ownerEmails(env, tenant.id)) {
         await kirimEmail(env, {
           to: owner.email,
@@ -404,7 +404,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
     for (const tenant of tertunggak) {
       const kvKey = `notified:dunning:p3:${tenant.id}`;
       if (await env.RATE_KV.get(kvKey)) continue;
-      const tautan = env.APP_URL ? `\n\n${env.APP_URL}/app/pengaturan` : "\n\nBuka menu Pengaturan untuk mengaktifkan kembali.";
+      const tautan = tautanPengaturan(env.APP_URL, "Buka menu Pengaturan untuk mengaktifkan kembali.");
       for (const owner of await ownerEmails(env, tenant.id)) {
         await kirimEmail(env, {
           to: owner.email,

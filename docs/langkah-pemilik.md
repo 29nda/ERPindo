@@ -9,16 +9,39 @@
 
 ---
 
+**Alamat aplikasi Anda:** <https://erpindo.29nurudhuhaalamin.workers.dev>
+
 ## Ringkasan cepat
 
 | # | Langkah | Waktu | Biaya | Akibat bila ditunda |
 | --- | --- | --- | --- | --- |
+| **0** | **Buka alamat di atas sekali** | **10 detik** | gratis | **Skema database belum terbentuk.** Kerjakan ini lebih dulu — sisanya bergantung padanya |
 | 1 | Semai ulang demo → 12 bulan | ±20 menit | gratis | Demo masih 6 bulan; calon pelanggan melihat produk yang lebih dangkal daripada aslinya |
 | 2 | Workers Paid + D1 dinamis | ±15 menit | **$5/bulan** | **Kapasitas mentok 6 perusahaan.** Pendaftar ke-7 ditolak |
 | 3 | Token analitik (monitor kuota) | ±5 menit | gratis | Anda tidak tahu sisa kuota sampai pelanggan menelepon karena aplikasi mati |
 
-Bisa dikerjakan terpisah dan dalam urutan apa pun. Yang paling mendesak adalah
-**nomor 2**, dan hanya bila Anda mengharapkan lebih dari enam pelanggan.
+---
+
+## 0. Buka aplikasinya sekali — 10 detik, kerjakan pertama
+
+Buka <https://erpindo.29nurudhuhaalamin.workers.dev> di peramban.
+
+**Kenapa ini yang pertama.** Skema database control-plane dibuat sendiri oleh
+aplikasi pada **request pertama** yang masuk (`ensureMigrated`, middleware
+global). Databasenya sudah saya buat dan sudah tersambung, tetapi tabelnya masih
+kosong karena belum ada satu pun request. Saya tidak bisa memicunya dari
+lingkungan pengembangan: proxy jaringannya menolak koneksi ke `*.workers.dev`
+(terbukti, bukan dugaan — gateway menjawab `403` pada CONNECT).
+
+**Yang Anda harapkan:** halaman depan terbuka normal. Bila ya, seluruh rantai
+deploy → binding → database sudah benar dan langkah 1–3 bisa dikerjakan.
+
+Bila halaman menampilkan galat, kirimkan pesannya — itu berarti ada mata rantai
+yang masih putus, dan pesan galatnya menyebutkan yang mana.
+
+> Bila Anda melewatkan langkah ini, aplikasinya tetap akan menginisialisasi
+> dirinya paling lambat pada cron harian pukul **01:17 UTC** (08:17 WIB). Membuka
+> sekali hanya mempercepatnya — dan sekaligus membuktikan aplikasinya hidup.
 
 ---
 
@@ -46,7 +69,7 @@ tambalan kebohongan.
 mengueri hasilnya, bukan sekadar melihat layar:
 
 ```sh
-BASE_URL=https://<alamat-aplikasi-anda> \
+BASE_URL=https://erpindo.29nurudhuhaalamin.workers.dev \
   SEED_EMAIL=<email> SEED_PASSWORD=<sandi> \
   node scripts/verifikasi-demo.mjs --tanpa-semai
 ```

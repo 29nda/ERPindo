@@ -23,7 +23,7 @@ jobs:
     name: Seed PT Demo Sejahtera
     runs-on: ubuntu-latest
     env:
-      BASE_URL: https://erpindo.nurudhuhaalamin.workers.dev
+      BASE_URL: https://erpindo.29nurudhuhaalamin.workers.dev
     steps:
       - uses: actions/checkout@v4
 
