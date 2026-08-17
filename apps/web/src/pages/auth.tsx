@@ -1,4 +1,4 @@
-import { PLAN_LIMITS, PLANS, registerSchema } from "@erpindo/shared";
+import { registerSchema } from "@erpindo/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { CheckCircle2 } from "lucide-react";
@@ -187,17 +187,15 @@ export function RegisterPage() {
   const navigate = useNavigate();
   const viaGoogle = new URLSearchParams(window.location.search).get("via") === "google";
   /**
-   * Paket yang dipilih pengunjung di halaman harga (Fase 27a).
+   * PENCABUTAN lencana "paket dipilih" (Fase 30).
    *
-   * Sebelumnya ketiga tombol "Pilih Paket Ini" menuju /daftar polos, jadi
-   * pilihan yang baru saja dibuat hilang tanpa jejak dan pengunjung memilihnya
-   * ulang nanti di dalam aplikasi. Nilai yang tidak dikenal diabaikan diam-diam
-   * — parameter URL datang dari luar dan tidak boleh bisa memunculkan galat.
+   * Fase 27a menambahkannya karena ketiga tombol "Pilih Paket Ini" menuju
+   * /daftar polos, sehingga pilihan pengunjung hilang tanpa jejak. Dengan satu
+   * paket tidak ada yang bisa dipilih — menampilkan "Paket dipilih: Lengkap"
+   * kepada orang yang tidak pernah memilih apa pun adalah teater, dan teater
+   * di halaman pendaftaran menimbulkan pertanyaan ("memangnya ada yang lain?")
+   * tepat di layar yang tugasnya menghilangkan pertanyaan.
    */
-  const paketDipilih = (() => {
-    const raw = new URLSearchParams(window.location.search).get("paket");
-    return PLANS.find((p) => p === raw);
-  })();
   const [issues, setIssues] = useState<Record<string, string[]>>({});
   const mutation = useMutation({
     mutationFn: api.register,
@@ -236,17 +234,6 @@ export function RegisterPage() {
       <form onSubmit={onSubmit} className="space-y-3" noValidate>
         {mutation.isError && !(mutation.error instanceof ApiRequestError && mutation.error.issues) ? (
           <Alert tone="error">{(mutation.error as Error).message}</Alert>
-        ) : null}
-        {paketDipilih ? (
-          <div
-            data-testid="paket-dipilih"
-            className="flex items-center gap-2 rounded-card border border-brand-200 bg-brand-50 px-3 py-2 text-[13px] text-brand-800 dark:border-brand-900 dark:bg-brand-950/40 dark:text-brand-200"
-          >
-            <CheckCircle2 className="size-4 shrink-0" aria-hidden />
-            <span>
-              {u("authPaketDipilih")} <strong>{PLAN_LIMITS[paketDipilih].label}</strong>
-            </span>
-          </div>
         ) : null}
         <div>
           <Label htmlFor="companyName">{u("authNamaPerusahaan")}</Label>

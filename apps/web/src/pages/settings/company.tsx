@@ -12,6 +12,7 @@ import {
   type CustomFieldModule,
   type CustomFieldType,
   type DocType,
+  type Plan,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
@@ -121,35 +122,11 @@ export function SubscriptionCard() {
   const u = useUi();
   const { tenant } = useWorkspace();
   const toast = useToast();
-  const queryClient = useQueryClient();
   const isOwner = tenant.role === "owner";
   const billing = useQuery({ queryKey: ["billing", tenant.tenantId], queryFn: () => api.billing(tenant.tenantId) });
 
-  // --- Ganti paket dengan prorata (Fase 20k) --------------------------------
-  // Paket tujuan yang sedang dipertimbangkan. Pratinjau diambil untuk paket
-  // ini SEBELUM apa pun ditagih — angkanya harus terlihat dulu.
-  const [targetPlan, setTargetPlan] = useState<"starter" | "business" | "enterprise" | null>(null);
-  const prorata = useQuery({
-    queryKey: ["prorata", tenant.tenantId, targetPlan],
-    queryFn: () => api.billingProrata(tenant.tenantId, targetPlan!),
-    enabled: Boolean(targetPlan),
-  });
-  const changePlan = useMutation({
-    mutationFn: (plan: "starter" | "business" | "enterprise") => api.billingChangePlan(tenant.tenantId, plan),
-    onSuccess: (r) => {
-      if (r.redirectUrl) {
-        window.location.href = r.redirectUrl;
-        return;
-      }
-      setTargetPlan(null);
-      queryClient.invalidateQueries({ queryKey: ["billing", tenant.tenantId] });
-      toast("success", `${u("turunPaket")} — ${u("prorataTurunInfo")}`);
-    },
-    onError: (e) => toast("error", (e as Error).message),
-  });
-
   const checkout = useMutation({
-    mutationFn: (plan: "starter" | "business" | "enterprise") => api.billingCheckout(tenant.tenantId, plan),
+    mutationFn: (plan: Plan) => api.billingCheckout(tenant.tenantId, plan),
     onSuccess: (r) => {
       // Alur redirect ke halaman bayar Xendit — aman terhadap CSP (tidak ada
       // skrip gerbang pembayaran yang disuntikkan ke halaman kita).
@@ -184,14 +161,6 @@ export function SubscriptionCard() {
               Tanpa lencana ini, "pembayaran" yang tidak pernah menjadi uang
               tampak persis sama dengan pembayaran sungguhan. */}
           {b?.modeUji ? <Badge tone="amber">{u("modeUjiPembayaran")}</Badge> : null}
-          {/* Fase 20k: penurunan paket yang menunggu akhir periode. Ditampilkan
-              supaya pemilik tidak mengira permintaannya tidak tercatat. */}
-          {b?.pendingPlan ? (
-            <Badge tone="amber">
-              {u("paketTurunTerjadwal")} {PLAN_LABELS[b.pendingPlan]}
-              {subUntil ? ` ${u("padaTanggal")} ${formatDate(subUntil.slice(0, 10))}` : ""}
-            </Badge>
-          ) : null}
         </div>
 
         {legacy ? (
@@ -201,105 +170,41 @@ export function SubscriptionCard() {
           </p>
         ) : null}
 
-        {/* Pemilih paket (Fase 13b): kartu Starter / Business / Enterprise. */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          {(["starter", "business", "enterprise"] as const).map((plan) => {
-            const info = PLAN_LIMITS[plan];
-            const current = tenant.plan === plan;
-            const popular = plan === "business";
-            return (
-              <div
-                key={plan}
-                className={`flex flex-col rounded-xl border p-3 ${
-                  current
-                    ? "border-brand-500 bg-brand-50/50 dark:border-brand-500 dark:bg-brand-950/30"
-                    : "border-slate-200 dark:border-slate-800"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-800 dark:text-slate-100">{info.label}</span>
-                  {popular ? <Badge tone="brand">{u("populer")}</Badge> : null}
-                </div>
-                <div className="mt-1 text-lg font-bold tabular-nums">
-                  Rp {info.pricePerMonth.toLocaleString("id-ID")}
-                  <span className="text-xs font-normal text-slate-400">/bln</span>
-                </div>
-                <ul className="mt-2 flex-1 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  <li>{u("penggunaTakTerbatas")}</li>
-                  <li>
-                    {plan === "starter"
-                      ? u("fiturStarter")
-                      : plan === "business"
-                        ? u("fiturBusiness")
-                        : u("fiturEnterprise")}
-                  </li>
-                  <li>{u("aiPerHari")} {info.aiDailyLimit}/{u("hariSuffix")}{info.maxEntities > 1 ? ` · ${info.maxEntities} ${u("entitasSatuan")}` : ""}</li>
-                </ul>
-                {isOwner && !current && langgananAktif ? (
-                  // Sudah berlangganan → pindah paket dihitung prorata, bukan
-                  // dibeli ulang sebulan penuh.
-                  <Button
-                    className="mt-2 h-8 w-full text-xs"
-                    variant={popular ? "primary" : "secondary"}
-                    data-testid={`ganti-paket-${plan}`}
-                    onClick={() => setTargetPlan(plan)}
-                    disabled={changePlan.isPending}
-                  >
-                    {info.pricePerMonth > PLAN_LIMITS[tenant.plan].pricePerMonth
-                      ? u("naikPaket")
-                      : u("turunPaket")}
-                  </Button>
-                ) : b?.configured && isOwner && !current ? (
-                  <Button
-                    className="mt-2 h-8 w-full text-xs"
-                    variant={popular ? "primary" : "secondary"}
-                    onClick={() => checkout.mutate(plan)}
-                    disabled={checkout.isPending}
-                  >
-                    {checkout.isPending ? u("mengalihkanEllipsis") : u("pilihPaket")}
-                  </Button>
-                ) : current ? (
-                  <div className="mt-2 text-center text-xs font-medium text-brand-600 dark:text-brand-400">{u("paketAnda")}</div>
-                ) : null}
-              </div>
-            );
-          })}
+        {/* Kartu paket tunggal (Fase 30). Tiga kartu Starter/Business/
+            Enterprise dibubarkan bersama paketnya; yang tersisa adalah satu
+            paket, jadi layar ini tidak lagi memilih melainkan MENYATAKAN apa
+            yang didapat. Dialog pratinjau prorata ikut hilang — tanpa paket
+            lain untuk dituju, tidak ada selisih harga yang perlu dipratinjau. */}
+        <div className="rounded-xl border border-brand-500 bg-brand-50/50 p-4 dark:border-brand-500 dark:bg-brand-950/30">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-slate-800 dark:text-slate-100">{PLAN_LIMITS.lengkap.label}</span>
+            {langgananAktif ? <Badge tone="brand">{u("paketAnda")}</Badge> : null}
+          </div>
+          <div className="mt-1 text-2xl font-bold tabular-nums">
+            Rp {PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")}
+            <span className="text-xs font-normal text-slate-400">/{u("perBulanSingkat")}</span>
+          </div>
+          <ul className="mt-2 space-y-0.5 text-xs text-slate-500 dark:text-slate-400">
+            <li>{u("penggunaTakTerbatas")}</li>
+            <li>{u("seluruhModulTerbuka")}</li>
+            <li>{u("aiPerHari")} {PLAN_LIMITS.lengkap.aiDailyLimit}/{u("hariSuffix")}</li>
+          </ul>
+          {b?.configured && isOwner ? (
+            <Button
+              className="mt-3 h-8 w-full text-xs"
+              variant="primary"
+              data-testid="beli-langganan"
+              onClick={() => checkout.mutate("lengkap")}
+              disabled={checkout.isPending}
+            >
+              {checkout.isPending
+                ? u("mengalihkanEllipsis")
+                : langgananAktif
+                  ? u("perpanjangLangganan")
+                  : u("pilihPaket")}
+            </Button>
+          ) : null}
         </div>
-
-        {/* Fase 20k — pratinjau prorata SEBELUM apa pun ditagih. Angkanya
-            berasal dari `hitungProrata()` di server, rumus yang sama persis
-            dengan yang dipakai saat menagih; tidak ada hitungan kedua di sini
-            yang bisa berbeda diam-diam. */}
-        <ConfirmDialog
-          open={Boolean(targetPlan)}
-          title={`${u("gantiPaket")} — ${targetPlan ? PLAN_LABELS[targetPlan] : ""}`}
-          description={
-            prorata.isLoading || !prorata.data ? (
-              u("hitungProrataMemuat")
-            ) : (
-              <span className="space-y-2 block" data-testid="pratinjau-prorata">
-                {prorata.data.arah === "naik" ? (
-                  <>
-                    <span className="block text-base font-semibold tabular-nums">
-                      {u("prorataBayarSekarang")}: Rp{" "}
-                      {prorata.data.bayarSekarang.toLocaleString("id-ID")}
-                    </span>
-                    <span className="block text-xs">
-                      {prorata.data.sisaHari} {u("prorataSisaHari")}
-                    </span>
-                    <span className="block">{u("prorataNaikInfo")}</span>
-                  </>
-                ) : (
-                  <span className="block">{u("prorataTurunInfo")}</span>
-                )}
-              </span>
-            )
-          }
-          confirmLabel={u("gantiPaket")}
-          busy={changePlan.isPending}
-          onConfirm={() => targetPlan && changePlan.mutate(targetPlan)}
-          onCancel={() => setTargetPlan(null)}
-        />
 
         {!b?.configured ? (
           <p className="text-slate-500 dark:text-slate-400">

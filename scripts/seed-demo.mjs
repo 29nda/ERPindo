@@ -302,18 +302,14 @@ const T = `/api/tenants/${company.tenantId}`;
  */
 const meSetelah = await api("GET", "/api/auth/me");
 const paketDemo = (meSetelah.json?.memberships ?? []).find((m) => m.tenantId === company.tenantId)?.plan;
-if (paketDemo !== "enterprise") {
+if (paketDemo !== "lengkap") {
   console.error(
-    `\nBERHENTI: perusahaan demo lahir berpaket '${paketDemo}', bukan 'enterprise'.\n\n` +
-      `Modul CRM, HR, proyek, manufaktur, dan helpdesk akan menolak 403 di tengah\n` +
-      `jalan sehingga demo terisi separuh — persis yang ingin dicegah penjaga ini.\n\n` +
-      `Perbaiki salah satu:\n` +
-      `  1. Tambahkan ${me.json.user.email} ke secret COMPED_EMAILS di Cloudflare\n` +
-      `     (perusahaan tambahan milik akun comped lahir enterprise), ATAU\n` +
-      `  2. Naikkan paket tenant ${company.tenantId} ke 'enterprise' di control-plane,\n` +
-      `     lalu jalankan ulang seed ini.\n\n` +
-      `Perusahaan yang terlanjur dibuat perlu dihapus lebih dulu:\n` +
-      `  node scripts/bersihkan-tenant.mjs pt-demo-sejahtera --izinkan-demo --hapus\n`,
+    `\nBERHENTI: perusahaan demo lahir berpaket '${paketDemo}', bukan 'lengkap'.\n\n` +
+      `Sejak Fase 30 hanya ada SATU paket, jadi nilai lain berarti barisnya belum\n` +
+      `dinormalkan migrasi control-plane 0017_paket_tunggal — bukan masalah paket,\n` +
+      `melainkan migrasi yang belum jalan di lingkungan ini.\n\n` +
+      `Perbaiki dengan menjalankan migrasi control-plane (deploy ulang Worker atau\n` +
+      `panggil endpoint mana pun sekali) lalu ulangi seed ini.\n`,
   );
   process.exit(1);
 }

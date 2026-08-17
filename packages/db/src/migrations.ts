@@ -355,6 +355,43 @@ export const CONTROL_PLANE_MIGRATIONS: Migration[] = [
       `CREATE INDEX idx_oauth_states_expires ON oauth_states (expires_at)`,
     ],
   },
+  {
+    /**
+     * Fase 30: paket tunggal. Seluruh tenant dipindahkan ke `lengkap`.
+     *
+     * Tiga hal dikerjakan sekaligus, dan ketiganya wajib:
+     *
+     * 1. `plan` → `'lengkap'`. Tanpa ini, tenant lama menyimpan nilai
+     *    (`starter`/`business`/`enterprise`) yang **tidak lagi ada di tipe
+     *    `Plan`**. Kode yang mengindeks `PLAN_LIMITS[tenant.plan]` akan
+     *    memberi `undefined`, dan pembacaan `.pricePerMonth` di atasnya
+     *    melempar di runtime — di jalur checkout, tempat paling mahal untuk
+     *    gagal. TypeScript tidak bisa menangkapnya: nilai itu datang dari
+     *    database, bukan dari kode.
+     * 2. `pending_plan` → NULL. Kolomnya sengaja TIDAK di-DROP (SQLite membuat
+     *    itu mahal, dan migrasi control-plane bersifat tambah-saja), tetapi
+     *    penurunan paket terjadwal yang masih menggantung harus dibatalkan —
+     *    cron yang dulu menerapkannya sudah dicabut, jadi baris semacam itu
+     *    akan menggantung selamanya tanpa ada yang memprosesnya.
+     * Yang SENGAJA TIDAK dikerjakan: mengubah `DEFAULT 'trial'` pada kolom
+     * `plan` (peninggalan `0001_init`, usang sejak Fase 24a menghapus masa
+     * coba). SQLite tidak punya `ALTER COLUMN`, jadi mengubahnya menuntut
+     * membangun ulang tabel `tenants` dan menyalin seluruh isinya — dan
+     * default itu **tidak pernah terpakai**: keempat jalur `INSERT INTO
+     * tenants` di repo (dua di `routes/auth.ts`, dua di uji) semuanya mengisi
+     * `plan` secara eksplisit. Menyalin tabel akun demi default yang mati
+     * adalah risiko tanpa imbalan; bila suatu saat ada jalur INSERT yang
+     * mengandalkannya, itu bug di jalur tersebut, bukan di sini.
+     */
+    id: "0017_paket_tunggal",
+    statements: [
+      `UPDATE tenants SET plan = 'lengkap', pending_plan = NULL`,
+      // Invoice langganan menyimpan paket yang dibeli; riwayatnya ikut
+      // dinormalkan supaya kartu tagihan tidak menampilkan nama paket yang
+      // sudah tidak ada.
+      `UPDATE subscription_invoices SET plan = 'lengkap' WHERE plan IS NOT NULL`,
+    ],
+  },
 ];
 
 /**

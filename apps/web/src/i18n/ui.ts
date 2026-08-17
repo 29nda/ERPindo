@@ -414,6 +414,10 @@ export const UI = {
     en: "with no price change. Thank you for joining us early. 🙏",
   },
   penggunaTakTerbatas: { id: "Pengguna tak terbatas", en: "Unlimited users" },
+  // Fase 30 — paket tunggal.
+  seluruhModulTerbuka: { id: "Seluruh modul terbuka", en: "Every module unlocked" },
+  perpanjangLangganan: { id: "Perpanjang langganan", en: "Renew subscription" },
+  perBulanSingkat: { id: "bln", en: "mo" },
   fiturStarter: { id: "Akuntansi, penjualan, POS, stok, pajak", en: "Accounting, sales, POS, stock, tax" },
   fiturBusiness: {
     id: "+ HR, proyek, manufaktur, pengadaan, CRM",

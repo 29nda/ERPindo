@@ -2,7 +2,6 @@ import {
   apiKeySchema,
   API_KEY_PREFIX,
   contactSchema,
-  planIncludesModule,
   productSchema,
   webhookSchema,
   type ApiApiKey,
@@ -68,10 +67,9 @@ export function requireApiKey(minScope: ApiScope): MiddlewareHandler<AppEnv> {
     if (!key) return c.json({ error: "API key tidak valid atau dicabut.", detail: "invalid-api-key" }, 401);
     if (key.status === "suspended") return c.json({ error: "Langganan perusahaan ditangguhkan.", detail: "suspended" }, 402);
 
-    // Modul apiAccess = Enterprise; legacy tetap boleh.
-    if (key.legacy_full_access !== 1 && !planIncludesModule(key.plan, "apiAccess")) {
-      return c.json({ error: "API publik hanya tersedia pada paket Enterprise.", detail: "plan-upgrade-required", requiredPlan: "enterprise" }, 403);
-    }
+    // Fase 30: API publik dulu terkunci paket Enterprise. Dengan satu paket,
+    // gerbang itu dicabut — kuncinya kini semata-mata kepemilikan API key yang
+    // sah, ditambah skop baca/tulis di bawah.
     // Skop tulis wajib untuk mutasi.
     if (minScope === "write" && key.scope !== "write") {
       return c.json({ error: "API key ini hanya berskop baca (read).", detail: "insufficient-scope" }, 403);

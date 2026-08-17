@@ -1,10 +1,3 @@
-import {
-  MODULE_LABELS,
-  minPlanForModule,
-  PLAN_LABELS,
-  planIncludesModule,
-  type Plan,
-} from "@erpindo/shared";
 import type {
   ApiConsolidatedBalanceSheet,
   ApiConsolidatedIncomeStatement,
@@ -13,7 +6,6 @@ import type {
   ApiReportLine,
 } from "@erpindo/shared";
 import { Hono } from "hono";
-import type { MiddlewareHandler } from "hono";
 import type { AppEnv } from "../env";
 import { computeBalanceSheet, computeIncomeStatement } from "../lib/reports";
 import { getTenantDb } from "../lib/tenantDb";
@@ -115,78 +107,31 @@ async function intercompanyCodes(
 }
 
 /**
- * Gerbang paket untuk konsolidasi (Fase 26a, temuan audit J1).
+ * PENCABUTAN gerbang paket konsolidasi (Fase 30).
  *
- * Modul `consolidation` dijual sebagai pembeda paket Enterprise, tetapi
- * endpoint ini **tidak pernah memeriksanya**: ia hanya memakai `requireAuth`.
- * Middleware `enforceTenantAccessByPath` tidak bisa menolongnya karena rute ini
- * sengaja di-mount di `/api/consolidation`, di luar `/api/tenants/:tenantId/` —
- * ia memang menjangkau banyak tenant sekaligus, jadi tidak punya `:tenantId`
- * untuk digerbangi. Karena itu penjaganya harus eksplisit di sini.
+ * Konsolidasi dulu dijual sebagai pembeda paket Enterprise, dan `requireKonsolidasiPlan`
+ * menegakkannya di sini karena rute ini di-mount di `/api/consolidation` — di luar
+ * `/api/tenants/:tenantId/`, sehingga `enforceTenantAccessByPath` tidak menjangkaunya.
  *
- * Aturan yang dipakai (keputusan produk, dinyatakan terbuka): pengguna harus
- * memiliki **minimal satu** perusahaan berpaket yang mencakup konsolidasi.
- * Cakupan laporannya sendiri tidak berubah — tetap seluruh perusahaan yang ia
- * miliki, sesuai perilaku sebelumnya. Alternatif "saring per perusahaan" ditolak
- * karena diam-diam menghilangkan baris dari laporan gabungan, dan laporan
- * keuangan yang diam-diam tidak lengkap lebih berbahaya daripada 403 yang jelas.
- *
- * **Fase 26e — pemilik NOL perusahaan bukan masalah paket.**
- *
- * Versi pertama gerbang ini menyamakan dua keadaan yang sangat berbeda: "punya
- * perusahaan, semuanya Starter" dan "tidak punya perusahaan sama sekali".
- * Keduanya dijawab 403 "tingkatkan paket" — dan itu menabrak justru layar yang
- * paling sering dilihat calon pelanggan.
- *
- * Akun demo publik (`demo-viewer@erpindo.id`) adalah **viewer** di perusahaan
- * demo dan tidak memiliki satu pun tenant. Mengeklik menu Konsolidasi di demo
- * karena itu menampilkan "tersedia mulai paket Enterprise" — di dalam demo yang
- * paketnya justru Enterprise. Sebelum Fase 26a ia melihat keadaan kosong yang
- * benar.
- *
- * Karena itu: nol perusahaan → lewat, dan perilaku lama yang menjawabnya
- * (daftar kosong / 404 "tidak ada perusahaan yang dapat dikonsolidasikan").
- * Paywall tetap berlaku persis di tempat yang dituju temuan J1: pemilik yang
- * PUNYA perusahaan tetapi paketnya belum mencakup konsolidasi.
+ * Dengan satu paket, tidak ada lagi yang perlu digerbangi: `requireAuth` sudah
+ * memastikan penggunanya masuk, dan kueri di bawah hanya membaca perusahaan
+ * yang **dimiliki pengguna itu sendiri** (`m.role = 'owner'`) — jadi tidak ada
+ * jalan melihat data perusahaan orang lain. Pemilik nol perusahaan tetap
+ * mendapat keadaan kosong yang benar, persis perilaku yang dipulihkan Fase 26e
+ * setelah gerbang ini sempat menabrak demo publik.
  */
-const requireKonsolidasiPlan: MiddlewareHandler<AppEnv> = async (c, next) => {
-  const { results } = await c.env.DB.prepare(
-    `SELECT t.plan, t.legacy_full_access FROM memberships m JOIN tenants t ON t.id = m.tenant_id
-     WHERE m.user_id = ? AND m.role = 'owner'`,
-  )
-    .bind(c.get("user").id)
-    .all<{ plan: Plan; legacy_full_access: number }>();
-
-  // Tidak memiliki perusahaan → tidak ada yang bisa dikonsolidasikan, dan
-  // menawarkan peningkatan paket adalah jawaban yang salah untuk keadaan itu.
-  if (results.length === 0) return next();
-
-  const berhak = results.some((t) => t.legacy_full_access === 1 || planIncludesModule(t.plan, "consolidation"));
-  if (!berhak) {
-    return c.json(
-      {
-        error: `Modul ${MODULE_LABELS.consolidation} tersedia mulai paket ${PLAN_LABELS[minPlanForModule("consolidation")]}. Tingkatkan paket untuk membukanya.`,
-        detail: "plan-upgrade-required",
-        module: "consolidation",
-        requiredPlan: minPlanForModule("consolidation"),
-      },
-      403,
-    );
-  }
-  await next();
-};
 
 export const consolidationRoutes = new Hono<AppEnv>()
 
   // Daftar perusahaan milik user (untuk pemilih di UI konsolidasi).
-  .get("/companies", requireAuth, requireKonsolidasiPlan, async (c) => {
+  .get("/companies", requireAuth, async (c) => {
     const tenants = await ownedTenants(c.env.DB, c.get("user").id);
     const companies: ApiConsolidationCompany[] = tenants.map((t) => ({ tenantId: t.id, name: t.name }));
     return c.json({ companies });
   })
 
   // Laba Rugi konsolidasi.
-  .get("/income-statement", requireAuth, requireKonsolidasiPlan, async (c) => {
+  .get("/income-statement", requireAuth, async (c) => {
     const from = c.req.query("from") ?? "";
     const to = c.req.query("to") ?? "";
     if (!DATE_RE.test(from) || !DATE_RE.test(to)) {
@@ -241,7 +186,7 @@ export const consolidationRoutes = new Hono<AppEnv>()
   })
 
   // Neraca konsolidasi.
-  .get("/balance-sheet", requireAuth, requireKonsolidasiPlan, async (c) => {
+  .get("/balance-sheet", requireAuth, async (c) => {
     const asOf = c.req.query("asOf") ?? "";
     if (!DATE_RE.test(asOf)) return c.json({ error: "Parameter asOf wajib berformat YYYY-MM-DD." }, 400);
     const tenants = await ownedTenants(c.env.DB, c.get("user").id, parseCompanyFilter(c.req.query("companies")));

@@ -133,35 +133,55 @@ export type TenantStatus = (typeof TENANT_STATUSES)[number];
 // ---------------------------------------------------------------------------
 
 /**
- * Fase 24: tiga paket, semuanya berbayar. Paket `trial` Rp0 dihapus — ia bukan
- * paket melainkan keadaan, dan keadaan itu kini diwakili status tenant
- * `provisioning`. Menyimpan "paket" yang tidak dijual di dalam daftar paket
- * yang dijual adalah sumber kebingungan yang sudah beberapa kali menjalar
- * (lencana, harga, penegakan modul).
+ * Fase 30: **SATU paket saja.** Pemaketan bertingkat (Starter/Business/
+ * Enterprise, Fase 13a) dibubarkan atas keputusan pemilik.
+ *
+ * Alasannya bukan penyederhanaan kode, melainkan penjualan: pembedanya dulu
+ * adalah "kedalaman operasional", dan calon pelanggan tidak bisa menilai
+ * kedalaman yang belum pernah dipakainya. Yang benar-benar terjadi adalah UKM
+ * membeli Starter, menemukan penggajian terkunci di bulan kedua, lalu merasa
+ * dijebak. Satu harga menghapus seluruh kelas kekecewaan itu.
+ *
+ * Daftar ini tetap berbentuk array meski isinya satu: `plan` adalah kolom
+ * control-plane yang sudah terisi di baris tenant yang ada, dan bentuk jamak
+ * membuat migrasi nilai lama (`starter`/`business`/`enterprise` → `lengkap`)
+ * bisa dinyatakan tanpa mengubah tipe di seluruh repo sekaligus.
  */
-export const PLANS = ["starter", "business", "enterprise"] as const;
+export const PLANS = ["lengkap"] as const;
 export type Plan = (typeof PLANS)[number];
 
 /**
- * Fase 13a: pemaketan bertingkat. Harga per bulan per perusahaan; pengguna
- * SELALU tak terbatas di semua paket (pembeda utama vs ERP per-user). Tier
- * dibedakan oleh kedalaman operasional, jumlah entitas, dan kuota AI — TIDAK
- * PERNAH oleh jumlah user, dan TIDAK memotong akuntansi inti.
+ * Satu paket, satu harga, per perusahaan per bulan.
  *
- * SEMUA nilai keputusan bisnis terpusat di sini — menggeser modul antar paket
- * cukup mengubah satu baris di MODULE_MIN_PLAN.
+ * Yang SENGAJA tidak ada di sini lagi:
+ *
+ * - `maxEntities` — dihapus karena **tidak pernah ditegakkan satu baris pun**.
+ *   Ia hanya dicetak di landing ("Enterprise mencakup 3 entitas") dan di kartu
+ *   langganan. Yang benar-benar membatasi penambahan perusahaan adalah pagar
+ *   anti-abuse `belumBayar` di `routes/auth.ts`, dan itu tetap ada. Menyisakan
+ *   "batas" yang tidak membatasi apa pun adalah jebakan bagi pembaca
+ *   berikutnya — dan lebih buruk lagi, janji yang bisa dibantah pelanggan.
+ * - Penguncian modul — lihat catatan pencabutan `MODULE_MIN_PLAN` di bawah.
+ *
+ * `maxUsers` DIPERTAHANKAN meski nilainya tak terhingga: penjaganya nyata di
+ * `routes/tenants.ts` dan angka inilah yang menyatakan janji inti produk —
+ * pengguna tak terbatas, pembeda utama melawan ERP yang menagih per kepala.
  */
 export const PLAN_LIMITS: Record<
   Plan,
-  { label: string; pricePerMonth: number; aiDailyLimit: number; maxEntities: number; maxUsers: number }
+  { label: string; pricePerMonth: number; aiDailyLimit: number; maxUsers: number }
 > = {
-  starter: { label: "Starter", pricePerMonth: 499_000, aiDailyLimit: 25, maxEntities: 1, maxUsers: Number.MAX_SAFE_INTEGER },
-  business: { label: "Business", pricePerMonth: 999_000, aiDailyLimit: 100, maxEntities: 1, maxUsers: Number.MAX_SAFE_INTEGER },
-  enterprise: { label: "Enterprise", pricePerMonth: 2_499_000, aiDailyLimit: 250, maxEntities: 3, maxUsers: Number.MAX_SAFE_INTEGER },
+  lengkap: {
+    label: "Lengkap",
+    pricePerMonth: 499_000,
+    // Kuota harian asisten AI per perusahaan. Angka Business lama (100) dipakai
+    // sebagai nilai tunggal: cukup longgar untuk pemakaian nyata, tetapi tetap
+    // menjadi pagar keadilan agar satu tenant tidak menghabiskan alokasi
+    // Workers AI (10.000 neuron/hari) milik seluruh akun.
+    aiDailyLimit: 100,
+    maxUsers: Number.MAX_SAFE_INTEGER,
+  },
 };
-
-/** Biaya per entitas tambahan di atas kuota paket Enterprise (Fase 13a). */
-export const EXTRA_ENTITY_PRICE = 750_000;
 
 /**
  * Masa tenggang (Fase 20c): hari akun MASIH BISA MENULIS setelah masa
@@ -173,207 +193,50 @@ export const EXTRA_ENTITY_PRICE = 750_000;
 export const GRACE_DAYS = 3;
 
 export const PLAN_LABELS: Record<Plan, string> = {
-  starter: PLAN_LIMITS.starter.label,
-  business: PLAN_LIMITS.business.label,
-  enterprise: PLAN_LIMITS.enterprise.label,
+  lengkap: PLAN_LIMITS.lengkap.label,
 };
 
 /**
- * Paket yang bisa dibeli. Sejak Fase 24 **identik** dengan `PLANS` — seluruh
- * paket dijual. Alias ini dipertahankan karena dipakai luas di checkout &
- * halaman harga, dan namanya menyatakan maksud ("yang bisa dibeli") yang tetap
- * berguna dibaca meski isinya kini sama.
+ * Paket yang bisa dibeli. Identik dengan `PLANS` — seluruh paket dijual.
+ * Alias dipertahankan karena dipakai luas di checkout & halaman harga, dan
+ * namanya menyatakan maksud ("yang bisa dibeli") yang tetap berguna dibaca.
  */
 export const PAID_PLANS = PLANS;
 export type PaidPlan = Plan;
 
-// --- Ganti paket dengan prorata (Fase 20k) ----------------------------------
-
-/** Panjang satu siklus tagihan, dalam hari. Langganan ditagih bulanan. */
-export const BILLING_CYCLE_DAYS = 30;
-
-export type ProrataArah = "naik" | "turun" | "sama";
-
-export type ProrataInput = {
-  planSekarang: Plan;
-  planBaru: Plan;
-  /** `subscription_ends_at` tenant; `null` bila belum pernah berlangganan. */
-  berakhirPada: string | null;
-  nowMs?: number;
-  siklusHari?: number;
-};
-
-export type ProrataResult = {
-  arah: ProrataArah;
-  /** Sisa hari pada siklus berjalan; 0 bila tidak ada langganan aktif. */
-  sisaHari: number;
-  /** Yang harus dibayar SEKARANG. Nol untuk turun & sama. */
-  bayarSekarang: number;
-  /** Kapan paket barunya berlaku. */
-  berlakuMulai: "sekarang" | "akhir-periode";
-  hargaLama: number;
-  hargaBaru: number;
-  /** Prorata hanya berlaku bila ada siklus berjalan yang tersisa. */
-  bisaProrata: boolean;
-};
-
 /**
- * Hitung biaya pindah paket di TENGAH siklus (Fase 20k).
+ * PENCABUTAN prorata ganti paket (Fase 30, dulu Fase 20k).
  *
- * Aturannya sengaja tidak simetris, dan itu keputusan yang disadari:
+ * `hitungProrata()`, `BILLING_CYCLE_DAYS`, `ProrataInput/Result/Arah`, dan
+ * `changePlanSchema` dihapus seluruhnya. Dengan satu paket tidak ada paket lain
+ * untuk dituju, jadi "naik/turun paket" bukan lagi fitur yang disederhanakan —
+ * ia tidak punya arti sama sekali.
  *
- * - **Naik paket berlaku SEKARANG**, ditagih selisih harga untuk sisa hari saja.
- *   Orang menaikkan paket karena butuh kapasitasnya hari itu juga; menundanya
- *   ke akhir periode membuat pembayaran terasa seperti hukuman.
- * - **Turun paket berlaku di AKHIR PERIODE**, tanpa tagihan dan tanpa refund.
- *   Mereka sudah membayar sisa periode ini, jadi mereka berhak memakainya.
- *   Refund tunai tidak dilakukan: uang keluar menuntut jalur persetujuan,
- *   rekonsiliasi, dan penanganan sengketa yang belum ada di sistem ini —
- *   membangunnya setengah jadi lebih berbahaya daripada tidak sama sekali.
+ * Menyisakannya "untuk berjaga-jaga" akan mengulang persis kesalahan yang
+ * dicatat Fase 24 tentang paket `trial`: sebuah konsep yang tidak dijual tetap
+ * tinggal di dalam kode yang menjual, lalu menjalar diam-diam ke lencana,
+ * harga, dan penegakan modul.
  *
- * Fungsi murni: tidak menyentuh DB maupun gerbang pembayaran, sehingga bisa dipakai
- * pratinjau di layar dan penagihan di server dari SATU rumus yang sama.
+ * `SINGLE_PLAN` (Rp389.000, sudah bertanda deprecated) ikut dihapus. Namanya
+ * justru baru sekarang menjadi benar sementara angkanya salah — bentuk jebakan
+ * yang paling mudah termakan.
  */
-export function hitungProrata(input: ProrataInput): ProrataResult {
-  const siklusHari = input.siklusHari ?? BILLING_CYCLE_DAYS;
-  const nowMs = input.nowMs ?? Date.now();
-  const hargaLama = PLAN_LIMITS[input.planSekarang].pricePerMonth;
-  const hargaBaru = PLAN_LIMITS[input.planBaru].pricePerMonth;
-  const arah: ProrataArah =
-    hargaBaru > hargaLama ? "naik" : hargaBaru < hargaLama ? "turun" : "sama";
-
-  const akhirMs = input.berakhirPada ? Date.parse(input.berakhirPada) : NaN;
-  const sisaHari = Number.isFinite(akhirMs)
-    ? Math.max(Math.ceil((akhirMs - nowMs) / 86_400_000), 0)
-    : 0;
-  const bisaProrata = sisaHari > 0;
-
-  // Dibatasi satu siklus: bila suatu hari ada langganan prabayar lebih dari
-  // sebulan, tenant tidak boleh ditagih berkali-kali lipat selisihnya dalam
-  // satu transaksi tanpa keputusan harga yang eksplisit.
-  const hariDitagih = Math.min(sisaHari, siklusHari);
-  const bayarSekarang =
-    arah === "naik" && bisaProrata
-      ? Math.max(Math.ceil(((hargaBaru - hargaLama) * hariDitagih) / siklusHari), 1)
-      : 0;
-
-  return {
-    arah,
-    sisaHari,
-    bayarSekarang,
-    berlakuMulai: arah === "naik" ? "sekarang" : "akhir-periode",
-    hargaLama,
-    hargaBaru,
-    bisaProrata,
-  };
-}
-
-/**
- * Alias kompatibilitas (deprecated): billing lama memakai satu harga Rp389rb.
- * Dipertahankan agar billing.ts belum berubah di Fase 13a; billing 4 paket
- * (Fase 13b) mengganti pemakaiannya dengan harga per-paket dari PLAN_LIMITS.
- */
-export const SINGLE_PLAN = { label: "Lengkap", pricePerMonth: 389_000 } as const;
 
 // ---------------------------------------------------------------------------
-// Peta modul → paket minimum (Fase 13a). Modul yang TIDAK terdaftar di sini
-// termasuk INTI dan tersedia di semua paket (akuntansi, penjualan/pembelian,
-// POS, stok, kas & bank, laporan, pajak, master data). Yang terdaftar butuh
-// paket minimal tertentu; di bawahnya API menolak 403 `plan-upgrade-required`.
+// PENCABUTAN penguncian modul per paket (Fase 30, dulu Fase 13a).
+//
+// Dihapus seluruhnya: MODULE_KEYS, MODULE_LABELS, MODULE_MIN_PLAN,
+// PLAN_ACCESS_RANK, planIncludesModule, minPlanForModule, modulesForPlan —
+// beserta field `modul` pada TENANT_ROUTE_ACCESS dan middleware
+// `requirePlanModule` yang menegakkannya. Respons 403 `plan-upgrade-required`
+// tidak ada lagi di seluruh API.
+//
+// Yang TETAP ada, dan perbedaannya penting: **izin RBAC** (`baca`/`tulis` pada
+// TENANT_ROUTE_ACCESS). Modul kini terbuka untuk semua *paket*, TIDAK untuk
+// semua *peran*. Kasir tetap tidak bisa membuka penggajian; yang berubah hanya
+// bahwa perusahaan tidak perlu membayar lebih untuk memilikinya. Mencampur
+// keduanya akan mengubah pembongkaran paywall menjadi pembongkaran keamanan.
 // ---------------------------------------------------------------------------
-export const MODULE_KEYS = [
-  // Operasional — minimal Business
-  "payroll",
-  "attendance",
-  "manufacturing",
-  "projects",
-  "procurement",
-  "approvals",
-  "customRoles",
-  "crm",
-  "maintenance",
-  "helpdesk",
-  "salesStaged",
-  "currency",
-  "contracts",
-  "scheduledReports",
-  "driveBackup",
-  "orgStructure",
-  // Skala — minimal Enterprise
-  "consolidation",
-  "dimensions",
-  "apiAccess",
-  "advancedSecurity",
-] as const;
-export type ModuleKey = (typeof MODULE_KEYS)[number];
-
-export const MODULE_MIN_PLAN: Record<ModuleKey, Plan> = {
-  payroll: "business",
-  attendance: "business",
-  manufacturing: "business",
-  projects: "business",
-  procurement: "business",
-  approvals: "business",
-  customRoles: "business",
-  crm: "business",
-  maintenance: "business",
-  helpdesk: "business",
-  salesStaged: "business",
-  currency: "business",
-  contracts: "business",
-  scheduledReports: "business",
-  driveBackup: "business",
-  orgStructure: "business",
-  consolidation: "enterprise",
-  dimensions: "enterprise",
-  apiAccess: "enterprise",
-  advancedSecurity: "enterprise",
-};
-
-export const MODULE_LABELS: Record<ModuleKey, string> = {
-  payroll: "HR & Penggajian",
-  attendance: "Absensi",
-  manufacturing: "Manufaktur",
-  projects: "Proyek",
-  procurement: "Pengadaan",
-  approvals: "Persetujuan berjenjang",
-  customRoles: "Peran kustom (RBAC)",
-  crm: "CRM",
-  maintenance: "Pemeliharaan aset",
-  helpdesk: "Helpdesk",
-  salesStaged: "Penjualan bertahap (SO/DO)",
-  currency: "Multi mata uang",
-  contracts: "Kontrak berulang",
-  scheduledReports: "Laporan terjadwal",
-  driveBackup: "Backup Google Drive",
-  orgStructure: "Struktur organisasi",
-  consolidation: "Konsolidasi multi-perusahaan",
-  dimensions: "Dimensi / cost center",
-  apiAccess: "API publik & webhook",
-  advancedSecurity: "Keamanan lanjutan (2FA wajib, IP)",
-};
-
-/**
- * Peringkat akses paket. Bukan urutan harga — melainkan urutan cakupan fitur.
- */
-const PLAN_ACCESS_RANK: Record<Plan, number> = { starter: 1, business: 2, enterprise: 3 };
-
-/** Apakah paket mencakup modul tertentu. Modul inti (tak terdaftar) selalu true. */
-export function planIncludesModule(plan: Plan, module: ModuleKey): boolean {
-  const min = MODULE_MIN_PLAN[module];
-  if (!min) return true;
-  return PLAN_ACCESS_RANK[plan] >= PLAN_ACCESS_RANK[min];
-}
-
-/** Paket berbayar minimum yang membuka modul (untuk pesan upsell). */
-export function minPlanForModule(module: ModuleKey): Plan {
-  return MODULE_MIN_PLAN[module] ?? "starter";
-}
-
-/** Daftar modul yang tersedia pada suatu paket (dipakai UI untuk badge/upsell). */
-export function modulesForPlan(plan: Plan): ModuleKey[] {
-  return MODULE_KEYS.filter((m) => planIncludesModule(plan, m));
-}
 
 // ---------------------------------------------------------------------------
 // Skema validasi bersama (dipakai form web & endpoint API)
@@ -540,8 +403,6 @@ export type BillingStatus = {
   pricePerMonth: number;
   /** Grandfather: pelanggan lama harga tunggal → akses penuh walau paketnya starter/business. */
   legacyFullAccess: boolean;
-  /** Penurunan paket yang menunggu akhir periode (Fase 20k); `null` bila tidak ada. */
-  pendingPlan: Plan | null;
   invoices: ApiSubscriptionInvoice[];
 };
 
@@ -550,12 +411,6 @@ export const checkoutSchema = z.object({
   plan: z.enum(PAID_PLANS),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
-
-/** Pindah paket di tengah siklus (Fase 20k) — naik ditagih prorata, turun dijadwalkan. */
-export const changePlanSchema = z.object({
-  plan: z.enum(PAID_PLANS),
-});
-export type ChangePlanInput = z.infer<typeof changePlanSchema>;
 
 /** Set paket tenant manual oleh platform admin (Fase 13b). */
 export const setTenantPlanSchema = z.object({
@@ -663,8 +518,6 @@ export type AksesRute = {
   baca: PermissionKey | null;
   /** Izin untuk POST/PATCH/PUT/DELETE. `null` = tidak dijaga izin (peran saja). */
   tulis: PermissionKey | null;
-  /** Modul berpaket; absen = modul inti (tersedia di semua paket). */
-  modul?: ModuleKey;
 };
 
 export const TENANT_ROUTE_ACCESS: Record<string, AksesRute> = {
@@ -683,7 +536,7 @@ export const TENANT_ROUTE_ACCESS: Record<string, AksesRute> = {
   // Menjaganya dengan izin akan mencabut hak yang sudah dipakai Admin preset.
   members: { baca: null, tulis: null },
   invites: { baca: null, tulis: null },
-  roles: { baca: null, tulis: null, modul: "customRoles" },
+  roles: { baca: null, tulis: null },
 
   // --- Penjualan -------------------------------------------------------------
   invoices: { baca: "penjualan", tulis: "penjualan" },
@@ -691,16 +544,16 @@ export const TENANT_ROUTE_ACCESS: Record<string, AksesRute> = {
   returns: { baca: "penjualan", tulis: "penjualan" },
   marketplace: { baca: "penjualan", tulis: "penjualan" },
   "price-groups": { baca: "penjualan", tulis: "penjualan" },
-  "sales-orders": { baca: "penjualan", tulis: "penjualan", modul: "salesStaged" },
+  "sales-orders": { baca: "penjualan", tulis: "penjualan" },
 
   // --- Kasir -----------------------------------------------------------------
   pos: { baca: "kasir", tulis: "kasir" },
 
   // --- Pembelian & pengadaan -------------------------------------------------
   purchases: { baca: "pembelian", tulis: "pembelian" },
-  requisitions: { baca: "pembelian", tulis: "pembelian", modul: "procurement" },
-  "purchase-orders": { baca: "pembelian", tulis: "pembelian", modul: "procurement" },
-  "goods-receipts": { baca: "pembelian", tulis: "pembelian", modul: "procurement" },
+  requisitions: { baca: "pembelian", tulis: "pembelian" },
+  "purchase-orders": { baca: "pembelian", tulis: "pembelian" },
+  "goods-receipts": { baca: "pembelian", tulis: "pembelian" },
 
   // --- Master data bersama ---------------------------------------------------
   // Tiga segmen ini dibaca hampir semua modul: kasir memindai barcode
@@ -734,38 +587,38 @@ export const TENANT_ROUTE_ACCESS: Record<string, AksesRute> = {
   "closing-entry": { baca: "keuangan", tulis: "keuangan" },
   "forex-revaluation": { baca: "keuangan", tulis: "keuangan" },
   assets: { baca: "keuangan", tulis: "keuangan" },
-  currencies: { baca: "keuangan", tulis: "keuangan", modul: "currency" },
-  "cost-centers": { baca: "keuangan", tulis: "keuangan", modul: "dimensions" },
-  "bank-match-rules": { baca: "keuangan", tulis: "keuangan", modul: "dimensions" },
+  currencies: { baca: "keuangan", tulis: "keuangan" },
+  "cost-centers": { baca: "keuangan", tulis: "keuangan" },
+  "bank-match-rules": { baca: "keuangan", tulis: "keuangan" },
 
   // --- Pajak & laporan -------------------------------------------------------
   tax: { baca: "pajak", tulis: "pajak" },
   reports: { baca: "laporan", tulis: "laporan" },
   export: { baca: "laporan", tulis: "laporan" },
-  "report-snapshots": { baca: "laporan", tulis: "laporan", modul: "scheduledReports" },
+  "report-snapshots": { baca: "laporan", tulis: "laporan" },
 
   // --- HR --------------------------------------------------------------------
-  employees: { baca: "hr", tulis: "hr", modul: "payroll" },
-  "employee-loans": { baca: "hr", tulis: "hr", modul: "payroll" },
-  "payroll-runs": { baca: "hr", tulis: "hr", modul: "payroll" },
-  "payroll-adjustments": { baca: "hr", tulis: "hr", modul: "payroll" },
-  "leave-requests": { baca: "hr", tulis: "hr", modul: "payroll" },
-  attendance: { baca: "hr", tulis: "hr", modul: "attendance" },
+  employees: { baca: "hr", tulis: "hr" },
+  "employee-loans": { baca: "hr", tulis: "hr" },
+  "payroll-runs": { baca: "hr", tulis: "hr" },
+  "payroll-adjustments": { baca: "hr", tulis: "hr" },
+  "leave-requests": { baca: "hr", tulis: "hr" },
+  attendance: { baca: "hr", tulis: "hr" },
 
   // --- CRM & helpdesk --------------------------------------------------------
-  crm: { baca: "crm", tulis: "crm", modul: "crm" },
-  leads: { baca: "crm", tulis: "crm", modul: "crm" },
-  quotations: { baca: "crm", tulis: "crm", modul: "crm" },
-  "lead-form": { baca: "crm", tulis: "crm", modul: "crm" },
-  tickets: { baca: "crm", tulis: "crm", modul: "helpdesk" },
+  crm: { baca: "crm", tulis: "crm" },
+  leads: { baca: "crm", tulis: "crm" },
+  quotations: { baca: "crm", tulis: "crm" },
+  "lead-form": { baca: "crm", tulis: "crm" },
+  tickets: { baca: "crm", tulis: "crm" },
 
   // --- Proyek & operasi ------------------------------------------------------
-  projects: { baca: "proyek", tulis: "proyek", modul: "projects" },
-  contracts: { baca: "proyek", tulis: "proyek", modul: "contracts" },
-  maintenance: { baca: "proyek", tulis: "proyek", modul: "maintenance" },
-  boms: { baca: "proyek", tulis: "proyek", modul: "manufacturing" },
-  "production-orders": { baca: "proyek", tulis: "proyek", modul: "manufacturing" },
-  "work-centers": { baca: "proyek", tulis: "proyek", modul: "manufacturing" },
+  projects: { baca: "proyek", tulis: "proyek" },
+  contracts: { baca: "proyek", tulis: "proyek" },
+  maintenance: { baca: "proyek", tulis: "proyek" },
+  boms: { baca: "proyek", tulis: "proyek" },
+  "production-orders": { baca: "proyek", tulis: "proyek" },
+  "work-centers": { baca: "proyek", tulis: "proyek" },
 
   // --- Persetujuan -----------------------------------------------------------
   // `approvals` + `approval-threshold` adalah ambang persetujuan pembelian yang
@@ -775,8 +628,8 @@ export const TENANT_ROUTE_ACCESS: Record<string, AksesRute> = {
   // kelalaian. Izinnya tetap ditegakkan.
   approvals: { baca: "persetujuan", tulis: "persetujuan" },
   "approval-threshold": { baca: "persetujuan", tulis: "persetujuan" },
-  "approval-flows": { baca: "persetujuan", tulis: "persetujuan", modul: "approvals" },
-  "approval-rules": { baca: "persetujuan", tulis: "persetujuan", modul: "approvals" },
+  "approval-flows": { baca: "persetujuan", tulis: "persetujuan" },
+  "approval-rules": { baca: "persetujuan", tulis: "persetujuan" },
 
   // --- Pengaturan perusahaan -------------------------------------------------
   // `settings` dibaca POS (footer struk), cetak faktur, dan dasbor → baca
@@ -787,12 +640,12 @@ export const TENANT_ROUTE_ACCESS: Record<string, AksesRute> = {
   "custom-fields": { baca: null, tulis: "pengaturan" },
   "audit-logs": { baca: "pengaturan", tulis: "pengaturan" },
   migration: { baca: "pengaturan", tulis: "pengaturan" },
-  departments: { baca: "pengaturan", tulis: "pengaturan", modul: "orgStructure" },
-  "org-chart": { baca: "pengaturan", tulis: "pengaturan", modul: "orgStructure" },
-  drive: { baca: "pengaturan", tulis: "pengaturan", modul: "driveBackup" },
-  security: { baca: "pengaturan", tulis: "pengaturan", modul: "advancedSecurity" },
-  "api-keys": { baca: "pengaturan", tulis: "pengaturan", modul: "apiAccess" },
-  webhooks: { baca: "pengaturan", tulis: "pengaturan", modul: "apiAccess" },
+  departments: { baca: "pengaturan", tulis: "pengaturan" },
+  "org-chart": { baca: "pengaturan", tulis: "pengaturan" },
+  drive: { baca: "pengaturan", tulis: "pengaturan" },
+  security: { baca: "pengaturan", tulis: "pengaturan" },
+  "api-keys": { baca: "pengaturan", tulis: "pengaturan" },
+  webhooks: { baca: "pengaturan", tulis: "pengaturan" },
 };
 
 /** Izin yang berlaku untuk sebuah segmen + method HTTP. */

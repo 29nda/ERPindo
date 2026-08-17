@@ -1,93 +1,65 @@
 import { describe, expect, it } from "vitest";
 import {
   ASSUMED_PER_USER_PRICE,
-  MODULE_KEYS,
-  MODULE_MIN_PLAN,
-  minPlanForModule,
-  modulesForPlan,
+  PAID_PLANS,
   perUserMonthlyCost,
+  PLAN_LABELS,
   PLAN_LIMITS,
   PLANS,
-  planIncludesModule,
 } from "../src/index";
 
-describe("PLAN_LIMITS (Fase 24 — tiga paket, semuanya berbayar)", () => {
-  it("harga sesuai keputusan pemilik", () => {
-    expect(PLAN_LIMITS.starter.pricePerMonth).toBe(499_000);
-    expect(PLAN_LIMITS.business.pricePerMonth).toBe(999_000);
-    expect(PLAN_LIMITS.enterprise.pricePerMonth).toBe(2_499_000);
+describe("PLAN_LIMITS (Fase 30 — satu paket, satu harga)", () => {
+  it("hanya ADA satu paket", () => {
+    expect(PLANS).toEqual(["lengkap"]);
+    expect(Object.keys(PLAN_LIMITS)).toEqual(["lengkap"]);
   });
 
-  it("pengguna SELALU tak terbatas di semua paket (pembeda inti)", () => {
-    for (const plan of PLANS) {
-      expect(PLAN_LIMITS[plan].maxUsers).toBe(Number.MAX_SAFE_INTEGER);
-    }
+  it("harga Rp499.000/perusahaan/bulan sesuai keputusan pemilik", () => {
+    expect(PLAN_LIMITS.lengkap.pricePerMonth).toBe(499_000);
   });
 
-  it("kuota AI naik sesuai paket; hanya Enterprise multi-entitas", () => {
-    expect(PLAN_LIMITS.starter.aiDailyLimit).toBe(25);
-    expect(PLAN_LIMITS.enterprise.aiDailyLimit).toBe(250);
-    expect(PLAN_LIMITS.enterprise.maxEntities).toBeGreaterThan(1);
-    expect(PLAN_LIMITS.starter.maxEntities).toBe(1);
-    expect(PLAN_LIMITS.business.maxEntities).toBe(1);
-  });
-});
-
-describe("planIncludesModule — matriks modul × paket", () => {
-  it("modul inti (tak terdaftar) tersedia di semua paket", () => {
-    // "penjualan" bukan ModuleKey → inti → selalu true (uji lewat cast aman).
-    for (const plan of PLANS) {
-      // Modul yang tak ada di MODULE_MIN_PLAN dianggap inti.
-      expect(planIncludesModule(plan, "payroll")).toBe(plan !== "starter");
-    }
+  it("pengguna tak terbatas — janji inti produk, bukan detail", () => {
+    // Pembeda utama melawan ERP yang menagih per kepala. Bila angka ini pernah
+    // menjadi berhingga, halaman harga berbohong dan `routes/tenants.ts` mulai
+    // menolak undangan anggota.
+    expect(PLAN_LIMITS.lengkap.maxUsers).toBe(Number.MAX_SAFE_INTEGER);
   });
 
-  it("Starter TIDAK mendapat modul operasional/skala", () => {
-    for (const m of MODULE_KEYS) {
-      expect(planIncludesModule("starter", m)).toBe(false);
-    }
+  it("kuota AI harian terbatas — pagar keadilan antar tenant", () => {
+    // Alokasi Workers AI (10.000 neuron/hari) berlaku untuk SELURUH akun, jadi
+    // kuota per tenant harus berhingga; tak terbatas di sini berarti satu
+    // tenant bisa mematikan asisten AI milik semua tenant lain.
+    expect(PLAN_LIMITS.lengkap.aiDailyLimit).toBe(100);
+    expect(Number.isFinite(PLAN_LIMITS.lengkap.aiDailyLimit)).toBe(true);
   });
 
-  it("Business mendapat semua modul operasional, TIDAK modul enterprise", () => {
-    for (const m of MODULE_KEYS) {
-      const expected = MODULE_MIN_PLAN[m] === "business";
-      expect(planIncludesModule("business", m)).toBe(expected);
-    }
-  });
-
-  it("Enterprise mendapat SEMUA modul (akses penuh)", () => {
-    for (const m of MODULE_KEYS) {
-      expect(planIncludesModule("enterprise", m)).toBe(true);
-    }
-  });
-
-  // Fase 24: tidak ada lagi paket Rp0. "Belum berlangganan" bukan paket
-  // melainkan status tenant (`provisioning`) — sebuah akun tanpa langganan
-  // tidak punya paket sama sekali, jadi ia tak boleh bisa dinyatakan lewat
-  // PLANS. Uji ini menjaga agar paket gratis tidak diam-diam masuk lagi.
-  it("TIDAK ada paket berharga Rp0 — seluruh paket dijual", () => {
+  it("paket dijual — tidak ada paket Rp0", () => {
+    // Fase 24 sudah menghapus paket `trial` Rp0: "belum berlangganan" adalah
+    // STATUS tenant (`provisioning`), bukan paket. Uji ini menjaga agar paket
+    // gratis tidak diam-diam masuk lagi lewat pintu belakang.
     for (const plan of PLANS) {
       expect(PLAN_LIMITS[plan].pricePerMonth).toBeGreaterThan(0);
     }
     expect(PLANS).not.toContain("trial");
   });
 
-  it("modulesForPlan konsisten dengan planIncludesModule", () => {
+  it("PAID_PLANS identik dengan PLANS — seluruh paket dijual", () => {
+    expect(PAID_PLANS).toEqual(PLANS);
+  });
+
+  it("setiap paket punya label yang bisa ditampilkan", () => {
     for (const plan of PLANS) {
-      const list = modulesForPlan(plan);
-      for (const m of MODULE_KEYS) {
-        expect(list.includes(m)).toBe(planIncludesModule(plan, m));
-      }
+      expect(PLAN_LABELS[plan]).toBe(PLAN_LIMITS[plan].label);
+      expect(PLAN_LABELS[plan].length).toBeGreaterThan(0);
     }
   });
-});
 
-describe("minPlanForModule", () => {
-  it("mengembalikan paket minimum pembuka modul", () => {
-    expect(minPlanForModule("payroll")).toBe("business");
-    expect(minPlanForModule("consolidation")).toBe("enterprise");
-    expect(minPlanForModule("dimensions")).toBe("enterprise");
-    expect(minPlanForModule("apiAccess")).toBe("enterprise");
+  it("tidak ada sisa batas entitas — batas yang tak pernah ditegakkan", () => {
+    // `maxEntities` dulu dicetak di landing ("Enterprise mencakup 3 entitas")
+    // tetapi TIDAK pernah diperiksa satu baris pun. Yang membatasi penambahan
+    // perusahaan adalah pagar `belumBayar` di routes/auth.ts. Menyisakan angka
+    // yang tidak membatasi apa pun adalah janji yang bisa dibantah pelanggan.
+    expect(PLAN_LIMITS.lengkap).not.toHaveProperty("maxEntities");
   });
 });
 
@@ -96,8 +68,23 @@ describe("perUserMonthlyCost (kalkulator perbandingan implisit, Fase 13c)", () =
     expect(perUserMonthlyCost(1)).toBe(ASSUMED_PER_USER_PRICE);
     expect(perUserMonthlyCost(30)).toBe(30 * ASSUMED_PER_USER_PRICE);
   });
+
   it("membulatkan ke bawah & menolak negatif", () => {
     expect(perUserMonthlyCost(2.9)).toBe(2 * ASSUMED_PER_USER_PRICE);
     expect(perUserMonthlyCost(-5)).toBe(0);
+  });
+
+  it("titik impas turun setengah setelah harga tunggal", () => {
+    // Kalkulator landing dulu membandingkan terhadap harga Business
+    // (Rp999.000); kini terhadap Rp499.000. Efeknya bukan kosmetik — jumlah
+    // pengguna yang membuat ERPindo lebih murah TURUN drastis, dan itulah
+    // argumen penjualan terkuat dari keputusan harga tunggal.
+    const impas = (batas: number) => {
+      for (let n = 1; n <= 100; n++) if (perUserMonthlyCost(n) > batas) return n;
+      return 0;
+    };
+    const impasBaru = impas(PLAN_LIMITS.lengkap.pricePerMonth);
+    expect(impasBaru).toBe(2);
+    expect(impasBaru).toBeLessThan(impas(999_000));
   });
 });

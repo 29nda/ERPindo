@@ -3,7 +3,6 @@ import type {
   CustomFieldDefInput,
   CustomFieldModule,
   PaidPlan,
-  ProrataResult,
   ApiAccount,
   IntercompanyInput,
   ApiAgingRow,
@@ -240,22 +239,10 @@ export const api = {
   // --- Dukungan/masukan + admin platform + blog (Fase 10e) -------------------
   // Billing langganan Xendit (Fase 25a; sebelumnya Midtrans, Fase 11b).
   billing: (tenantId: string) => request<BillingStatus>("GET", `/api/tenants/${tenantId}/billing`),
-  billingCheckout: (tenantId: string, plan: "starter" | "business" | "enterprise") =>
+  billingCheckout: (tenantId: string, plan: PaidPlan) =>
     request<{ orderId: string; redirectUrl: string }>("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan }),
-  // Fase 20k — pratinjau prorata (tanpa efek samping) lalu eksekusinya.
-  billingProrata: (tenantId: string, plan: PaidPlan) =>
-    request<ProrataResult & { planSekarang: string; planBaru: string }>(
-      "GET",
-      `/api/tenants/${tenantId}/billing/prorata?plan=${plan}`,
-    ),
-  billingChangePlan: (tenantId: string, plan: PaidPlan) =>
-    request<{
-      arah: "naik" | "turun";
-      redirectUrl?: string;
-      amount?: number;
-      pendingPlan?: string;
-      efektifPada?: string | null;
-    }>("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan }),
+  // Fase 30: `billingProrata` & `billingChangePlan` dicabut bersama paket
+  // bertingkat — endpoint servernya sudah tidak ada.
 
   submitFeedback: (input: FeedbackInput) => request<{ ok: true; id: string }>("POST", "/api/feedback", input),
   myFeedback: () => request<{ feedback: ApiFeedback[] }>("GET", "/api/feedback/mine"),

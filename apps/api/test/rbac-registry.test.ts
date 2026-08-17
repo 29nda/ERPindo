@@ -1,4 +1,4 @@
-import { PERMISSION_KEYS, MODULE_KEYS, TENANT_ROUTE_ACCESS, izinRute } from "@erpindo/shared";
+import { PERMISSION_KEYS, TENANT_ROUTE_ACCESS, izinRute } from "@erpindo/shared";
 import { describe, expect, it } from "vitest";
 import { app } from "../src/index";
 
@@ -58,11 +58,10 @@ describe("registri akses rute tenant", () => {
     expect(yatim, `Entri registri tanpa route: ${yatim.join(", ")}`).toEqual([]);
   });
 
-  it("seluruh nilai izin & modul valid", () => {
+  it("seluruh nilai izin valid", () => {
     for (const [segmen, akses] of Object.entries(TENANT_ROUTE_ACCESS)) {
       if (akses.baca !== null) expect(PERMISSION_KEYS, `${segmen}.baca`).toContain(akses.baca);
       if (akses.tulis !== null) expect(PERMISSION_KEYS, `${segmen}.tulis`).toContain(akses.tulis);
-      if (akses.modul) expect(MODULE_KEYS, `${segmen}.modul`).toContain(akses.modul);
     }
   });
 });
@@ -87,10 +86,16 @@ describe("izinRute — pemisahan baca/tulis", () => {
     expect(izinRute("segmen-yang-tidak-ada", "GET")).toBeNull();
   });
 
-  it("modul berpaket ikut terbaca dari entri yang sama", () => {
-    // Temuan audit G: `roles` (modul customRoles, paket Business) dulu TIDAK
-    // dipetakan sama sekali, sehingga tenant Starter bisa membuat peran kustom.
-    expect(TENANT_ROUTE_ACCESS.roles?.modul).toBe("customRoles");
-    expect(TENANT_ROUTE_ACCESS.pos?.modul).toBeUndefined();
+  it("penguncian paket tidak tersisa di satu entri pun (Fase 30)", () => {
+    // Temuan audit G dulu memasang `roles: { modul: "customRoles" }` supaya
+    // tenant Starter tidak bisa membuat peran kustom. Paketnya sudah tidak ada,
+    // jadi field itu harus ikut hilang — bukan tertinggal sebagai gerbang mati
+    // yang membuat pembaca berikutnya mengira akses masih dijaga paket.
+    for (const [segmen, akses] of Object.entries(TENANT_ROUTE_ACCESS)) {
+      expect(akses, `${segmen}`).not.toHaveProperty("modul");
+    }
+    // Peran kustom kini terbuka untuk semua pelanggan, tetapi tetap dijaga
+    // PERAN (owner/admin) di route-nya — lihat catatan `roles` di registri.
+    expect(TENANT_ROUTE_ACCESS.roles).toBeDefined();
   });
 });

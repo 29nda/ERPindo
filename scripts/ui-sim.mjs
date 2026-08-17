@@ -1977,11 +1977,16 @@ try {
   await page.waitForTimeout(400);
   const perusahaanBody = await page.innerText("body");
   check("F19 tab Perusahaan menampilkan kartu Profil perusahaan", perusahaanBody.includes("Profil perusahaan"));
-  // Fase 13b: kartu 3 paket di Langganan (Starter/Business/Enterprise + harga).
+  // Fase 30: satu kartu paket di Langganan (dulu tiga: Starter/Business/Enterprise).
   check(
-    "F19 Langganan menampilkan 3 paket (Starter/Business/Enterprise + harga Rp999.000)",
-    perusahaanBody.includes("Starter") && perusahaanBody.includes("Business") && perusahaanBody.includes("Enterprise") && /Rp\s?999\.000/.test(perusahaanBody),
-    `→ ${/Rp\s?999\.000/.test(perusahaanBody)}`,
+    "F19 Langganan menampilkan SATU kartu paket Lengkap Rp499.000",
+    perusahaanBody.includes("Lengkap") && /Rp\s?499\.000/.test(perusahaanBody),
+    `→ harga=${/Rp\s?499\.000/.test(perusahaanBody)}`,
+  );
+  check(
+    "F19 Langganan tidak lagi menawarkan paket bertingkat",
+    !perusahaanBody.includes("Starter") && !perusahaanBody.includes("Enterprise"),
+    `→ masih ada nama paket lama`,
   );
   // F2d — Fase 20m: halaman Pengaturan ikut EN.
   //
@@ -2577,16 +2582,26 @@ try {
     `→ aria-valuenow=${await page.locator('[data-uji="kk-takaran"]').getAttribute("aria-valuenow").catch(() => "(tidak ada)")}`,
   );
 
-  // F15 — landing harga 3 paket (Fase 13c) + masuk mode demo tanpa daftar.
+  // F15 — landing harga paket tunggal (Fase 30) + masuk mode demo tanpa daftar.
   // Dijalankan TERAKHIR karena tombol demo mengganti cookie sesi konteks ini.
-  console.log("3. Landing harga 3 paket & mode demo (Fase 13c)");
+  console.log("3. Landing harga paket tunggal & mode demo (Fase 30)");
   resetErrors();
   await gotoRoute("/", 600);
   const landingText = (await page.innerText("body")).replace(/\u00A0/g, " ");
   check(
-    "F15 landing menampilkan 3 paket (Starter/Business/Enterprise + Rp999.000)",
-    landingText.includes("Starter") && landingText.includes("Business") && landingText.includes("Enterprise") && /Rp\s?999\.000/.test(landingText),
-    `→ harga 3 paket tidak lengkap`,
+    "F15 landing menampilkan SATU harga Rp499.000 per perusahaan",
+    /Rp\s?499\.000/.test(landingText) && landingText.includes("Lengkap"),
+    `→ harga=${/Rp\s?499\.000/.test(landingText)}`,
+  );
+  check(
+    "F15 landing TIDAK lagi menyebut Starter/Business/Enterprise",
+    !landingText.includes("Starter") && !landingText.includes("Enterprise"),
+    `→ nama paket lama masih tampil`,
+  );
+  check(
+    "F15 landing menyatakan seluruh modul terbuka (argumen jualan paket tunggal)",
+    /[Ss]eluruh modul terbuka/.test(landingText) || /modul terbuka/.test(landingText),
+    `→ klaim modul terbuka tidak ditemukan`,
   );
   check(
     "F15 landing memuat kalkulator per-pengguna + perbandingan kategori",
@@ -2625,16 +2640,18 @@ try {
   const pitaDemo = await page.locator("section", { hasText: "Siap merapikan bisnis Anda?" }).getByRole("button", { name: /Lihat Demo/ }).count();
   check("F47 pita CTA penutup menawarkan demo, sesuai kalimatnya", pitaDemo >= 1, `→ ${pitaDemo}`);
 
-  // Corong paket: pilihan di kartu harga terbawa ke halaman pendaftaran.
-  await page.locator('a[href="/daftar?paket=business"]').first().click();
-  await page.waitForURL("**/daftar?paket=business", { timeout: 15_000 });
-  await page.locator('[data-testid="paket-dipilih"]').first().waitFor({ timeout: 10_000 });
-  const paketTeks = await page.locator('[data-testid="paket-dipilih"]').first().innerText();
-  check("F47 paket pilihan terbawa ke halaman daftar", /Business/.test(paketTeks), `→ ${paketTeks}`);
-  // Nilai ngawur dari URL tidak boleh memunculkan galat — parameter datang dari luar.
-  await gotoRoute("/daftar?paket=ngawur", 400);
-  const paketNgawur = await page.locator('[data-testid="paket-dipilih"]').count();
-  check("F47 paket tak dikenal diabaikan diam-diam", paketNgawur === 0, `→ ${paketNgawur} lencana`);
+  // Fase 30: corong "paket terpilih" DICABUT bersama paket bertingkat. Kartu
+  // harga kini menuju /daftar polos, dan halaman daftar tidak lagi menampilkan
+  // lencana paket — tidak ada yang bisa dipilih.
+  await page.locator('a[href="/daftar"]').first().click();
+  await page.waitForURL("**/daftar", { timeout: 15_000 });
+  const paketLencana = await page.locator('[data-testid="paket-dipilih"]').count();
+  check("F47/30 halaman daftar tidak menampilkan lencana paket", paketLencana === 0, `→ ${paketLencana} lencana`);
+  // Parameter sisa dari tautan lama tidak boleh memunculkan galat — URL yang
+  // sudah dibagikan/di-bookmark orang tetap harus membuka halaman yang benar.
+  await gotoRoute("/daftar?paket=business", 400);
+  const daftarLama = await page.locator("form").count();
+  check("F47/30 tautan lama ?paket= tetap membuka formulir daftar tanpa galat", daftarLama >= 1, `→ ${daftarLama} form`);
   await gotoRoute("/", 600);
 
   // Fase 14e: bukti sosial (badge kompatibilitas, proper noun lintas-bahasa) +
@@ -2697,7 +2714,9 @@ try {
   const enText = await page.innerText("body");
   check(
     "F15 toggle EN menerjemahkan hero + harga ke Inggris",
-    enText.includes("all in one app") && enText.includes("Most popular") && enText.includes("/month"),
+    // "Most popular" hilang bersama kartu bertingkat (Fase 30) — lencana kartu
+    // tunggal kini menyatakan bahwa paketnya memang cuma satu.
+    enText.includes("all in one app") && enText.includes("One plan for everything") && enText.includes("/month"),
     `→ EN tidak lengkap`,
   );
   // Fase 14f: seluruh seksi landing (Showcase/Comparison/Security/FAQ) kini dwibahasa.

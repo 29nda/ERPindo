@@ -6,22 +6,32 @@ import type { AppEnv, Env } from "../src/env";
 import { sha256Hex } from "../src/lib/crypto";
 import { consolidationRoutes } from "../src/routes/consolidation";
 import { SESSION_COOKIE } from "../src/middleware/auth";
-import { wrapSqlite } from "./helpers/memdb";
+import { newTenantDb, wrapSqlite } from "./helpers/memdb";
 
 /**
- * Gerbang paket konsolidasi (Fase 26a temuan J1, dikoreksi Fase 26e).
+ * Akses konsolidasi (Fase 26a temuan J1 → 26e → **paywall dicabut Fase 30**).
  *
- * Tiga cabang, dan cabang PERTAMA-lah yang menjadi alasan berkas ini ada:
- * gerbang versi pertama menjawab 403 "tingkatkan paket" untuk pengguna yang
- * tidak memiliki perusahaan sama sekali. Itu keadaan akun demo publik — viewer
- * di perusahaan demo, pemilik nol tenant — sehingga pengunjung demo yang
- * mengeklik menu Konsolidasi disuguhi tawaran naik paket di dalam demo yang
- * paketnya sudah Enterprise.
+ * ## Apa yang berubah, dan apa yang TIDAK
  *
- * Cacat itu lolos seluruh gerbang mutu karena setiap fixture uji **memiliki**
- * tenant: smoke menguji paywall dengan menurunkan paket tenant milik user, dan
- * tidak ada satu pun uji yang memakai akun tanpa perusahaan. Uji ini menutup
- * lubang fixture itu, bukan sekadar mengunci perilakunya.
+ * Berkas ini dulu mengunci sebuah **paywall**: konsolidasi dijual sebagai
+ * pembeda paket Enterprise, jadi pemilik perusahaan Starter dijawab 403
+ * `plan-upgrade-required`. Paket bertingkat dibubarkan, jadi asersi itu hilang.
+ *
+ * Yang TIDAK boleh ikut hilang — dan karena itulah berkas ini tetap ada — adalah
+ * batas yang sesungguhnya: **kepemilikan**. Endpoint ini di-mount di
+ * `/api/consolidation`, DI LUAR `/api/tenants/:tenantId/`, sehingga
+ * `enforceTenantAccessByPath` tidak menjangkaunya sama sekali. Satu-satunya
+ * yang menahannya adalah klausa `m.role = 'owner'` di kueri.
+ *
+ * Mencabut paywall tanpa membuktikan batas itu masih berdiri akan mengubah
+ * pembongkaran harga menjadi kebocoran data lintas perusahaan — persis kelas
+ * kesalahan yang paling mudah dibuat saat menghapus gerbang.
+ *
+ * Cabang "nol perusahaan" (Fase 26e) tetap diuji: gerbang versi pertama
+ * menjawab 403 "tingkatkan paket" kepada akun demo publik — viewer di
+ * perusahaan demo, pemilik nol tenant — sehingga pengunjung demo yang mengeklik
+ * Konsolidasi disuguhi tawaran naik paket di dalam demo. Cacat itu lolos
+ * seluruh gerbang mutu karena setiap fixture uji lain **memiliki** tenant.
  */
 
 const SESI = "sesi-uji-konsolidasi";
@@ -29,7 +39,7 @@ const SESI = "sesi-uji-konsolidasi";
 let env: Env;
 let app: Hono<AppEnv>;
 
-async function siapkan(tenants: { slug: string; plan: string; role: "owner" | "viewer" }[]) {
+async function siapkan(tenants: { slug: string; role: "owner" | "viewer" }[]) {
   const raw = new DatabaseSync(":memory:");
   const db = wrapSqlite(raw);
   await applyMigrations(db, CONTROL_PLANE_MIGRATIONS);
@@ -49,9 +59,9 @@ async function siapkan(tenants: { slug: string; plan: string; role: "owner" | "v
     await db
       .prepare(
         `INSERT INTO tenants (id, name, slug, db_ref, status, plan, created_at)
-         VALUES (?, ?, ?, 'binding:TENANT_DB_1', 'active', ?, datetime('now'))`,
+         VALUES (?, ?, ?, 'binding:TENANT_DB_1', 'active', 'lengkap', datetime('now'))`,
       )
-      .bind(`t${i}`, `PT ${t.slug}`, t.slug, t.plan)
+      .bind(`t${i}`, `PT ${t.slug}`, t.slug)
       .run();
     await db
       .prepare(`INSERT INTO memberships (id, user_id, tenant_id, role, created_at) VALUES (?, 'u1', ?, ?, datetime('now'))`)
@@ -59,7 +69,12 @@ async function siapkan(tenants: { slug: string; plan: string; role: "owner" | "v
       .run();
   }
 
-  env = { DB: db } as unknown as Env;
+  // Binding DB tenant nyata (skema penuh dari TENANT_MIGRATIONS). Sebelum
+  // Fase 30 ini tak pernah dibutuhkan: uji laporan selalu ditolak paywall
+  // SEBELUM menyentuh database tenant. Tanpa paywall, jalur laporannya kini
+  // benar-benar dijalankan — dan itu justru menjadikan ujinya lebih kuat,
+  // karena ia membuktikan laporan sungguh terbit, bukan sekadar tidak 403.
+  env = { DB: db, TENANT_DB_1: await newTenantDb() } as unknown as Env;
   app = new Hono<AppEnv>();
   app.route("/api/consolidation", consolidationRoutes);
 }
@@ -71,16 +86,20 @@ const companies = () =>
     env as Env,
   );
 
+const labaRugi = () =>
+  app.request(
+    "/api/consolidation/income-statement?from=2026-01-01&to=2026-01-31",
+    { headers: { cookie: `${SESSION_COOKIE}=${SESI}` } },
+    env as Env,
+  );
+
 beforeEach(async () => {
   await siapkan([]);
 });
 
-describe("gerbang paket konsolidasi", () => {
+describe("akses konsolidasi (paywall dicabut Fase 30)", () => {
   it("TANPA perusahaan (keadaan akun demo) → 200 daftar kosong, BUKAN tawaran naik paket", async () => {
-    // Akun demo publik adalah viewer di perusahaan demo dan tidak memiliki
-    // tenant apa pun. Menawarinya "tingkatkan ke Enterprise" di dalam demo
-    // berpaket Enterprise adalah pesan yang salah di layar yang paling terlihat.
-    await siapkan([{ slug: "pt-demo", plan: "enterprise", role: "viewer" }]);
+    await siapkan([{ slug: "pt-demo", role: "viewer" }]);
     const res = await companies();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ companies: [] });
@@ -92,36 +111,66 @@ describe("gerbang paket konsolidasi", () => {
     expect(await res.json()).toEqual({ companies: [] });
   });
 
-  it("pemilik perusahaan STARTER saja → 403 plan-upgrade-required (paywall J1 tetap)", async () => {
-    await siapkan([{ slug: "pt-starter", plan: "starter", role: "owner" }]);
-    const res = await companies();
-    expect(res.status).toBe(403);
-    expect(await res.json()).toMatchObject({ detail: "plan-upgrade-required", requiredPlan: "enterprise" });
-  });
-
-  it("pemilik perusahaan ENTERPRISE → 200 berisi perusahaannya", async () => {
-    await siapkan([{ slug: "pt-ent", plan: "enterprise", role: "owner" }]);
+  it("pemilik satu perusahaan → 200 berisi perusahaannya (tanpa syarat paket)", async () => {
+    await siapkan([{ slug: "pt-satu", role: "owner" }]);
     const res = await companies();
     expect(res.status).toBe(200);
     const body = (await res.json()) as { companies: { tenantId: string }[] };
     expect(body.companies).toHaveLength(1);
   });
 
-  it("campuran: satu Enterprise di antara Starter → tetap berhak", async () => {
+  it("pemilik beberapa perusahaan → semuanya ikut terkonsolidasi", async () => {
     await siapkan([
-      { slug: "pt-starter", plan: "starter", role: "owner" },
-      { slug: "pt-ent", plan: "enterprise", role: "owner" },
+      { slug: "pt-satu", role: "owner" },
+      { slug: "pt-dua", role: "owner" },
     ]);
-    expect((await companies()).status).toBe(200);
+    const res = await companies();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { companies: { tenantId: string }[] };
+    expect(body.companies).toHaveLength(2);
   });
 
-  it("laporan ikut aturan yang sama — bukan hanya daftar perusahaan", async () => {
-    await siapkan([{ slug: "pt-starter", plan: "starter", role: "owner" }]);
-    const res = await app.request(
-      "/api/consolidation/income-statement?from=2026-01-01&to=2026-01-31",
-      { headers: { cookie: `${SESSION_COOKIE}=${SESI}` } },
-      env as Env,
-    );
-    expect(res.status).toBe(403);
+  it("TIDAK ADA lagi respons plan-upgrade-required di jalur mana pun", async () => {
+    // Penegak pencabutan: bila seseorang memasang kembali gerbang paket di
+    // sini, ujinya gagal — bukan diam-diam lolos karena kebetulan tak ada
+    // fixture berpaket rendah lagi.
+    await siapkan([{ slug: "pt-satu", role: "owner" }]);
+    for (const res of [await companies(), await labaRugi()]) {
+      expect(res.status).not.toBe(403);
+      expect(JSON.stringify(await res.json())).not.toContain("plan-upgrade-required");
+    }
+  });
+
+  it("VIEWER tetap tidak ikut mengkonsolidasi — batas kepemilikan masih berdiri", async () => {
+    // Inti pembedaan Fase 30: yang dicabut adalah paywall, BUKAN keamanan.
+    // Rute ini di luar `/api/tenants/:tenantId/`, jadi `enforceTenantAccessByPath`
+    // tidak menjaganya; satu-satunya penahan adalah `m.role = 'owner'`.
+    await siapkan([
+      { slug: "pt-milik-orang-lain", role: "viewer" },
+      { slug: "pt-milik-saya", role: "owner" },
+    ]);
+    const { companies: daftar } = (await (await companies()).json()) as {
+      companies: { tenantId: string; name: string }[];
+    };
+    expect(daftar).toHaveLength(1);
+    expect(daftar[0]!.name).toBe("PT pt-milik-saya");
+  });
+
+  it("laporan konsolidasi benar-benar terbit untuk pemilik", async () => {
+    await siapkan([{ slug: "pt-satu", role: "owner" }]);
+    const res = await labaRugi();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      companies: unknown[];
+      income: unknown[];
+      expense: unknown[];
+      totalIncome: number;
+    };
+    expect(body.companies).toHaveLength(1);
+    expect(Array.isArray(body.income)).toBe(true);
+    expect(Array.isArray(body.expense)).toBe(true);
+    // Perusahaan baru tanpa transaksi → laporan terbit dengan angka nol,
+    // bukan galat. Itulah bedanya "tidak ada data" dengan "tidak boleh akses".
+    expect(body.totalIncome).toBe(0);
   });
 });

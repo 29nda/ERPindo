@@ -1373,8 +1373,8 @@ try {
   const dewiMe = await admin("GET", "/api/auth/me");
   const dewiOwn = dewiMe.json?.memberships?.find((m) => m.tenantSlug?.startsWith("usaha-dewi"));
   check(
-    "register email comped → tenant langsung active + paket enterprise tanpa akhir trial",
-    dewiOwn?.tenantStatus === "active" && dewiOwn?.plan === "enterprise" && dewiOwn?.trialEndsAt === null,
+    "register email comped → tenant langsung active tanpa akhir trial (Fase 30: paket tunggal)",
+    dewiOwn?.tenantStatus === "active" && dewiOwn?.plan === "lengkap" && dewiOwn?.trialEndsAt === null,
     `→ ${JSON.stringify(dewiOwn)}`,
   );
   // Fase 24: pendaftar biasa TIDAK dapat database dan berstatus `provisioning`
@@ -1443,7 +1443,7 @@ try {
   );
 
   // Aktivasi manual (pelanggan transfer bank) HARUS ikut membuatkan database.
-  await owner("POST", `/api/admin/tenants/${tenantBelumBayar}/plan`, { plan: "starter", status: "active" });
+  await owner("POST", `/api/admin/tenants/${tenantBelumBayar}/plan`, { plan: "lengkap", status: "active" });
   const bacaSetelahAktif = await belumBayar("GET", `/api/tenants/${tenantBelumBayar}/products`);
   check(
     "24 aktivasi manual admin membuatkan database → tenant bisa dipakai",
@@ -1455,8 +1455,8 @@ try {
   const dewiMe2 = await admin("GET", "/api/auth/me");
   const dewiCoRow = dewiMe2.json?.memberships?.find((m) => m.tenantId === dewiCo.json?.tenantId);
   check(
-    "perusahaan tambahan comped juga active/enterprise",
-    dewiCoRow?.tenantStatus === "active" && dewiCoRow?.plan === "enterprise" && dewiCoRow?.trialEndsAt === null,
+    "perusahaan tambahan comped juga langsung active",
+    dewiCoRow?.tenantStatus === "active" && dewiCoRow?.plan === "lengkap" && dewiCoRow?.trialEndsAt === null,
     `→ ${JSON.stringify(dewiCoRow)}`,
   );
 
@@ -3764,15 +3764,20 @@ try {
   // --- Konsolidasi multi-perusahaan (Fase 2t) ------------------------------------
   console.log("11n. Konsolidasi multi-perusahaan (laporan gabungan lintas tenant)");
 
-  // Owner "budi" membuat perusahaan kedua di bawah akun yang sama.
-  // Fase 13b: pagar trial (1 perusahaan trial/akun) memblokir ini; multi-entitas
-  // = kapabilitas Enterprise. Buka sesaat via admin set-plan (budi = platform
-  // admin), lalu kembalikan status trial semula agar uji siklus trial di bawah
-  // tak berubah.
-  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, { plan: "enterprise", status: "active" });
+  // Owner "budi" membuat perusahaan kedua di bawah akun yang sama. Pagar
+  // anti-abuse mensyaratkan akun sudah berlangganan, jadi tenant diaktifkan
+  // lewat admin set-plan (budi = platform admin).
+  //
+  // Baris pengembalian di bawahnya dulu berbunyi `{ plan: "trial", status:
+  // "trial" }` — DUA nilai yang sudah dihapus Fase 24. Panggilan itu karena itu
+  // selalu ditolak 400 dan tenant sebenarnya tetap `active` sepanjang suite.
+  // Menormalkannya menjadi nilai yang sah justru mematahkan enam cek form lead
+  // publik 1.800 baris di bawah sini (form hanya melayani tenant
+  // `active`/`past_due`). Jadi pengembaliannya dihapus, bukan diperbaiki:
+  // `active` memang keadaan yang selama ini berlaku.
+  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, { plan: "lengkap", status: "active" });
   const co2 = await owner("POST", "/api/auth/companies", { companyName: "PT Anak Usaha" });
   check("buat perusahaan kedua 201", co2.status === 201, `→ ${co2.status} ${JSON.stringify(co2.json)}`);
-  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, { plan: "trial", status: "trial" });
   const tenant2 = co2.json?.tenantId;
 
   const meMulti = await owner("GET", "/api/auth/me");
@@ -3841,18 +3846,25 @@ try {
   // SATU perusahaan, paketnya diturunkan sementara lalu dikembalikan.
   const viewerOwnTenant = viewerCompanies.json?.companies?.[0]?.tenantId;
   check("26a fixture: user kedua memiliki tepat satu perusahaan", Boolean(viewerOwnTenant));
-  await owner("POST", `/api/admin/tenants/${viewerOwnTenant}/plan`, { plan: "starter", status: "active" });
-  const consStarter = await viewer("GET", "/api/consolidation/companies");
+  await owner("POST", `/api/admin/tenants/${viewerOwnTenant}/plan`, { plan: "lengkap", status: "active" });
+  // Fase 30: paywall konsolidasi DICABUT. Yang diuji kini bukan "paket rendah
+  // ditolak" melainkan "terbuka untuk semua pelanggan, TANPA membocorkan
+  // perusahaan orang lain" — batas kepemilikan adalah satu-satunya penahan
+  // yang tersisa di rute ini.
+  const consTerbuka = await viewer("GET", "/api/consolidation/companies");
   check(
-    "26a Starter DITOLAK konsolidasi 403 plan-upgrade-required (butuh enterprise)",
-    consStarter.status === 403 && consStarter.json?.detail === "plan-upgrade-required" && consStarter.json?.requiredPlan === "enterprise",
-    `→ ${consStarter.status} ${JSON.stringify(consStarter.json)}`,
+    "30 konsolidasi terbuka untuk semua pelanggan (200, bukan 403 upgrade)",
+    consTerbuka.status === 200 && consTerbuka.json?.detail !== "plan-upgrade-required",
+    `→ ${consTerbuka.status} ${JSON.stringify(consTerbuka.json)}`,
   );
-  const consStarterIS = await viewer("GET", "/api/consolidation/income-statement?from=2026-07-01&to=2026-07-31");
-  check("26a Starter DITOLAK laporan konsolidasi juga (bukan hanya daftar)", consStarterIS.status === 403, `→ ${consStarterIS.status}`);
-  await owner("POST", `/api/admin/tenants/${viewerOwnTenant}/plan`, { plan: "enterprise", status: "active" });
-  const consPulihPaket = await viewer("GET", "/api/consolidation/companies");
-  check("26a Enterprise: konsolidasi terbuka kembali (200)", consPulihPaket.status === 200, `→ ${consPulihPaket.status}`);
+  check(
+    "30 konsolidasi HANYA memuat perusahaan milik pemanggil (batas kepemilikan)",
+    Array.isArray(consTerbuka.json?.companies) &&
+      consTerbuka.json.companies.every((k) => k.tenantId === viewerOwnTenant),
+    `→ ${JSON.stringify(consTerbuka.json?.companies)}`,
+  );
+  const consIS30 = await viewer("GET", "/api/consolidation/income-statement?from=2026-07-01&to=2026-07-31");
+  check("30 laporan konsolidasi ikut terbuka (200)", consIS30.status === 200, `→ ${consIS30.status}`);
 
   // Laba Rugi konsolidasi = jumlah laporan tunggal tiap perusahaan (invariant).
   const win = "from=2026-07-01&to=2026-07-31";
@@ -3945,52 +3957,61 @@ try {
     consPulih.json?.totalIncome === consIS.json?.totalIncome && consPulih.json?.eliminatedIncome === 0,
   );
 
-  // --- Fase 13b: penegakan paket (matriks modul × paket) + pagar trial --------
-  // Dipakai perusahaan kedua (tenant2) yang sudah ada agar tidak menabrak batas
-  // pool DB tenant lokal / rate-limit register. Paket disetel via admin (budi =
-  // platform admin); tenant2 dikembalikan ke trial di akhir.
-  console.log("11n2. Penegakan paket langganan (Fase 13b)");
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "starter", status: "active" });
+  // --- Fase 30: SELURUH modul terbuka (dulu matriks modul × paket) -----------
+  // Blok ini dulu menguji matriks penguncian: Starter ditolak payroll, Business
+  // ditolak cost-centers, dan seterusnya. Paket bertingkat dibubarkan, jadi yang
+  // diuji sekarang adalah kebalikannya — bahwa modul yang DULU terkunci kini
+  // benar-benar bisa dipakai lewat HTTP, bukan sekadar tombolnya muncul di layar.
+  //
+  // Ini pembuktian inti Fase 30: paywall dicabut di API, bukan disembunyikan di UI.
+  console.log("11n2. Seluruh modul terbuka pada paket tunggal (Fase 30)");
+  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap", status: "active" });
+
+  const modulDuluTerkunci = [
+    ["employees", "HR & Penggajian (dulu Business)"],
+    ["cost-centers", "Dimensi / cost center (dulu Enterprise)"],
+    ["currencies", "Multi mata uang (dulu Business)"],
+    ["security", "Keamanan lanjutan (dulu Enterprise)"],
+    ["api-keys", "API publik (dulu Enterprise)"],
+    ["requisitions", "Pengadaan (dulu Business)"],
+    ["report-snapshots", "Laporan terjadwal (dulu Business)"],
+    ["departments", "Struktur organisasi (dulu Business)"],
+  ];
+  for (const [segmen, label] of modulDuluTerkunci) {
+    const res = await owner("GET", `/api/tenants/${tenant2}/${segmen}`);
+    check(
+      `30 ${label} terbuka (200, bukan 403 upgrade)`,
+      res.status === 200 && res.json?.detail !== "plan-upgrade-required",
+      `→ ${res.status} ${JSON.stringify(res.json)}`,
+    );
+  }
+
   const starterCore = await owner("GET", `/api/tenants/${tenant2}/accounts`);
-  check("Starter: modul inti (akun) tetap terbuka (200)", starterCore.status === 200, `→ ${starterCore.status}`);
-  const starterPayroll = await owner("GET", `/api/tenants/${tenant2}/employees`);
-  check(
-    "Starter: modul Business (payroll) → 403 plan-upgrade-required (butuh business)",
-    starterPayroll.status === 403 && starterPayroll.json?.detail === "plan-upgrade-required" && starterPayroll.json?.requiredPlan === "business",
-    `→ ${starterPayroll.status} ${JSON.stringify(starterPayroll.json)}`,
-  );
-  const starterDim = await owner("GET", `/api/tenants/${tenant2}/cost-centers`);
-  check(
-    "Starter: modul Enterprise (cost-centers) → 403 upgrade (butuh enterprise)",
-    starterDim.status === 403 && starterDim.json?.requiredPlan === "enterprise",
-    `→ ${starterDim.status} ${JSON.stringify(starterDim.json)}`,
-  );
-  // Fase 26a (temuan audit G): segmen `roles` tidak pernah dipetakan ke modul
-  // mana pun, sehingga peran kustom — pembeda paket Business — terbuka untuk
-  // Starter lewat API. Yang menutupinya selama ini hanya menu di layar.
-  const starterRoles = await owner("POST", `/api/tenants/${tenant2}/roles`, {
-    name: "Coba Starter",
+  check("30 modul inti (akun) tetap terbuka (200)", starterCore.status === 200, `→ ${starterCore.status}`);
+
+  // Peran kustom (temuan audit G Fase 26a) dulu terkunci paket Business.
+  const rolesTerbuka = await owner("POST", `/api/tenants/${tenant2}/roles`, {
+    name: "Peran Fase 30",
     baseRole: "viewer",
     permissions: ["penjualan"],
   });
   check(
-    "26a Starter: peran kustom → 403 plan-upgrade-required (butuh business)",
-    starterRoles.status === 403 && starterRoles.json?.detail === "plan-upgrade-required" && starterRoles.json?.requiredPlan === "business",
-    `→ ${starterRoles.status} ${JSON.stringify(starterRoles.json)}`,
+    "30 peran kustom terbuka (201, bukan 403 upgrade)",
+    rolesTerbuka.status === 201 && rolesTerbuka.json?.detail !== "plan-upgrade-required",
+    `→ ${rolesTerbuka.status} ${JSON.stringify(rolesTerbuka.json)}`,
   );
 
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "business", status: "active" });
-  const bizPayroll = await owner("GET", `/api/tenants/${tenant2}/employees`);
-  check("Business: modul payroll kini terbuka (bukan 403 upgrade)", !(bizPayroll.status === 403 && bizPayroll.json?.detail === "plan-upgrade-required"), `→ ${bizPayroll.status}`);
-  const bizDim = await owner("GET", `/api/tenants/${tenant2}/cost-centers`);
-  check("Business: modul Enterprise (cost-centers) tetap 403 upgrade", bizDim.status === 403 && bizDim.json?.detail === "plan-upgrade-required", `→ ${bizDim.status}`);
+  // Penegak pencabutan: kode galat paket tidak boleh muncul lagi di jalur mana pun.
+  const jalurPeriksa = ["employees", "cost-centers", "security", "api-keys", "roles"];
+  let sisaPaywall = 0;
+  for (const segmen of jalurPeriksa) {
+    const res = await owner("GET", `/api/tenants/${tenant2}/${segmen}`);
+    if (res.json?.detail === "plan-upgrade-required") sisaPaywall++;
+  }
+  check("30 TIDAK ada sisa respons plan-upgrade-required di API", sisaPaywall === 0, `→ ${sisaPaywall} jalur masih menolak`);
 
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "enterprise", status: "active" });
-  const entDim = await owner("GET", `/api/tenants/${tenant2}/cost-centers`);
-  check("Enterprise: modul cost-centers terbuka (bukan 403 upgrade)", !(entDim.status === 403 && entDim.json?.detail === "plan-upgrade-required"), `→ ${entDim.status}`);
-
-  // --- Fase 13g: keamanan enterprise (2FA wajib + pembatasan IP + audit CSV) ---
-  // tenant2 kini Enterprise → modul advancedSecurity terbuka.
+  // --- Fase 13g: keamanan lanjutan (2FA wajib + pembatasan IP + audit CSV) ---
+  // Sejak Fase 30 modul ini terbuka untuk semua pelanggan.
   console.log("10s. Keamanan enterprise (2FA wajib, pembatasan IP, ekspor audit CSV)");
   const secGet0 = await owner("GET", `/api/tenants/${tenant2}/security`);
   check(
@@ -3998,16 +4019,6 @@ try {
     secGet0.status === 200 && secGet0.json?.require2fa === false && Array.isArray(secGet0.json?.allowedIps) && secGet0.json.allowedIps.length === 0 && typeof secGet0.json?.currentIp === "string",
     `→ ${secGet0.status} ${JSON.stringify(secGet0.json)}`,
   );
-
-  // Paket di bawah Enterprise → /security 403 plan-upgrade-required.
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "business", status: "active" });
-  const secGated = await owner("GET", `/api/tenants/${tenant2}/security`);
-  check(
-    "keamanan: paket Business → /security 403 upgrade (butuh Enterprise)",
-    secGated.status === 403 && secGated.json?.detail === "plan-upgrade-required" && secGated.json?.requiredPlan === "enterprise",
-    `→ ${secGated.status} ${JSON.stringify(secGated.json)}`,
-  );
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "enterprise", status: "active" });
 
   // Validasi CIDR pada PATCH.
   const secBadIp = await owner("PATCH", `/api/tenants/${tenant2}/security`, { require2fa: false, allowedIps: ["999.1.1.1"] });
@@ -4102,12 +4113,16 @@ try {
   const afterRevoke = await v1("GET", "/products", undefined, readKey);
   check("api: kunci dicabut → 401", afterRevoke.status === 401, `→ ${afterRevoke.status}`);
 
-  // Plan gate: turunkan tenant2 ke Business → key tenant2 ditolak plan-upgrade.
+  // Fase 30: API publik dulu terkunci paket Enterprise. Kini kuncinya semata
+  // kepemilikan API key yang sah + skop-nya — jadi yang diuji adalah kunci sah
+  // milik tenant lain BERHASIL, bukan ditolak paket.
   const t2Key = await owner("POST", `/api/tenants/${tenant2}/api-keys`, { name: "K2", scope: "read" });
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "business", status: "active" });
   const gated = await v1("GET", "/products", undefined, t2Key.json?.key);
-  check("api: paket Business → 403 plan-upgrade-required", gated.status === 403 && gated.json?.detail === "plan-upgrade-required", `→ ${gated.status} ${JSON.stringify(gated.json)}`);
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "enterprise", status: "active" });
+  check(
+    "30 API publik terbuka untuk kunci sah (200, bukan 403 upgrade)",
+    gated.status === 200 && gated.json?.detail !== "plan-upgrade-required",
+    `→ ${gated.status} ${JSON.stringify(gated.json)}`,
+  );
 
   // --- Fase 26d (temuan audit E): kebijakan tujuan webhook ------------------------
   //
@@ -4188,17 +4203,21 @@ try {
   const dnInv3 = await owner("POST", `/api/tenants/${tenantId}/invoices`, { contactId: customer.json.id, invoiceDate: "2026-07-24", taxRate: 0, warehouseId: whUtama.id, lines: [{ productId: svcWh.json.id, qty: 1, unitPrice: 50000 }] });
   check("penomoran: setelah reset, faktur kembali format bawaan INV-", /^INV-\d{5}$/.test(dnInv3.json?.docNo ?? ""), `→ ${dnInv3.json?.docNo}`);
 
-  // Grandfather: legacy_full_access membuka semua walau paket Starter.
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "starter", status: "active", legacyFullAccess: true });
+  // Grandfather (Fase 30): `legacy_full_access` tidak lagi membuka modul —
+  // seluruh modul memang sudah terbuka. Penandanya DIPERTAHANKAN karena masih
+  // dipakai jalur comped & lencana pelanggan awal; yang diuji di sini adalah
+  // menyetelnya tidak MERUSAK akses, bukan bahwa ia yang memberikannya.
+  const setLegacy = await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap", status: "active", legacyFullAccess: true });
+  check("30 set legacy_full_access 200", setLegacy.status === 200, `→ ${setLegacy.status}`);
   const legacyPayroll = await owner("GET", `/api/tenants/${tenant2}/employees`);
-  check("Grandfather: legacy_full_access buka modul walau paket Starter", !(legacyPayroll.status === 403 && legacyPayroll.json?.detail === "plan-upgrade-required"), `→ ${legacyPayroll.status}`);
+  check("30 legacy_full_access: modul tetap terbuka (200)", legacyPayroll.status === 200, `→ ${legacyPayroll.status}`);
 
   // set-plan hanya untuk platform admin (dewi comped = admin biasa, bukan platform admin).
-  const notAdminSetPlan = await admin("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "enterprise" });
+  const notAdminSetPlan = await admin("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap" });
   check("set-plan oleh non-admin platform → 403", notAdminSetPlan.status === 403, `→ ${notAdminSetPlan.status}`);
 
   // Kembalikan tenant2 ke starter (bebas legacy) agar uji siklus di bawah tak berubah.
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "starter", status: "active", legacyFullAccess: false });
+  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap", status: "active", legacyFullAccess: false });
 
 
   // --- Manufaktur + QC (Fase 2u) -------------------------------------------------
@@ -5773,7 +5792,7 @@ try {
   // tenggang tenant memang masih boleh menulis, dan itu perilaku yang benar.
   const kemarinLama = new Date(Date.now() - 10 * 86_400_000).toISOString();
   await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
-    plan: "enterprise",
+    plan: "lengkap",
     status: "active",
     subscriptionEndsAt: kemarinLama,
   });
@@ -6539,17 +6558,17 @@ try {
     `→ ${JSON.stringify({ total: migrate.json?.total, migrated: migrate.json?.migrated, failed: migrate.json?.failed })}`,
   );
 
-  // --- Fase 13a: gerbang paket tidak memblokir tenant TRIAL (akses penuh) ---
+  // --- Fase 30: tidak ada gerbang paket tersisa di tenant mana pun ---------
   const gateEmployees = await owner("GET", `/api/tenants/${tenantId}/employees`);
   check(
-    "gerbang paket: tenant trial boleh akses modul Business (employees bukan 403 upgrade)",
-    !(gateEmployees.status === 403 && gateEmployees.json?.detail === "plan-upgrade-required"),
+    "30 employees terbuka tanpa syarat paket",
+    gateEmployees.status === 200 && gateEmployees.json?.detail !== "plan-upgrade-required",
     `→ ${gateEmployees.status} ${gateEmployees.json?.detail ?? ""}`,
   );
   const gateCostCenters = await owner("GET", `/api/tenants/${tenantId}/cost-centers`);
   check(
-    "gerbang paket: tenant trial boleh akses modul Enterprise (cost-centers bukan 403 upgrade)",
-    !(gateCostCenters.status === 403 && gateCostCenters.json?.detail === "plan-upgrade-required"),
+    "30 cost-centers terbuka tanpa syarat paket",
+    gateCostCenters.status === 200 && gateCostCenters.json?.detail !== "plan-upgrade-required",
     `→ ${gateCostCenters.status} ${gateCostCenters.json?.detail ?? ""}`,
   );
 
@@ -6565,7 +6584,7 @@ try {
   // Checkout paket (Fase 13b): kirim paket valid; tanpa kunci Xendit → 503.
   const billCheckoutBadPlan = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan: "gratis" });
   check("billing checkout paket tak dikenal → 400", billCheckoutBadPlan.status === 400, `→ HTTP ${billCheckoutBadPlan.status}`);
-  const billCheckoutOwner = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan: "business" });
+  const billCheckoutOwner = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan: "lengkap" });
   check("billing checkout tanpa konfigurasi Xendit → 503", billCheckoutOwner.status === 503, `→ HTTP ${billCheckoutOwner.status}`);
   // Dewi = anggota admin (bukan owner) di tenant ini → ditolak mengatur langganan.
   const billCheckoutAdmin = await admin("POST", `/api/tenants/${tenantId}/billing/checkout`);
@@ -6597,80 +6616,47 @@ try {
     `→ HTTP ${billWebhookTokenAcak.status}`,
   );
 
-  // --- Fase 20k: ganti paket dengan prorata ---------------------------------
-  // Tanpa siklus berjalan, prorata tidak berlaku — dan yang penting BUKAN
-  // sekadar "angkanya 0" melainkan `bisaProrata:false`, karena 0 tanpa penanda
-  // itu berarti naik paket GRATIS.
-  const proTrial = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=business`);
-  check(
-    "prorata tanpa langganan aktif: bisaProrata=false, tidak menagih",
-    proTrial.status === 200 && proTrial.json?.bisaProrata === false && proTrial.json?.bayarSekarang === 0,
-    `→ ${JSON.stringify(proTrial.json)}`,
-  );
-  const proTrialChange = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "business" });
-  check(
-    "ganti paket tanpa langganan aktif DITOLAK 400 (diarahkan ke pembelian biasa)",
-    proTrialChange.status === 400,
-    `→ ${proTrialChange.status} ${proTrialChange.json?.error ?? ""}`,
-  );
+  // --- Fase 30: ganti paket DICABUT ----------------------------------------
+  // Blok ini dulu menguji prorata naik/turun paket. Dengan satu paket tidak ada
+  // paket lain untuk dituju, jadi yang diuji sekarang adalah bahwa endpoint-nya
+  // benar-benar HILANG — bukan sekadar tidak dipanggil UI. Endpoint yang masih
+  // hidup tetapi tak terpakai adalah permukaan serang tanpa pemilik.
+  const proHilang = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=lengkap`);
+  check("30 endpoint pratinjau prorata sudah tidak ada (404)", proHilang.status === 404, `→ ${proHilang.status}`);
+  const gantiHilang = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "lengkap" });
+  check("30 endpoint ganti paket sudah tidak ada (404)", gantiHilang.status === 404, `→ ${gantiHilang.status}`);
 
-  // Aktifkan siklus berjalan 15 hari pada paket starter lewat admin platform.
+  // Jalur uang yang TERSISA harus tetap utuh: admin platform boleh menyetel
+  // periode langganan, dan status billing memantulkannya dengan harga tunggal.
   const akhirPeriode = new Date(Date.now() + 15 * 86_400_000).toISOString();
   const setPeriode = await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
-    plan: "starter", status: "active", subscriptionEndsAt: akhirPeriode,
+    plan: "lengkap", status: "active", subscriptionEndsAt: akhirPeriode,
   });
   check("admin platform menyetel akhir periode langganan 200", setPeriode.status === 200);
-
-  const proNaik = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=business`);
+  const billTunggal = await owner("GET", `/api/tenants/${tenantId}/billing`);
   check(
-    "prorata naik starter→business, sisa 15 hari: ditagih 250.000 (selisih × 15/30)",
-    proNaik.json?.arah === "naik" && proNaik.json?.sisaHari === 15 &&
-      proNaik.json?.bayarSekarang === 250_000 && proNaik.json?.berlakuMulai === "sekarang",
-    `→ ${JSON.stringify(proNaik.json)}`,
+    "30 status billing: paket 'lengkap' berharga 499.000, tanpa sisa pendingPlan",
+    billTunggal.json?.plan === "lengkap" &&
+      billTunggal.json?.pricePerMonth === 499_000 &&
+      billTunggal.json?.pendingPlan === undefined,
+    `→ ${JSON.stringify({ plan: billTunggal.json?.plan, harga: billTunggal.json?.pricePerMonth, pending: billTunggal.json?.pendingPlan })}`,
   );
-  // Pratinjau TIDAK boleh mengubah apa pun — ini yang membuatnya aman ditekan.
-  const billSetelahPratinjau = await owner("GET", `/api/tenants/${tenantId}/billing`);
-  check(
-    "pratinjau prorata tidak mengubah paket maupun tagihan apa pun",
-    billSetelahPratinjau.json?.plan === "starter" && billSetelahPratinjau.json?.pendingPlan === null,
-    `→ ${JSON.stringify({ plan: billSetelahPratinjau.json?.plan, pending: billSetelahPratinjau.json?.pendingPlan })}`,
-  );
-  const proNaikExec = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "business" });
-  check("naik paket tanpa konfigurasi Xendit → 503 (degradasi anggun)", proNaikExec.status === 503, `→ ${proNaikExec.status}`);
-  const proSama = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "starter" });
-  check("ganti ke paket yang sudah aktif DITOLAK 400", proSama.status === 400, `→ ${proSama.status}`);
 
-  // Turun paket: dijadwalkan, TIDAK menagih, dan paket berjalan tidak berubah.
+  // Bersihkan akhir periode agar asersi langganan di bawah tidak terganggu —
+  // TETAPI status dibiarkan `active`.
+  //
+  // Baris ini dulu berbunyi `{ plan: "trial", status: "trial" }`. Status `trial`
+  // sudah dihapus Fase 24, jadi panggilan itu **ditolak 400 tanpa ada yang
+  // memeriksanya** dan tenant sebenarnya tetap `active` selama ini. Menuliskan
+  // status yang sah di sini (`provisioning`) justru MEMATAHKAN enam cek di
+  // bawahnya — form lead publik hanya melayani tenant `active`/`past_due` —
+  // karena ia mengubah keadaan yang selama ini tak pernah benar-benar berubah.
+  //
+  // Jadi yang benar bukan "perbaiki nama statusnya", melainkan berhenti
+  // menurunkan status sama sekali: itulah perilaku yang sesungguhnya berlaku
+  // sepanjang suite ini hijau.
   await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
-    plan: "enterprise", status: "active", subscriptionEndsAt: akhirPeriode,
-  });
-  const proTurun = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=starter`);
-  check(
-    "prorata turun: tanpa tagihan, berlaku akhir periode",
-    proTurun.json?.arah === "turun" && proTurun.json?.bayarSekarang === 0 &&
-      proTurun.json?.berlakuMulai === "akhir-periode",
-    `→ ${JSON.stringify(proTurun.json)}`,
-  );
-  const proTurunExec = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "starter" });
-  check(
-    "turun paket dijadwalkan 200 tanpa Xendit (tak butuh pembayaran)",
-    proTurunExec.status === 200 && proTurunExec.json?.pendingPlan === "starter",
-    `→ ${proTurunExec.status} ${JSON.stringify(proTurunExec.json)}`,
-  );
-  const billTurun = await owner("GET", `/api/tenants/${tenantId}/billing`);
-  check(
-    "paket BERJALAN tetap enterprise sampai akhir periode; penurunan tercatat sebagai pendingPlan",
-    billTurun.json?.plan === "enterprise" && billTurun.json?.pendingPlan === "starter",
-    `→ ${JSON.stringify({ plan: billTurun.json?.plan, pending: billTurun.json?.pendingPlan })}`,
-  );
-  const proTurunAdmin = await admin("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "starter" });
-  check("ganti paket oleh non-Pemilik → 403", proTurunAdmin.status === 403, `→ ${proTurunAdmin.status}`);
-  const proBadPlan = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=gratis`);
-  check("pratinjau prorata paket tak dikenal → 400", proBadPlan.status === 400, `→ ${proBadPlan.status}`);
-
-  // Kembalikan tenant ke trial agar asersi lain di bawah tidak terganggu.
-  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
-    plan: "trial", status: "trial", subscriptionEndsAt: null,
+    plan: "lengkap", status: "active", subscriptionEndsAt: null,
   });
 
   // Fase 11d: payment collection link (tanpa Xendit → degradasi anggun).
@@ -6824,6 +6810,51 @@ try {
     `→ ${landingHtml.includes('"@type":"FAQPage"')}`,
   );
   check("SEO landing: canonical + noscript konten untuk crawler tanpa JS", landingHtml.includes('rel="canonical"') && landingHtml.includes("<noscript>"), `→ ${landingHtml.includes("<noscript>")}`);
+
+  // --- Fase 30: halaman publik tidak boleh menyebut paket yang sudah tidak ada
+  //
+  // Ini penegak, bukan kosmetik. Harga hidup di TIGA tempat yang berbeda —
+  // `PLAN_LIMITS`, JSON-LD SSR (`landingSeo.ts`), dan kalimat noscript — dan
+  // sebelumnya ketiganya menyebut Starter/Business/Enterprise secara harfiah.
+  // Melewatkan salah satunya berarti Google mengindeks paket yang tidak dijual
+  // sementara halamannya menampilkan yang benar; pengunjung datang membawa
+  // harapan yang tidak bisa dipenuhi produk.
+  // `BusinessApplication` DIKECUALIKAN: itu nilai baku schema.org untuk
+  // `applicationCategory`, bukan nama paket. Tanpa pengecualian ini penegaknya
+  // memerah selamanya karena hal yang benar — dan cek yang selalu merah akan
+  // dimatikan orang, bukan diperbaiki.
+  const htmlTanpaSchema = landingHtml.replaceAll("BusinessApplication", "");
+  const paketLama = ["Starter", "Business", "Enterprise"];
+  const sisaNamaPaket = paketLama.filter((nama) => htmlTanpaSchema.includes(nama));
+  check(
+    "30 SSR landing tidak menyebut nama paket lama di mana pun",
+    sisaNamaPaket.length === 0,
+    `→ masih menyebut: ${sisaNamaPaket.join(", ")}`,
+  );
+  check(
+    "30 SSR landing menyatakan satu harga tunggal per perusahaan",
+    landingHtml.includes("499.000") && /[Ss]atu paket, satu harga/.test(landingHtml),
+    `→ harga=${landingHtml.includes("499.000")}`,
+  );
+  check(
+    "30 JSON-LD memuat TEPAT satu Offer (bukan tiga)",
+    (landingHtml.match(/"@type":"Offer"/g) ?? []).length === 1,
+    `→ ${(landingHtml.match(/"@type":"Offer"/g) ?? []).length} Offer`,
+  );
+  check(
+    "30 FAQ SSR tidak lagi menjanjikan pilihan paket bertingkat",
+    !/paket bertingkat/i.test(landingHtml) && !/tiga paket/i.test(landingHtml),
+    `→ bertingkat=${/paket bertingkat/i.test(landingHtml)}`,
+  );
+  // Kuota AI ikut menjadi satu angka: kartu langganan & pesan galat membacanya
+  // dari PLAN_LIMITS, jadi nilai yang salah muncul di layar pelanggan.
+  const meAI = await owner("GET", "/api/auth/me");
+  check(
+    "30 /auth/me: seluruh keanggotaan berpaket 'lengkap'",
+    (meAI.json?.memberships ?? []).length > 0 &&
+      (meAI.json?.memberships ?? []).every((m) => m.plan === "lengkap"),
+    `→ ${JSON.stringify((meAI.json?.memberships ?? []).map((m) => m.plan))}`,
+  );
 
   // Fase 18f — /fitur mendapat perlakuan SEO yang sama dengan halaman depan.
   // Diperiksa terpisah karena tiga hal harus benar SEKALIGUS supaya halaman ini

@@ -1,14 +1,9 @@
 import {
   ipAllowed,
   izinRute,
-  MODULE_LABELS,
-  minPlanForModule,
   PERMISSION_LABELS,
-  PLAN_LABELS,
-  planIncludesModule,
   PRESET_PERMISSIONS,
   ROLE_LEVEL,
-  type ModuleKey,
   type PermissionKey,
   type Plan,
   type Role,
@@ -212,52 +207,8 @@ export function requireTenantRole(minRole: Role): MiddlewareHandler<AppEnv> {
 }
 
 /**
- * Penegakan paket langganan (Fase 13a). Modul operasional/skala hanya terbuka
- * pada paket yang mencakupnya; di bawahnya → 403 `plan-upgrade-required` berisi
- * paket minimum (dipakai UI untuk kartu upsell, bukan error keras).
- *
- * Bersifat ADITIF & tidak membocorkan info: hanya menambahkan penolakan paket.
- * Semua urusan auth/keanggotaan/read-only diserahkan ke requireTenantRole yang
- * berjalan setelahnya (via planGated) — sesi buruk / bukan anggota jatuh ke
- * pesan standarnya, bukan ke pesan paket.
- */
-export function requirePlanModule(module: ModuleKey): MiddlewareHandler<AppEnv> {
-  return async (c, next) => {
-    const tenantId = c.req.param("tenantId");
-    const raw = getCookie(c, SESSION_COOKIE);
-    if (!tenantId || !raw) return next();
-
-    const sessionId = await sha256Hex(raw);
-    const row = await c.env.DB.prepare(
-      `SELECT t.plan, t.legacy_full_access, s.expires_at
-       FROM sessions s
-       JOIN memberships m ON m.user_id = s.user_id
-       JOIN tenants t ON t.id = m.tenant_id
-       WHERE s.id = ? AND m.tenant_id = ?`,
-    )
-      .bind(sessionId, tenantId)
-      .first<{ plan: Plan; legacy_full_access: number; expires_at: string }>();
-
-    // Sesi tak valid / bukan anggota → biarkan requireTenantRole yang menjawab.
-    if (!row || new Date(row.expires_at).getTime() < Date.now()) return next();
-    if (row.legacy_full_access === 1) return next();
-    if (!planIncludesModule(row.plan, module)) {
-      return c.json(
-        {
-          error: `Modul ${MODULE_LABELS[module]} tersedia mulai paket ${PLAN_LABELS[minPlanForModule(module)]}. Tingkatkan paket untuk membukanya.`,
-          detail: "plan-upgrade-required",
-          module,
-          requiredPlan: minPlanForModule(module),
-        },
-        403,
-      );
-    }
-    await next();
-  };
-}
-
-/**
- * Penegakan paket + izin RBAC berbasis registri (Fase 26a).
+ * Penegakan izin RBAC berbasis registri (Fase 26a; penegakan paket dicabut
+ * Fase 30).
  *
  * SATU middleware global di `/api/tenants/:tenantId/*`. Peta segmen → modul yang
  * dulu tinggal di berkas ini dipindahkan ke `TENANT_ROUTE_ACCESS`
@@ -271,9 +222,9 @@ export function requirePlanModule(module: ModuleKey): MiddlewareHandler<AppEnv> 
  * memanggil akuntansi/penggajian/pengadaan langsung lewat API — pembatasnya
  * hanya menu di layar, dan menu bukan penjaga keamanan.
  *
- * Urutannya disengaja: paket dulu, baru izin. Tenant Starter yang menyentuh
- * modul Business harus melihat "tingkatkan paket" (yang bisa ia tindaklanjuti),
- * bukan "peran Anda tidak punya akses" (yang menyesatkan).
+ * Fase 30 mencabut lapis paketnya (`requirePlanModule`) karena hanya ada satu
+ * paket dan seluruh modul terbuka. Yang tersisa — dan yang sejak awal menjadi
+ * batas keamanan sesungguhnya — adalah izin RBAC di bawah ini.
  *
  * Segmen yang tidak dikenal dilewatkan begitu saja — sama seperti perilaku lama.
  * Yang menjaga agar itu tidak menjadi lubang adalah uji kelengkapan tadi, bukan
@@ -283,17 +234,6 @@ export const enforceTenantAccessByPath: MiddlewareHandler<AppEnv> = async (c, ne
   const segment = c.req.path.split("/")[4] ?? ""; // ["", "api", "tenants", id, segment, ...]
   const aturan = izinRute(segment, c.req.method);
   if (!aturan) return next();
-
-  if (aturan.akses.modul) {
-    // `requirePlanModule` sudah ada dan menjawab 403 `plan-upgrade-required`
-    // sendiri; dipanggil dengan `next` boneka supaya penolakannya bisa
-    // dikembalikan apa adanya tanpa menyalin logikanya ke sini.
-    let paketLolos = false;
-    const tolakPaket = await requirePlanModule(aturan.akses.modul)(c, async () => {
-      paketLolos = true;
-    });
-    if (!paketLolos) return tolakPaket;
-  }
 
   const tolakIzin = await periksaIzin(c, aturan.izin);
   if (tolakIzin) return tolakIzin;

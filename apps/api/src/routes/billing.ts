@@ -1,5 +1,5 @@
 import type { ApiSubscriptionInvoice, BillingStatus, Plan, Role, TenantStatus } from "@erpindo/shared";
-import { changePlanSchema, checkoutSchema, hitungProrata, PLAN_LABELS, PLAN_LIMITS } from "@erpindo/shared";
+import { checkoutSchema, PLAN_LABELS, PLAN_LIMITS } from "@erpindo/shared";
 import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { audit } from "../lib/audit";
@@ -240,9 +240,6 @@ export const billingRoutes = new Hono<AppEnv>()
       subscriptionEndsAt: m.row.subscription_ends_at,
       pricePerMonth: PLAN_LIMITS[m.row.plan].pricePerMonth,
       legacyFullAccess: m.row.legacy_full_access === 1,
-      // Fase 20k: penurunan paket yang menunggu akhir periode. Ditampilkan
-      // supaya pemilik tidak bingung melihat paket lamanya masih aktif.
-      pendingPlan: m.row.pending_plan,
       invoices: results.map(toApiInvoice),
     };
     return c.json(body);
@@ -292,104 +289,16 @@ export const billingRoutes = new Hono<AppEnv>()
     return c.json({ orderId, redirectUrl }, 201);
   })
 
-  // --- Ganti paket dengan prorata (Fase 20k) --------------------------------
+  // --- PENCABUTAN ganti paket (Fase 30) -------------------------------------
   //
-  // Dua endpoint dengan sengaja: pratinjau yang TIDAK menagih apa pun, lalu
-  // eksekusi. Pemilik harus bisa melihat angkanya sebelum memutuskan — layar
-  // yang baru menampilkan tagihan setelah tombolnya ditekan akan membuat orang
-  // takut menekan tombolnya sama sekali.
-  .get("/:tenantId/billing/prorata", requireAuth, async (c) => {
-    const m = await loadMembership(c);
-    if (!m) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
-    const parsed = changePlanSchema.safeParse({ plan: c.req.query("plan") });
-    if (!parsed.success) return c.json({ error: "Paket tidak valid." }, 400);
-    const hasil = hitungProrata({
-      planSekarang: m.row.plan,
-      planBaru: parsed.data.plan,
-      berakhirPada: m.row.subscription_ends_at,
-    });
-    return c.json({ ...hasil, planSekarang: m.row.plan, planBaru: parsed.data.plan });
-  })
-
-  .post("/:tenantId/billing/change-plan", requireAuth, async (c) => {
-    const m = await loadMembership(c);
-    if (!m) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
-    if (m.row.role !== "owner") return c.json({ error: "Hanya Pemilik yang dapat mengatur langganan." }, 403);
-    const parsed = changePlanSchema.safeParse(await c.req.json().catch(() => ({})));
-    if (!parsed.success) return c.json({ error: "Paket tidak valid." }, 400);
-    const planBaru = parsed.data.plan;
-    const user = c.get("user");
-
-    const hasil = hitungProrata({
-      planSekarang: m.row.plan,
-      planBaru,
-      berakhirPada: m.row.subscription_ends_at,
-    });
-
-    // Tanpa siklus berjalan tidak ada yang bisa diprorata — arahkan ke
-    // pembelian biasa daripada memberi kenaikan paket gratis.
-    if (!hasil.bisaProrata) {
-      return c.json(
-        { error: "Belum ada langganan aktif untuk diprorata. Gunakan pembelian paket biasa." },
-        400,
-      );
-    }
-    if (hasil.arah === "sama") return c.json({ error: "Paket tersebut sudah aktif." }, 400);
-
-    // Turun paket: dijadwalkan, tanpa tagihan, tanpa refund. Tenant tetap
-    // memakai paket lamanya sampai periode yang sudah dibayar habis.
-    if (hasil.arah === "turun") {
-      await c.env.DB.prepare(`UPDATE tenants SET pending_plan = ? WHERE id = ?`)
-        .bind(planBaru, m.tenantId)
-        .run();
-      await audit(c.env, {
-        action: "billing.plan.scheduled",
-        userId: user.id,
-        tenantId: m.tenantId,
-        detail: { dari: m.row.plan, ke: planBaru, mulai: m.row.subscription_ends_at },
-        ip: clientIp(c),
-      });
-      return c.json({
-        arah: hasil.arah,
-        berlakuMulai: "akhir-periode",
-        pendingPlan: planBaru,
-        efektifPada: m.row.subscription_ends_at,
-      });
-    }
-
-    // Naik paket: ditagih selisihnya untuk sisa hari.
-    if (!billingConfigured(c.env)) {
-      return c.json({ error: "Pembayaran online belum dikonfigurasi. Hubungi kami untuk aktivasi." }, 503);
-    }
-    const orderId = `upg-${m.tenantId.slice(0, 8)}-${Date.now()}`;
-    const bayar = await buatInvoiceXendit(c.env, {
-      orderId,
-      amount: hasil.bayarSekarang,
-      itemName: `Naik paket ke ${PLAN_LABELS[planBaru]} (${hasil.sisaHari} hari tersisa)`,
-      customerEmail: user.email,
-      customerName: user.name,
-      finishUrl: `${appOrigin(c)}/app/pengaturan`,
-    });
-    if (!bayar.ok) return c.json({ error: bayar.error }, 502);
-
-    await c.env.DB.prepare(
-      `INSERT INTO subscription_invoices (id, tenant_id, order_id, amount, period_months, status, plan, redirect_url, created_by, is_prorata)
-       VALUES (?, ?, ?, ?, 0, 'pending', ?, ?, ?, 1)`,
-    )
-      .bind(crypto.randomUUID(), m.tenantId, orderId, hasil.bayarSekarang, planBaru, bayar.redirectUrl, user.id)
-      .run();
-    await audit(c.env, {
-      action: "billing.plan.upgrade",
-      userId: user.id,
-      tenantId: m.tenantId,
-      detail: { dari: m.row.plan, ke: planBaru, orderId, amount: hasil.bayarSekarang, sisaHari: hasil.sisaHari },
-      ip: clientIp(c),
-    });
-    return c.json(
-      { arah: hasil.arah, orderId, redirectUrl: bayar.redirectUrl, amount: hasil.bayarSekarang, sisaHari: hasil.sisaHari },
-      201,
-    );
-  });
+  // `GET /billing/prorata` (pratinjau) dan `POST /billing/change-plan` (eksekusi)
+  // dihapus bersama seluruh mesin prorata. Dengan satu paket tidak ada paket
+  // lain untuk dituju: pratinjau selalu "sama", dan eksekusinya selalu ditolak.
+  //
+  // Yang TETAP: `POST /billing/checkout` di atas — jalur beli/perpanjang
+  // langganan. Itulah satu-satunya jalur uang yang tersisa, dan ia sengaja
+  // tidak disentuh perubahan ini.
+  ;
 
 /**
  * Status invoice Xendit yang berarti "uangnya sudah masuk".

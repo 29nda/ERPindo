@@ -105,14 +105,16 @@ export const tenantRoutes = new Hono<AppEnv>()
     const planRow = await c.env.DB.prepare(`SELECT plan FROM tenants WHERE id = ?`)
       .bind(tenant.id)
       .first<{ plan: Plan }>();
-    const plan: Plan = planRow?.plan ?? "starter";
+    // Tenant selalu punya paket (setiap INSERT mengisinya, dan migrasi
+    // 0017 menormalkan baris lama), jadi fallback ini murni penjaga tipe.
+    const plan: Plan = planRow?.plan ?? "lengkap";
     const memberCount = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM memberships WHERE tenant_id = ?`)
       .bind(tenant.id)
       .first<{ n: number }>();
     if ((memberCount?.n ?? 0) >= PLAN_LIMITS[plan].maxUsers) {
       return c.json(
         {
-          error: `Paket ${PLAN_LABELS[plan]} maksimal ${PLAN_LIMITS[plan].maxUsers} pengguna. Upgrade paket untuk menambah anggota.`,
+          error: `Paket ${PLAN_LABELS[plan]} maksimal ${PLAN_LIMITS[plan].maxUsers} pengguna.`,
         },
         402,
       );

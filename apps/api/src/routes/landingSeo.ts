@@ -1,4 +1,4 @@
-import { PLAN_LIMITS } from "@erpindo/shared";
+import { PLAN_LIMITS, PLANS } from "@erpindo/shared";
 import { Hono, type Context } from "hono";
 import type { AppEnv, Env } from "../env";
 
@@ -18,15 +18,18 @@ function origin(env: Env, reqUrl: string): string {
 
 /** FAQ ringkas untuk rich result — selaras dengan FAQ di landing. */
 const FAQ: [q: string, a: string][] = [
-  ["Apakah ERPindo cocok untuk usaha kecil sampai perusahaan menengah?", "Ya. ERPindo dipakai dari toko pertama hingga grup perusahaan, dengan paket bertingkat namun akuntansi inti lengkap di semua paket dan pengguna tak terbatas."],
-  ["Apakah pengguna dibatasi?", "Tidak. Seluruh paket memberi pengguna tak terbatas — biaya berdasarkan kedalaman fitur & skala, bukan jumlah orang."],
+  ["Apakah ERPindo cocok untuk usaha kecil sampai perusahaan menengah?", "Ya. ERPindo dipakai dari toko pertama hingga grup perusahaan. Satu paket, satu harga, seluruh modul terbuka — tidak ada fitur yang terkunci di balik paket yang lebih mahal."],
+  ["Apakah pengguna dibatasi?", "Tidak. Pengguna tak terbatas, dan harganya per perusahaan — bukan per orang. Menambah karyawan tidak menambah tagihan."],
   ["Apakah ada masa coba gratis?", "Tidak ada masa coba, dan itu disengaja. Sebagai gantinya ada demo publik berisi 6 bulan data nyata di seluruh modul — bisa ditelusuri tanpa mendaftar dan tanpa kartu kredit. Berlangganan baru diperlukan saat Anda mulai mencatat data sendiri."],
   ["Apakah mendukung pajak Indonesia?", "Ya: PPN, PPh 21 (metode TER), dan ekspor e-Faktur/Coretax."],
   ["Apakah data saya aman dan bisa diekspor?", "Data tiap perusahaan terpisah (satu database per perusahaan) dan bisa diekspor kapan saja sebagai CSV/ZIP, termasuk setelah langganan berakhir."],
 ];
 
 function jsonLd(base: string): string {
-  const priceOffer = (["starter", "business", "enterprise"] as const).map((p) => ({
+  // Satu paket, satu penawaran (Fase 30). Tetap berbentuk daftar karena
+  // schema.org `offers` memang menerima daftar, dan bentuknya tidak perlu
+  // berubah bila suatu saat ada penawaran tahunan.
+  const priceOffer = PLANS.map((p) => ({
     "@type": "Offer",
     name: PLAN_LIMITS[p].label,
     price: PLAN_LIMITS[p].pricePerMonth,
@@ -72,8 +75,8 @@ function noscriptBlock(base: string): string {
   const faqHtml = FAQ.map(([q, a]) => `<h3>${q}</h3><p>${a}</p>`).join("");
   return `<noscript><div>
 <h1>ERPindo — ERP untuk usaha Indonesia</h1>
-<p>Akuntansi double-entry, kasir POS, stok, penggajian (PPh 21 TER), dan pajak (PPN, e-Faktur/Coretax) dalam satu aplikasi. Pengguna tak terbatas di semua paket. Telusuri demo publik berisi 6 bulan data nyata tanpa mendaftar.</p>
-<p>Paket per bulan per perusahaan: Starter Rp${PLAN_LIMITS.starter.pricePerMonth.toLocaleString("id-ID")}, Business Rp${PLAN_LIMITS.business.pricePerMonth.toLocaleString("id-ID")}, Enterprise Rp${PLAN_LIMITS.enterprise.pricePerMonth.toLocaleString("id-ID")}.</p>
+<p>Akuntansi double-entry, kasir POS, stok, penggajian (PPh 21 TER), dan pajak (PPN, e-Faktur/Coretax) dalam satu aplikasi. Pengguna tak terbatas. Telusuri demo publik berisi 6 bulan data nyata tanpa mendaftar.</p>
+<p>Satu paket, satu harga: Rp${PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")} per perusahaan per bulan — seluruh modul terbuka, pengguna tak terbatas.</p>
 <p><a href="${base}/daftar">Daftar &amp; berlangganan</a> · <a href="${base}/masuk">Masuk</a> · <a href="${base}/panduan">Panduan</a> · <a href="${base}/blog">Blog</a></p>
 ${faqHtml}
 </div></noscript>`;

@@ -401,42 +401,24 @@ function Comparison() {
   );
 }
 
-type TierInfo = { plan: "starter" | "business" | "enterprise"; tagline: { id: string; en: string }; features: { id: string; en: string }[]; popular?: boolean };
-const TIER_INFO: TierInfo[] = [
-  {
-    plan: "starter",
-    tagline: { id: "Untuk toko, jasa & usaha keluarga", en: "For shops, services & family businesses" },
-    features: [
-      { id: "Akuntansi, penjualan & pembelian", en: "Accounting, sales & purchasing" },
-      { id: "Kasir (POS) + stok multi-gudang", en: "POS + multi-warehouse stock" },
-      { id: "Pajak: PPN, PPh final, e-Faktur", en: "Tax: VAT, final income tax, e-Faktur" },
-      { id: "Semua laporan keuangan", en: "All financial reports" },
-      { id: "Pengguna tak terbatas", en: "Unlimited users" },
-    ],
-  },
-  {
-    plan: "business",
-    tagline: { id: "Untuk PT dengan tim & proses", en: "For companies with teams & processes" },
-    popular: true,
-    features: [
-      { id: "Semua di Starter, plus:", en: "Everything in Starter, plus:" },
-      { id: "HR & Payroll (PPh 21 TER + BPJS)", en: "HR & Payroll (income tax + social security)" },
-      { id: "Proyek, manufaktur & pengadaan", en: "Projects, manufacturing & procurement" },
-      { id: "Persetujuan berjenjang + peran kustom", en: "Multi-level approvals + custom roles" },
-      { id: "CRM pipeline & kontrak berulang", en: "CRM pipeline & recurring contracts" },
-    ],
-  },
-  {
-    plan: "enterprise",
-    tagline: { id: "Untuk grup, multi-cabang & holding", en: "For groups, multi-branch & holdings" },
-    features: [
-      { id: "Semua di Business, plus:", en: "Everything in Business, plus:" },
-      { id: `Multi-entitas (${PLAN_LIMITS.enterprise.maxEntities} perusahaan) + konsolidasi`, en: `Multi-entity (${PLAN_LIMITS.enterprise.maxEntities} companies) + consolidation` },
-      { id: "Dimensi / cost center per cabang", en: "Dimensions / cost centers per branch" },
-      { id: "API publik & webhook", en: "Public API & webhooks" },
-      { id: "Keamanan lanjutan + dukungan prioritas", en: "Advanced security + priority support" },
-    ],
-  },
+/**
+ * Isi paket tunggal (Fase 30). Dulu tiga `TierInfo` — Starter/Business/
+ * Enterprise — yang masing-masing menahan sebagian modul. Pemaketan itu
+ * dibubarkan: satu harga, seluruh modul.
+ *
+ * Daftar ini karena itu berhenti menjadi "apa yang TIDAK Anda dapat di paket
+ * murah" dan menjadi "apa yang Anda dapat", yang jauh lebih mudah dipercaya
+ * calon pelanggan karena tidak ada yang perlu dicurigai tersembunyi.
+ */
+const PAKET_FITUR: { id: string; en: string }[] = [
+  { id: "Akuntansi double-entry, penjualan & pembelian", en: "Double-entry accounting, sales & purchasing" },
+  { id: "Kasir (POS) + stok multi-gudang & FEFO", en: "POS + multi-warehouse stock & FEFO" },
+  { id: "Pajak: PPN, PPh final, e-Faktur & Coretax", en: "Tax: VAT, final income tax, e-Faktur & Coretax" },
+  { id: "HR & Payroll (PPh 21 TER + BPJS)", en: "HR & Payroll (income tax TER + social security)" },
+  { id: "Proyek, manufaktur, pengadaan & CRM", en: "Projects, manufacturing, procurement & CRM" },
+  { id: "Multi-entitas + laporan konsolidasi", en: "Multi-entity + consolidated reports" },
+  { id: "API publik, webhook & keamanan lanjutan", en: "Public API, webhooks & advanced security" },
+  { id: "Pengguna tak terbatas — selamanya", en: "Unlimited users — always" },
 ];
 
 /** Kalkulator perbandingan implisit: biaya sistem per-pengguna vs ERPindo tetap. */
@@ -444,11 +426,11 @@ function PerUserCalculator() {
   const lang = useLang();
   const [users, setUsers] = useState(20);
   const perUser = perUserMonthlyCost(users);
-  const hemat = Math.max(0, perUser - PLAN_LIMITS.business.pricePerMonth);
+  const hemat = Math.max(0, perUser - PLAN_LIMITS.lengkap.pricePerMonth);
   // Pengguna pertama yang membuat ERPindo lebih murah — dihitung dari fungsi
   // biaya yang sama, bukan angka yang ditulis tangan lalu basi saat harga bergeser.
   const impas = (() => {
-    for (let n = 1; n <= 100; n++) if (perUserMonthlyCost(n) > PLAN_LIMITS.business.pricePerMonth) return n;
+    for (let n = 1; n <= 100; n++) if (perUserMonthlyCost(n) > PLAN_LIMITS.lengkap.pricePerMonth) return n;
     return 100;
   })();
   return (
@@ -474,8 +456,8 @@ function PerUserCalculator() {
           <div className="text-[11px] text-slate-400">{L(lang, "per bulan", "per month")}</div>
         </div>
         <div className="rounded border border-brand-500 bg-brand-50/60 p-3 dark:bg-brand-950/40">
-          <div className="text-[11px] text-brand-700 dark:text-brand-300">{L(lang, "Dengan ERPindo (Business)", "With ERPindo (Business)")}</div>
-          <div className="num mt-1 text-xl font-bold text-brand-700 dark:text-brand-300">{formatRupiah(PLAN_LIMITS.business.pricePerMonth)}</div>
+          <div className="text-[11px] text-brand-700 dark:text-brand-300">{L(lang, "Dengan ERPindo", "With ERPindo")}</div>
+          <div className="num mt-1 text-xl font-bold text-brand-700 dark:text-brand-300">{formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}</div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400">{L(lang, "satu harga, berapa pun jumlah tim", "one price, whatever your team size")}</div>
         </div>
       </div>
@@ -556,69 +538,53 @@ function Pricing() {
         </h2>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-600 dark:text-slate-300">
           {L(lang, "Pengguna", "Users are")} <span className="font-semibold">{L(lang, "selalu tak terbatas", "always unlimited")}</span>{" "}
-          {L(lang, "di semua paket — bukan dihitung per kepala. Lihat dulu demo berisi 6 bulan data nyata sebelum memutuskan.", "on every plan — never billed per head. Explore our six-month demo before you decide.")}
+          {L(lang, "dan seluruh modul terbuka — bukan dihitung per kepala, bukan dikunci per paket. Lihat dulu demo berisi 6 bulan data nyata sebelum memutuskan.", "and every module is unlocked — never billed per head, never gated by tier. Explore our six-month demo before you decide.")}
         </p>
 
-        {/* Kartu paket berbagi satu garis, tanpa kartu "populer" yang diangkat
-            dan diberi bayangan — penandanya cukup garis merek + lencana datar. */}
-        <div className="mt-10 grid gap-5 lg:grid-cols-3">
-          {TIER_INFO.map((tier) => {
-            const info = PLAN_LIMITS[tier.plan];
-            return (
-              <div
-                key={tier.plan}
-                className={`relative flex flex-col rounded-card border bg-white p-6 dark:bg-slate-900 ${
-                  tier.popular
-                    ? "border-brand-500 shadow-md ring-1 ring-brand-500/20"
-                    : "border-slate-200 shadow-card dark:border-slate-800"
-                }`}
-              >
-                {/* Lencana TANPA `uppercase`: asersi ui-sim membaca innerText,
-                    dan `text-transform` ikut mengubah nilainya — "Most popular"
-                    akan terbaca "MOST POPULAR" lalu asersinya gagal. */}
-                <div className="flex items-center gap-2">
-                  <h3 className="text-base font-semibold">{info.label}</h3>
-                  {tier.popular ? (
-                    <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white">
-                      {L(lang, "Paling populer", "Most popular")}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{tier.tagline[lang]}</p>
-                <div className="mt-3 flex items-end gap-1">
-                  <span className="num text-2xl font-bold">{formatRupiah(info.pricePerMonth)}</span>
-                  <span className="pb-0.5 text-[13px] font-normal text-slate-400">{L(lang, "/bulan", "/month")}</span>
-                </div>
-                <ul className="mt-4 flex-1 divide-y divide-slate-100 text-[13px] dark:divide-slate-800">
-                  {tier.features.map((f) => (
-                    <li key={f.id} className="flex items-start gap-2 py-1.5">
-                      <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden /> {f[lang]}
-                    </li>
-                  ))}
-                </ul>
-                {/* Fase 27a: paket yang dipilih ikut terbawa ke pendaftaran.
-                    Sebelumnya ketiga tombol menuju /daftar polos, sehingga
-                    pengunjung yang sudah memilih Enterprise harus memilih ulang
-                    nanti — dan pilihan yang hilang di tengah jalan adalah cara
-                    paling sunyi kehilangan calon pelanggan. */}
-                {/* Tautan biasa (bukan <Link>): repo ini belum memakai
-                    `validateSearch` di rute mana pun, jadi parameter pencarian
-                    lewat router tidak terjamin ikut terserialisasi. Navigasi
-                    keras di sini tidak merugikan — ini langkah pindah halaman,
-                    bukan interaksi dalam halaman — dan polanya sama dengan
-                    tautan /fitur & /panduan yang sudah ada. */}
-                <a href={`/daftar?paket=${tier.plan}`} className="mt-4">
-                  <Button variant={tier.popular ? "primary" : "secondary"} className="w-full">
-                    {L(lang, "Pilih Paket Ini", "Choose this plan")}
-                  </Button>
-                </a>
-              </div>
-            );
-          })}
+        {/* Satu kartu, di tengah (Fase 30). Kisi tiga kolom dibubarkan bersama
+            paketnya: tanpa paket lain untuk dibandingkan, membiarkan kartu
+            tunggal melebar penuh membuatnya terbaca seperti spanduk, bukan
+            seperti harga. Lebar dijepit dan dipusatkan agar tetap terbaca
+            sebagai satu penawaran yang tegas. */}
+        <div className="mt-10 flex justify-center">
+          <div className="relative flex w-full max-w-md flex-col rounded-card border border-brand-500 bg-white p-6 shadow-md ring-1 ring-brand-500/20 dark:bg-slate-900">
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-semibold">{PLAN_LIMITS.lengkap.label}</h3>
+              {/* Lencana TANPA `uppercase`: asersi ui-sim membaca innerText, dan
+                  `text-transform` ikut mengubah nilainya. */}
+              <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white">
+                {L(lang, "Satu paket untuk semua", "One plan for everything")}
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              {L(lang, "Dari toko pertama sampai grup perusahaan", "From your first shop to a group of companies")}
+            </p>
+            <div className="mt-3 flex items-end gap-1">
+              <span className="num text-3xl font-bold">{formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}</span>
+              <span className="pb-1 text-[13px] font-normal text-slate-400">
+                {L(lang, "/bulan/perusahaan", "/month/company")}
+              </span>
+            </div>
+            <ul className="mt-4 flex-1 divide-y divide-slate-100 text-[13px] dark:divide-slate-800">
+              {PAKET_FITUR.map((f) => (
+                <li key={f.id} className="flex items-start gap-2 py-1.5">
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden /> {f[lang]}
+                </li>
+              ))}
+            </ul>
+            {/* Tautan biasa (bukan <Link>): repo ini belum memakai
+                `validateSearch` di rute mana pun. Navigasi keras tidak merugikan
+                — ini langkah pindah halaman, bukan interaksi dalam halaman. */}
+            <a href="/daftar" className="mt-4">
+              <Button variant="primary" className="w-full">
+                {L(lang, "Mulai Berlangganan", "Start subscribing")}
+              </Button>
+            </a>
+          </div>
         </div>
 
         <p className="mt-4 text-[13px] text-slate-500 dark:text-slate-400">
-          {L(lang, "Semua paket termasuk:", "Every plan includes:")} {SINGLE_PLAN_MODULES.slice(0, 6).map((m) => pick(m, lang)).join(" · ")}
+          {L(lang, "Termasuk:", "Included:")} {SINGLE_PLAN_MODULES.slice(0, 6).map((m) => pick(m, lang)).join(" · ")}
           {L(lang, ", dan banyak lagi. Harga belum termasuk PPN.", ", and much more. Prices exclude VAT.")}
         </p>
 
@@ -630,15 +596,15 @@ function Pricing() {
             isinya ajakan menghubungi ("hubungi kami untuk penawaran") menuju
             formulir yang sudah tidak ada, dan menjanjikan percakapan tanpa satu
             pun cara memulainya adalah persis cacat yang dibersihkan Fase 27a.
-            Kartu "Untuk grup & holding" tetap — ia menjelaskan isi paket
-            Enterprise, bukan mengajak menghubungi siapa pun. */}
+            Kartu "Untuk grup & holding" tetap — ia menjelaskan apa yang bisa
+            dikerjakan, bukan mengajak menghubungi siapa pun. */}
         <div className="mt-12 rounded-card border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/60">
           <h3 className="text-base font-semibold">{L(lang, "Untuk grup & holding", "For groups & holdings")}</h3>
           <p className="mt-2 max-w-3xl text-[13px] text-slate-600 dark:text-slate-300">
             {L(
               lang,
-              `Kelola beberapa badan usaha dalam satu akun dengan laporan konsolidasi lintas perusahaan, dimensi per cabang, dan dukungan prioritas. Paket Enterprise sudah mencakup ${PLAN_LIMITS.enterprise.maxEntities} entitas.`,
-              `Manage several entities from one account with cross-company consolidated reports, per-branch dimensions, and priority support. The Enterprise plan already covers ${PLAN_LIMITS.enterprise.maxEntities} entities.`,
+              "Kelola beberapa badan usaha dalam satu akun dengan laporan konsolidasi lintas perusahaan dan dimensi per cabang — tanpa paket khusus, karena tidak ada paket khusus. Tiap perusahaan berlangganan sendiri dengan harga yang sama.",
+              "Manage several entities from one account with cross-company consolidated reports and per-branch dimensions — no special plan needed, because there is no special plan. Each company subscribes on its own at the same price.",
             )}
           </p>
         </div>

@@ -24,6 +24,23 @@ import { isPlatformAdmin, requireAuth, SESSION_COOKIE } from "../middleware/auth
 import { rateLimit } from "../middleware/rateLimit";
 
 const SESSION_DAYS = 30;
+
+/**
+ * Paket bawaan tenant baru (Fase 30). **Bertipe `Plan` dengan sengaja.**
+ *
+ * Sebelumnya kedua `INSERT INTO tenants` di berkas ini menyematkan string
+ * telanjang (`comped ? "enterprise" : "starter"`) langsung di dalam `.bind()`.
+ * Karena `.bind()` menerima `unknown[]`, TypeScript **tidak pernah
+ * memeriksanya**: saat paket bertingkat dibubarkan, `pnpm typecheck` tetap
+ * hijau sementara SETIAP pendaftaran baru menulis paket yang sudah tidak ada,
+ * lalu `PLAN_LIMITS[plan]` memberi `undefined` dan pembacaan `.maxUsers` di
+ * atasnya melempar. Yang menemukannya adalah smoke, bukan typecheck.
+ *
+ * Konstanta beranotasi ini memindahkan nilai itu kembali ke dalam jangkauan
+ * pemeriksa tipe: nama paket yang tidak ada lagi kini gagal di `pnpm typecheck`,
+ * bukan di layar pendaftar.
+ */
+const PAKET_BAWAAN: Plan = "lengkap";
 const TOKEN_HOURS = 24;
 
 function now(): string {
@@ -130,9 +147,13 @@ async function consumeToken(env: Env, raw: string, type: string): Promise<TokenR
 }
 
 /**
- * Email pada COMPED_EMAILS mendapat tenant `active` + paket `enterprise` tanpa
- * `subscription_ends_at` — cron langganan tidak pernah menurunkannya, karena
- * seluruh kueri dunning mensyaratkan tanggal akhir yang tidak NULL.
+ * Email pada COMPED_EMAILS mendapat tenant `active` tanpa `subscription_ends_at`
+ * — cron langganan tidak pernah menurunkannya, karena seluruh kueri dunning
+ * mensyaratkan tanggal akhir yang tidak NULL.
+ *
+ * Sejak Fase 30 comped TIDAK lagi berarti paket berbeda (hanya ada satu paket);
+ * yang membedakannya adalah status aktif tanpa tanggal akhir, ditambah
+ * `legacy_full_access`.
  */
 export function isComped(env: Env, email: string): boolean {
   return (env.COMPED_EMAILS ?? "")
@@ -247,7 +268,9 @@ export const authRoutes = new Hono<AppEnv>()
         status,
         // Paket hanya berarti setelah aktif; sebelum bayar ia sekadar nilai
         // bawaan kolom NOT NULL. Yang dilihat pengguna adalah STATUS-nya.
-        comped ? "enterprise" : "starter",
+        // Sejak Fase 30 hanya ada satu paket, jadi comped & non-comped sama —
+        // yang membedakan comped adalah `legacy_full_access`, bukan paketnya.
+        PAKET_BAWAAN,
         comped ? TENANT_SCHEMA_VERSION : 0,
         now(),
       ),
@@ -371,7 +394,7 @@ export const authRoutes = new Hono<AppEnv>()
         companyName,
         slug,
         dbRef,
-        comped ? "enterprise" : "starter",
+        PAKET_BAWAAN,
         TENANT_SCHEMA_VERSION,
         now(),
       ),
