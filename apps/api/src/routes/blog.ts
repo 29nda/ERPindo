@@ -87,7 +87,7 @@ ${opts.head ?? ""}
   <nav><a href="/blog">Blog</a><a href="/panduan">Panduan</a><a class="cta" href="/daftar">Daftar</a></nav>
 </div></header>
 <main><div class="wrap">${opts.body}</div></main>
-<footer><div class="wrap">ERPindo — ERP untuk UMKM Indonesia. <a href="/">Lihat demo berisi 6 bulan data nyata</a> — tanpa mendaftar.</div></footer>
+<footer><div class="wrap">ERPindo — ERP untuk UMKM Indonesia. <a href="/">Lihat demo berisi data nyata</a> — tanpa mendaftar.</div></footer>
 </body>
 </html>`;
 }

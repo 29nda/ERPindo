@@ -6841,6 +6841,30 @@ try {
     (landingHtml.match(/"@type":"Offer"/g) ?? []).length === 1,
     `→ ${(landingHtml.match(/"@type":"Offer"/g) ?? []).length} Offer`,
   );
+  // Fase 30b: salinan publik TIDAK boleh menyebut kedalaman demo dalam bulan.
+  //
+  // Data demo produksi hanya berubah saat pemilik menjalankan workflow seed,
+  // sedangkan kode ini bisa berubah kapan saja. Angka bulan di halaman depan
+  // karena itu pasti melenceng dari isi demo cepat atau lambat — dan halaman
+  // yang tugasnya meyakinkan calon pelanggan adalah tempat paling mahal untuk
+  // menjanjikan lebih dari isinya. Penegak ini menutup seluruh kelas itu, bukan
+  // satu kalimatnya: angka berapa pun ditolak.
+  //
+  // Berlaku untuk SSR halaman depan, /fitur, dan footer blog — ketiganya
+  // menyalin kalimat demo yang sama, dan ketiganya pernah menyebut "6 bulan".
+  const polaBulanDemo = /\d+\s*bulan\s+data|\bsix[- ]month\b|\d+\s*months?\s+of\s+real\s+data/i;
+  const halamanPublik = [
+    ["/", landingHtml],
+    ["/fitur", await (await fetch(`${BASE}/fitur`)).text()],
+  ];
+  for (const [rute, html] of halamanPublik) {
+    check(
+      `30b ${rute} tidak menyebut kedalaman demo dalam hitungan bulan`,
+      !polaBulanDemo.test(html),
+      `→ ${(html.match(polaBulanDemo) ?? [""])[0]}`,
+    );
+  }
+
   check(
     "30 FAQ SSR tidak lagi menjanjikan pilihan paket bertingkat",
     !/paket bertingkat/i.test(landingHtml) && !/tiga paket/i.test(landingHtml),

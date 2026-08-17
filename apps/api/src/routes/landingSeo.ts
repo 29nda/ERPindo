@@ -20,7 +20,7 @@ function origin(env: Env, reqUrl: string): string {
 const FAQ: [q: string, a: string][] = [
   ["Apakah ERPindo cocok untuk usaha kecil sampai perusahaan menengah?", "Ya. ERPindo dipakai dari toko pertama hingga grup perusahaan. Satu paket, satu harga, seluruh modul terbuka — tidak ada fitur yang terkunci di balik paket yang lebih mahal."],
   ["Apakah pengguna dibatasi?", "Tidak. Pengguna tak terbatas, dan harganya per perusahaan — bukan per orang. Menambah karyawan tidak menambah tagihan."],
-  ["Apakah ada masa coba gratis?", "Tidak ada masa coba, dan itu disengaja. Sebagai gantinya ada demo publik berisi 6 bulan data nyata di seluruh modul — bisa ditelusuri tanpa mendaftar dan tanpa kartu kredit. Berlangganan baru diperlukan saat Anda mulai mencatat data sendiri."],
+  ["Apakah ada masa coba gratis?", "Tidak ada masa coba, dan itu disengaja. Sebagai gantinya ada demo publik berisi data nyata di seluruh modul — bisa ditelusuri tanpa mendaftar dan tanpa kartu kredit. Berlangganan baru diperlukan saat Anda mulai mencatat data sendiri."],
   ["Apakah mendukung pajak Indonesia?", "Ya: PPN, PPh 21 (metode TER), dan ekspor e-Faktur/Coretax."],
   ["Apakah data saya aman dan bisa diekspor?", "Data tiap perusahaan terpisah (satu database per perusahaan) dan bisa diekspor kapan saja sebagai CSV/ZIP, termasuk setelah langganan berakhir."],
 ];
@@ -53,7 +53,7 @@ function jsonLd(base: string): string {
       operatingSystem: "Web, Android, iOS (PWA)",
       url: base,
       offers: priceOffer,
-      description: "Akuntansi double-entry, kasir POS, stok, penggajian PPh 21 TER, hingga e-Faktur. Demo publik berisi 6 bulan data nyata, tanpa perlu mendaftar.",
+      description: "Akuntansi double-entry, kasir POS, stok, penggajian PPh 21 TER, hingga e-Faktur. Demo publik berisi data nyata lintas seluruh modul, tanpa perlu mendaftar.",
     },
     {
       "@context": "https://schema.org",
@@ -75,7 +75,7 @@ function noscriptBlock(base: string): string {
   const faqHtml = FAQ.map(([q, a]) => `<h3>${q}</h3><p>${a}</p>`).join("");
   return `<noscript><div>
 <h1>ERPindo — ERP untuk usaha Indonesia</h1>
-<p>Akuntansi double-entry, kasir POS, stok, penggajian (PPh 21 TER), dan pajak (PPN, e-Faktur/Coretax) dalam satu aplikasi. Pengguna tak terbatas. Telusuri demo publik berisi 6 bulan data nyata tanpa mendaftar.</p>
+<p>Akuntansi double-entry, kasir POS, stok, penggajian (PPh 21 TER), dan pajak (PPN, e-Faktur/Coretax) dalam satu aplikasi. Pengguna tak terbatas. Telusuri demo publik berisi data nyata lintas seluruh modul tanpa mendaftar.</p>
 <p>Satu paket, satu harga: Rp${PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")} per perusahaan per bulan — seluruh modul terbuka, pengguna tak terbatas.</p>
 <p><a href="${base}/daftar">Daftar &amp; berlangganan</a> · <a href="${base}/masuk">Masuk</a> · <a href="${base}/panduan">Panduan</a> · <a href="${base}/blog">Blog</a></p>
 ${faqHtml}
@@ -123,7 +123,7 @@ function noscriptFitur(base: string): string {
 <h1>Fitur ERPindo — penjelasan tiap modul</h1>
 <p>Penjelasan tiap modul ERPindo: masalah yang dipecahkan, cara kerjanya di dalam aplikasi, dan hasil yang didapat. Akuntansi double-entry, faktur &amp; PPN, kasir POS, stok &amp; gudang, pembelian &amp; pengadaan, persetujuan berjenjang, kas &amp; bank, aset tetap, gaji &amp; PPh 21, pajak &amp; e-Faktur, laporan keuangan, anggaran, proyek, CRM, kontrak berulang, manufaktur &amp; QC, pemeliharaan aset, helpdesk, multi-perusahaan &amp; konsolidasi, asisten AI, serta keamanan data.</p>
 ${isi}
-<p><a href="${base}/">Lihat demo berisi 6 bulan data</a> · <a href="${base}/daftar">Daftar &amp; berlangganan</a> · <a href="${base}/panduan">Panduan</a></p>
+<p><a href="${base}/">Lihat demo berisi data nyata</a> · <a href="${base}/daftar">Daftar &amp; berlangganan</a> · <a href="${base}/panduan">Panduan</a></p>
 </div></noscript>`;
 }
 

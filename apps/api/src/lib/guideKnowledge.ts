@@ -12,7 +12,7 @@ export const GUIDE_KNOWLEDGE: GuideKnowledge[] = [
     title: "Mulai Cepat",
     keywords: ["daftar", "mulai", "onboarding", "pertama", "setup", "trial"],
     summary:
-      "Daftar → verifikasi email → langsung pakai; bagan akun Indonesia otomatis tersedia. Checklist 'Mulai cepat' di Dashboard memandu: profil perusahaan (alamat+NPWP), tambah produk, tambah kontak, faktur pertama, undang tim. Tidak ada masa coba: pencatatan transaksi baru terbuka setelah berlangganan. Sebelum itu, telusuri demo publik berisi 6 bulan data nyata dari halaman depan — tanpa mendaftar.",
+      "Daftar → verifikasi email → langsung pakai; bagan akun Indonesia otomatis tersedia. Checklist 'Mulai cepat' di Dashboard memandu: profil perusahaan (alamat+NPWP), tambah produk, tambah kontak, faktur pertama, undang tim. Tidak ada masa coba: pencatatan transaksi baru terbuka setelah berlangganan. Sebelum itu, telusuri demo publik berisi data nyata lintas seluruh modul dari halaman depan — tanpa mendaftar.",
   },
   {
     slug: "pengaturan",

@@ -194,7 +194,7 @@ function Hero() {
         </p>
         {/* Fase 24: urutannya SENGAJA dibalik. Tanpa trial, hal pertama yang
             bisa dilakukan pengunjung bukan lagi "coba" melainkan "lihat" —
-            jadi demo yang berisi 6 bulan data nyata naik jadi ajakan utama,
+            jadi demo yang berisi data nyata naik jadi ajakan utama,
             dan mendaftar menyusul setelah ia melihat isinya. */}
         <div className="mt-9 flex flex-wrap items-start gap-3">
           <DemoButton />
@@ -204,7 +204,24 @@ function Hero() {
             </Button>
           </Link>
         </div>
-        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+        {/* Fase 30b: harga dinyatakan DI HERO, bukan hanya di seksi harga yang
+            harus digulir dulu. Sebelum paket tunggal, menyebut harga di sini
+            mustahil — ada tiga angka dan yang mana pun dipilih akan menyesatkan.
+            Dengan satu harga, angkanya justru menjadi kalimat penjualan terkuat
+            dan menahannya sampai bawah halaman hanya membuang perhatian. */}
+        <p className="mt-6 text-base text-slate-700 dark:text-slate-200">
+          <span className="num font-bold text-slate-900 dark:text-white">
+            {formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}
+          </span>{" "}
+          <span className="text-slate-500 dark:text-slate-400">{L(lang, "/bulan/perusahaan", "/month/company")}</span>
+          {" — "}
+          {L(
+            lang,
+            "satu harga, seluruh modul terbuka, pengguna tak terbatas.",
+            "one price, every module unlocked, unlimited users.",
+          )}
+        </p>
+        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
           {L(
             lang,
             "Tanpa kartu kredit · bagan akun standar Indonesia sudah terpasang · demo tanpa daftar",
@@ -436,6 +453,19 @@ function PerUserCalculator() {
   return (
     <div className="mx-auto mt-10 max-w-2xl rounded-card border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
       <h3 className="text-sm font-semibold">{L(lang, "Bandingkan dengan sistem yang menagih per pengguna", "Compare with systems that charge per user")}</h3>
+      {/* Kesimpulan kalkulator dinyatakan TERBUKA (Fase 30b). Sebelumnya angka
+          titik impas hanya muncul bila pengunjung kebetulan menggeser slider ke
+          bawah titik itu — padahal inilah akibat paling langsung dari keputusan
+          harga tunggal, dan pengunjung yang tidak menggeser apa pun tidak pernah
+          membacanya. Angkanya dihitung dari fungsi biaya yang sama, jadi ia ikut
+          bergerak sendiri bila harga berubah. */}
+      <p className="mt-1 text-[13px] text-slate-600 dark:text-slate-300">
+        {L(
+          lang,
+          `Mulai ${impas} pengguna, ERPindo sudah lebih murah — dan tagihannya berhenti naik di situ, berapa pun tim Anda bertambah.`,
+          `From ${impas} users on, ERPindo already costs less — and the bill stops rising there, however much your team grows.`,
+        )}
+      </p>
       <label className="mt-3 block text-[13px] text-slate-600 dark:text-slate-300">
         {L(lang, "Jumlah pengguna di tim Anda:", "Number of users on your team:")}{" "}
         <span className="num font-semibold text-slate-900 dark:text-white">{users}</span>
@@ -538,7 +568,7 @@ function Pricing() {
         </h2>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-600 dark:text-slate-300">
           {L(lang, "Pengguna", "Users are")} <span className="font-semibold">{L(lang, "selalu tak terbatas", "always unlimited")}</span>{" "}
-          {L(lang, "dan seluruh modul terbuka — bukan dihitung per kepala, bukan dikunci per paket. Lihat dulu demo berisi 6 bulan data nyata sebelum memutuskan.", "and every module is unlocked — never billed per head, never gated by tier. Explore our six-month demo before you decide.")}
+          {L(lang, "dan seluruh modul terbuka — bukan dihitung per kepala, bukan dikunci per paket. Lihat dulu demo berisi data nyata lintas seluruh modul sebelum memutuskan.", "and every module is unlocked — never billed per head, never gated by tier. Explore our fully populated demo before you decide.")}
         </p>
 
         {/* Satu kartu, di tengah (Fase 30). Kisi tiga kolom dibubarkan bersama
@@ -671,8 +701,8 @@ function CtaBand() {
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-brand-50">
             {L(
               lang,
-              "Telusuri demo berisi 6 bulan data nyata tanpa mendaftar. Berhenti kapan saja · data Anda bisa diekspor kapan pun.",
-              "Explore a demo holding six months of real data without signing up. Cancel anytime · export your data whenever you want.",
+              "Telusuri demo berisi data nyata lintas seluruh modul tanpa mendaftar. Berhenti kapan saja · data Anda bisa diekspor kapan pun.",
+              "Explore a demo holding real data across every module without signing up. Cancel anytime · export your data whenever you want.",
             )}
           </p>
         </div>

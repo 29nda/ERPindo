@@ -206,8 +206,8 @@ export function FiturPage() {
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-brand-50">
                 {L(
                   lang,
-                  "Masuk ke perusahaan demo berisi 6 bulan data nyata — tanpa daftar, tanpa kartu kredit. Lihat seluruhnya sebelum memutuskan.",
-                  "Enter a demo company holding six months of real data — no signup, no credit card. See everything before you decide.",
+                  "Masuk ke perusahaan demo berisi data nyata lintas seluruh modul — tanpa daftar, tanpa kartu kredit. Lihat seluruhnya sebelum memutuskan.",
+                  "Enter a demo company holding real data across every module — no signup, no credit card. See everything before you decide.",
                 )}
               </p>
             </div>

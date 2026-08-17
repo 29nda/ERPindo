@@ -2603,6 +2603,34 @@ try {
     /[Ss]eluruh modul terbuka/.test(landingText) || /modul terbuka/.test(landingText),
     `→ klaim modul terbuka tidak ditemukan`,
   );
+  // Fase 30b — harga muncul di HERO, bukan hanya di seksi harga yang harus
+  // digulir dulu. Diuji lewat posisi: teks harga harus ada SEBELUM judul seksi
+  // harga di dalam innerText halaman, kalau tidak ia sebenarnya masih di bawah.
+  const posHargaPertama = landingText.indexOf("499.000");
+  const posSeksiHarga = landingText.search(/Satu sistem, dari toko pertama/);
+  check(
+    "F30b harga tampil di hero — sebelum seksi harga, bukan sesudahnya",
+    posHargaPertama >= 0 && posSeksiHarga >= 0 && posHargaPertama < posSeksiHarga,
+    `→ harga@${posHargaPertama} seksi@${posSeksiHarga}`,
+  );
+  check(
+    "F30b hero menyebut per perusahaan, bukan per pengguna",
+    /\/bulan\/perusahaan/.test(landingText),
+    `→ satuan harga hero tidak ditemukan`,
+  );
+  // Kesimpulan kalkulator terbaca TANPA menggeser slider — inilah akibat paling
+  // langsung dari harga tunggal, dan sebelumnya hanya muncul bila pengunjung
+  // kebetulan menggeser ke bawah titik impas.
+  check(
+    "F30b titik impas dinyatakan terbuka di kalkulator (tanpa menggeser slider)",
+    /Mulai \d+ pengguna, ERPindo sudah lebih murah/.test(landingText),
+    `→ kalimat titik impas tidak ditemukan`,
+  );
+  check(
+    "F30b landing tidak menyebut kedalaman demo dalam hitungan bulan",
+    !/\d+\s*bulan\s+data/i.test(landingText),
+    `→ ${(landingText.match(/\d+\s*bulan\s+data/i) ?? [""])[0]}`,
+  );
   check(
     "F15 landing memuat kalkulator per-pengguna + perbandingan kategori",
     landingText.includes("per pengguna") && landingText.includes("ERPindo"),

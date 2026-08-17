@@ -2718,7 +2718,7 @@ export const UI = {
   // Fase 24 — trial dihapus. Mendaftar tetap gratis; yang berbayar adalah
   // mulai mencatat data sendiri. Demo publik yang menggantikan masa coba.
   authDaftarGratisLangganan: {
-    id: "Daftar gratis · lihat demo 6 bulan dulu · berlangganan saat siap",
+    id: "Daftar gratis · telusuri demo dulu · berlangganan saat siap",
     en: "Free to sign up · explore the 6-month demo first · subscribe when ready",
   },
   authSatuLangkahLagi: { id: "Satu langkah lagi", en: "One more step" },
