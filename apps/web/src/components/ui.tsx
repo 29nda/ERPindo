@@ -45,16 +45,24 @@ export function cx(...classes: (string | false | undefined)[]): string {
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
-// Fase 18b — gaya "bersih & lapang": warna datar (tanpa gradien), ditambah
-// bayangan sangat tipis pada tombol utama supaya terasa bisa ditekan. Tombol
-// sekunder memakai garis lembut, bukan garis tegas.
+/**
+ * Fase 31a — bahasa "garis & permukaan", menggantikan "kartu melayang" 18b.
+ *
+ * Tiga perubahan bentuk, dan semuanya disengaja:
+ *
+ * 1. **Tanpa `shadow-sm`.** Bayangan pada kontrol sebaris adalah kebiasaan
+ *    dasbor SaaS yang justru membuat aplikasi ini dikenali sebagai produk
+ *    lama. Bobot tombol kini datang dari warna dan tepi, bukan ketinggian.
+ * 2. **`secondary` memakai `border-line-strong`,** bukan garis lembut yang
+ *    nyaris tak terlihat di atas permukaan putih.
+ * 3. **Warna disebut lewat peran** (`text-ink`, `bg-surface-muted`), sehingga
+ *    tidak ada satu pun varian `dark:` tersisa di sini — temanya diurus token.
+ */
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary:
-    "bg-brand-600 text-white shadow-sm hover:bg-brand-700 focus-visible:ring-brand-600 disabled:bg-brand-600/50",
-  secondary:
-    "border border-slate-200 bg-surface text-slate-800 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800",
-  ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800",
-  danger: "bg-red-600 text-white shadow-sm hover:bg-red-700 focus-visible:ring-red-600",
+  primary: "bg-brand-600 text-white hover:bg-brand-700 disabled:bg-brand-600/50",
+  secondary: "border border-line-strong bg-surface text-ink hover:bg-surface-muted",
+  ghost: "text-ink-soft hover:bg-surface-muted hover:text-ink",
+  danger: "bg-red-600 text-white hover:bg-red-700",
 };
 
 /**
@@ -89,7 +97,11 @@ export function Button({
   return (
     <button
       className={cx(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:ring-offset-slate-950",
+        // Sudut lebih tegas (`rounded-control` = 0.375rem, dari `rounded-lg`
+        // 0.5rem) dan satu cincin fokus milik seluruh aplikasi: sebelumnya tiap
+        // primitif menulis kombinasi `focus-visible:ring-*` sendiri, sehingga
+        // tebal, warna, dan offsetnya berbeda-beda antar komponen.
+        "inline-flex items-center justify-center gap-2 rounded-control font-medium transition-colors focus-visible:fokus disabled:cursor-not-allowed disabled:opacity-60",
         buttonSizes[size],
         buttonVariants[variant],
         className
@@ -104,17 +116,25 @@ export function Button({
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={cx("mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300", className)}
+      className={cx("mb-1.5 block text-xs font-medium text-ink-soft", className)}
       {...props}
     />
   );
 }
 
+/**
+ * Kolom isian — `placeholder:text-ink-faint`, bukan `text-ink-muted`.
+ *
+ * Ini bukan pergantian nama belaka. `text-ink-muted` lama bernilai `#9d9da8`,
+ * yang di atas putih hanya **2,69:1** — gagal WCAG AA (butuh 4,5:1) dan dipakai
+ * 151 kali tanpa pasangan `dark:`. `ink-faint`/`ink-muted` dipilih agar lulus
+ * di KEDUA tema; lihat catatan kontras di `styles.css`.
+ */
 export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       className={cx(
-        "h-9 w-full rounded-lg border border-slate-300 bg-surface px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 dark:border-slate-700 dark:text-slate-100",
+        "h-9 w-full rounded-control border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-faint focus:border-brand-600 focus:fokus",
         className
       )}
       {...props}
@@ -126,7 +146,7 @@ export function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLS
   return (
     <select
       className={cx(
-        "h-9 w-full rounded-lg border border-slate-300 bg-surface px-3 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/25 dark:border-slate-700 dark:text-slate-100",
+        "h-9 w-full rounded-control border border-line-strong bg-surface px-3 text-sm text-ink focus:border-brand-600 focus:fokus",
         className
       )}
       {...props}
@@ -154,11 +174,18 @@ export function Card({
   return (
     <div
       className={cx(
-        // Fase 18b: bayangan halus dari token --shadow-card (18a) dipakai lagi.
-        // Kartu kembali terasa melayang tipis di atas kertas, bukan sekadar
-        // dibatasi garis seperti pada gaya padat 17b.
-        "rounded-card border border-slate-200 bg-surface shadow-card dark:border-slate-800",
-        hover && "transition-shadow hover:shadow-md",
+        // Fase 31a — kartu TIDAK LAGI MELAYANG.
+        //
+        // 18b memberi kartu bayangan ambient berlapis supaya "terasa melayang
+        // tipis di atas kertas". Justru itulah bentuk yang membuat aplikasi ini
+        // terbaca sebagai dasbor SaaS generik. Kini permukaan dipisahkan oleh
+        // GARIS: `border-line` tunggal, tanpa blur sama sekali.
+        //
+        // `hover` juga berhenti memakai bayangan — kartu yang bisa diklik
+        // ditandai dengan tepi yang menguat, isyarat yang tetap terbaca bagi
+        // pemakai yang mematikan efek dan tidak menggeser tata letak.
+        "rounded-card border border-line bg-surface",
+        hover && "transition-colors hover:border-line-strong",
         className
       )}
     >
@@ -178,12 +205,10 @@ export function CardHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-4 py-3.5 sm:px-5 dark:border-slate-800">
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
       <div>
-        <h2 className="text-base font-semibold">{title}</h2>
-        {description ? (
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>
-        ) : null}
+        <h2 className="text-sm font-semibold tracking-tight text-ink">{title}</h2>
+        {description ? <p className="mt-0.5 text-xs text-ink-muted">{description}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </div>
@@ -225,7 +250,13 @@ export function Alert({
       "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200",
   };
   return (
-    <div data-testid={testId} className={cx("rounded-lg border px-3.5 py-2.5 text-sm", tones[tone])}>
+    <div
+      data-testid={testId}
+      // Fase 31a: garis kiri tebal alih-alih kotak berbingkai penuh. Nadanya
+      // terbaca dari satu batang warna di tepi, jadi isinya tetap tenang dan
+      // tidak bersaing dengan kartu di sekitarnya.
+      className={cx("rounded-control border border-l-[3px] px-3.5 py-2.5 text-sm", tones[tone])}
+    >
       {children}
     </div>
   );
@@ -236,8 +267,8 @@ export function Alert({
 /**
  * Tabel padat — sebelum Fase 17b komponen ini TIDAK ADA, sehingga `<table>`
  * ditulis tangan **31 kali** dengan dua gaya yang bersaing: header `pb-2 pr-4`
- * (61×) vs `py-2 pr-3` (20×), dan garis baris `border-slate-100` (53×) vs
- * `border-slate-200` (51×). Komponen ini menyatukannya.
+ * (61×) vs `py-2 pr-3` (20×), dan garis baris `border-line` (53×) vs
+ * `border-line` (51×). Komponen ini menyatukannya.
  *
  * `Td numeric` memakai utilitas `num` (Fase 17a): font mono + `tabular-nums`,
  * supaya kolom rupiah benar-benar berbaris — hal yang paling terasa di
@@ -282,7 +313,7 @@ export function Table({ className, children }: { className?: string; children: R
  */
 export function Thead({ children }: { children: ReactNode }) {
   return (
-    <thead className="border-b border-slate-200 text-left text-xs font-medium tracking-wide text-slate-500 max-md:hidden dark:border-slate-800 dark:text-slate-400">
+    <thead className="border-b border-line-strong text-left text-xs font-semibold tracking-wide text-ink-muted max-md:hidden">
       {children}
     </thead>
   );
@@ -292,9 +323,9 @@ export function Tr({ className, children }: { className?: string; children: Reac
   return (
     <tr
       className={cx(
-        "border-b border-slate-100 last:border-0 dark:border-slate-800/70",
+        "border-b border-line last:border-0",
         // Layar kecil: tiap baris jadi KARTU bertumpuk, bukan digulir mendatar.
-        "max-md:mb-2 max-md:block max-md:rounded-lg max-md:border max-md:border-slate-200 max-md:p-3 max-md:last:mb-0 max-md:last:border dark:max-md:border-slate-800",
+        "max-md:mb-2 max-md:block max-md:rounded-card max-md:border max-md:border-line max-md:p-3 max-md:last:mb-0 max-md:last:border",
         className
       )}
     >
@@ -346,7 +377,7 @@ export function Td({
       {...props}
     >
       {label ? (
-        <span className="hidden shrink-0 text-xs font-medium text-slate-500 max-md:inline dark:text-slate-400">
+        <span className="hidden shrink-0 text-xs font-medium text-ink-muted max-md:inline">
           {label}
         </span>
       ) : null}
@@ -374,7 +405,7 @@ export function Badge({
   children: ReactNode;
 }) {
   const tones = {
-    neutral: "bg-slate-100 text-slate-700 dark:bg-slate-700/60 dark:text-slate-200",
+    neutral: "bg-surface-muted text-ink-soft",
     brand: "bg-brand-100 text-brand-800 dark:bg-brand-500/20 dark:text-brand-200",
     amber: "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200",
     red: "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200",
@@ -383,7 +414,9 @@ export function Badge({
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        // `rounded-full` → `rounded`: lencana persegi terbaca sebagai penanda
+        // data, bukan pil pemasaran. Perbedaan kecil yang muncul ratusan kali.
+        "inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium",
         tones[tone]
       )}
     >
@@ -396,7 +429,7 @@ export function Badge({
 
 /** Placeholder berkilau saat data dimuat — pengganti spinner untuk konten berbentuk. */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cx("animate-pulse rounded bg-slate-200 dark:bg-slate-800", className)} />;
+  return <div className={cx("animate-pulse rounded bg-surface-muted", className)} />;
 }
 
 /** Keadaan kosong yang ramah: ikon besar + judul + penjelasan (+ aksi opsional). */
@@ -413,13 +446,11 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-      <div className="flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+      <div className="flex size-10 items-center justify-center rounded-control border border-line bg-surface-sunken text-ink-faint">
         {icon}
       </div>
-      <div className="text-sm font-medium text-slate-700 dark:text-slate-200">{title}</div>
-      {description ? (
-        <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">{description}</p>
-      ) : null}
+      <div className="text-sm font-medium text-ink">{title}</div>
+      {description ? <p className="max-w-sm text-sm text-ink-muted">{description}</p> : null}
       {children}
     </div>
   );
@@ -533,11 +564,11 @@ export function SearchSelect({
         }}
       />
       {open ? (
-        <div className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+        <div className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-control bg-surface-raised py-1 shadow-overlay">
           {loading ? (
-            <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">{u("cpMencari")}</div>
+            <div className="px-3 py-2 text-sm text-ink-muted">{u("cpMencari")}</div>
           ) : options.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
+            <div className="px-3 py-2 text-sm text-ink-muted">
               {u("cpTakAdaHasil")}
             </div>
           ) : (
@@ -549,7 +580,7 @@ export function SearchSelect({
                   "flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm",
                   i === highlight
                     ? "bg-brand-50 text-brand-800 dark:bg-brand-600/20 dark:text-brand-100"
-                    : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800",
+                    : "text-ink-soft hover:bg-surface-muted",
                   opt.value === value && "font-semibold"
                 )}
                 onMouseEnter={() => setHighlight(i)}
@@ -557,7 +588,7 @@ export function SearchSelect({
               >
                 <span className="truncate">{opt.label}</span>
                 {opt.hint ? (
-                  <span className="shrink-0 text-xs text-slate-400">{opt.hint}</span>
+                  <span className="shrink-0 text-xs text-ink-muted">{opt.hint}</span>
                 ) : null}
               </button>
             ))
@@ -614,14 +645,14 @@ export function ConfirmDialog({
       aria-modal="true"
     >
       <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
         onClick={onCancel}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-md rounded-card border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+      <div className="relative w-full max-w-md rounded-card bg-surface-raised p-5 shadow-overlay">
+        <h2 className="text-base font-semibold tracking-tight text-ink">{title}</h2>
         {description ? (
-          <div className="mt-2 text-sm text-slate-600 dark:text-slate-400">{description}</div>
+          <div className="mt-2 text-sm text-ink-soft">{description}</div>
         ) : null}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel} disabled={busy}>
@@ -663,7 +694,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             className={cx(
-              "pointer-events-auto rounded-lg px-4 py-2.5 text-sm font-medium text-white shadow-lg",
+              "pointer-events-auto rounded-control px-4 py-2.5 text-sm font-medium text-white shadow-overlay",
               t.tone === "success" ? "bg-emerald-600" : "bg-red-600"
             )}
           >
@@ -779,7 +810,7 @@ export function Tabs<T extends string>({
   return (
     <div
       className={cx(
-        "flex flex-wrap gap-1.5 border-b border-slate-200 dark:border-slate-800",
+        "flex flex-wrap gap-1.5 border-b border-line",
         className
       )}
       role="tablist"
@@ -794,8 +825,8 @@ export function Tabs<T extends string>({
           className={cx(
             "-mb-px border-b-2 px-3 py-2 text-sm font-medium",
             active === t.key
-              ? "border-brand-500 text-brand-600 dark:text-brand-300"
-              : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400"
+              ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
+              : "border-transparent text-ink-muted hover:text-ink"
           )}
         >
           {t.label}
@@ -927,32 +958,32 @@ export function PageTour({
 
   const card = (
     <div
-      className="pointer-events-auto rounded-card border border-slate-200 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-slate-900"
+      className="pointer-events-auto rounded-card bg-surface-raised p-4 shadow-overlay"
       style={centered ? { width: CARD_W } : cardStyle}
       role="dialog"
       aria-modal="true"
       aria-label={step.title}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
+        <span className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
           Tur · {i + 1}/{steps.length}
         </span>
         <button
           onClick={finish}
-          className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          className="text-ink-muted hover:text-ink"
           aria-label={u("cpTutupTur")}
         >
           ✕
         </button>
       </div>
-      <h3 className="mt-1.5 text-base font-semibold text-slate-900 dark:text-slate-100">
+      <h3 className="mt-1.5 text-base font-semibold tracking-tight text-ink">
         {step.title}
       </h3>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{step.body}</p>
+      <p className="mt-1 text-sm text-ink-soft">{step.body}</p>
       <div className="mt-4 flex items-center justify-between gap-2">
         <button
           onClick={finish}
-          className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+          className="text-xs text-ink-muted hover:text-ink"
         >
           Lewati
         </button>
@@ -976,7 +1007,7 @@ export function PageTour({
         <>
           {/* Spotlight: kotak transparan di atas sasaran dengan bayangan gelap besar. */}
           <div
-            className="pointer-events-none fixed rounded-lg ring-2 ring-brand-400"
+            className="pointer-events-none fixed rounded-control ring-2 ring-brand-500"
             style={{
               left: rect.left - 6,
               top: rect.top - 6,
@@ -989,7 +1020,7 @@ export function PageTour({
         </>
       ) : (
         <>
-          <div className="fixed inset-0 bg-slate-900/60" onClick={finish} aria-hidden="true" />
+          <div className="fixed inset-0 bg-slate-950/60" onClick={finish} aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center p-4">{card}</div>
         </>
       )}
@@ -1012,7 +1043,7 @@ export function PageHeading({ k }: { k: PageHeadingKey }) {
   return (
     <>
       <h1 className="text-2xl font-semibold">{h.title[lang]}</h1>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{desc}</p>
+      <p className="mt-1 text-sm text-ink-muted">{desc}</p>
     </>
   );
 }

@@ -50,7 +50,7 @@ function ConsolidatedTable({
 
   return (
     <div>
-      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-muted">
         {title}
       </h3>
       {/* Kolom tabel ini DINAMIS — satu kolom per perusahaan. Karena itu
@@ -73,16 +73,16 @@ function ConsolidatedTable({
         <tbody>
           {rows.length === 0 ? (
             <Tr>
-              <Td className="text-slate-400" colSpan={companies.length + 2}>
+              <Td className="text-ink-muted" colSpan={companies.length + 2}>
                 {u("tidakAdaData")}
               </Td>
             </Tr>
           ) : (
             rows.map((r) => (
-              <Tr key={r.code} className={r.eliminated ? "text-slate-400 dark:text-slate-500" : undefined}>
+              <Tr key={r.code} className={r.eliminated ? "text-ink-faint" : undefined}>
                 {/* Bukan `numeric`: selnya memuat kode DAN nama akun. */}
                 <Td label={u("akun")}>
-                  <span className="font-mono text-xs text-slate-400">{r.code}</span> {r.name}
+                  <span className="font-mono text-xs text-ink-muted">{r.code}</span> {r.name}
                   {/* Baris antar-perusahaan tetap DITAMPILKAN, hanya ditandai:
                       eliminasi yang menghilangkan angka diam-diam membuat
                       laporan mustahil ditelusuri saat totalnya tidak cocok
@@ -178,10 +178,10 @@ export function ConsolidationPage() {
           ) : null}
         </div>
         <div className="flex items-center gap-2">
-          <div className="inline-flex overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700">
+          <div className="inline-flex overflow-hidden rounded-lg border border-line-strong">
             <button
               className={`px-3 py-1.5 text-sm ${
-                mode === "income" ? "bg-brand-600 text-white" : "text-slate-600 dark:text-slate-300"
+                mode === "income" ? "bg-brand-600 text-white" : "text-ink-soft"
               }`}
               onClick={() => setMode("income")}
             >
@@ -191,7 +191,7 @@ export function ConsolidationPage() {
               className={`px-3 py-1.5 text-sm ${
                 mode === "balance"
                   ? "bg-brand-600 text-white"
-                  : "text-slate-600 dark:text-slate-300"
+                  : "text-ink-soft"
               }`}
               onClick={() => setMode("balance")}
             >
@@ -274,7 +274,7 @@ export function ConsolidationPage() {
         </div>
       </div>
 
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-ink-muted">
         {u("descKonsolidasi")}
       </p>
 
@@ -331,7 +331,7 @@ export function ConsolidationPage() {
                         className={`rounded-full border px-3 py-1 text-sm transition-colors ${
                           on
                             ? "border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300"
-                            : "border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400"
+                            : "border-line-strong text-ink-muted"
                         }`}
                       >
                         {on ? "✓ " : ""}
@@ -341,7 +341,7 @@ export function ConsolidationPage() {
                   })}
                 </div>
                 {soloCompany ? (
-                  <p className="mt-2 text-xs text-slate-400">
+                  <p className="mt-2 text-xs text-ink-muted">
                     {u("satuPerusahaanSaja")}
                   </p>
                 ) : null}
@@ -416,7 +416,7 @@ export function ConsolidationPage() {
               perCompanyTotals={balanceQuery.data.totalEquityByCompany}
               totalLabel="Total Ekuitas"
             />
-            <div className="flex items-center justify-between rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold dark:bg-slate-800">
+            <div className="flex items-center justify-between rounded-lg bg-surface-muted px-4 py-3 text-sm font-semibold">
               <span>Kewajiban + Ekuitas Konsolidasi</span>
               <span className="tabular-nums">
                 {formatIDR(balanceQuery.data.totalLiabilities + balanceQuery.data.totalEquity)}

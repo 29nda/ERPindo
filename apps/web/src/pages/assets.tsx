@@ -125,19 +125,19 @@ export function AssetsPage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <Card>
           <CardBody className="py-3">
-            <div className="text-xs text-slate-500 dark:text-slate-400">{u("asetAktif")}</div>
+            <div className="text-xs text-ink-muted">{u("asetAktif")}</div>
             <div className="mt-1 text-xl font-semibold tabular-nums">{active.length}</div>
           </CardBody>
         </Card>
         <Card>
           <CardBody className="py-3">
-            <div className="text-xs text-slate-500 dark:text-slate-400">{u("nilaiBukuTotal")}</div>
+            <div className="text-xs text-ink-muted">{u("nilaiBukuTotal")}</div>
             <div className="mt-1 text-xl font-semibold tabular-nums">{formatIDR(totalBook)}</div>
           </CardBody>
         </Card>
         <Card>
           <CardBody className="py-3">
-            <div className="text-xs text-slate-500 dark:text-slate-400">{u("penyusutanPerBulan")}</div>
+            <div className="text-xs text-ink-muted">{u("penyusutanPerBulan")}</div>
             <div className="mt-1 text-xl font-semibold tabular-nums">
               {formatIDR(
                 active.reduce(
@@ -329,19 +329,19 @@ export function AssetsPage() {
             <>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" data-uji="fiskal-ringkas">
                 <div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{u("adKomersial")}</div>
+                  <div className="text-xs text-ink-muted">{u("adKomersial")}</div>
                   <div className="text-lg font-semibold tabular-nums" data-uji="fiskal-komersial">
                     {formatIDR(fiskalQuery.data.totalKomersial)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{u("adFiskal")}</div>
+                  <div className="text-xs text-ink-muted">{u("adFiskal")}</div>
                   <div className="text-lg font-semibold tabular-nums" data-uji="fiskal-fiskal">
                     {formatIDR(fiskalQuery.data.totalFiskal)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{u("adKoreksiFiskal")}</div>
+                  <div className="text-xs text-ink-muted">{u("adKoreksiFiskal")}</div>
                   <div className="text-lg font-semibold tabular-nums" data-uji="fiskal-koreksi">
                     {formatIDR(fiskalQuery.data.totalKoreksi)}
                   </div>
@@ -352,7 +352,7 @@ export function AssetsPage() {
                   {fiskalQuery.data.tanpaKelompok} {u("adTanpaKelompokSuffix")}
                 </Alert>
               ) : null}
-              <p className="text-sm text-slate-500 dark:text-slate-400" data-uji="fiskal-catatan">
+              <p className="text-sm text-ink-muted" data-uji="fiskal-catatan">
                 {u("adFiskalTidakDijurnal")}
               </p>
             </>
@@ -455,19 +455,19 @@ function AssetRow({
       : 0;
 
   return (
-    <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+    <div className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="font-medium">{asset.name}</span>
-        {asset.category ? <span className="text-xs text-slate-400">{asset.category}</span> : null}
+        {asset.category ? <span className="text-xs text-ink-muted">{asset.category}</span> : null}
         {asset.status === "disposed" ? (
           <Badge tone="neutral">{u("statusDilepas")}</Badge>
         ) : (
           <Badge tone="green">{u("statusAktif")}</Badge>
         )}
-        <span className="ml-auto text-sm text-slate-500 dark:text-slate-400">
+        <span className="ml-auto text-sm text-ink-muted">
           {u("perolehan")} <span className="tabular-nums">{formatIDR(asset.acquisitionCost)}</span> ·{" "}
           {u("nilaiBuku")}{" "}
-          <strong className="tabular-nums text-slate-800 dark:text-slate-100">
+          <strong className="tabular-nums text-ink">
             {formatIDR(asset.bookValue)}
           </strong>
         </span>
@@ -482,7 +482,7 @@ function AssetRow({
           </>
         ) : null}
       </div>
-      <div className="mt-1 text-xs text-slate-400">
+      <div className="mt-1 text-xs text-ink-muted">
         {u("sejak")} {asset.acquisitionDate} · {u("masa")} {asset.usefulLifeMonths}{" "}
         {u("blnSingkat")} · {u("penyusutan")} {formatIDR(asset.monthlyDepreciation)}
         {u("perBlnSingkat")}
@@ -521,14 +521,14 @@ function AssetRow({
           <Button onClick={() => revalue.mutate()} disabled={revalue.isPending || !fairValue}>
             {u("simpanRevaluasi")}
           </Button>
-          <p className="w-full text-xs text-slate-500 dark:text-slate-400">
+          <p className="w-full text-xs text-ink-muted">
             {u("descRevaluasi")}
           </p>
         </div>
       ) : null}
 
       {open && asset.status === "active" ? (
-        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/40">
+        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg bg-surface-sunken p-3">
           <div>
             <Label htmlFor={`d-date-${asset.id}`}>{u("tanggalPelepasan")}</Label>
             <Input

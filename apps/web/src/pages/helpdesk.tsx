@@ -155,7 +155,7 @@ export function HelpdeskPage() {
         <LifeBuoy className="size-6 text-brand-600" aria-hidden />
         <h1 className="text-2xl font-semibold">{h.title}</h1>
       </div>
-      <p className="text-sm text-slate-500 dark:text-slate-400">{h.desc}</p>
+      <p className="text-sm text-ink-muted">{h.desc}</p>
 
       {isAdmin ? (
         <Card>
@@ -191,7 +191,7 @@ export function HelpdeskPage() {
               <textarea
                 id="tk-desc"
                 rows={3}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-900"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none focus:border-brand-500"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
@@ -247,11 +247,11 @@ export function HelpdeskPage() {
                     className={`w-full rounded-lg border p-3 text-left transition-colors ${
                       selectedId === t.id
                         ? "border-brand-400 bg-brand-50/60 dark:border-brand-700 dark:bg-brand-950/40"
-                        : "border-slate-200 hover:border-slate-300 dark:border-slate-800"
+                        : "border-line hover:border-slate-300"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-xs text-slate-400">{t.ticketNo}</span>
+                      <span className="font-mono text-xs text-ink-muted">{t.ticketNo}</span>
                       <div className="flex flex-wrap justify-end gap-1.5">
                         {(() => {
                           const age = ticketAge(t);
@@ -264,7 +264,7 @@ export function HelpdeskPage() {
                       </div>
                     </div>
                     <div className="mt-1 font-medium">{t.subject}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                    <div className="text-xs text-ink-muted">
                       {t.contactName}
                       {t.assignedName ? ` ${u("ditugaskanKeSuffix")} ${t.assignedName}` : ""}
                       {t.replyCount > 0 ? ` · ${t.replyCount} ${u("balasanSuffix")}` : ""}
@@ -280,7 +280,7 @@ export function HelpdeskPage() {
           <CardHeader title={detail ? `${detail.ticketNo} — ${detail.subject}` : "Detail tiket"} />
           <CardBody>
             {!selectedId ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-ink-muted">
                 {u("pilihTiketDetail")}
               </p>
             ) : detailQuery.isLoading || !detail ? (
@@ -297,7 +297,7 @@ export function HelpdeskPage() {
                   <Badge>{detail.contactName}</Badge>
                 </div>
                 {detail.description ? (
-                  <p className="whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800/50">
+                  <p className="whitespace-pre-wrap rounded-lg bg-surface-sunken p-3 text-sm">
                     {detail.description}
                   </p>
                 ) : null}
@@ -337,11 +337,11 @@ export function HelpdeskPage() {
                 ) : null}
 
                 <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400">
+                  <h3 className="text-sm font-semibold text-ink-muted">
                     Balasan
                   </h3>
                   {detail.replies.length === 0 ? (
-                    <p className="text-sm text-slate-400">{u("belumAdaBalasan")}</p>
+                    <p className="text-sm text-ink-muted">{u("belumAdaBalasan")}</p>
                   ) : (
                     detail.replies.map((r) => (
                       <div
@@ -349,10 +349,10 @@ export function HelpdeskPage() {
                         className={`rounded-lg p-3 text-sm ${
                           r.internal
                             ? "border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
-                            : "bg-slate-50 dark:bg-slate-800/50"
+                            : "bg-surface-sunken"
                         }`}
                       >
-                        <div className="mb-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <div className="mb-1 flex items-center gap-2 text-xs text-ink-muted">
                           <span className="font-medium">{r.authorName}</span>
                           {r.internal ? <Badge tone="amber">{u("catatanInternalKecil")}</Badge> : null}
                           <span>{r.createdAt.slice(0, 16).replace("T", " ")}</span>
@@ -368,12 +368,12 @@ export function HelpdeskPage() {
                     <textarea
                       rows={2}
                       placeholder={u("hdPhBalasan")}
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500 dark:border-slate-700 dark:bg-slate-900"
+                      className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm outline-none focus:border-brand-500"
                       value={reply}
                       onChange={(e) => setReply(e.target.value)}
                     />
                     <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                      <label className="flex items-center gap-2 text-sm text-ink-muted">
                         <input
                           type="checkbox"
                           checked={replyInternal}

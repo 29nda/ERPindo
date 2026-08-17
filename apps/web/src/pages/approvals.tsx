@@ -62,14 +62,14 @@ export function ApprovalsPage() {
         <PageHeading k="persetujuan" />
       </div>
 
-      <div className="flex flex-wrap gap-1.5 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-wrap gap-1.5 border-b border-line">
         {tabs.filter((t) => t.show).map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
             className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
-              tab === t.key ? "border-brand-500 text-brand-600 dark:text-brand-300" : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400"
+              tab === t.key ? "border-brand-500 text-brand-600 dark:text-brand-300" : "border-transparent text-ink-muted hover:text-slate-700"
             }`}
           >
             {t.label}
@@ -100,7 +100,7 @@ function StepTrail({ flow }: { flow: ApiApprovalFlow }) {
                 ? "border-red-300 text-red-700 dark:border-red-500/40 dark:text-red-300"
                 : s.stepOrder === flow.currentStep && flow.status === "pending"
                   ? "border-amber-300 text-amber-700 dark:border-amber-500/40 dark:text-amber-300"
-                  : "border-slate-200 text-slate-400 dark:border-slate-700"
+                  : "border-line text-ink-muted"
           }`}
         >
           {s.stepOrder}. {APPROVAL_ROLE_LABELS[s.approverRole]}
@@ -142,12 +142,12 @@ function QueueTab() {
         ) : (
           <div className="space-y-2">
             {flows.map((f) => (
-              <div key={f.id} className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
+              <div key={f.id} className="rounded-lg border border-line p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="font-mono text-xs">{f.flowNo}</span>
                   <Badge tone="neutral">{u(DOC_TYPE_KEY[f.docType])}</Badge>
                   <span className="font-medium">{f.title}</span>
-                  {f.requestedByName ? <span className="text-xs text-slate-400">oleh {f.requestedByName}</span> : null}
+                  {f.requestedByName ? <span className="text-xs text-ink-muted">oleh {f.requestedByName}</span> : null}
                   <span className="ml-auto font-semibold tabular-nums">{formatIDR(f.amount)}</span>
                 </div>
                 <StepTrail flow={f} />
@@ -222,9 +222,9 @@ function SubmitTab() {
             <Input id="ap-amount" type="number" min={1} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
           </div>
         </div>
-        <div className="rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800/40">
+        <div className="rounded-lg bg-surface-sunken p-3 text-sm">
           {amountNum <= 0 ? (
-            <span className="text-slate-400">{u("isiNominalUntukAturan")}</span>
+            <span className="text-ink-muted">{u("isiNominalUntukAturan")}</span>
           ) : matchedRule ? (
             <span>
               Aturan berlaku: <strong>{matchedRule.name}</strong> — persetujuan berurutan:{" "}
@@ -259,16 +259,16 @@ function HistoryTab() {
         {query.isLoading ? (
           <Spinner />
         ) : flows.length === 0 ? (
-          <p className="text-sm text-slate-400">{u("belumAdaPengajuan")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaPengajuan")}</p>
         ) : (
           <div className="space-y-2">
             {flows.map((f) => (
-              <div key={f.id} className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
+              <div key={f.id} className="rounded-lg border border-line p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="font-mono text-xs">{f.flowNo}</span>
                   <Badge tone="neutral">{u(DOC_TYPE_KEY[f.docType])}</Badge>
                   <span className="font-medium">{f.title}</span>
-                  {f.requestedByName ? <span className="text-xs text-slate-400">oleh {f.requestedByName}</span> : null}
+                  {f.requestedByName ? <span className="text-xs text-ink-muted">oleh {f.requestedByName}</span> : null}
                   <Badge tone={STATUS_TONE[f.status]}>{APPROVAL_STATUS_LABELS[f.status]}</Badge>
                   <span className="ml-auto font-semibold tabular-nums">{formatIDR(f.amount)}</span>
                 </div>
@@ -359,7 +359,7 @@ function RulesTab() {
                   type="button"
                   onClick={() => toggleRole(r)}
                   className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
-                    form.approverRoles.includes(r) ? "border-brand-400 bg-brand-50 text-brand-700 dark:bg-brand-950/40 dark:text-brand-200" : "border-slate-200 text-slate-500 dark:border-slate-700"
+                    form.approverRoles.includes(r) ? "border-brand-400 bg-brand-50 text-brand-700 dark:bg-brand-950/40 dark:text-brand-200" : "border-line text-ink-muted"
                   }`}
                 >
                   {APPROVAL_ROLE_LABELS[r]}
@@ -380,17 +380,17 @@ function RulesTab() {
         ) : (
           <div className="space-y-2">
             {rules.map((r) => (
-              <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
+              <div key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line p-3 text-sm">
                 <span className="font-medium">{r.name}</span>
                 <Badge tone="neutral">{APPROVAL_DOC_TYPE_LABELS[r.docType]}</Badge>
-                <span className="text-xs text-slate-500 dark:text-slate-400">≥ {formatIDR(r.minAmount)}</span>
-                <span className="text-xs text-slate-400">{r.approverRoles.map((x) => APPROVAL_ROLE_LABELS[x]).join(" → ")}</span>
+                <span className="text-xs text-ink-muted">≥ {formatIDR(r.minAmount)}</span>
+                <span className="text-xs text-ink-muted">{r.approverRoles.map((x) => APPROVAL_ROLE_LABELS[x]).join(" → ")}</span>
                 {!r.active ? <Badge tone="red">nonaktif</Badge> : null}
                 <span className="ml-auto flex items-center gap-2">
                   <Button variant="ghost" className="h-8" onClick={() => toggleActive.mutate({ id: r.id, active: !r.active })} disabled={toggleActive.isPending}>
                     {r.active ? "Nonaktifkan" : "Aktifkan"}
                   </Button>
-                  <button type="button" aria-label={u("hapusAturan")} className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 hover:text-red-600" onClick={() => remove.mutate(r.id)}>
+                  <button type="button" aria-label={u("hapusAturan")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-red-600" onClick={() => remove.mutate(r.id)}>
                     <Trash2 className="size-4" aria-hidden />
                   </button>
                 </span>
@@ -442,11 +442,11 @@ function PurchaseApprovalTab() {
         {query.isLoading ? (
           <Spinner />
         ) : requests.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{u("tidakAdaPermintaan")}</p>
+          <p className="text-sm text-ink-muted">{u("tidakAdaPermintaan")}</p>
         ) : (
           <div className="space-y-3">
             {requests.map((r) => (
-              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
+              <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-xs font-semibold">{r.request_no}</span>
                   <span>{r.summary}</span>

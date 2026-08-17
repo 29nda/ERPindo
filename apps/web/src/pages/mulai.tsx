@@ -44,7 +44,7 @@ export function MulaiPage() {
     <div className="mx-auto max-w-xl">
       <div className="mb-6 flex items-center gap-2 text-brand-600 dark:text-brand-400">
         <Rocket className="size-5" aria-hidden />
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Selamat datang! Ayo siapkan cepat.</h1>
+        <h1 className="text-2xl font-semibold text-ink">Selamat datang! Ayo siapkan cepat.</h1>
       </div>
 
       {/* Indikator langkah */}
@@ -57,15 +57,15 @@ export function MulaiPage() {
                   ? "bg-brand-600 text-white dark:bg-brand-400 dark:text-slate-900"
                   : i === step
                     ? "bg-brand-100 text-brand-700 ring-2 ring-brand-500 dark:bg-brand-900/60 dark:text-brand-300"
-                    : "bg-slate-100 text-slate-400 dark:bg-slate-800"
+                    : "bg-surface-muted text-ink-muted"
               }`}
             >
               {i < step ? <Check className="size-3.5" aria-hidden /> : i + 1}
             </span>
-            <span className={`hidden text-xs sm:block ${i === step ? "font-semibold text-slate-800 dark:text-slate-200" : "text-slate-400"}`}>
+            <span className={`hidden text-xs sm:block ${i === step ? "font-semibold text-ink" : "text-ink-muted"}`}>
               {u(kunci)}
             </span>
-            {i < STEP_KEYS.length - 1 ? <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" /> : null}
+            {i < STEP_KEYS.length - 1 ? <span className="h-px flex-1 bg-surface-active" /> : null}
           </li>
         ))}
       </ol>
@@ -75,7 +75,7 @@ export function MulaiPage() {
       {step === 2 ? <ProdukStep tenantId={tenant.tenantId} onDone={nextOrFinish} onSkip={nextOrFinish} toast={toast} /> : null}
       {step === 3 ? <KontakStep tenantId={tenant.tenantId} onDone={finish} onSkip={finish} toast={toast} /> : null}
 
-      <button onClick={finish} className="mt-6 flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+      <button onClick={finish} className="mt-6 flex items-center gap-1.5 text-sm text-ink-muted hover:text-ink-soft">
         <SkipForward className="size-3.5" aria-hidden /> {u("lewatiSemua")}
       </button>
     </div>
@@ -89,7 +89,7 @@ function StepCard({ title, description, children }: { title: string; description
     <Card>
       <CardBody>
         <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{description}</p>
+        <p className="mt-1 text-sm text-ink-soft">{description}</p>
         <div className="mt-4">{children}</div>
       </CardBody>
     </Card>
@@ -121,7 +121,7 @@ function ProfilStep({ tenantId, onDone, onSkip, toast }: { tenantId: string; onD
         </div>
       </div>
       <div className="mt-5 flex items-center justify-between">
-        <button onClick={onSkip} className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+        <button onClick={onSkip} className="text-sm text-ink-muted hover:text-ink-soft">
           Lewati
         </button>
         <Button onClick={() => save.mutate()} disabled={save.isPending || address.trim().length === 0}>
@@ -143,19 +143,19 @@ function PengalamanStep({ onDone }: { onDone: () => void }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           onClick={() => pick(true)}
-          className="rounded-2xl border border-slate-200 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-700 dark:hover:border-brand-700"
+          className="rounded-2xl border border-line p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
         >
           <Sparkles className="size-6 text-brand-600 dark:text-brand-400" aria-hidden />
           <h3 className="mt-2 font-semibold">{u("sayaPemula")}</h3>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{u("descModeSederhana")}</p>
+          <p className="mt-1 text-sm text-ink-soft">{u("descModeSederhana")}</p>
         </button>
         <button
           onClick={() => pick(false)}
-          className="rounded-2xl border border-slate-200 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:border-slate-700 dark:hover:border-brand-700"
+          className="rounded-2xl border border-line p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
         >
           <GraduationCap className="size-6 text-brand-600 dark:text-brand-400" aria-hidden />
           <h3 className="mt-2 font-semibold">{u("sayaSudahPaham")}</h3>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{u("descModeLengkap")}</p>
+          <p className="mt-1 text-sm text-ink-soft">{u("descModeLengkap")}</p>
         </button>
       </div>
     </StepCard>
@@ -198,7 +198,7 @@ function ProdukStep({ tenantId, onDone, onSkip, toast }: { tenantId: string; onD
         </div>
       </div>
       <div className="mt-5 flex items-center justify-between">
-        <button onClick={onSkip} className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+        <button onClick={onSkip} className="text-sm text-ink-muted hover:text-ink-soft">
           Lewati
         </button>
         <Button onClick={() => save.mutate()} disabled={save.isPending || sku.trim().length === 0 || name.trim().length < 2}>
@@ -233,13 +233,13 @@ function KontakStep({ tenantId, onDone, onSkip, toast }: { tenantId: string; onD
         <div className="flex gap-2">
           <button
             onClick={() => setType("customer")}
-            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${type === "customer" ? "border-brand-500 bg-brand-50 font-semibold text-brand-700 dark:bg-brand-950 dark:text-brand-300" : "border-slate-300 dark:border-slate-700"}`}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${type === "customer" ? "border-brand-500 bg-brand-50 font-semibold text-brand-700 dark:bg-brand-950 dark:text-brand-300" : "border-line-strong"}`}
           >
             {u("pelanggan")}
           </button>
           <button
             onClick={() => setType("supplier")}
-            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${type === "supplier" ? "border-brand-500 bg-brand-50 font-semibold text-brand-700 dark:bg-brand-950 dark:text-brand-300" : "border-slate-300 dark:border-slate-700"}`}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${type === "supplier" ? "border-brand-500 bg-brand-50 font-semibold text-brand-700 dark:bg-brand-950 dark:text-brand-300" : "border-line-strong"}`}
           >
             {u("pemasok")}
           </button>
@@ -250,7 +250,7 @@ function KontakStep({ tenantId, onDone, onSkip, toast }: { tenantId: string; onD
         </div>
       </div>
       <div className="mt-5 flex items-center justify-between">
-        <button onClick={onSkip} className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+        <button onClick={onSkip} className="text-sm text-ink-muted hover:text-ink-soft">
           Lewati
         </button>
         <Button onClick={() => save.mutate()} disabled={save.isPending || name.trim().length < 2}>

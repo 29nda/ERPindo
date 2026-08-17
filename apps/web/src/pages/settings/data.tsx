@@ -46,7 +46,7 @@ export function ExportBackupCard({ tenantId }: { tenantId: string }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-sm font-medium">{u("unduhSemuaZip")}</div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-ink-muted">
               {u("descUnduhSemua")}
             </p>
           </div>
@@ -59,29 +59,29 @@ export function ExportBackupCard({ tenantId }: { tenantId: string }) {
           </a>
         </div>
 
-        <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+        <div className="border-t border-line pt-4">
           <div className="text-sm font-medium">{u("backupDrive")}</div>
           {status.isLoading ? (
             <Skeleton className="mt-2 h-10 w-full" />
           ) : !drive?.configured ? (
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-xs text-ink-muted">
               {u("descDriveBelumSiap")}
             </p>
           ) : !drive.connected ? (
             <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-ink-muted">
                 {u("descSambungkanDrive")}
               </p>
               <a
                 href={api.driveConnectUrl(tenantId)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                className="inline-flex items-center gap-2 rounded-xl border border-line-strong px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-sunken"
               >
                 {u("sambungkanDrive")}
               </a>
             </div>
           ) : (
             <div className="mt-2 space-y-2">
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-ink-muted">
                 {u("tersambung")}{drive.accountEmail ? ` ${u("sebagaiAkun")} ${drive.accountEmail}` : ""}.{" "}
                 {drive.lastBackupAt
                   ? `${u("cadanganTerakhir")} ${formatDate(drive.lastBackupAt.slice(0, 10))} (${drive.lastBackupStatus ?? "ok"}).`
@@ -494,13 +494,13 @@ export function TenantSecurityCard({ tenantId }: { tenantId: string }) {
             <label className="flex items-start gap-3">
               <input
                 type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-slate-300"
+                className="mt-1 h-4 w-4 rounded border-line-strong"
                 checked={require2fa}
                 onChange={(e) => setRequire2fa(e.target.checked)}
               />
               <span>
                 <span className="text-sm font-medium">{u("wajibkan2fa")}</span>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-ink-muted">
                   {u("descWajibkan2fa")}
                 </p>
               </span>
@@ -509,13 +509,13 @@ export function TenantSecurityCard({ tenantId }: { tenantId: string }) {
             <div>
               <Label>{u("pembatasanIp")}</Label>
               <textarea
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-mono text-sm dark:border-slate-700 dark:bg-slate-900"
+                className="mt-1 w-full rounded-xl border border-line-strong bg-surface px-3 py-2 font-mono text-sm"
                 rows={4}
                 placeholder={"203.0.113.0/24\n198.51.100.7"}
                 value={ipsText}
                 onChange={(e) => setIpsText(e.target.value)}
               />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-xs text-ink-muted">
                 {u("descPembatasanIp")}
                 {query.data?.currentIp ? ` ${u("ipAndaSaatIni")} ${query.data.currentIp}.` : ""}
               </p>
@@ -527,7 +527,7 @@ export function TenantSecurityCard({ tenantId }: { tenantId: string }) {
               </Button>
               <a
                 href={api.securityAuditCsvUrl(tenantId)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                className="inline-flex items-center gap-2 rounded-xl border border-line-strong px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-sunken"
                 download
               >
                 Ekspor audit log (CSV)
@@ -574,20 +574,20 @@ export function AuditLogCard({ tenantId }: { tenantId: string }) {
         {query.isLoading ? (
           <Spinner />
         ) : (
-          <div className="max-h-96 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800/60">
+          <div className="max-h-96 divide-y divide-line overflow-y-auto">
             {[...(query.data?.logs ?? []), ...(older?.logs ?? [])].map((log) => {
               const detail = friendlyAuditDetail(log.detail, lang);
               return (
                 <div key={log.id} className="flex flex-col gap-0.5 py-2.5 sm:flex-row sm:items-baseline sm:gap-3">
-                  <span className="order-2 shrink-0 text-xs text-slate-400 dark:text-slate-500 sm:order-1 sm:w-28">
+                  <span className="order-2 shrink-0 text-xs text-ink-faint sm:order-1 sm:w-28">
                     {log.createdAt.slice(0, 16).replace("T", " ")}
                   </span>
                   <div className="order-1 min-w-0 flex-1 sm:order-2">
                     <div className="flex flex-wrap items-baseline gap-x-2">
                       <span className="font-medium">{labelAudit(log.action, lang)}</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">oleh {log.userName ?? "sistem"}</span>
+                      <span className="text-xs text-ink-muted">oleh {log.userName ?? "sistem"}</span>
                     </div>
-                    {detail ? <div className="text-xs text-slate-500 dark:text-slate-400">{detail}</div> : null}
+                    {detail ? <div className="text-xs text-ink-muted">{detail}</div> : null}
                   </div>
                 </div>
               );

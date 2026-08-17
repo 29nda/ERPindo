@@ -204,7 +204,7 @@ export function CatatPage() {
                 className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-sm font-medium transition-colors sm:flex-row sm:justify-center ${
                   mode === m.key
                     ? "border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-500/40 dark:bg-brand-500/15 dark:text-brand-200"
-                    : "border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800/60"
+                    : "border-line text-ink-soft hover:bg-slate-50 dark:hover:bg-slate-800/60"
                 }`}
               >
                 <m.icon className="size-4 shrink-0" aria-hidden />

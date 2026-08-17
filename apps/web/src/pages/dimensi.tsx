@@ -119,7 +119,7 @@ function CostCenterCard() {
         {query.isLoading ? (
           <Spinner />
         ) : items.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaCostCenter")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaCostCenter")}</p>
         ) : (
           <Table>
             <Thead>
@@ -221,7 +221,7 @@ function DimensionReportCard() {
         {query.isLoading ? (
           <Spinner />
         ) : rows.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-ink-muted">
             {u("belumAdaTransaksiPeriode")}
           </p>
         ) : (
@@ -239,7 +239,7 @@ function DimensionReportCard() {
                 <Tr key={r.costCenterId ?? "none"}>
                   <Td label={u("dmDimensi")}>
                     {r.costCenterId ? (
-                      <span className="font-mono text-xs text-slate-400">{r.code}</span>
+                      <span className="font-mono text-xs text-ink-muted">{r.code}</span>
                     ) : null}{" "}
                     {r.name}
                   </Td>
@@ -373,7 +373,7 @@ function BankRuleCard() {
             {rules.map((r) => (
               <li
                 key={r.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-800"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line px-3 py-2"
               >
                 <span>
                   <Badge tone="neutral">{accName(r.accountId)}</Badge>
@@ -390,11 +390,11 @@ function BankRuleCard() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaAturanTersimpan")}</p>
+          <p className="text-sm text-ink-muted">{u("belumAdaAturanTersimpan")}</p>
         )}
-        <div className="rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800/40">
+        <div className="rounded-xl bg-surface-sunken p-4 text-sm">
           <p className="font-medium">{u("formatImporKoran")}</p>
-          <p className="mt-1 text-slate-500 dark:text-slate-400">
+          <p className="mt-1 text-ink-muted">
             {u("descFormatImpor")}{" "}
             {BANK_CSV_PRESETS.map((p) => p.label.split(" (")[0]).join(", ")}.
           </p>

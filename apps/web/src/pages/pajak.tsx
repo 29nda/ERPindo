@@ -75,7 +75,7 @@ export function PajakPage() {
       <div>
         <PageHeading k="pajak" />
       </div>
-      <div className="flex flex-wrap gap-1 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-wrap gap-1 border-b border-line">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -83,7 +83,7 @@ export function PajakPage() {
             className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
               tab === t.key
                 ? "border-brand-600 text-brand-700 dark:text-brand-300"
-                : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                : "border-transparent text-ink-muted hover:text-ink-soft"
             }`}
           >
             {t.label}
@@ -197,7 +197,7 @@ function PphFinalSection({ isAdmin }: { isAdmin: boolean }) {
               </Button>
             </div>
             {preview.data ? (
-              <div className="rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800/40">
+              <div className="rounded-xl bg-surface-sunken p-4 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>
                     {u("omzetMasa")} {preview.data.period}:{" "}
@@ -214,7 +214,7 @@ function PphFinalSection({ isAdmin }: { isAdmin: boolean }) {
                   <p className="mt-2 text-amber-600 dark:text-amber-400">{u("masaSudahDicatat")}</p>
                 ) : null}
                 {preview.data.amount <= 0 ? (
-                  <p className="mt-2 text-slate-500">{u("belumAdaOmzetMasa")}</p>
+                  <p className="mt-2 text-ink-muted">{u("belumAdaOmzetMasa")}</p>
                 ) : null}
               </div>
             ) : null}
@@ -228,7 +228,7 @@ function PphFinalSection({ isAdmin }: { isAdmin: boolean }) {
           {list.isLoading ? (
             <Spinner />
           ) : records.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-ink-muted">
               {u("belumAdaSetoran")}
             </p>
           ) : (
@@ -414,7 +414,7 @@ function Pph23Section({ isAdmin }: { isAdmin: boolean }) {
                 </Select>
               </div>
               <div className="flex items-end">
-                <div className="w-full rounded-xl bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800/40">
+                <div className="w-full rounded-xl bg-surface-sunken px-3 py-2 text-sm">
                   PPh dipotong ({rate}%):{" "}
                   <strong className="tabular-nums">{formatIDR(amount)}</strong>
                 </div>
@@ -478,7 +478,7 @@ function Pph23Section({ isAdmin }: { isAdmin: boolean }) {
           {list.isLoading ? (
             <Spinner />
           ) : records.length === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaBuktiPotong")}</p>
+            <p className="text-sm text-ink-muted">{u("belumAdaBuktiPotong")}</p>
           ) : (
             <Table>
               <Thead>
@@ -652,14 +652,14 @@ function SptPpnSection() {
           ) : !data ? null : (
             <>
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/40">
-                  <p className="text-xs text-slate-500">Pajak Keluaran (A)</p>
+                <div className="rounded-xl bg-surface-sunken p-4">
+                  <p className="text-xs text-ink-muted">Pajak Keluaran (A)</p>
                   <p className="mt-1 text-lg font-semibold tabular-nums">
                     {formatIDR(data.totalOutputPpn)}
                   </p>
                 </div>
-                <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/40">
-                  <p className="text-xs text-slate-500">Pajak Masukan (B)</p>
+                <div className="rounded-xl bg-surface-sunken p-4">
+                  <p className="text-xs text-ink-muted">Pajak Masukan (B)</p>
                   <p className="mt-1 text-lg font-semibold tabular-nums">
                     {formatIDR(data.totalInputPpn)}
                   </p>
@@ -667,7 +667,7 @@ function SptPpnSection() {
                 <div
                   className={`rounded-xl p-4 ${data.net >= 0 ? "bg-amber-50 dark:bg-amber-500/10" : "bg-emerald-50 dark:bg-emerald-500/10"}`}
                 >
-                  <p className="text-xs text-slate-500">{netLabel}</p>
+                  <p className="text-xs text-ink-muted">{netLabel}</p>
                   <p className="mt-1 text-lg font-semibold tabular-nums">
                     {formatIDR(Math.abs(data.net))}
                   </p>
@@ -716,7 +716,7 @@ function SptTable({
     <div>
       <h3 className="mb-2 text-sm font-semibold">{title}</h3>
       {rows.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-ink-muted">
           {u("tidakAdaTransaksiPpn")}
         </p>
       ) : (
@@ -819,7 +819,7 @@ function PphUnifikasiSection() {
         {query.isLoading ? (
           <Spinner />
         ) : !data || data.rows.length === 0 ? (
-          <p className="text-sm text-slate-500 dark:text-slate-400">{u("pphBelumAdaData")}</p>
+          <p className="text-sm text-ink-muted">{u("pphBelumAdaData")}</p>
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-4">
@@ -836,10 +836,10 @@ function PphUnifikasiSection() {
                   className={`rounded-xl p-3 ring-1 ring-inset ${
                     i === 3
                       ? "bg-brand-50 ring-brand-200 dark:bg-brand-950/40 dark:ring-brand-900"
-                      : "bg-slate-50 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800"
+                      : "bg-surface-sunken ring-line"
                   }`}
                 >
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{label}</div>
+                  <div className="text-xs text-ink-muted">{label}</div>
                   <div className="mt-1 text-lg font-bold tabular-nums">{formatIDR(nilai)}</div>
                 </div>
               ))}
@@ -869,7 +869,7 @@ function PphUnifikasiSection() {
                     <Td label={u("nomor")} className="font-mono text-xs">
                       {r.docNo}
                       {r.partnerName ? (
-                        <div className="font-sans text-slate-500 dark:text-slate-400">{r.partnerName}</div>
+                        <div className="font-sans text-ink-muted">{r.partnerName}</div>
                       ) : null}
                     </Td>
                     <Td label={u("tanggal")}>{formatDate(r.date)}</Td>
@@ -955,7 +955,7 @@ function KalenderPajakSection({ isAdmin }: { isAdmin: boolean }) {
                     checked={nilai}
                     disabled={!isAdmin || simpanProfil.isPending}
                     onChange={(e) => simpanProfil.mutate({ [key]: e.target.checked })}
-                    className="size-4 rounded border-slate-300 dark:border-slate-600"
+                    className="size-4 rounded border-line-strong"
                   />
                   {label}
                 </label>
@@ -963,7 +963,7 @@ function KalenderPajakSection({ isAdmin }: { isAdmin: boolean }) {
             </div>
           )}
           {profil ? (
-            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400" data-uji="kp-karyawan">
+            <p className="mt-3 text-sm text-ink-muted" data-uji="kp-karyawan">
               {profil.adaKaryawan ? u("kpAdaKaryawan") : u("kpTanpaKaryawan")}
             </p>
           ) : null}
@@ -976,7 +976,7 @@ function KalenderPajakSection({ isAdmin }: { isAdmin: boolean }) {
           {kalender.isLoading ? (
             <Spinner />
           ) : (kalender.data?.tenggat.length ?? 0) === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">{u("kpKosong")}</p>
+            <p className="text-sm text-ink-muted">{u("kpKosong")}</p>
           ) : (
             <div data-uji="kp-tabel">
             <Table>
@@ -1016,7 +1016,7 @@ function KalenderPajakSection({ isAdmin }: { isAdmin: boolean }) {
             </Table>
             </div>
           )}
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400" data-uji="kp-catatan-libur">
+          <p className="mt-3 text-sm text-ink-muted" data-uji="kp-catatan-libur">
             {u("kpCatatanLibur")}
           </p>
         </CardBody>

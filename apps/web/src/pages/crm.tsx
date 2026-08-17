@@ -113,7 +113,7 @@ function KartuFormLead({ tenantId }: { tenantId: string }) {
             <textarea
               readOnly
               data-testid="cuplikan-form-lead"
-              className="h-40 w-full rounded-lg border border-slate-300 bg-slate-50 p-2 font-mono text-xs dark:border-slate-700 dark:bg-slate-900"
+              className="h-40 w-full rounded-lg border border-line-strong bg-surface-sunken p-2 font-mono text-xs"
               value={cuplikan}
             />
             <div className="flex flex-wrap gap-2">
@@ -136,7 +136,7 @@ function KartuFormLead({ tenantId }: { tenantId: string }) {
           </>
         ) : (
           <>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaFormLead")}</p>
+            <p className="text-sm text-ink-muted">{u("belumAdaFormLead")}</p>
             <Button data-testid="terbitkan-form-lead" disabled={rotate.isPending} onClick={() => rotate.mutate()}>
               {u("terbitkanFormLead")}
             </Button>
@@ -210,7 +210,7 @@ export function LeadsPage() {
           <Card key={f.stage}>
             <CardBody className="py-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-medium text-ink-muted">
                   {u(LEAD_STAGE_KEY[f.stage])}
                 </span>
                 <Badge tone={STAGE_TONE[f.stage]}>{f.count}</Badge>
@@ -370,11 +370,11 @@ function KanbanBoard({ leads, isAdmin }: { leads: ApiLead[]; isAdmin: boolean })
               className={`w-52 shrink-0 rounded-xl border p-2 transition-colors ${
                 dragOver === stage
                   ? "border-brand-400 bg-brand-50 dark:border-brand-500/50 dark:bg-brand-500/10"
-                  : "border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/60"
+                  : "border-line bg-surface-sunken"
               }`}
             >
               <div className="mb-2 flex items-center justify-between px-1">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
                   {u(LEAD_STAGE_KEY[stage])}
                 </span>
                 <Badge tone={STAGE_TONE[stage]}>{inStage.length}</Badge>
@@ -385,12 +385,12 @@ function KanbanBoard({ leads, isAdmin }: { leads: ApiLead[]; isAdmin: boolean })
                     key={lead.id}
                     draggable={isAdmin}
                     onDragStart={(e) => e.dataTransfer.setData("text/lead-id", lead.id)}
-                    className={`rounded-lg border border-slate-200 bg-white p-2 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-800 ${
+                    className={`rounded-lg border border-line bg-white p-2 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-800 ${
                       isAdmin ? "cursor-grab active:cursor-grabbing" : ""
                     }`}
                   >
                     <div className="font-medium leading-snug">{lead.name}</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-slate-500 dark:text-slate-400">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 text-xs text-ink-muted">
                       {lead.estValue > 0 ? (
                         <span className="tabular-nums">{formatIDR(lead.estValue)}</span>
                       ) : null}
@@ -399,7 +399,7 @@ function KanbanBoard({ leads, isAdmin }: { leads: ApiLead[]; isAdmin: boolean })
                   </div>
                 ))}
                 {inStage.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-200 p-2 text-center text-xs text-slate-400 dark:border-slate-700">
+                  <div className="rounded-lg border border-dashed border-line p-2 text-center text-xs text-ink-muted">
                     {u("kolomKosong")}
                   </div>
                 ) : null}
@@ -524,21 +524,21 @@ function LeadRow({ lead, isAdmin }: { lead: ApiLead; isAdmin: boolean }) {
   });
 
   return (
-    <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+    <div className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="font-medium">{lead.name}</span>
         <Badge tone={STAGE_TONE[lead.stage]}>{u(LEAD_STAGE_KEY[lead.stage])}</Badge>
         {lead.convertedContactId ? <Badge tone="green">{u("jadiPelanggan")}</Badge> : null}
         {lead.estValue > 0 ? (
-          <span className="text-sm text-slate-500 tabular-nums dark:text-slate-400">
+          <span className="text-sm text-ink-muted tabular-nums">
             {formatIDR(lead.estValue)}
           </span>
         ) : null}
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-ink-muted">
           {lead.contactPerson ?? ""} {lead.phone ? `· ${lead.phone}` : ""}
         </span>
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-slate-400">{lead.activityCount} {u("aktivitasSuffix")}</span>
+          <span className="text-xs text-ink-muted">{lead.activityCount} {u("aktivitasSuffix")}</span>
           <Button variant="ghost" className="h-8" onClick={() => setOpen((o) => !o)}>
             {open ? "Tutup" : "Detail"}
           </Button>
@@ -546,7 +546,7 @@ function LeadRow({ lead, isAdmin }: { lead: ApiLead; isAdmin: boolean }) {
       </div>
 
       {open ? (
-        <div className="mt-3 space-y-4 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/40">
+        <div className="mt-3 space-y-4 rounded-lg bg-surface-sunken p-3">
           {/* Aksi tahap & konversi */}
           {isAdmin && lead.status === "open" ? (
             <div className="flex flex-wrap items-end gap-3">
@@ -580,7 +580,7 @@ function LeadRow({ lead, isAdmin }: { lead: ApiLead; isAdmin: boolean }) {
 
           {/* Log aktivitas */}
           <div>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">
               {u("aktivitasFollowUp")}
             </div>
             {isAdmin ? (
@@ -626,13 +626,13 @@ function LeadRow({ lead, isAdmin }: { lead: ApiLead; isAdmin: boolean }) {
             {activitiesQuery.isLoading ? (
               <Spinner />
             ) : (activitiesQuery.data?.activities.length ?? 0) === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400">{u("belumAdaAktivitas")}</p>
+              <p className="text-sm text-ink-muted">{u("belumAdaAktivitas")}</p>
             ) : (
               <ul className="space-y-1.5">
                 {activitiesQuery.data!.activities.map((a) => (
                   <li key={a.id} className="flex flex-wrap gap-2 text-sm">
                     <Badge tone="neutral">{u(LEAD_ACTIVITY_KEY[a.type])}</Badge>
-                    <span className="text-slate-400">{a.activityDate}</span>
+                    <span className="text-ink-muted">{a.activityDate}</span>
                     <span>{a.note}</span>
                     {a.dueAt ? (
                       <Badge tone={a.dueAt <= today() ? "red" : "amber"}>tenggat {a.dueAt}</Badge>
@@ -1015,18 +1015,18 @@ function QuoteRow({ quote, isAdmin }: { quote: ApiQuotation; isAdmin: boolean })
   });
 
   return (
-    <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+    <div className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="font-mono text-sm">{quote.quoteNo}</span>
         <span className="font-medium">{quote.contactName}</span>
-        <span className="text-sm text-slate-400">{quote.quoteDate}</span>
+        <span className="text-sm text-ink-muted">{quote.quoteDate}</span>
         <Badge tone={QUOTE_TONE[quote.status]}>{QUOTE_LABEL[quote.status]}</Badge>
         {quote.validUntil &&
         quote.validUntil < today() &&
         (quote.status === "draft" || quote.status === "sent") ? (
           <Badge tone="red">kedaluwarsa</Badge>
         ) : quote.validUntil ? (
-          <span className="text-xs text-slate-400">berlaku s.d. {quote.validUntil}</span>
+          <span className="text-xs text-ink-muted">berlaku s.d. {quote.validUntil}</span>
         ) : null}
         <a
           href={`/cetak/penawaran?tenant=${tenant.tenantId}&id=${quote.id}`}
@@ -1043,10 +1043,10 @@ function QuoteRow({ quote, isAdmin }: { quote: ApiQuotation; isAdmin: boolean })
         {quote.lines.map((l) => (
           <div
             key={l.id}
-            className="flex items-baseline justify-between gap-2 text-sm text-slate-600 dark:text-slate-300"
+            className="flex items-baseline justify-between gap-2 text-sm text-ink-soft"
           >
             <span className="min-w-0 flex-1 truncate">{l.productName}</span>
-            <span className="shrink-0 text-xs tabular-nums text-slate-400">
+            <span className="shrink-0 text-xs tabular-nums text-ink-muted">
               {l.qty} × {formatIDR(l.unitPrice)}
             </span>
             <span className="w-24 shrink-0 text-right font-medium tabular-nums">
@@ -1103,7 +1103,7 @@ function QuoteRow({ quote, isAdmin }: { quote: ApiQuotation; isAdmin: boolean })
       ) : null}
 
       {convertOpen && quote.status === "accepted" ? (
-        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/40">
+        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg bg-surface-sunken p-3">
           <div>
             <Label htmlFor={`cv-wh-${quote.id}`}>{u("gudangStokKeluar")}</Label>
             <Select

@@ -41,14 +41,14 @@ function GoogleButton() {
   if (!q.data?.available) return null;
   return (
     <>
-      <div className="flex items-center gap-3 text-xs text-slate-400">
-        <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+      <div className="flex items-center gap-3 text-xs text-ink-muted">
+        <span className="h-px flex-1 bg-surface-active" />
         {u("authAtau")}
-        <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+        <span className="h-px flex-1 bg-surface-active" />
       </div>
       <a
         href="/api/auth/google"
-        className="flex h-8 w-full items-center justify-center gap-2 rounded border border-slate-300 text-[13px] font-medium hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+        className="flex h-8 w-full items-center justify-center gap-2 rounded border border-line-strong text-[13px] font-medium hover:bg-surface-sunken"
       >
         <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
           <path fill="#4285F4" d="M23.5 12.27c0-.85-.08-1.66-.22-2.45H12v4.64h6.45a5.52 5.52 0 0 1-2.39 3.62v3h3.87c2.26-2.09 3.57-5.17 3.57-8.81Z" />
@@ -83,7 +83,7 @@ function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: R
           slab hitam di sebelah form putih terbaca seperti dua halaman berbeda
           yang ditempel — dan chip putih di balik logo jadi menonjol lagi.
           Diganti bidang bernuansa merek yang lembut. */}
-      <aside className="relative hidden w-[42%] flex-col justify-between overflow-hidden border-r border-slate-200 bg-brand-50 p-10 text-slate-900 lg:flex dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+      <aside className="relative hidden w-[42%] flex-col justify-between overflow-hidden border-r border-line bg-brand-50 p-10 text-ink lg:flex dark:bg-slate-900">
         <div
           className="pointer-events-none absolute inset-0 text-brand-600 opacity-[0.10] dark:text-slate-100 dark:opacity-[0.07]"
           style={{
@@ -100,14 +100,14 @@ function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: R
           <h2 className="max-w-md text-2xl font-semibold leading-snug">{u("authTagline")}</h2>
           <ul className="mt-6 divide-y divide-brand-200/70 border-y border-brand-200/70 dark:divide-white/10 dark:border-white/10">
             {AUTH_BENEFITS.map((b) => (
-              <li key={b} className="flex items-start gap-2.5 py-3 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+              <li key={b} className="flex items-start gap-2.5 py-3 text-sm leading-relaxed text-ink-soft">
                 <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-600 dark:text-brand-400" aria-hidden />
                 {u(b)}
               </li>
             ))}
           </ul>
         </div>
-        <p className="relative text-xs text-slate-500 dark:text-slate-400">
+        <p className="relative text-xs text-ink-muted">
           {u("authDaftarGratisLangganan")}
         </p>
       </aside>
@@ -123,7 +123,7 @@ function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: R
         <Card className="w-full max-w-md">
           <CardBody className="py-6">
             <h1 className="text-xl font-semibold">{title}</h1>
-            {subtitle ? <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
+            {subtitle ? <p className="mt-1.5 text-sm text-ink-muted">{subtitle}</p> : null}
             <div className="mt-5">{children}</div>
           </CardBody>
         </Card>
@@ -334,7 +334,7 @@ export function LoginPage() {
         </Button>
         <GoogleButton />
         <p className="text-center text-[13px]">
-          <Link to="/lupa-password" className="text-slate-500 hover:underline dark:text-slate-400">
+          <Link to="/lupa-password" className="text-ink-muted hover:underline">
             {u("authLupaPassword")}
           </Link>
         </p>

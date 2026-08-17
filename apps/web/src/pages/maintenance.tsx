@@ -170,7 +170,7 @@ export function MaintenancePage() {
         <Wrench className="size-6 text-brand-600" aria-hidden />
         <h1 className="text-2xl font-semibold">{h.title}</h1>
       </div>
-      <p className="text-sm text-slate-500 dark:text-slate-400">{h.desc}</p>
+      <p className="text-sm text-ink-muted">{h.desc}</p>
 
       {isAdmin ? (
         <div className="grid gap-6 lg:grid-cols-2">
@@ -378,7 +378,7 @@ export function MaintenancePage() {
                     </Td>
                     <Td label={u("asetPekerjaan")}>
                       {w.title}
-                      <span className="block text-xs text-slate-400">{w.assetName}</span>
+                      <span className="block text-xs text-ink-muted">{w.assetName}</span>
                     </Td>
                     <Td label={u("mtRencana")}>{formatDate(w.scheduledDate)}</Td>
                     <Td numeric label={u("biaya")}>
@@ -459,7 +459,7 @@ export function MaintenancePage() {
                               </Button>
                             )
                         ) : (
-                          <span className="text-xs text-slate-400">{w.completedDate}</span>
+                          <span className="text-xs text-ink-muted">{w.completedDate}</span>
                         )}
                       </Td>
                     ) : null}

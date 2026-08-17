@@ -26,11 +26,11 @@ export function DisplayModeCard() {
               setSimple(e.target.checked);
               setSimpleMode(e.target.checked);
             }}
-            className="mt-1 size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+            className="mt-1 size-4 rounded border-line-strong text-brand-600 focus:ring-brand-500"
           />
           <span>
             <span className="font-medium">{u("modeSederhana")}</span>
-            <span className="mt-0.5 block text-sm text-slate-500 dark:text-slate-400">
+            <span className="mt-0.5 block text-sm text-ink-muted">
               {u("sembunyikanMenuAkuntansi")}
             </span>
           </span>
@@ -192,7 +192,7 @@ export function SecurityCard() {
             <p>
               {u("langkah2faSatu")} <strong>{u("masukkanKunciManual")}</strong> {u("atauBukaTautan")}
             </p>
-            <p className="break-all rounded-lg bg-slate-100 px-3 py-2 font-mono text-xs dark:bg-slate-800">
+            <p className="break-all rounded-lg bg-surface-muted px-3 py-2 font-mono text-xs">
               {setupData.secret}
             </p>
             <p>
@@ -219,7 +219,7 @@ export function SecurityCard() {
           </>
         ) : (
           <div className="flex items-center justify-between gap-3">
-            <span className="text-slate-500 dark:text-slate-400">{u("duaFaBelumAktif")}</span>
+            <span className="text-ink-muted">{u("duaFaBelumAktif")}</span>
             <Button variant="secondary" onClick={() => setup.mutate()} disabled={setup.isPending}>
               {setup.isPending ? <Spinner /> : null} {u("aktifkan2fa")}
             </Button>

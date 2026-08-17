@@ -85,7 +85,7 @@ function ReportSection({
   const u = useUi();
   return (
     <div>
-      <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-ink-muted">
         {title}
       </h3>
       <Table>
@@ -103,7 +103,7 @@ function ReportSection({
               </Td>
             </Tr>
           ))}
-          <Tr className="border-t border-slate-200 font-semibold dark:border-slate-800">
+          <Tr className="border-t border-line font-semibold">
             <Td colSpan={2}>Total {title}</Td>
             <Td numeric label={`Total ${title}`}>
               {formatIDR(total)}
@@ -211,7 +211,7 @@ export function IncomeStatementPage() {
                 type="checkbox"
                 checked={compare}
                 onChange={(e) => setCompare(e.target.checked)}
-                className="size-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                className="size-4 rounded border-line-strong text-brand-600 focus:ring-brand-500"
               />
               {u("bandingkanPeriode")}
             </label>
@@ -223,10 +223,10 @@ export function IncomeStatementPage() {
             <>
               {grossMargin !== null ? (
                 <div className="flex flex-wrap gap-2 text-xs">
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <span className="rounded-full bg-surface-muted px-3 py-1 text-ink-soft">
                     {u("marginKotor")} <strong>{grossMargin}%</strong>
                   </span>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <span className="rounded-full bg-surface-muted px-3 py-1 text-ink-soft">
                     {u("marginBersih")} <strong>{netMargin}%</strong>
                   </span>
                 </div>
@@ -252,7 +252,7 @@ export function IncomeStatementPage() {
                 <span className="tabular-nums">{formatIDR(Math.abs(query.data.netProfit))}</span>
               </div>
               {compare && prevQuery.data ? (
-                <div className="rounded-lg border border-slate-200 p-3 text-sm dark:border-slate-800">
+                <div className="rounded-lg border border-line p-3 text-sm">
                   <div className="mb-2 font-medium">
                     {u("periodeSebelumnya")} ({formatDate(prev.from)} – {formatDate(prev.to)})
                   </div>
@@ -266,9 +266,9 @@ export function IncomeStatementPage() {
                       className="flex flex-wrap items-center justify-between gap-x-4 py-1"
                     >
                       <span>{label}</span>
-                      <span className="tabular-nums text-slate-500 dark:text-slate-400">
+                      <span className="tabular-nums text-ink-muted">
                         {formatIDR(was as number)} →{" "}
-                        <strong className="text-slate-900 dark:text-white">
+                        <strong className="text-ink">
                           {formatIDR(now as number)}
                         </strong>{" "}
                         <span
@@ -369,7 +369,7 @@ export function CashFlowPage() {
                   {u("kasMasuk")}
                 </h3>
                 {query.data.inflows.length === 0 ? (
-                  <p className="text-sm text-slate-400">{u("tidakAda")}</p>
+                  <p className="text-sm text-ink-muted">{u("tidakAda")}</p>
                 ) : (
                   query.data.inflows.map((r, i) => <div key={i}>{row(r.label, r.amount)}</div>)
                 )}
@@ -380,13 +380,13 @@ export function CashFlowPage() {
                   {u("kasKeluar")}
                 </h3>
                 {query.data.outflows.length === 0 ? (
-                  <p className="text-sm text-slate-400">{u("tidakAda")}</p>
+                  <p className="text-sm text-ink-muted">{u("tidakAda")}</p>
                 ) : (
                   query.data.outflows.map((r, i) => <div key={i}>{row(r.label, r.amount)}</div>)
                 )}
                 {row(u("totalKasKeluar"), query.data.totalOut, true)}
               </div>
-              <div className="rounded-lg bg-slate-100 px-4 py-3 dark:bg-slate-800">
+              <div className="rounded-lg bg-surface-muted px-4 py-3">
                 {row(u("perubahanKasBersih"), query.data.netChange, true)}
                 {row(u("saldoKasAkhir"), query.data.closingBalance, true)}
               </div>
@@ -424,9 +424,9 @@ function ProyeksiArusKasCard() {
           <Spinner />
         ) : (
           <>
-            <div className="text-sm text-slate-500 dark:text-slate-400">
+            <div className="text-sm text-ink-muted">
               {u("pkSaldoSekarang")}:{" "}
-              <span className="font-semibold tabular-nums text-slate-900 dark:text-slate-100" data-uji="pk-saldo-awal">
+              <span className="font-semibold tabular-nums text-ink" data-uji="pk-saldo-awal">
                 {formatIDR(p.saldoAwal)}
               </span>
             </div>
@@ -466,7 +466,7 @@ function ProyeksiArusKasCard() {
                 {p.jumlahTerlambat} {u("pkTerlambatSuffix")}
               </Alert>
             ) : null}
-            <p className="text-sm text-slate-500 dark:text-slate-400" data-uji="pk-asumsi">
+            <p className="text-sm text-ink-muted" data-uji="pk-asumsi">
               {u("pkAsumsi")}
             </p>
           </>
@@ -528,7 +528,7 @@ export function AgingPage() {
           {query.isLoading ? (
             <Spinner />
           ) : (query.data?.rows.length ?? 0) === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-ink-muted">
               {kind === "receivable"
                 ? u("tidakAdaPiutangBelumLunas")
                 : u("tidakAdaHutangBelumLunas")}
@@ -647,7 +647,7 @@ export function EfakturPage() {
           </div>
         ) : null}
       </div>
-      <p className="text-sm text-slate-500 dark:text-slate-400">
+      <p className="text-sm text-ink-muted">
         {u("descCoretax")} <strong>XML</strong> {u("descCoretax2")}{" "}
         <span className="font-mono">0000000000000000</span>.
       </p>
@@ -673,7 +673,7 @@ export function EfakturPage() {
           {query.isLoading ? (
             <Spinner />
           ) : (query.data?.rows.length ?? 0) === 0 ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">{u("tidakAdaFakturPpn")}</p>
+            <p className="text-sm text-ink-muted">{u("tidakAdaFakturPpn")}</p>
           ) : (
             <Table>
               <Thead>
@@ -836,7 +836,7 @@ export function BalanceSheetPage() {
                 lines={query.data.equity}
                 total={query.data.totalEquity}
               />
-              <div className="flex items-center justify-between rounded-lg bg-slate-100 px-4 py-3 text-sm font-semibold dark:bg-slate-800">
+              <div className="flex items-center justify-between rounded-lg bg-surface-muted px-4 py-3 text-sm font-semibold">
                 <span>{u("kewajibanEkuitas")}</span>
                 <span className="tabular-nums">
                   {formatIDR(query.data.totalLiabilities + query.data.totalEquity)}
@@ -855,18 +855,18 @@ export function BalanceSheetPage() {
           <CardHeader title={u("rasioKeuangan")} />
           <CardBody className="grid gap-4 sm:grid-cols-2">
             <div data-testid="rasio-lancar">
-              <div className="text-sm text-slate-500 dark:text-slate-400">{u("rasioLancar")}</div>
+              <div className="text-sm text-ink-muted">{u("rasioLancar")}</div>
               <div className="text-xl font-semibold tabular-nums">
                 {rasio.rasioLancar === null
                   ? u("rasioTakBisaDihitung")
                   : rasio.rasioLancar.toFixed(2).replace(".", ",")}
               </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-xs text-ink-muted">
                 {u("descRasioLancar")}
               </p>
             </div>
             <div data-testid="rasio-perputaran">
-              <div className="text-sm text-slate-500 dark:text-slate-400">
+              <div className="text-sm text-ink-muted">
                 {u("perputaranPersediaan")}
               </div>
               <div className="text-xl font-semibold tabular-nums">
@@ -874,7 +874,7 @@ export function BalanceSheetPage() {
                   ? u("rasioTakBisaDihitung")
                   : `${rasio.perputaranPersediaan.toFixed(2).replace(".", ",")} ${u("kaliSetahun")}`}
               </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-xs text-ink-muted">
                 {u("descPerputaran")}
               </p>
             </div>
@@ -950,7 +950,7 @@ export function SalesReportPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardBody>
-                <div className="text-sm text-slate-500 dark:text-slate-400">
+                <div className="text-sm text-ink-muted">
                   {u("totalPenjualan")}
                 </div>
                 <div className="mt-1 text-xl font-semibold tabular-nums">
@@ -960,7 +960,7 @@ export function SalesReportPage() {
             </Card>
             <Card>
               <CardBody>
-                <div className="text-sm text-slate-500 dark:text-slate-400">
+                <div className="text-sm text-ink-muted">
                   {u("jumlahFaktur")}
                 </div>
                 <div className="mt-1 text-xl font-semibold tabular-nums">
@@ -970,7 +970,7 @@ export function SalesReportPage() {
             </Card>
             <Card>
               <CardBody>
-                <div className="text-sm text-slate-500 dark:text-slate-400">
+                <div className="text-sm text-ink-muted">
                   {u("rataRataPerFaktur")}
                 </div>
                 <div className="mt-1 text-xl font-semibold tabular-nums">

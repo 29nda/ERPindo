@@ -38,7 +38,7 @@ export function SettingsPage() {
     <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">{u("pengaturanJudul")}</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-1 text-sm text-ink-muted">
           {u("descPengaturan")}
         </p>
       </div>
@@ -68,7 +68,7 @@ export function SettingsPage() {
           {isAdmin ? <MembersCard tenantId={tenant.tenantId} /> : null}
           {isOwner ? <RolesCard tenantId={tenant.tenantId} /> : null}
           {isOwner ? <ApprovalThresholdCard tenantId={tenant.tenantId} /> : null}
-          {!isAdmin ? <p className="text-sm text-slate-500">{u("hanyaAdminTim")}</p> : null}
+          {!isAdmin ? <p className="text-sm text-ink-muted">{u("hanyaAdminTim")}</p> : null}
         </div>
       ) : null}
 
@@ -77,7 +77,7 @@ export function SettingsPage() {
           {isOwner ? <ExportBackupCard tenantId={tenant.tenantId} /> : null}
           {isOwner ? <TenantSecurityCard tenantId={tenant.tenantId} /> : null}
           {isOwner ? <AuditLogCard tenantId={tenant.tenantId} /> : null}
-          {!isOwner ? <p className="text-sm text-slate-500">{u("hanyaPemilikCadangan")}</p> : null}
+          {!isOwner ? <p className="text-sm text-ink-muted">{u("hanyaPemilikCadangan")}</p> : null}
         </div>
       ) : null}
 
@@ -85,7 +85,7 @@ export function SettingsPage() {
         <div className="space-y-6">
           {isOwner ? <ApiIntegrationCard tenantId={tenant.tenantId} /> : null}
           {isOwner ? <CloseBooksCard tenantId={tenant.tenantId} /> : null}
-          {!isOwner ? <p className="text-sm text-slate-500">{u("tanpaPengaturanLain")}</p> : null}
+          {!isOwner ? <p className="text-sm text-ink-muted">{u("tanpaPengaturanLain")}</p> : null}
         </div>
       ) : null}
     </div>

@@ -102,3 +102,10 @@ jobs:
           node scripts/sapu-i18n.mjs apps/web/src/pages/**/*.tsx apps/web/src/components/**/*.tsx > /dev/null
         shell: bash
 
+      # Fase 31a: kelas warna literal (`slate-*`, `dark:`) hanya boleh TURUN.
+      # Tanpa gerbang ini, token semantik yang baru dipasang akan terkikis
+      # kembali oleh halaman berikutnya yang menulis warna langsung — persis
+      # yang membuat perombakan desain 17a & 18a tidak pernah terasa.
+      - name: Penjaga warna (token semantik)
+        run: node scripts/sapu-warna.mjs
+

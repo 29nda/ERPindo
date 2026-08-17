@@ -249,7 +249,7 @@ export function GrupHargaPage() {
                     {items.map((it) => (
                       <Tr key={it.productId}>
                         <Td label={u("ghProduk")}>
-                          <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                          <span className="font-mono text-xs text-ink-muted">
                             {it.sku}
                           </span>{" "}
                           {it.name}

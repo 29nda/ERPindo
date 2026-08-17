@@ -301,7 +301,7 @@ function HelpLink() {
   return (
     <button
       onClick={() => navigate({ to: "/app/panduan/$modul", params: { modul: slug } })}
-      className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+      className="rounded-lg p-2 text-ink-muted hover:bg-surface-muted"
       aria-label={u("shPanduanAria")}
       title={u("shPanduanTitle")}
     >
@@ -330,7 +330,7 @@ function TourLauncher() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+        className="rounded-lg p-2 text-ink-muted hover:bg-surface-muted"
         aria-label={u("shTurAria")}
         title={u("shTurTitle")}
       >
@@ -381,7 +381,7 @@ function NotificationBell({ tenantId }: { tenantId: string }) {
     <div ref={rootRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+        className="relative rounded-lg p-2 text-ink-muted hover:bg-surface-muted"
         aria-label={`${u("shNotifikasi")}${items.length > 0 ? ` (${items.length})` : ""}`}
         title={u("shNotifikasi")}
       >
@@ -393,13 +393,13 @@ function NotificationBell({ tenantId }: { tenantId: string }) {
         ) : null}
       </button>
       {open ? (
-        <div className="fixed right-2 top-16 z-50 w-[calc(100vw-1rem)] max-w-sm overflow-hidden rounded-card border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900 sm:absolute sm:right-0 sm:top-auto sm:mt-2 sm:w-80">
-          <div className="border-b border-slate-200 px-4 py-2.5 text-sm font-semibold dark:border-slate-800">
+        <div className="fixed right-2 top-16 z-50 w-[calc(100vw-1rem)] max-w-sm overflow-hidden rounded-card border border-line bg-surface shadow-xl sm:absolute sm:right-0 sm:top-auto sm:mt-2 sm:w-80">
+          <div className="border-b border-line px-4 py-2.5 text-sm font-semibold">
             {u("shNotifikasi")}
           </div>
           <div className="max-h-96 overflow-y-auto">
             {items.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+              <p className="px-4 py-6 text-center text-sm text-ink-muted">
                 {u("shTakAdaPerhatian")}
               </p>
             ) : (
@@ -408,12 +408,12 @@ function NotificationBell({ tenantId }: { tenantId: string }) {
                   key={i}
                   to={n.href}
                   onClick={() => setOpen(false)}
-                  className="flex gap-3 border-b border-slate-100 px-4 py-3 text-sm hover:bg-slate-50 dark:border-slate-800/60 dark:hover:bg-slate-800/50"
+                  className="flex gap-3 border-b border-line px-4 py-3 text-sm hover:bg-surface-sunken"
                 >
                   <span className={`mt-1.5 size-2 shrink-0 rounded-full ${toneByType[n.type] ?? "bg-slate-400"}`} aria-hidden />
                   <span>
-                    <span className="block font-medium text-slate-800 dark:text-slate-100">{n.title}</span>
-                    <span className="block text-xs text-slate-500 dark:text-slate-400">{n.detail}</span>
+                    <span className="block font-medium text-ink">{n.title}</span>
+                    <span className="block text-xs text-ink-muted">{n.detail}</span>
                   </span>
                 </Link>
               ))
@@ -568,7 +568,7 @@ export function AppShell() {
       }}
       inactiveProps={{
         className:
-          "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-100",
+          "text-ink-soft hover:bg-slate-100 hover:text-ink dark:hover:bg-white/5",
       }}
       className="flex items-center gap-2 rounded px-2.5 py-1.5 text-[13px] transition-colors"
       onClick={() => setMenuOpen(false)}
@@ -581,7 +581,7 @@ export function AppShell() {
   const nav = (
     <nav className="flex flex-col gap-px p-2">
       <div className="relative mb-1">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" aria-hidden />
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted" aria-hidden />
         <input
           value={navQuery}
           onChange={(e) => setNavQuery(e.target.value)}
@@ -590,7 +590,7 @@ export function AppShell() {
           }}
           placeholder={lang === "en" ? "Search menu…" : "Cari menu…"}
           aria-label={u("shCariMenuAria")}
-          className="h-8 w-full rounded border border-slate-200 bg-transparent pl-8 pr-2 text-[13px] text-slate-700 outline-none placeholder:text-slate-400 focus:border-brand-400 dark:border-slate-700 dark:text-slate-200 dark:focus:border-brand-500"
+          className="h-8 w-full rounded border border-line bg-transparent pl-8 pr-2 text-[13px] text-ink outline-none placeholder:text-slate-400 focus:border-brand-400 dark:focus:border-brand-500"
         />
       </div>
       {navGroups.map((group) => {
@@ -603,7 +603,7 @@ export function AppShell() {
                 type="button"
                 onClick={() => toggleSection(group.section!)}
                 aria-expanded={!isCollapsed}
-                className="mb-0.5 mt-3 flex w-full items-center justify-between px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 transition-colors hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                className="mb-0.5 mt-3 flex w-full items-center justify-between px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-faint transition-colors hover:text-ink-soft"
               >
                 {lang === "en" ? (SECTION_EN[group.section!] ?? group.section) : group.section}
                 <ChevronDown className={`size-3.5 transition-transform ${isCollapsed ? "-rotate-90" : ""}`} aria-hidden />
@@ -614,11 +614,11 @@ export function AppShell() {
         );
       })}
       {visibleItems.length === 0 ? (
-        <p className="px-3 py-2 text-sm text-slate-400 dark:text-slate-500">{lang === "en" ? "No matching menu." : "Tidak ada menu cocok."}</p>
+        <p className="px-3 py-2 text-sm text-ink-faint">{lang === "en" ? "No matching menu." : "Tidak ada menu cocok."}</p>
       ) : null}
       <Link
         to="/app/panduan"
-        className="mt-3 flex items-center gap-2 rounded px-2.5 py-1.5 text-[13px] text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-slate-100"
+        className="mt-3 flex items-center gap-2 rounded px-2.5 py-1.5 text-[13px] text-ink-soft transition-colors hover:bg-slate-100 hover:text-ink dark:hover:bg-white/5"
       >
         <CircleHelp className="size-4 shrink-0" aria-hidden />
         {lang === "en" ? "Guide" : "Panduan"}
@@ -631,11 +631,11 @@ export function AppShell() {
 
   const workspacePicker =
     me.memberships.length > 1 ? (
-      <div className="mt-2 flex items-center gap-1.5 rounded bg-slate-100 px-2 py-1 dark:bg-white/5">
-        <Building2 className="size-4 shrink-0 text-slate-400" aria-hidden />
+      <div className="mt-2 flex items-center gap-1.5 rounded bg-surface-muted px-2 py-1 dark:bg-white/5">
+        <Building2 className="size-4 shrink-0 text-ink-muted" aria-hidden />
         <select
           aria-label={u("shPilihPerusahaan")}
-          className="w-full bg-transparent text-[13px] text-slate-700 outline-none dark:text-slate-200 [&>option]:text-slate-900"
+          className="w-full bg-transparent text-[13px] text-ink outline-none [&>option]:text-slate-900"
           value={tenant.tenantId}
           onChange={(e) => {
             localStorage.setItem("erpindo-tenant", e.target.value);
@@ -650,7 +650,7 @@ export function AppShell() {
         </select>
       </div>
     ) : (
-      <div className="mt-2 flex items-center gap-1.5 truncate px-1 text-sm text-slate-500 dark:text-slate-400">
+      <div className="mt-2 flex items-center gap-1.5 truncate px-1 text-sm text-ink-muted">
         <Building2 className="size-4 shrink-0" aria-hidden />
         <span className="truncate">{tenant.tenantName}</span>
       </div>
@@ -659,19 +659,19 @@ export function AppShell() {
   // Isi sidebar dipakai bersama desktop (aside) & mobile (drawer) agar tak duplikat.
   const sidebarContent = (
     <>
-      <div className="border-b border-slate-200 px-3 py-2.5 dark:border-white/10">
+      <div className="border-b border-line px-3 py-2.5">
         <div className="flex items-center gap-2">
           <BrandWordmark className="h-8" />
         </div>
         {workspacePicker}
       </div>
       <div className="flex-1 overflow-y-auto">{nav}</div>
-      <div className="border-t border-slate-200 p-2 dark:border-white/10">
+      <div className="border-t border-line p-2">
         <div className="flex items-center gap-2 px-1">
           <Avatar name={me.user.name} />
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{me.user.name}</div>
-            <div className="truncate text-xs text-slate-500">{me.user.email}</div>
+            <div className="truncate text-sm font-medium text-ink">{me.user.name}</div>
+            <div className="truncate text-xs text-ink-muted">{me.user.email}</div>
           </div>
         </div>
       </div>
@@ -686,21 +686,21 @@ export function AppShell() {
             halaman panjang digulir. `self-start` wajib: tanpa itu aside meregang
             setinggi konten (stretch bawaan flex) dan `sticky` tak punya ruang
             gerak, jadi terlihat seolah tidak berfungsi. */}
-        <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col self-start border-r border-slate-200 bg-white md:flex dark:border-white/10 dark:bg-slate-950">
+        <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col self-start border-r border-line bg-surface md:flex">
           {sidebarContent}
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Topbar — Fase 17c: melekat di atas (dulu ikut mengalir, sehingga
               pada tabel panjang tombol tema/keluar hilang dari jangkauan). */}
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-200 bg-surface px-3 sm:px-4 md:h-12 dark:border-slate-800">
+          <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface px-3 sm:px-4 md:h-12">
             <div className="flex items-center gap-3 md:hidden">
               {/* Sasaran sentuh 44px (Fase 18c). Sebelumnya 34x34 — di bawah
                   ambang nyaman untuk jempol, dan ini SATU-SATUNYA jalan ke menu
                   di layar kecil karena sidebar desktop `hidden md:flex`. */}
               <button
                 onClick={() => setMenuOpen((o) => !o)}
-                className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-700"
+                className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-line-strong"
                 aria-label="Menu"
               >
                 <Menu className="size-5" aria-hidden />
@@ -716,7 +716,7 @@ export function AppShell() {
                   sebelas asersi ui-sim menghitung `aside nav a/button`. */}
               <button
                 onClick={() => setPaletOpen(true)}
-                className="hidden items-center gap-2 rounded border border-slate-300 px-2 py-1 text-xs text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-700 md:flex dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200"
+                className="hidden items-center gap-2 rounded border border-line-strong px-2 py-1 text-xs text-ink-muted transition-colors hover:border-slate-400 hover:text-ink md:flex dark:hover:border-slate-600"
                 aria-label={lang === "en" ? "Open command palette" : "Buka palet perintah"}
                 title={lang === "en" ? "Jump to a page (Ctrl+K)" : "Lompat ke halaman (Ctrl+K)"}
               >
@@ -728,7 +728,7 @@ export function AppShell() {
               <HelpLink />
               <button
                 onClick={toggle}
-                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                className="rounded-lg p-2 text-ink-muted hover:bg-surface-muted"
                 aria-label={u("shGantiTemaAria")}
                 title={u("shGantiTemaTitle")}
               >
@@ -752,7 +752,7 @@ export function AppShell() {
             aria-hidden
           />
           <aside
-            className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[82vw] flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-300 md:hidden dark:border-white/10 dark:bg-slate-950 ${
+            className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[82vw] flex-col border-r border-line bg-white shadow-xl transition-transform duration-300 md:hidden dark:border-white/10 dark:bg-slate-950 ${
               menuOpen ? "translate-x-0" : "-translate-x-full"
             }`}
             role="dialog"
@@ -761,7 +761,7 @@ export function AppShell() {
           >
             <button
               onClick={() => setMenuOpen(false)}
-              className="absolute right-2 top-2 z-10 flex size-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5"
+              className="absolute right-2 top-2 z-10 flex size-11 items-center justify-center rounded-lg text-ink-muted hover:bg-slate-100 dark:hover:bg-white/5"
               aria-label={u("shTutupMenu")}
             >
               <X className="size-5" aria-hidden />

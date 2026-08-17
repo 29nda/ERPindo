@@ -49,7 +49,7 @@ export function InvoicePrintPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl bg-white p-8 text-slate-900 print:p-0">
+    <div className="mx-auto max-w-3xl bg-white p-8 text-ink print:p-0">
       <div className="mb-4 flex justify-end print:hidden">
         <button
           onClick={() => window.print()}
@@ -78,7 +78,7 @@ export function InvoicePrintPage() {
 
       <section className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <div className="font-semibold text-slate-500">Kepada</div>
+          <div className="font-semibold text-ink-muted">Kepada</div>
           <div className="font-medium">{doc.contactName}</div>
         </div>
         <div className="text-right">
@@ -117,10 +117,10 @@ export function InvoicePrintPage() {
         </thead>
         <tbody>
           {doc.lines.map((l) => (
-            <tr key={l.id} className="border-b border-slate-200">
+            <tr key={l.id} className="border-b border-line">
               <td className="py-2 pr-4">
                 {l.productName}
-                {l.description ? <span className="text-slate-500"> — {l.description}</span> : null}
+                {l.description ? <span className="text-ink-muted"> — {l.description}</span> : null}
               </td>
               <td className="py-2 pr-4 text-right tabular-nums">{l.qty}</td>
               <td className="py-2 pr-4 text-right tabular-nums">{formatIDR(l.unitPrice)}</td>
@@ -161,7 +161,7 @@ export function InvoicePrintPage() {
         </tfoot>
       </table>
 
-      <footer className="mt-10 text-center text-xs text-slate-400">
+      <footer className="mt-10 text-center text-xs text-ink-muted">
         Dibuat dengan erpindo — ERP untuk UMKM Indonesia
       </footer>
     </div>
@@ -208,7 +208,7 @@ export function QuotationPrintPage() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl bg-white p-8 text-slate-900 print:p-0">
+    <div className="mx-auto max-w-3xl bg-white p-8 text-ink print:p-0">
       <div className="mb-4 flex justify-end print:hidden">
         <button
           onClick={() => window.print()}
@@ -237,7 +237,7 @@ export function QuotationPrintPage() {
 
       <section className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <div className="font-semibold text-slate-500">Kepada</div>
+          <div className="font-semibold text-ink-muted">Kepada</div>
           <div className="font-medium">{quote.contactName}</div>
         </div>
         <div className="text-right">
@@ -265,10 +265,10 @@ export function QuotationPrintPage() {
         </thead>
         <tbody>
           {quote.lines.map((l) => (
-            <tr key={l.id} className="border-b border-slate-200">
+            <tr key={l.id} className="border-b border-line">
               <td className="py-2 pr-4">
                 {l.productName}
-                {l.description ? <span className="text-slate-500"> — {l.description}</span> : null}
+                {l.description ? <span className="text-ink-muted"> — {l.description}</span> : null}
               </td>
               <td className="py-2 pr-4 text-right tabular-nums">{l.qty}</td>
               <td className="py-2 pr-4 text-right tabular-nums">{formatIDR(l.unitPrice)}</td>
@@ -303,16 +303,16 @@ export function QuotationPrintPage() {
 
       {quote.notes ? (
         <section className="mt-6 text-sm">
-          <div className="font-semibold text-slate-500">Catatan</div>
+          <div className="font-semibold text-ink-muted">Catatan</div>
           <p className="whitespace-pre-line">{quote.notes}</p>
         </section>
       ) : null}
 
-      <p className="mt-6 text-xs text-slate-500">
+      <p className="mt-6 text-xs text-ink-muted">
         Dokumen ini adalah penawaran harga, bukan tagihan. Harga dapat berubah setelah masa berlaku berakhir.
       </p>
 
-      <footer className="mt-10 text-center text-xs text-slate-400">
+      <footer className="mt-10 text-center text-xs text-ink-muted">
         Dibuat dengan erpindo — ERP untuk UMKM Indonesia
       </footer>
     </div>
@@ -373,7 +373,7 @@ export function PayslipPrintPage() {
   );
 
   return (
-    <div className="mx-auto max-w-2xl bg-white p-8 text-slate-900 print:p-0">
+    <div className="mx-auto max-w-2xl bg-white p-8 text-ink print:p-0">
       <div className="mb-4 flex justify-end print:hidden">
         <button
           onClick={() => window.print()}
@@ -397,15 +397,15 @@ export function PayslipPrintPage() {
         <div className="text-right">
           <div className="text-lg font-bold tracking-wide">SLIP GAJI</div>
           <div className="text-sm">{periodLabel(run.period)}</div>
-          <div className="font-mono text-xs text-slate-500">{run.runNo}</div>
+          <div className="font-mono text-xs text-ink-muted">{run.runNo}</div>
         </div>
       </header>
 
       <section className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <div className="font-semibold text-slate-500">Nama karyawan</div>
+          <div className="font-semibold text-ink-muted">Nama karyawan</div>
           <div className="font-medium">{slip.employeeName}</div>
-          {slip.position ? <div className="text-slate-500">{slip.position}</div> : null}
+          {slip.position ? <div className="text-ink-muted">{slip.position}</div> : null}
         </div>
         <div className="text-right">
           {employee?.ptkpStatus ? (
@@ -424,7 +424,7 @@ export function PayslipPrintPage() {
       <div className="mt-6 grid gap-6 sm:grid-cols-2">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-300 text-left">
+            <tr className="border-b border-line-strong text-left">
               <th className="py-1.5" colSpan={2}>
                 Penghasilan
               </th>
@@ -434,7 +434,7 @@ export function PayslipPrintPage() {
             {row("Gaji pokok", slip.baseSalary)}
             {row("Tunjangan", slip.allowances)}
             {slip.adjustmentsTotal !== 0 ? row("Bonus/lembur/potongan", slip.adjustmentsTotal, { negative: slip.adjustmentsTotal < 0 }) : null}
-            <tr className="border-t border-slate-300 font-semibold">
+            <tr className="border-t border-line-strong font-semibold">
               <td className="py-1 pr-4">Penghasilan bruto</td>
               <td className="py-1 text-right tabular-nums">{formatIDR(slip.gross)}</td>
             </tr>
@@ -443,7 +443,7 @@ export function PayslipPrintPage() {
 
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-300 text-left">
+            <tr className="border-b border-line-strong text-left">
               <th className="py-1.5" colSpan={2}>
                 Potongan
               </th>
@@ -453,7 +453,7 @@ export function PayslipPrintPage() {
             {row("BPJS (Kesehatan/JHT/JP)", bpjs)}
             {row(`PPh 21 (TER ${slip.terCategory} ${slip.terRate}%)`, slip.pph21)}
             {slip.loanDeduction > 0 ? row("Cicilan kasbon", slip.loanDeduction) : null}
-            <tr className="border-t border-slate-300 font-semibold">
+            <tr className="border-t border-line-strong font-semibold">
               <td className="py-1 pr-4">Total potongan</td>
               <td className="py-1 text-right tabular-nums">{formatIDR(slip.totalDeductions + slip.loanDeduction)}</td>
             </tr>
@@ -466,7 +466,7 @@ export function PayslipPrintPage() {
         <span className="text-lg font-bold tabular-nums">{formatIDR(slip.net)}</span>
       </div>
 
-      <footer className="mt-10 text-center text-xs text-slate-400">
+      <footer className="mt-10 text-center text-xs text-ink-muted">
         Slip gaji ini dihasilkan otomatis oleh erpindo. Tarif PPh 21 (TER) & BPJS mengikuti ketentuan yang berlaku.
       </footer>
     </div>
@@ -527,7 +527,7 @@ export function Form1721A1PrintPage() {
   const totalPph = rows.reduce((s, x) => s + x.slip.pph21, 0);
 
   return (
-    <div className="mx-auto max-w-3xl bg-white p-8 text-slate-900 print:p-0">
+    <div className="mx-auto max-w-3xl bg-white p-8 text-ink print:p-0">
       <div className="mb-4 flex justify-end print:hidden">
         <button
           onClick={() => window.print()}
@@ -551,9 +551,9 @@ export function Form1721A1PrintPage() {
 
       <section className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <div className="font-semibold text-slate-500">Nama pegawai</div>
+          <div className="font-semibold text-ink-muted">Nama pegawai</div>
           <div className="font-medium">{employee.name}</div>
-          {employee.position ? <div className="text-slate-500">{employee.position}</div> : null}
+          {employee.position ? <div className="text-ink-muted">{employee.position}</div> : null}
         </div>
         <div className="text-right">
           <div>
@@ -574,13 +574,13 @@ export function Form1721A1PrintPage() {
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={4} className="py-4 text-center text-slate-500">
+              <td colSpan={4} className="py-4 text-center text-ink-muted">
                 Belum ada penggajian untuk karyawan ini di tahun {year}.
               </td>
             </tr>
           ) : (
             rows.map((x) => (
-              <tr key={x.period} className="border-b border-slate-200">
+              <tr key={x.period} className="border-b border-line">
                 <td className="py-2 pr-4">{periodLabel(x.period)}</td>
                 <td className="py-2 pr-4 text-right tabular-nums">{formatIDR(x.slip.gross)}</td>
                 <td className="py-2 pr-4 text-right tabular-nums">
@@ -601,12 +601,12 @@ export function Form1721A1PrintPage() {
         </tfoot>
       </table>
 
-      <p className="mt-6 text-xs text-slate-500">
+      <p className="mt-6 text-xs text-ink-muted">
         Ringkasan ini disusun dari data penggajian di erpindo sebagai alat bantu. Untuk pelaporan pajak resmi,
         cocokkan dengan formulir 1721-A1 dan ketentuan DJP yang berlaku.
       </p>
 
-      <footer className="mt-10 text-center text-xs text-slate-400">
+      <footer className="mt-10 text-center text-xs text-ink-muted">
         Dibuat dengan erpindo — ERP untuk UMKM Indonesia
       </footer>
     </div>

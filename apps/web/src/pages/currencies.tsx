@@ -208,7 +208,7 @@ export function CurrenciesPage() {
                     </Td>
                     {/* Kurs bisa berubah tanpa ada yang mengetik (cron Fase
                         22b), jadi kapan-nya harus terlihat. */}
-                    <Td label={u("kursDiperbarui")} className="text-slate-500 dark:text-slate-400">
+                    <Td label={u("kursDiperbarui")} className="text-ink-muted">
                       {cur.updatedAt ? cur.updatedAt.slice(0, 16).replace("T", " ") : "—"}
                     </Td>
                   </Tr>

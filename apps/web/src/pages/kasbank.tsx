@@ -261,10 +261,10 @@ export function KasBankPage() {
                 className={`rounded-2xl border p-4 text-left transition-colors ${
                   selected?.id === w.id
                     ? "border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10"
-                    : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800/60"
+                    : "border-line bg-surface hover:bg-slate-50 dark:hover:bg-slate-800/60"
                 }`}
               >
-                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-2 text-sm text-ink-muted">
                   {w.code === "1-1100" || /bank/i.test(w.name) ? (
                     <Landmark className="size-4" aria-hidden />
                   ) : (
@@ -285,30 +285,30 @@ export function KasBankPage() {
               {kasKecilQuery.isLoading ? (
                 <Spinner />
               ) : !kk ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">{u("kkAturDanaTetapDulu")}</p>
+                <p className="text-sm text-ink-muted">{u("kkAturDanaTetapDulu")}</p>
               ) : (
                 <div className="space-y-5">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-4" data-uji="kas-kecil-ringkas">
                     <div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{u("kkDanaTetap")}</div>
+                      <div className="text-xs text-ink-muted">{u("kkDanaTetap")}</div>
                       <div className="text-lg font-semibold tabular-nums" data-uji="kk-dana-tetap">
                         {formatIDR(kk.danaTetap)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{u("kkSaldoBuku")}</div>
+                      <div className="text-xs text-ink-muted">{u("kkSaldoBuku")}</div>
                       <div className="text-lg font-semibold tabular-nums" data-uji="kk-saldo-buku">
                         {formatIDR(kk.saldoBuku)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{u("kkKekurangan")}</div>
+                      <div className="text-xs text-ink-muted">{u("kkKekurangan")}</div>
                       <div className="text-lg font-semibold tabular-nums" data-uji="kk-kekurangan">
                         {formatIDR(kk.kekurangan)}
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{u("kkTerakhirDiisi")}</div>
+                      <div className="text-xs text-ink-muted">{u("kkTerakhirDiisi")}</div>
                       <div className="text-lg font-semibold" data-uji="kk-terakhir-diisi">
                         {kk.terakhirDiisi ? formatDate(kk.terakhirDiisi) : u("kkBelumPernahDiisi")}
                       </div>
@@ -325,7 +325,7 @@ export function KasBankPage() {
                     menunjukkan yang tersisa, bukan yang sudah habis.
                   */}
                   <div
-                    className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"
+                    className="h-2 overflow-hidden rounded-full bg-surface-active"
                     role="progressbar"
                     aria-valuenow={100 - kk.terpakaiPersen}
                     aria-valuemin={0}
@@ -337,7 +337,7 @@ export function KasBankPage() {
                   </div>
 
                   {isAdmin ? (
-                    <div className="grid grid-cols-1 gap-4 border-t border-slate-200 pt-4 sm:grid-cols-2 dark:border-slate-700">
+                    <div className="grid grid-cols-1 gap-4 border-t border-line pt-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="kk-dana-tetap-input">{u("kkDanaTetap")}</Label>
                         <Input
@@ -372,7 +372,7 @@ export function KasBankPage() {
                           ))}
                         </Select>
                         {kk.kekurangan <= 0 ? (
-                          <p className="text-sm text-slate-500 dark:text-slate-400" data-uji="kk-penuh">
+                          <p className="text-sm text-ink-muted" data-uji="kk-penuh">
                             {u("kkSudahPenuh")}
                           </p>
                         ) : (
@@ -389,9 +389,9 @@ export function KasBankPage() {
                   ) : null}
 
                   {isAdmin ? (
-                    <div className="space-y-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+                    <div className="space-y-2 border-t border-line pt-4">
                       <div className="text-sm font-medium">{u("kkOpname")}</div>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">{u("kkOpnameDesc")}</p>
+                      <p className="text-sm text-ink-muted">{u("kkOpnameDesc")}</p>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div>
                           <Label htmlFor="kk-fisik">{u("kkHitunganFisik")}</Label>
@@ -444,7 +444,7 @@ export function KasBankPage() {
               {ledgerQuery.isLoading ? (
                 <Spinner />
               ) : (ledgerQuery.data?.entries.length ?? 0) === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-ink-muted">
                   {u("belumAdaMutasi")}
                 </p>
               ) : (
@@ -501,7 +501,7 @@ export function KasBankPage() {
                     placeholder={
                       "2026-07-01;TRSF DARI PT MAJU;5000000\n2026-07-03;BIAYA ADMIN;-6500"
                     }
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-slate-600 dark:bg-slate-800"
+                    className="w-full rounded-lg border border-line-strong bg-surface-raised px-3 py-2 font-mono text-xs focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
                   />
                   <Button
                     onClick={() => importMutation.mutate()}
@@ -522,7 +522,7 @@ export function KasBankPage() {
                     <Badge tone={recon.summary.unmatched > 0 ? "amber" : "green"}>
                       {recon.summary.unmatched} {u("belumCocok")}
                     </Badge>
-                    <span className="text-slate-500 dark:text-slate-400">
+                    <span className="text-ink-muted">
                       {u("dariPrefix")} {recon.summary.total} {u("barisMutasiSuffix")}
                     </span>
                   </div>
@@ -558,7 +558,7 @@ export function KasBankPage() {
                                   {isAdmin ? (
                                     <button
                                       onClick={() => unmatchMutation.mutate(item.id)}
-                                      className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-600 dark:text-slate-400"
+                                      className="inline-flex items-center gap-1 text-xs text-ink-muted hover:text-red-600"
                                     >
                                       <Link2Off className="size-3.5" aria-hidden /> {u("lepasCocok")}
                                     </button>
@@ -606,7 +606,7 @@ export function KasBankPage() {
                   </Table>
                 </>
               ) : recon ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-ink-muted">
                   {u("belumAdaKoranDiimpor")}
                 </p>
               ) : null}
