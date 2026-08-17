@@ -73,7 +73,27 @@
   // Pasang secret dulu, deploy, baru ubah baris ini. Langkah lengkap +
   // verifikasinya ada di docs/05-runbook-go-live.md §6.
   "vars": {
-    "TENANT_DB_MODE": "local"
+    "TENANT_DB_MODE": "local",
+
+    // Alamat publik aplikasi. WAJIB diset — bukan kenyamanan.
+    //
+    // Tanpa ini `APP_URL` bernilai undefined di produksi, dan dua hal rusak
+    // diam-diam:
+    //
+    // 1. KETIGA email siklus langganan terkirim TANPA TAUTAN. Lihat
+    //    `apps/api/src/index.ts` — pola `env.APP_URL ? tautan : "Buka menu
+    //    Pengaturan."` muncul tiga kali: pemberitahuan jatuh tempo, masa
+    //    tenggang, dan langganan berakhir. Justru email yang paling menentukan
+    //    pendapatan yang kehilangan tombolnya.
+    // 2. Tautan verifikasi email & reset password jatuh ke origin REQUEST
+    //    (`appOrigin()` di routes/auth.ts). Itu membuat isi email bergantung
+    //    pada header Host — bentuk klasik password-reset poisoning. Di
+    //    *.workers.dev routing mengikat hostname sehingga sulit dieksploitasi,
+    //    tetapi begitu domain sendiri dipasang, celahnya menjadi nyata.
+    //
+    // `scripts/make-dev-config.mjs` MEMBUANG var ini untuk lingkungan dev —
+    // lihat alasannya di sana; membiarkannya akan meruntuhkan seluruh smoke.
+    "APP_URL": "https://erpindo.29nurudhuhaalamin.workers.dev"
   },
 
   // Job harian: siklus hidup langganan (trial berakhir → mode baca-saja).

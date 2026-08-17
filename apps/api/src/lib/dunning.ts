@@ -21,6 +21,27 @@ const HARI_MS = 86_400_000;
 /** Masa tenggang — satu sumber di `@erpindo/shared` (dipakai cron, web, uji). */
 export { GRACE_DAYS };
 
+/**
+ * Tautan "buka Pengaturan" untuk email siklus langganan (Fase 30j).
+ *
+ * Diekstrak karena ternary yang sama persis ditulis TIGA KALI di `index.ts` —
+ * pengingat sebelum berakhir, masuk masa tenggang, dan masih baca-saja — dan
+ * ketiganya diam-diam mengirim email TANPA TAUTAN sepanjang `APP_URL` belum
+ * dipasang. Tak satu pun gerbang melihatnya: emailnya tetap terkirim, tetap
+ * berbunyi masuk akal, hanya kehilangan satu-satunya tombol yang membuat
+ * pemiliknya bisa membayar.
+ *
+ * Sebagai fungsi, perilakunya bisa dikunci uji. Sebagai ternary yang disalin
+ * tiga kali, ia hanya bisa diperiksa dengan membaca — dan membaca sudah
+ * melewatkannya selama berbulan-bulan.
+ *
+ * @param cadangan kalimat pengganti bila `APP_URL` belum dipasang; berbeda per
+ *   email karena ajakannya berbeda ("memperpanjang" vs "mengaktifkan kembali").
+ */
+export function tautanPengaturan(appUrl: string | undefined, cadangan: string): string {
+  return appUrl ? `\n\n${appUrl.replace(/\/$/, "")}/app/pengaturan` : `\n\n${cadangan}`;
+}
+
 /** Kapan tenant benar-benar jadi baca-saja, dihitung dari tanggal habisnya. */
 export function batasBacaSaja(habisPada: string): string {
   return new Date(Date.parse(habisPada) + GRACE_DAYS * HARI_MS).toISOString();

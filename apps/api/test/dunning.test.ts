@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DUNNING_MILESTONES, GRACE_DAYS, dalamJendela, dalamTenggang, dunningWindow, sisaTenggang } from "../src/lib/dunning";
+import { DUNNING_MILESTONES, GRACE_DAYS, dalamJendela, dalamTenggang, dunningWindow, sisaTenggang, tautanPengaturan } from "../src/lib/dunning";
 
 /**
  * Fase 20a — jadwal pengingat sebelum akun jatuh ke baca-saja.
@@ -101,5 +101,51 @@ describe("jadwal dunning (Fase 20a)", () => {
       expect(dalamJendela(jatuhTempoLalu(5.5), -(GRACE_DAYS + 3), NOW)).toBe(false);
       expect(dalamJendela(jatuhTempoLalu(6.5), -(GRACE_DAYS + 3), NOW)).toBe(true);
     });
+  });
+});
+
+describe("tautanPengaturan — email siklus langganan (Fase 30j)", () => {
+  const APP = "https://erpindo.29nurudhuhaalamin.workers.dev";
+
+  it("menyisipkan tautan yang bisa diklik saat APP_URL dipasang", () => {
+    expect(tautanPengaturan(APP, "Buka menu Pengaturan.")).toBe(`\n\n${APP}/app/pengaturan`);
+  });
+
+  it("TIDAK menyebut cadangan saat tautan tersedia", () => {
+    // Kalau keduanya ikut, email memuat tautan DAN instruksi manual sekaligus —
+    // pembacanya harus menebak mana yang berlaku.
+    expect(tautanPengaturan(APP, "Buka menu Pengaturan.")).not.toContain("Buka menu");
+  });
+
+  it("jatuh ke instruksi manual saat APP_URL BELUM dipasang", () => {
+    // Inilah keadaan produksi sebelum Fase 30j: ketiga email siklus langganan
+    // terkirim tanpa satu pun tautan, dan tak ada gerbang yang melihatnya
+    // karena emailnya tetap terkirim dan tetap berbunyi masuk akal.
+    expect(tautanPengaturan(undefined, "Buka menu Pengaturan untuk memperpanjang.")).toBe(
+      "\n\nBuka menu Pengaturan untuk memperpanjang.",
+    );
+  });
+
+  it("string kosong diperlakukan sama dengan tidak dipasang", () => {
+    // `APP_URL: ""` di dashboard adalah salah-pasang yang paling mudah terjadi.
+    // Tanpa penjaga ini hasilnya tautan `\n\n/app/pengaturan` — relatif, dan
+    // di dalam email berarti tidak bisa diklik sama sekali.
+    expect(tautanPengaturan("", "cadangan")).toBe("\n\ncadangan");
+  });
+
+  it("garis miring di ujung APP_URL tidak menghasilkan // ganda", () => {
+    expect(tautanPengaturan(`${APP}/`, "cadangan")).toBe(`\n\n${APP}/app/pengaturan`);
+  });
+
+  it("ketiga cadangan berbeda tetap terbawa apa adanya", () => {
+    // Ajakannya memang berbeda per email; menyeragamkannya akan membuat email
+    // "masih baca-saja" menyuruh pembacanya "memperpanjang".
+    for (const c of [
+      "Buka menu Pengaturan.",
+      "Buka menu Pengaturan untuk memperpanjang.",
+      "Buka menu Pengaturan untuk mengaktifkan kembali.",
+    ]) {
+      expect(tautanPengaturan(undefined, c)).toBe(`\n\n${c}`);
+    }
   });
 });
