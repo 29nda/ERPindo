@@ -131,7 +131,20 @@ const daysAgo = (n) => new Date(Date.now() - n * day).toISOString().slice(0, 10)
  * Helper-nya terpisah di `scripts/lib/kalender.mjs` supaya bisa diuji — alasan
  * lengkapnya ada di kepala berkas itu dan di blok "6b" di bawah.
  */
-const RIWAYAT = bulanRiwayat(6);
+/**
+ * Kedalaman riwayat demo. **12 bulan** sejak Fase 30c (dulu 6).
+ *
+ * Setahun penuh bukan angka yang dipilih karena bagus: ia yang paling sedikit
+ * membuat layar kosong. Perbandingan tahun-ke-tahun, tren 12 bulan, anggaran
+ * setahun, dan umur piutang semuanya butuh kedua sisi terisi — dengan 6 bulan,
+ * separuh laporan menjawab "belum ada data" kepada calon pelanggan yang sedang
+ * menilai produk.
+ *
+ * Blok gaji dan penyusutan menyusuri daftar yang SAMA, jadi menaikkan angka ini
+ * otomatis memberi 12 periode gaji dan 12 periode penyusutan — bukan 2 seperti
+ * sebelum Fase 28.
+ */
+const RIWAYAT = bulanRiwayat(12);
 const thisMonth = new Date().toISOString().slice(0, 7);
 const _kini = new Date();
 /**
@@ -538,7 +551,11 @@ for (const [i, bln] of RIWAYAT.entries()) {
   // merah, dan dasbor itulah gambar produk terbesar di halaman depan.
   // Perbandingan bulan berjalan (separuh) dengan bulan penuh memang selalu
   // timpang; yang bisa diatur di sini hanyalah agar puncaknya bukan di masa lalu.
-  const tumbuh = 1 + i * 0.015; // 1,00 → 1,075
+  // Tanjakan diturunkan dari daftarnya sendiri, bukan konstanta yang basi saat
+  // kedalaman berubah (Fase 30c). Titik AKHIR dipertahankan persis di 1,075 —
+  // nilai yang sudah dibuktikan aman Fase 28 — sehingga bulan riwayat terakhir
+  // tetap di bawah bulan berjalan. Yang berubah hanya jumlah anak tangganya.
+  const tumbuh = 1 + (i * 0.075) / Math.max(RIWAYAT.length - 1, 1); // 1,00 → 1,075
   const bulat = (n) => Math.round((n * tumbuh) / 10) * 10;
 
   const beli = await purchase(`riwayat ${bln.periode}: belanja stok`, {
