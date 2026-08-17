@@ -1851,17 +1851,45 @@ try {
   await searchBox.press("Escape");
   await page.waitForTimeout(300);
   check("F14 Escape membersihkan pencarian (menu pulih)", (await navLinks()) === allLinks);
-  // Lipat seksi Master Data → 4 tautan hilang; persist setelah muat ulang.
-  // (3 sampai Fase 23a menambahkan Grup Harga ke seksi yang sama.)
-  await page.locator("aside nav button:visible", { hasText: "Master Data" }).click();
+  // Lipat seksi 'Beli & Stok' → 7 tautan hilang; persist setelah muat ulang.
+  //
+  // Fase 31b: dulu seksi ini bernama 'Master Data' dan berisi 4 tautan. Nama
+  // dan isinya berubah karena taksonomi menu kini dikelompokkan per PEKERJAAN,
+  // bukan per nama modul teknis. Yang diuji TIDAK berubah: melipat sebuah seksi
+  // menyembunyikan tepat sejumlah tautan miliknya, lipatannya bertahan setelah
+  // muat ulang, dan membukanya memulihkan seluruhnya.
+  await page.locator("aside nav button:visible", { hasText: "Beli & Stok" }).click();
   await page.waitForTimeout(300);
   const afterCollapse = await navLinks();
-  check("F14 melipat 'Master Data' menyembunyikan 4 menu", allLinks - afterCollapse === 4, `→ ${allLinks} vs ${afterCollapse}`);
+  check("F14 melipat 'Beli & Stok' menyembunyikan 7 menu", allLinks - afterCollapse === 7, `→ ${allLinks} vs ${afterCollapse}`);
   await gotoRoute("/app", 900);
   check("F14 lipatan persisten setelah muat ulang", (await navLinks()) === afterCollapse);
-  await page.locator("aside nav button:visible", { hasText: "Master Data" }).click();
+  // Membuka lewat TOMBOL JUDUL — jalur ini terpisah dari membuka lewat rail di
+  // F14b, dan sempat tidak teruji sama sekali saat asersinya ditulis ulang.
+  await page.locator("aside nav button:visible", { hasText: "Beli & Stok" }).click();
   await page.waitForTimeout(300);
-  check("F14 membuka lipatan memulihkan menu", (await navLinks()) === allLinks);
+  check("F14 membuka lipatan lewat tombol judul memulihkan menu", (await navLinks()) === allLinks);
+  await page.locator("aside nav button:visible", { hasText: "Beli & Stok" }).click();
+  await page.waitForTimeout(300);
+
+  // F14b — rail wilayah kerja (Fase 31b). Rail SENGAJA di luar <nav>, sama
+  // seperti pemicu palet: sebelas asersi F13/F14 menghitung `aside nav
+  // a:visible` dan `aside nav button:visible`.
+  const railTombol = page.locator('aside [data-area]:visible');
+  check("F14b rail memuat satu tombol per wilayah kerja", (await railTombol.count()) === 7,
+    `→ ${await railTombol.count()}`);
+  check("F14b rail berada DI LUAR <nav> (tidak mencemari hitungan menu)",
+    (await page.locator("aside nav [data-area]").count()) === 0);
+  // Mengeklik rail wilayah yang sedang terlipat harus MEMBUKANYA — menggulir ke
+  // judul yang terlipat hanya memindahkan pandangan ke tempat kosong.
+  await page.locator('aside [data-area="Beli & Stok"]:visible').click();
+  await page.waitForTimeout(300);
+  check("F14b klik rail membuka wilayah yang sedang terlipat", (await navLinks()) === allLinks,
+    `→ ${await navLinks()} vs ${allLinks}`);
+  await gotoRoute("/app/stok", 900);
+  check("F14b rute aktif menyorot wilayahnya di rail",
+    (await page.locator('aside [data-area="Beli & Stok"][aria-current="true"]:visible').count()) === 1);
+  await gotoRoute("/app", 900);
   check("F14 navigasi bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
   // F20b/F20c — Fase 17c: palet perintah ⌘K.

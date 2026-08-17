@@ -70,6 +70,7 @@ import {
   BrandWordmark,
   Badge,
   Button,
+  cx,
   PageTour,
   Spinner,
   tourSeen,
@@ -96,32 +97,40 @@ export function useWorkspace(): Workspace {
 // Shell aplikasi: sidebar (desktop) / menu atas (mobile)
 // ---------------------------------------------------------------------------
 
-// Taksonomi menu (Fase 9c): grup Keuangan lama (18 item) dipecah menjadi
-// Keuangan (pencatatan), Laporan (baca-saja), dan Aset & Pajak; dua item yang
-// salah kelompok (Pemeliharaan, Laporan Penjualan) dipindah ke rumah barunya.
-// Rute, label, dan izin TIDAK berubah — hanya pengelompokan & ikon.
+// Taksonomi menu (Fase 31b): dikelompokkan per PEKERJAAN, bukan per nama modul
+// teknis. Delapan seksi lama (Transaksi, CRM, Keuangan, Laporan, Aset & Pajak,
+// Master Data, HR, Lainnya) menuntut pemakai tahu lebih dulu modul mana yang
+// memuat pekerjaannya — "Kontak" ada di Master Data, "Pemeliharaan" di Lainnya.
+// Kini: Jual, Beli & Stok, Uang, Laporan, Aset & Pajak, Orang & Proyek, Kelola.
+//
+// Rute, label, izin, dan ikon per item TIDAK berubah — hanya pengelompokan dan
+// urutannya. Itu batasan yang disengaja: 46 rute disapu ui-sim lewat URL
+// langsung, jadi navigasi boleh dirombak total selama URL-nya tetap.
 const NAV_ITEMS: { to: string; label: string; exact: boolean; section?: string; icon: LucideIcon; module?: PermissionKey; adminOnly?: boolean }[] = [
   { to: "/app", label: "Dashboard", exact: true, icon: LayoutDashboard },
-  { to: "/app/pos", label: "Kasir (POS)", exact: false, section: "Transaksi", icon: Store, module: "kasir" },
-  { to: "/app/penjualan", label: "Penjualan", exact: false, section: "Transaksi", icon: Receipt, module: "penjualan" },
-  { to: "/app/pesanan-penjualan", label: "Pesanan Penjualan", exact: false, section: "Transaksi", icon: ClipboardList, module: "penjualan" },
-  { to: "/app/pembelian", label: "Pembelian", exact: false, section: "Transaksi", icon: ShoppingCart, module: "pembelian" },
-  { to: "/app/pengadaan", label: "Pengadaan", exact: false, section: "Transaksi", icon: PackageSearch, module: "pembelian" },
-  { to: "/app/stok", label: "Stok", exact: false, section: "Transaksi", icon: Boxes, module: "stok" },
-  { to: "/app/marketplace", label: "Marketplace", exact: false, section: "Transaksi", icon: ShoppingBag, module: "penjualan" },
-  { to: "/app/manufaktur", label: "Manufaktur", exact: false, section: "Transaksi", icon: Factory, module: "proyek" },
-  { to: "/app/crm/leads", label: "Pipeline", exact: false, section: "CRM", icon: Target, module: "crm" },
-  { to: "/app/crm/penawaran", label: "Penawaran", exact: false, section: "CRM", icon: FileText, module: "crm" },
-  { to: "/app/helpdesk", label: "Helpdesk", exact: false, section: "CRM", icon: LifeBuoy, module: "crm" },
-  { to: "/app/keuangan/catat", label: "Catat Transaksi", exact: false, section: "Keuangan", icon: PenLine, module: "keuangan" },
-  { to: "/app/keuangan/kas-bank", label: "Kas & Bank", exact: false, section: "Keuangan", icon: Wallet, module: "keuangan" },
-  { to: "/app/keuangan/akun", label: "Bagan Akun", exact: false, section: "Keuangan", icon: ListTree, module: "keuangan" },
-  { to: "/app/keuangan/jurnal", label: "Jurnal Umum", exact: false, section: "Keuangan", icon: BookText, module: "keuangan" },
-  { to: "/app/keuangan/buku-besar", label: "Buku Besar", exact: false, section: "Keuangan", icon: BookOpen, module: "keuangan" },
-  { to: "/app/keuangan/anggaran", label: "Anggaran", exact: false, section: "Keuangan", icon: PiggyBank, module: "keuangan" },
-  { to: "/app/keuangan/dimensi", label: "Dimensi & Rekon", exact: false, section: "Keuangan", icon: Layers, module: "keuangan" },
-  { to: "/app/keuangan/kurs", label: "Mata Uang", exact: false, section: "Keuangan", icon: Coins, module: "keuangan" },
-  { to: "/app/konsolidasi", label: "Konsolidasi", exact: false, section: "Keuangan", icon: Combine, module: "keuangan" },
+  { to: "/app/pos", label: "Kasir (POS)", exact: false, section: "Jual", icon: Store, module: "kasir" },
+  { to: "/app/penjualan", label: "Penjualan", exact: false, section: "Jual", icon: Receipt, module: "penjualan" },
+  { to: "/app/pesanan-penjualan", label: "Pesanan Penjualan", exact: false, section: "Jual", icon: ClipboardList, module: "penjualan" },
+  { to: "/app/marketplace", label: "Marketplace", exact: false, section: "Jual", icon: ShoppingBag, module: "penjualan" },
+  { to: "/app/crm/leads", label: "Pipeline", exact: false, section: "Jual", icon: Target, module: "crm" },
+  { to: "/app/crm/penawaran", label: "Penawaran", exact: false, section: "Jual", icon: FileText, module: "crm" },
+  { to: "/app/helpdesk", label: "Helpdesk", exact: false, section: "Jual", icon: LifeBuoy, module: "crm" },
+  { to: "/app/pembelian", label: "Pembelian", exact: false, section: "Beli & Stok", icon: ShoppingCart, module: "pembelian" },
+  { to: "/app/pengadaan", label: "Pengadaan", exact: false, section: "Beli & Stok", icon: PackageSearch, module: "pembelian" },
+  { to: "/app/stok", label: "Stok", exact: false, section: "Beli & Stok", icon: Boxes, module: "stok" },
+  { to: "/app/master/produk", label: "Produk", exact: false, section: "Beli & Stok", icon: Package, module: "stok" },
+  { to: "/app/master/kontak", label: "Kontak", exact: false, section: "Beli & Stok", icon: Contact, module: "penjualan" },
+  { to: "/app/master/gudang", label: "Gudang", exact: false, section: "Beli & Stok", icon: Warehouse, module: "stok" },
+  { to: "/app/master/grup-harga", label: "Grup Harga", exact: false, section: "Beli & Stok", icon: Tags, module: "penjualan" },
+  { to: "/app/keuangan/catat", label: "Catat Transaksi", exact: false, section: "Uang", icon: PenLine, module: "keuangan" },
+  { to: "/app/keuangan/kas-bank", label: "Kas & Bank", exact: false, section: "Uang", icon: Wallet, module: "keuangan" },
+  { to: "/app/keuangan/akun", label: "Bagan Akun", exact: false, section: "Uang", icon: ListTree, module: "keuangan" },
+  { to: "/app/keuangan/jurnal", label: "Jurnal Umum", exact: false, section: "Uang", icon: BookText, module: "keuangan" },
+  { to: "/app/keuangan/buku-besar", label: "Buku Besar", exact: false, section: "Uang", icon: BookOpen, module: "keuangan" },
+  { to: "/app/keuangan/anggaran", label: "Anggaran", exact: false, section: "Uang", icon: PiggyBank, module: "keuangan" },
+  { to: "/app/keuangan/dimensi", label: "Dimensi & Rekon", exact: false, section: "Uang", icon: Layers, module: "keuangan" },
+  { to: "/app/keuangan/kurs", label: "Mata Uang", exact: false, section: "Uang", icon: Coins, module: "keuangan" },
+  { to: "/app/konsolidasi", label: "Konsolidasi", exact: false, section: "Uang", icon: Combine, module: "keuangan" },
   { to: "/app/keuangan/neraca-saldo", label: "Neraca Saldo", exact: false, section: "Laporan", icon: Sigma, module: "keuangan" },
   { to: "/app/keuangan/laba-rugi", label: "Laba Rugi", exact: false, section: "Laporan", icon: LineChart, module: "laporan" },
   { to: "/app/keuangan/neraca", label: "Neraca", exact: false, section: "Laporan", icon: Scale, module: "laporan" },
@@ -132,20 +141,17 @@ const NAV_ITEMS: { to: string; label: string; exact: boolean; section?: string; 
   { to: "/app/maintenance", label: "Pemeliharaan", exact: false, section: "Aset & Pajak", icon: Wrench, module: "proyek" },
   { to: "/app/keuangan/pajak", label: "Pajak", exact: false, section: "Aset & Pajak", icon: Percent, module: "pajak" },
   { to: "/app/keuangan/e-faktur", label: "Ekspor e-Faktur", exact: false, section: "Aset & Pajak", icon: FileSpreadsheet, module: "pajak" },
-  { to: "/app/master/produk", label: "Produk", exact: false, section: "Master Data", icon: Package, module: "stok" },
-  { to: "/app/master/kontak", label: "Kontak", exact: false, section: "Master Data", icon: Contact, module: "penjualan" },
-  { to: "/app/master/gudang", label: "Gudang", exact: false, section: "Master Data", icon: Warehouse, module: "stok" },
-  { to: "/app/master/grup-harga", label: "Grup Harga", exact: false, section: "Master Data", icon: Tags, module: "penjualan" },
-  { to: "/app/hr/penggajian", label: "Penggajian", exact: false, section: "HR", icon: UsersRound, module: "hr" },
-  { to: "/app/hr/absensi", label: "Absensi", exact: false, section: "HR", icon: CalendarCheck, module: "hr" },
-  { to: "/app/proyek", label: "Proyek", exact: false, section: "Lainnya", icon: FolderKanban, module: "proyek" },
-  { to: "/app/kontrak", label: "Kontrak Berulang", exact: false, section: "Lainnya", icon: CalendarClock, module: "proyek" },
-  { to: "/app/persetujuan", label: "Persetujuan", exact: false, section: "Lainnya", icon: CheckSquare, module: "persetujuan" },
-  { to: "/app/alat", label: "Alat Bantu", exact: false, section: "Lainnya", icon: Calculator },
-  { to: "/app/dukungan", label: "Dukungan", exact: false, section: "Lainnya", icon: LifeBuoy },
-  { to: "/app/migrasi", label: "Migrasi", exact: false, section: "Lainnya", icon: UploadCloud },
-  { to: "/app/admin", label: "Admin", exact: false, section: "Lainnya", icon: ShieldCheck, adminOnly: true },
-  { to: "/app/pengaturan", label: "Pengaturan", exact: false, section: "Lainnya", icon: Settings },
+  { to: "/app/manufaktur", label: "Manufaktur", exact: false, section: "Orang & Proyek", icon: Factory, module: "proyek" },
+  { to: "/app/hr/penggajian", label: "Penggajian", exact: false, section: "Orang & Proyek", icon: UsersRound, module: "hr" },
+  { to: "/app/hr/absensi", label: "Absensi", exact: false, section: "Orang & Proyek", icon: CalendarCheck, module: "hr" },
+  { to: "/app/proyek", label: "Proyek", exact: false, section: "Orang & Proyek", icon: FolderKanban, module: "proyek" },
+  { to: "/app/kontrak", label: "Kontrak Berulang", exact: false, section: "Orang & Proyek", icon: CalendarClock, module: "proyek" },
+  { to: "/app/persetujuan", label: "Persetujuan", exact: false, section: "Orang & Proyek", icon: CheckSquare, module: "persetujuan" },
+  { to: "/app/alat", label: "Alat Bantu", exact: false, section: "Kelola", icon: Calculator },
+  { to: "/app/dukungan", label: "Dukungan", exact: false, section: "Kelola", icon: LifeBuoy },
+  { to: "/app/migrasi", label: "Migrasi", exact: false, section: "Kelola", icon: UploadCloud },
+  { to: "/app/admin", label: "Admin", exact: false, section: "Kelola", icon: ShieldCheck, adminOnly: true },
+  { to: "/app/pengaturan", label: "Pengaturan", exact: false, section: "Kelola", icon: Settings },
 ];
 
 /** Label menu bahasa Inggris (Fase 13e), dikunci per rute agar label ID tetap sumber utama. */
@@ -199,15 +205,45 @@ const NAV_LABEL_EN: Record<string, string> = {
 
 /** Nama seksi menu bahasa Inggris (Fase 13e). */
 const SECTION_EN: Record<string, string> = {
-  Transaksi: "Transactions",
-  CRM: "CRM",
-  Keuangan: "Finance",
+  Jual: "Sell",
+  "Beli & Stok": "Buy & Stock",
+  Uang: "Money",
   Laporan: "Reports",
   "Aset & Pajak": "Assets & Tax",
-  "Master Data": "Master Data",
-  HR: "HR",
-  Lainnya: "Other",
+  "Orang & Proyek": "People & Projects",
+  Kelola: "Manage",
 };
+
+/**
+ * Rail wilayah kerja (Fase 31b).
+ *
+ * Sebelumnya sidebar adalah satu daftar 45 item dalam 8 seksi bernama modul
+ * teknis (Transaksi, CRM, Keuangan, Master Data, HR, Lainnya). Bentuk itu yang
+ * paling dikenali pemilik dari aplikasi lama, dan penamaannya menuntut pemakai
+ * tahu lebih dulu modul mana yang memuat pekerjaannya — "Kontak" ada di Master
+ * Data, "Pemeliharaan" di Lainnya.
+ *
+ * Taksonomi baru dikelompokkan per **pekerjaan**: Jual, Beli & Stok, Uang,
+ * Laporan, Aset & Pajak, Orang & Proyek, Kelola.
+ *
+ * Rail-nya BUKAN penyaring. Panel tetap memuat seluruh tautan — mengeklik
+ * ikon menggulirkan panel ke wilayahnya dan membukanya bila sedang terlipat.
+ * Ini disengaja: rail yang menyembunyikan wilayah lain akan membuat pencarian
+ * menu lintas-wilayah mustahil, dan membuat 45 halaman terasa lebih jauh
+ * daripada sebelumnya, bukan lebih dekat.
+ */
+const AREAS: { nama: string; icon: LucideIcon }[] = [
+  { nama: "Jual", icon: Store },
+  { nama: "Beli & Stok", icon: ShoppingCart },
+  { nama: "Uang", icon: Wallet },
+  { nama: "Laporan", icon: BarChart3 },
+  { nama: "Aset & Pajak", icon: Landmark },
+  { nama: "Orang & Proyek", icon: UsersRound },
+  { nama: "Kelola", icon: Settings },
+];
+
+/** Id elemen judul grup — dipakai rail untuk menggulir. */
+const idGrup = (nama: string) => `grup-${nama.replace(/[^a-z]+/gi, "-").toLowerCase()}`;
 
 // Seksi lipat (Fase 9c): daftar nama seksi yang dilipat, per pengguna.
 // Tidak ada simpanan = semua terbuka (perilaku lama persis).
@@ -601,9 +637,10 @@ export function AppShell() {
             {group.section ? (
               <button
                 type="button"
+                id={idGrup(group.section)}
                 onClick={() => toggleSection(group.section!)}
                 aria-expanded={!isCollapsed}
-                className="mb-0.5 mt-3 flex w-full items-center justify-between px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-faint transition-colors hover:text-ink-soft"
+                className="mb-1 mt-4 flex w-full items-center justify-between rounded px-2 py-1 text-[11px] font-semibold tracking-tight text-ink-soft transition-colors hover:bg-surface-muted"
               >
                 {lang === "en" ? (SECTION_EN[group.section!] ?? group.section) : group.section}
                 <ChevronDown className={`size-3.5 transition-transform ${isCollapsed ? "-rotate-90" : ""}`} aria-hidden />
@@ -678,16 +715,68 @@ export function AppShell() {
     </>
   );
 
+  /**
+   * Rail wilayah kerja — kolom ikon di kiri panel (Fase 31b).
+   *
+   * SENGAJA di luar `<nav>`, sama seperti pemicu palet perintah di topbar:
+   * sebelas asersi ui-sim menghitung `aside nav a:visible` dan
+   * `aside nav button:visible`. Menaruh tujuh tombol wilayah di dalam `<nav>`
+   * akan memecah kesebelasnya sekaligus tanpa pesan yang menjelaskan sebabnya.
+   */
+  const areaAktif = navItems.find((item) =>
+    item.exact ? pathname === item.to : pathname.startsWith(item.to)
+  )?.section;
+  const rail = (
+    <div className="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-surface-sunken py-3">
+      {AREAS.filter((a) => navItems.some((i) => i.section === a.nama)).map((a) => {
+        const aktif = areaAktif === a.nama;
+        return (
+          <button
+            key={a.nama}
+            type="button"
+            data-area={a.nama}
+            aria-label={lang === "en" ? (SECTION_EN[a.nama] ?? a.nama) : a.nama}
+            title={lang === "en" ? (SECTION_EN[a.nama] ?? a.nama) : a.nama}
+            aria-current={aktif ? "true" : undefined}
+            onClick={() => {
+              // Buka lipatannya dulu — menggulir ke judul yang terlipat hanya
+              // memindahkan pandangan ke tempat kosong.
+              setCollapsedSections((prev) => {
+                if (!prev.includes(a.nama)) return prev;
+                const next = prev.filter((s) => s !== a.nama);
+                localStorage.setItem(NAV_COLLAPSE_KEY, JSON.stringify(next));
+                return next;
+              });
+              setNavQuery("");
+              requestAnimationFrame(() => {
+                document.getElementById(idGrup(a.nama))?.scrollIntoView({ block: "start" });
+              });
+            }}
+            className={cx(
+              "flex size-10 items-center justify-center rounded-control transition-colors",
+              aktif
+                ? "bg-brand-600 text-white"
+                : "text-ink-muted hover:bg-surface-muted hover:text-ink"
+            )}
+          >
+            <a.icon className="size-[18px]" aria-hidden />
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <WorkspaceContext.Provider value={{ me, tenant }}>
       <div className="flex min-h-full">
-        {/* Sidebar desktop — theme-aware (putih di terang, gelap di gelap).
+        {/* Sidebar desktop — rail wilayah + panel (Fase 31b).
             Fase 17c: `sticky top-0 h-dvh self-start` supaya menu ikut diam saat
             halaman panjang digulir. `self-start` wajib: tanpa itu aside meregang
             setinggi konten (stretch bawaan flex) dan `sticky` tak punya ruang
             gerak, jadi terlihat seolah tidak berfungsi. */}
-        <aside className="sticky top-0 hidden h-dvh w-56 shrink-0 flex-col self-start border-r border-line bg-surface md:flex">
-          {sidebarContent}
+        <aside className="sticky top-0 hidden h-dvh w-[17.5rem] shrink-0 self-start border-r border-line bg-surface md:flex">
+          {rail}
+          <div className="flex min-w-0 flex-1 flex-col">{sidebarContent}</div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
