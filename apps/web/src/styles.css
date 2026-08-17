@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/source-serif-4";
 
 /* ===========================================================================
    Token desain ERPindo — Fase 31a.
@@ -39,46 +40,56 @@
 =========================================================================== */
 
 /* ---------------------------------------------------------------------------
-   Nilai mentah — TERANG (bawaan).
+   Nilai mentah — TERANG (bawaan). Fase 32a: netral KREM HANGAT.
 
-   Netral bercorak biru sangat tipis (hue ±222°), bukan abu netral-hangat.
-   Alasannya merek: aksennya biru murni, dan netral hangat di sebelah biru
-   murni terbaca sebagai "dua keluarga warna yang kebetulan bertetangga".
+   Pemilik memilih arah editorial-tenang bergaya anthropic.com. Ciri paling
+   menentukannya bukan warna aksen melainkan **latarnya**: krem hangat, bukan
+   putih dan bukan abu dingin. Latar itulah yang membuat halaman terbaca seperti
+   terbitan cetak alih-alih dasbor.
+
+   Netral biru Fase 31a dibuang seluruhnya. Ia dipilih untuk menemani aksen biru
+   murni; sejak aksennya menjadi tanah liat, netral biru justru melawannya.
+
+   CATATAN JUJUR: situs rujukannya TIDAK bisa saya buka — proxy jaringan
+   lingkungan ini memblokir domainnya (`EGRESS_BLOCKED`). Nilai di bawah
+   diturunkan dari pemahaman saya atas bahasa desainnya, bukan dari pengambilan
+   sampel piksel seperti yang dilakukan pada logo di Fase 31a. Bila hasilnya
+   meleset dari yang pemilik bayangkan, yang perlu diubah hanya blok ini.
 --------------------------------------------------------------------------- */
 :root {
-  --erp-surface: #ffffff;
-  --erp-surface-raised: #ffffff;
-  --erp-surface-sunken: #f7f8fa;
-  --erp-surface-muted: #eef0f4;
-  --erp-surface-active: #e0e3ea;
+  --erp-surface: #fffefb;
+  --erp-surface-raised: #fffefb;
+  --erp-surface-sunken: #f5f2ea;
+  --erp-surface-muted: #ece7db;
+  --erp-surface-active: #ded7c7;
 
-  --erp-ink: #171b25;
-  --erp-ink-soft: #4d5468;
-  --erp-ink-muted: #69718a;
-  --erp-ink-faint: #98a0b0;
-  --erp-ink-invert: #ffffff;
+  --erp-ink: #1f1d19;
+  --erp-ink-soft: #55504a;
+  --erp-ink-muted: #6e675e;
+  --erp-ink-faint: #9a9289;
+  --erp-ink-invert: #fffefb;
 
-  --erp-line: #e0e3ea;
-  --erp-line-strong: #c8cdd8;
+  --erp-line: #e3ddd0;
+  --erp-line-strong: #cec5b3;
 }
 
 /* Nilai mentah — GELAP. Masih didukung penuh; bukan bawaan (keputusan 18a,
    ditegaskan ulang oleh pemilik pada wawancara Fase 31). */
 :root.dark {
-  --erp-surface: #171b25;
-  --erp-surface-raised: #1f2430;
-  --erp-surface-sunken: #0d1017;
-  --erp-surface-muted: #262b38;
-  --erp-surface-active: #3a4052;
+  --erp-surface: #211f1b;
+  --erp-surface-raised: #2a2823;
+  --erp-surface-sunken: #171512;
+  --erp-surface-muted: #322f29;
+  --erp-surface-active: #45413a;
 
-  --erp-ink: #f7f8fa;
-  --erp-ink-soft: #c8cdd8;
-  --erp-ink-muted: #98a0b0;
-  --erp-ink-faint: #69718a;
-  --erp-ink-invert: #0d1017;
+  --erp-ink: #f5f2ea;
+  --erp-ink-soft: #cec5b3;
+  --erp-ink-muted: #a49b8d;
+  --erp-ink-faint: #7d7466;
+  --erp-ink-invert: #171512;
 
-  --erp-line: #262b38;
-  --erp-line-strong: #3a4052;
+  --erp-line: #332f29;
+  --erp-line-strong: #4a453c;
 }
 
 @theme inline {
@@ -106,30 +117,29 @@
 
 @theme {
   /* -------------------------------------------------------------------------
-     Aksen merek — DIUKUR DARI LOGO, bukan dikarang.
+     Aksen merek — TANAH LIAT (Fase 32a), menggantikan biru logo.
 
-     `apps/web/public/brand/logo-erpindo.png` didekode dan piksel dominannya
-     dihitung: #002060 (10.762 px), #003090 (7.600), #0050d0 (7.230),
-     #0058e0 (4.073). Seluruhnya **biru murni dengan r = 0**.
+     Nama ramp-nya sengaja TETAP `brand-*`. Ada 180-an pemakaian
+     `bg-brand-600`/`text-brand-700` tersebar di halaman; mengganti nilainya
+     memindahkan seluruh aplikasi ke aksen baru tanpa menyentuh satu pun
+     halaman. Inilah gunanya lapis token yang dibangun Fase 31a — dan bedanya
+     dengan 17a/18a, bentuk komponennya sudah ikut berubah lebih dulu, jadi
+     pergantian palet kali ini bukan pengecatan ulang di atas kerangka lama.
 
-     Palet lama memakai #2563eb (Tailwind blue-600) yang mengandung merah —
-     dekat, tetapi bukan warna logonya. Nilai 600/800/900 di bawah adalah
-     piksel logo apa adanya; sisanya interpolasi pada hue yang sama.
-
-     Kontras `brand-600` (#0050d0) di atas putih = 6,87:1 — lulus WCAG AA
-     untuk teks maupun teks putih di atas tombolnya.
+     Kontras `brand-600` (#a8492a) di atas krem #f5f2ea = 5,15:1, dan teks putih
+     di atasnya 5,75:1 — keduanya lulus WCAG AA.
   ------------------------------------------------------------------------- */
-  --color-brand-50: #eef4ff;
-  --color-brand-100: #d9e5ff;
-  --color-brand-200: #bcd1ff;
-  --color-brand-300: #8eb4ff;
-  --color-brand-400: #598cff;
-  --color-brand-500: #2e66f7;
-  --color-brand-600: #0050d0;
-  --color-brand-700: #0040a8;
-  --color-brand-800: #003088;
-  --color-brand-900: #002060;
-  --color-brand-950: #001438;
+  --color-brand-50: #fbf4f0;
+  --color-brand-100: #f4e3da;
+  --color-brand-200: #e8c6b4;
+  --color-brand-300: #d9a385;
+  --color-brand-400: #c87d57;
+  --color-brand-500: #b9603a;
+  --color-brand-600: #a8492a;
+  --color-brand-700: #8b3a22;
+  --color-brand-800: #6e2e1d;
+  --color-brand-900: #57261a;
+  --color-brand-950: #2f1310;
 
   /* Segitiga cyan di logo — dipakai hemat, hanya sebagai penanda hidup
      (indikator daring, sorotan grafik). Bukan warna aksi. */
@@ -142,17 +152,17 @@
      dengan `--erp-*` di atas. Ini JARING PENGAMAN untuk kelas literal yang
      belum tersapu, bukan gaya yang dianjurkan. Pakailah `surface`/`ink`/`line`.
   ------------------------------------------------------------------------- */
-  --color-slate-50: #f7f8fa;
-  --color-slate-100: #eef0f4;
-  --color-slate-200: #e0e3ea;
-  --color-slate-300: #c8cdd8;
-  --color-slate-400: #98a0b0;
-  --color-slate-500: #69718a;
-  --color-slate-600: #4d5468;
-  --color-slate-700: #3a4052;
-  --color-slate-800: #262b38;
-  --color-slate-900: #171b25;
-  --color-slate-950: #0d1017;
+  --color-slate-50: #faf8f3;
+  --color-slate-100: #f5f2ea;
+  --color-slate-200: #e3ddd0;
+  --color-slate-300: #cec5b3;
+  --color-slate-400: #9a9289;
+  --color-slate-500: #6e675e;
+  --color-slate-600: #55504a;
+  --color-slate-700: #45413a;
+  --color-slate-800: #322f29;
+  --color-slate-900: #211f1b;
+  --color-slate-950: #171512;
 
   /* Aksen hangat untuk peringatan/kedaluwarsa. */
   --color-accent-50: #fff7ed;
@@ -198,6 +208,12 @@
      lewat utilitas `num` di bawah. */
   --font-mono:
     "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Serif editorial — HANYA untuk judul besar (Fase 32a).
+     Keputusan pemilik: tabel, angka, dan label tetap sans + mono. Serif di
+     kolom angka memperlambat pembacaan rupiah dan kode akun, dan aplikasi ini
+     aplikasi akuntansi sebelum ia halaman pemasaran. */
+  --font-serif:
+    "Source Serif 4 Variable", ui-serif, Georgia, "Times New Roman", serif;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -253,4 +269,28 @@ body {
 @utility fokus {
   outline: 2px solid var(--color-brand-600);
   outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Judul editorial (Fase 32a).
+
+   Dipakai untuk judul besar di halaman publik dan judul halaman aplikasi —
+   BUKAN untuk tabel. Ditulis sebagai utilitas, bukan diterapkan otomatis ke
+   `h1/h2`, supaya penerapannya sengaja: `h2` juga dipakai di kepala kartu
+   dasbor, dan serif di sana akan merembet ke seluruh layar kerja.
+--------------------------------------------------------------------------- */
+@utility judul {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.08;
+}
+
+/* Varian tegas untuk hero — serif berbobot sedang masih terbaca ringan pada
+   ukuran sangat besar, jadi bobotnya dinaikkan sedikit, bukan di-bold penuh. */
+@utility judul-hero {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
 }

@@ -235,10 +235,16 @@ try {
   // hijau walaupun logonya tetap berkotak putih. Halaman /masuk dipilih karena
   // di sinilah masalahnya paling terlihat — wordmark berdiri di atas panel
   // `brand-50` yang berwarna, sehingga kotak putih langsung tampak.
+  // Fase 32a: wordmark tidak lagi <img> melainkan TEKS (lihat BrandWordmark).
+  // Yang diuji tidak berubah — latar di belakang wordmark tidak boleh putih di
+  // atas panel berwarna — hanya cara menemukannya. Dicari lewat `aria-label`,
+  // bukan nama kelas: label itu bagian dari kontrak aksesibilitas komponennya,
+  // sedangkan kelas bisa berganti kapan saja tanpa mengubah apa pun yang dilihat
+  // atau didengar pengguna.
   const latarWordmark = await page.evaluate(() => {
-    const img = document.querySelector('img[alt^="ERPindo"]');
-    if (!img) return null;
-    const bungkus = img.parentElement;
+    const el = document.querySelector('[aria-label="ERPindo"]');
+    if (!el) return null;
+    const bungkus = el.parentElement;
     const bg = getComputedStyle(bungkus).backgroundColor;
     const m = bg.match(/rgba?\(([^)]+)\)/);
     const [r, g, b, a = "1"] = m ? m[1].split(",").map((s) => s.trim()) : [];

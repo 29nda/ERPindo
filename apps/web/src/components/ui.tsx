@@ -774,20 +774,42 @@ export function useDarkMode() {
  * hidrasi, sehingga tidak ada kedipan logo salah tema (alasan yang sama dengan
  * anti-FOUC `theme-init.js`).
  */
+/**
+ * Wordmark ERPindo — digambar, bukan gambar (Fase 32a).
+ *
+ * ## Kenapa berganti bentuk
+ *
+ * Logo lama adalah PNG gradien biru elektrik (#002060 → #0058e0) dengan
+ * segitiga cyan. Setelah palet berpindah ke krem hangat + tanah liat, biru
+ * murni di atas krem terbaca sebagai dua merek yang kebetulan bertetangga —
+ * pemilik memilih logonya ikut dirancang ulang.
+ *
+ * Kini digambar sebagai teks, bukan raster, dan itu membawa tiga hal sekaligus:
+ *
+ * 1. **Ikut tema.** Warnanya `currentColor`/token, jadi versi terang & gelap
+ *    tidak lagi perlu dua berkas PNG yang harus diregenerasi tiap ganti palet.
+ * 2. **Tajam di segala ukuran** — termasuk retina dan cetak faktur.
+ * 3. **Bisa dibaca mesin.** Nama merek kini benar-benar teks di DOM, bukan
+ *    `alt` pada gambar.
+ *
+ * "ERP" memakai serif editorial yang sama dengan judul halaman; "indo" memakai
+ * sans dengan bobot ringan. Kontrasnya sengaja: gabungan serif+sans dalam satu
+ * wordmark memberi karakter tanpa perlu simbol tambahan, dan simbol tambahan
+ * justru yang membuat logo lama sulit dipakai di ukuran kecil.
+ */
 export function BrandWordmark({ className = "h-8" }: { className?: string }) {
   return (
-    <span className={cx("inline-flex items-center", className)}>
-      <img
-        src="/brand/logo-erpindo.png"
-        alt="ERPindo — Integrate. Automate. Grow."
-        className="h-full w-auto dark:hidden"
-      />
-      <img
-        src="/brand/logo-erpindo-dark.png"
-        alt=""
-        aria-hidden
-        className="hidden h-full w-auto dark:block"
-      />
+    <span
+      className={cx("inline-flex select-none items-baseline leading-none", className)}
+      // Ukuran ikut tinggi wadah supaya pemanggil lama (`h-7`, `h-8`) tidak
+      // perlu diubah — sebelumnya tinggi datang dari <img className="h-full">.
+      style={{ fontSize: "0.72em" }}
+      aria-label="ERPindo"
+    >
+      <span className="judul text-[1.35em] tracking-tight text-ink">ERP</span>
+      <span className="text-[1.28em] font-light tracking-tight text-brand-600 dark:text-brand-400">
+        indo
+      </span>
     </span>
   );
 }

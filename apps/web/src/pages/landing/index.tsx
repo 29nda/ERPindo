@@ -116,7 +116,7 @@ function Hero() {
         </div>
         {/* Rata kiri, bukan rata tengah: halaman ini menjual alat kerja, dan
             teks rata tengah membuat semuanya terbaca seperti brosur. */}
-        <h1 className="max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl">
+        <h1 className="judul-hero max-w-4xl text-[2.75rem] sm:text-[4.25rem]">
           {L(lang, "Pembukuan, stok, gaji, dan pajak —", "Accounting, stock, payroll, and tax —")}{" "}
           <span className="text-brand-600 dark:text-brand-400">
             {L(lang, "beres dalam satu aplikasi", "all in one app")}
@@ -217,7 +217,7 @@ function Showcase() {
   const item = SHOWCASE.find((s) => s.id === active) ?? SHOWCASE[0]!;
   return (
     <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-      <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{L(lang, "Lihat cara kerjanya", "See how it works")}</h2>
+      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Lihat cara kerjanya", "See how it works")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
         {L(lang, "Lima pekerjaan yang paling menyita waktu tiap hari. Pilih satu untuk melihat bentuk nyatanya di dalam aplikasi.", "The five jobs that eat the most time every day. Pick one to see what it actually looks like inside the app.")}
       </p>
@@ -275,7 +275,7 @@ function FeaturesGrid() {
   return (
     <section className="border-t border-line bg-surface">
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{L(lang, "Satu sistem untuk seluruh operasional", "One system for all your operations")}</h2>
+        <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Satu sistem untuk seluruh operasional", "One system for all your operations")}</h2>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
           {L(lang, "Tidak ada modul yang berdiri sendiri. Apa pun yang Anda catat di satu tempat langsung terbaca di tempat lain — tanpa impor-ekspor antar aplikasi.", "No module stands alone. Whatever you record in one place is immediately readable in another — no importing and exporting between apps.")}
         </p>
@@ -319,7 +319,7 @@ function Comparison() {
   const lang = useLang();
   return (
     <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-      <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{L(lang, "Masih pakai buku & Excel?", "Still using ledgers & Excel?")}</h2>
+      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Masih pakai buku & Excel?", "Still using ledgers & Excel?")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
         {L(lang, "Bukan soal rapi atau tidak rapi — soal berapa jam yang hilang tiap bulan, dan berapa selisih yang baru ketahuan saat tutup buku.", "It is not about being tidy — it is about the hours lost each month, and the discrepancies you only find at closing.")}
       </p>
@@ -500,7 +500,7 @@ function Pricing() {
   return (
     <section id="harga" className="scroll-mt-16 border-t border-line bg-surface">
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+        <h2 className="judul text-[2rem] sm:text-[2.5rem]">
           {L(lang, "Satu sistem, dari toko pertama sampai grup perusahaan", "One system, from your first shop to a group of companies")}
         </h2>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
@@ -584,7 +584,7 @@ function Security() {
   const lang = useLang();
   return (
     <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-      <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{L(lang, "Data bisnis Anda, aman di tangan Anda", "Your business data, safe in your hands")}</h2>
+      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Data bisnis Anda, aman di tangan Anda", "Your business data, safe in your hands")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
         {L(lang, "Aman itu perlu, tapi tidak cukup. Anda juga harus bisa pergi kapan saja dan membawa seluruh data Anda.", "Secure is necessary, but not enough. You should also be able to leave whenever you want — and take all your data with you.")}
       </p>
@@ -609,7 +609,7 @@ function Faq() {
   const lang = useLang();
   return (
     <section id="faq" className="mx-auto max-w-3xl scroll-mt-16 px-4 py-20 sm:px-6">
-      <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{L(lang, "Pertanyaan umum", "Frequently asked questions")}</h2>
+      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Pertanyaan umum", "Frequently asked questions")}</h2>
       {/* Daftar menyatu berpembatas garis, bukan tumpukan kartu terpisah. */}
       <div className="mt-10 divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
         {FAQ.map((item) => (
@@ -634,7 +634,7 @@ function CtaBand() {
           bergradien adalah salah satu penanda paling khas "SaaS umum". */}
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 rounded-card bg-brand-600 px-8 py-12 text-white shadow-lg sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{L(lang, "Siap merapikan bisnis Anda?", "Ready to tidy up your business?")}</h2>
+          <h2 className="judul text-[1.75rem] sm:text-[2rem]">{L(lang, "Siap merapikan bisnis Anda?", "Ready to tidy up your business?")}</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-brand-50">
             {L(
               lang,
