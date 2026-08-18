@@ -32,7 +32,7 @@ export function FiturPage() {
     <div className="flex min-h-full flex-col bg-surface-sunken text-ink">
       <PublicHeader />
       <main className="flex-1">
-        <section className="mx-auto max-w-6xl px-4 pt-20 sm:px-6 sm:pt-32">
+        <section className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 sm:pt-24 lg:pt-32">
           <h1 className="judul-hero max-w-4xl text-[2.75rem] sm:text-[4.25rem]">
             {L(lang, "Apa saja yang", "Everything ERPindo")}{" "}
             <span className="text-brand-600 dark:text-brand-400">
@@ -69,7 +69,7 @@ export function FiturPage() {
             id={m.id}
             className={`scroll-mt-20 ${i % 2 === 1 ? "bg-surface" : ""}`}
           >
-            <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32">
+            <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-24 lg:py-32">
               <div className={`grid items-start gap-10 ${m.gambar ? "lg:grid-cols-2" : ""}`}>
                 <div>
                   <span className="flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-900/60 dark:text-brand-300">

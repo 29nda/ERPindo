@@ -3,7 +3,6 @@ import {
   CloudDownload,
   Database,
   FileSpreadsheet,
-  FlaskConical,
   KeyRound,
   LineChart,
   Lock,
@@ -36,10 +35,38 @@ import type { Dual } from "../../i18n";
  * tertinggal jauh; klaim kepercayaan yang basi melemahkan halamannya sendiri.
  */
 export const TRUST_POINTS: { value: Dual; label: Dual; icon: LucideIcon }[] = [
-  { icon: FlaskConical, value: { id: "2.000+", en: "2,000+" }, label: { id: "uji otomatis dijalankan tiap kali kode berubah", en: "automated tests run on every code change" } },
-  { icon: Database, value: { id: "1 database / perusahaan", en: "1 database / company" }, label: { id: "data Anda tidak bercampur dengan siapa pun", en: "your data never mixes with anyone else's" } },
-  { icon: Percent, value: { id: "PPh 21 TER · Coretax", en: "PPh 21 TER · Coretax" }, label: { id: "mengikuti aturan pajak Indonesia terbaru", en: "follows the latest Indonesian tax rules" } },
-  { icon: WifiOff, value: { id: "Jalan tanpa internet", en: "Works offline" }, label: { id: "kasir tetap melayani saat koneksi putus", en: "the cashier keeps serving when the line drops" } },
+  {
+    icon: Wallet,
+    value: { id: "Satu harga", en: "One price" },
+    label: {
+      id: "Rp 499.000 sebulan untuk satu perusahaan. Semua fitur terbuka, jumlah karyawan tidak dibatasi.",
+      en: "Rp 499,000 a month for one company. Every feature open, no limit on staff.",
+    },
+  },
+  {
+    icon: Percent,
+    value: { id: "Pajak Indonesia", en: "Indonesian tax" },
+    label: {
+      id: "PPN dan PPh 21 dihitung otomatis. File e-Faktur siap diunggah ke Coretax.",
+      en: "VAT and income tax calculated automatically. e-Faktur files ready to upload to Coretax.",
+    },
+  },
+  {
+    icon: WifiOff,
+    value: { id: "Kasir tetap jalan", en: "The till keeps working" },
+    label: {
+      id: "Internet mati, penjualan tetap tercatat. Tersimpan sendiri begitu koneksi kembali.",
+      en: "If the internet drops, sales keep recording. They sync themselves once you are back online.",
+    },
+  },
+  {
+    icon: Database,
+    value: { id: "Data milik Anda", en: "Your data is yours" },
+    label: {
+      id: "Bisa diunduh kapan saja, termasuk kalau Anda berhenti berlangganan.",
+      en: "Download it any time, including after you stop subscribing.",
+    },
+  },
 ];
 
 export type ShowcaseItem = {
@@ -54,14 +81,14 @@ export type ShowcaseItem = {
 export const SHOWCASE: ShowcaseItem[] = [
   {
     id: "pos",
-    label: { id: "Kasir (POS)", en: "POS Cashier" },
+    label: { id: "Kasir", en: "Till" },
     icon: Store,
     image: "/landing/showcase-pos.webp",
-    title: { id: "Kasir cepat yang langsung masuk pembukuan", en: "A fast cashier that flows straight into your books" },
+    title: { id: "Kasir yang langsung masuk pembukuan", en: "A till that posts straight to your books" },
     benefits: [
-      { id: "Layar kasir ringkas dengan pencarian produk kilat & diskon per item", en: "A tidy cashier screen with instant product search & per-item discounts" },
-      { id: "Sesi shift kas — buka, jual, tutup; selisih kas otomatis terjurnal", en: "Cash shift sessions — open, sell, close; cash variance auto-journaled" },
-      { id: "Cetak struk berlogo dan tetap bisa berjualan saat offline (PWA)", en: "Print branded receipts and keep selling offline (PWA)" },
+      { id: "Cari barang cepat, beri diskon per item, cetak struk berlogo Anda.", en: "Find items fast, discount per line, print receipts with your logo." },
+      { id: "Buka shift, jual seharian, tutup shift. Selisih kasnya ikut tercatat.", en: "Open a shift, sell all day, close it. Any cash difference is recorded too." },
+      { id: "Internet mati pun tetap bisa berjualan.", en: "You can keep selling even when the internet is down." },
     ],
   },
   {
@@ -69,58 +96,82 @@ export const SHOWCASE: ShowcaseItem[] = [
     label: { id: "Faktur & PPN", en: "Invoices & VAT" },
     icon: ReceiptText,
     image: "/landing/showcase-penjualan.webp",
-    title: { id: "Faktur profesional dalam hitungan detik", en: "Professional invoices in seconds" },
+    title: { id: "Faktur rapi dalam hitungan detik", en: "A tidy invoice in seconds" },
     benefits: [
-      { id: "Sekali posting: jurnal, stok, dan piutang beres bersamaan", en: "Post once: journal, stock, and receivables all settle together" },
-      { id: "PPN 0/11/12% + diskon per baris dihitung otomatis", en: "VAT 0/11/12% + per-line discounts calculated automatically" },
-      { id: "Salah input? Batalkan atau retur — pembukuan terbalik dengan persis", en: "Mistake? Void or return — the books reverse exactly" },
+      { id: "Satu kali simpan: stok berkurang dan tagihan pelanggan ikut tercatat.", en: "Save once: stock drops and the customer's bill is recorded too." },
+      { id: "PPN dan diskon per baris dihitung sendiri.", en: "VAT and per-line discounts are worked out for you." },
+      { id: "Salah input? Batalkan atau buat retur. Pembukuannya ikut terbalik.", en: "Made a mistake? Void it or raise a return. The books reverse with it." },
     ],
   },
   {
     id: "laporan",
-    label: { id: "Laporan Keuangan", en: "Financial Reports" },
+    label: { id: "Laporan keuangan", en: "Financial reports" },
     icon: LineChart,
     image: "/landing/showcase-laporan.webp",
-    title: { id: "Laba rugi & neraca real-time, selalu seimbang", en: "Real-time P&L and balance sheet, always balanced" },
+    title: { id: "Untung rugi bisa dilihat kapan saja", en: "Check your profit any time" },
     benefits: [
-      { id: "Laba Rugi, Neraca, Arus Kas & umur piutang dari satu sumber: jurnal", en: "P&L, Balance Sheet, Cash Flow & receivables aging from one source: the journal" },
-      { id: "Double-entry sungguhan — neraca dijamin seimbang oleh sistem", en: "True double-entry — the system guarantees a balanced sheet" },
-      { id: "Ekspor CSV untuk Excel, cetak rapi, dan tutup buku per periode", en: "CSV export for Excel, clean printing, and period close" },
+      { id: "Laba rugi, neraca, dan arus kas tersusun dari transaksi yang sudah Anda catat.", en: "Profit and loss, balance sheet, and cash flow are built from what you already recorded." },
+      { id: "Angkanya selalu cocok, karena disusun mesin bukan diketik ulang.", en: "The figures always tie up, because they are assembled, not retyped." },
+      { id: "Bisa diunduh ke Excel dan dicetak rapi.", en: "Export to a spreadsheet or print it cleanly." },
     ],
   },
   {
     id: "gaji",
-    label: { id: "Gaji & PPh 21", en: "Payroll & Tax" },
+    label: { id: "Gaji & pajak karyawan", en: "Payroll & staff tax" },
     icon: Wallet,
     image: "/landing/showcase-gaji.webp",
-    title: { id: "Gajian sekali klik, pajak sudah dihitung", en: "One-click payroll with tax already computed" },
+    title: { id: "Gajian sekali klik, pajaknya sudah dihitung", en: "One-click payday, tax already worked out" },
     benefits: [
-      { id: "PPh 21 metode TER terbaru + BPJS Kesehatan & Ketenagakerjaan otomatis", en: "Latest PPh 21 (TER method) + BPJS health & employment, automatic" },
-      { id: "Slip gaji per karyawan siap cetak/kirim", en: "Per-employee payslips ready to print/send" },
-      { id: "Beban gaji langsung terjurnal — laporan keuangan ikut akurat", en: "Payroll expense auto-journaled — reports stay accurate" },
+      { id: "PPh 21 dan BPJS terhitung mengikuti aturan yang berlaku sekarang.", en: "Income tax and social security follow the rules in force today." },
+      { id: "Slip gaji tiap karyawan siap dicetak atau dikirim.", en: "Each employee's payslip is ready to print or send." },
+      { id: "Beban gajinya langsung masuk laporan keuangan.", en: "The wage cost lands in your financial reports right away." },
     ],
   },
   {
     id: "stok",
-    label: { id: "Stok & FEFO", en: "Stock & FEFO" },
+    label: { id: "Stok", en: "Stock" },
     icon: Boxes,
     image: "/landing/showcase-stok.webp",
-    title: { id: "Stok akurat sampai ke lot kedaluwarsa", en: "Accurate stock down to expiry lots" },
+    title: { id: "Stok yang angkanya bisa dipercaya", en: "Stock figures you can trust" },
     benefits: [
-      { id: "Multi-gudang dengan HPP rata-rata otomatis di setiap penjualan", en: "Multi-warehouse with automatic moving-average COGS on every sale" },
-      { id: "Lot & tanggal kedaluwarsa — keluar otomatis yang paling dekat exp (FEFO)", en: "Lots & expiry dates — nearest-expiry goes out first (FEFO)" },
-      { id: "Ambang stok minimum + lonceng peringatan sebelum kehabisan", en: "Minimum-stock thresholds + bell alerts before you run out" },
+      { id: "Beberapa gudang sekaligus, dan modal barang terhitung tiap kali ada penjualan.", en: "Several warehouses at once, with cost of goods computed on every sale." },
+      { id: "Barang yang paling dekat kedaluwarsa keluar lebih dulu.", en: "Whatever is closest to expiry goes out first." },
+      { id: "Diingatkan sebelum stok habis, bukan sesudahnya.", en: "You are warned before you run out, not after." },
     ],
   },
 ];
 
 export const COMPARISON: { topic: Dual; manual: Dual; erpindo: Dual }[] = [
-  { topic: { id: "Catat penjualan", en: "Record a sale" }, manual: { id: "Tulis nota, salin ke buku, hitung ulang di Excel", en: "Write a note, copy to a book, recompute in Excel" }, erpindo: { id: "Sekali input — jurnal, stok & piutang otomatis", en: "One entry — journal, stock & receivables automatic" } },
-  { topic: { id: "Hitung PPN & e-Faktur", en: "Compute VAT & e-Faktur" }, manual: { id: "Rekap manual tiap masa pajak, rawan selisih", en: "Manual recap each tax period, error-prone" }, erpindo: { id: "PPN otomatis + unduh XML siap impor Coretax", en: "Automatic VAT + XML download ready for Coretax" } },
-  { topic: { id: "Gaji & PPh 21", en: "Payroll & PPh 21" }, manual: { id: "Hitung TER per karyawan di kalkulator/Excel", en: "Compute TER per employee in a calculator/Excel" }, erpindo: { id: "Sekali klik — TER, BPJS, slip gaji & jurnal beres", en: "One click — TER, BPJS, payslips & journals done" } },
-  { topic: { id: "Stok & HPP", en: "Stock & COGS" }, manual: { id: "Stok sering selisih, HPP ditebak", en: "Stock often mismatches, COGS is guessed" }, erpindo: { id: "HPP rata-rata otomatis, opname & FEFO tercatat", en: "Automatic moving-average COGS, counts & FEFO recorded" } },
-  { topic: { id: "Laporan keuangan", en: "Financial reports" }, manual: { id: "Disusun berhari-hari di akhir bulan", en: "Compiled over days at month-end" }, erpindo: { id: "Laba Rugi & Neraca real-time kapan pun", en: "Real-time P&L & Balance Sheet anytime" } },
-  { topic: { id: "Tagihan telat", en: "Late invoices" }, manual: { id: "Baru sadar saat kas menipis", en: "Only noticed when cash runs low" }, erpindo: { id: "Umur piutang + lonceng pengingat jatuh tempo", en: "Receivables aging + due-date reminder bells" } },
+  {
+    topic: { id: "Mencatat penjualan", en: "Recording a sale" },
+    manual: { id: "Tulis nota, salin ke buku, hitung ulang di Excel", en: "Write a note, copy it into a book, recompute in Excel" },
+    erpindo: { id: "Catat sekali. Stok dan tagihan ikut terisi sendiri.", en: "Record once. Stock and receivables fill themselves in." },
+  },
+  {
+    topic: { id: "Menghitung PPN", en: "Working out VAT" },
+    manual: { id: "Rekap manual tiap masa pajak, gampang selisih", en: "Manual recap each tax period, easy to get wrong" },
+    erpindo: { id: "PPN terhitung di setiap faktur. Filenya siap diunggah ke Coretax.", en: "VAT is computed on every invoice. The file is ready to upload to Coretax." },
+  },
+  {
+    topic: { id: "Menggaji karyawan", en: "Paying staff" },
+    manual: { id: "Hitung PPh 21 satu per satu di kalkulator", en: "Compute income tax one employee at a time on a calculator" },
+    erpindo: { id: "Sekali klik: PPh 21, BPJS, dan slip gaji langsung jadi.", en: "One click: income tax, social security, and payslips are done." },
+  },
+  {
+    topic: { id: "Menjaga stok", en: "Keeping stock straight" },
+    manual: { id: "Sering selisih, modal barang cuma ditebak", en: "Often mismatched, cost of goods is guesswork" },
+    erpindo: { id: "Modal barang terhitung otomatis. Barang mendekati kedaluwarsa keluar lebih dulu.", en: "Cost of goods is calculated automatically. Stock nearest to expiry goes out first." },
+  },
+  {
+    topic: { id: "Melihat untung rugi", en: "Seeing profit and loss" },
+    manual: { id: "Disusun berhari-hari di akhir bulan", en: "Assembled over days at month end" },
+    erpindo: { id: "Laporannya siap kapan pun Anda buka.", en: "The report is ready whenever you open it." },
+  },
+  {
+    topic: { id: "Menagih pelanggan", en: "Chasing payment" },
+    manual: { id: "Baru sadar telat saat kas menipis", en: "You notice only when cash runs low" },
+    erpindo: { id: "Tagihan yang lewat jatuh tempo muncul sendiri di halaman depan.", en: "Overdue invoices surface on your home screen by themselves." },
+  },
 ];
 
 /** Daftar modul yang semuanya termasuk dalam paket (dipakai seksi Harga). */
@@ -152,11 +203,46 @@ export const SINGLE_PLAN_MODULES: Dual[] = [
  * sebagai lima perisai identik dan tidak satu pun ikonnya menjelaskan isinya.
  */
 export const SECURITY_POINTS: { title: Dual; desc: Dual; icon: LucideIcon }[] = [
-  { icon: Database, title: { id: "Database terpisah per perusahaan", en: "Separate database per company" }, desc: { id: "Data Anda tidak bercampur dengan pengguna lain — setiap perusahaan berdiri di database sendiri.", en: "Your data never mixes with other users — each company sits in its own database." } },
-  { icon: Lock, title: { id: "Terenkripsi & jurnal terkunci", en: "Encrypted & locked journals" }, desc: { id: "Seluruh lalu lintas lewat HTTPS, kredensial sensitif tersimpan terenkripsi, dan jurnal akuntansi permanen — dikoreksi lewat jurnal pembalik, tak pernah dihapus.", en: "All traffic over HTTPS, sensitive credentials stored encrypted, and accounting journals are permanent — corrected via reversing entries, never deleted." } },
-  { icon: KeyRound, title: { id: "Verifikasi dua langkah (2FA)", en: "Two-factor authentication (2FA)" }, desc: { id: "Lindungi akun dengan kode dari aplikasi authenticator, bukan hanya password.", en: "Protect accounts with a code from an authenticator app, not just a password." } },
-  { icon: ScrollText, title: { id: "Peran akses & audit log", en: "Access roles & audit log" }, desc: { id: "Atur siapa boleh apa, dan setiap perubahan penting terekam jejaknya.", en: "Control who can do what, and every important change is traced." } },
-  { icon: CloudDownload, title: { id: "Data Anda milik Anda", en: "Your data is yours" }, desc: { id: "Unduh seluruh data (ZIP berisi CSV) kapan pun — bahkan setelah langganan berakhir.", en: "Download all your data (a ZIP of CSVs) anytime — even after your subscription ends." } },
+  {
+    icon: Database,
+    title: { id: "Data tiap perusahaan disimpan terpisah", en: "Each company is stored separately" },
+    desc: {
+      id: "Perusahaan Anda punya penyimpanan sendiri. Tidak dicampur dengan pengguna lain.",
+      en: "Your company gets its own storage. It is never mixed with other users.",
+    },
+  },
+  {
+    icon: ScrollText,
+    title: { id: "Catatan keuangan tidak bisa dihapus", en: "Financial records cannot be deleted" },
+    desc: {
+      id: "Kalau ada yang salah, koreksinya dicatat sebagai transaksi baru. Jejaknya tetap utuh — ini yang dicari saat pemeriksaan pajak.",
+      en: "If something is wrong, the fix is recorded as a new entry. The trail stays intact — exactly what a tax audit looks for.",
+    },
+  },
+  {
+    icon: KeyRound,
+    title: { id: "Masuk dengan dua langkah", en: "Two-step sign-in" },
+    desc: {
+      id: "Selain password, akun bisa dikunci dengan kode dari HP Anda.",
+      en: "Beyond a password, your account can be locked with a code from your phone.",
+    },
+  },
+  {
+    icon: Lock,
+    title: { id: "Atur siapa boleh melihat apa", en: "Decide who sees what" },
+    desc: {
+      id: "Kasir cukup melihat kasir, staf gudang cukup melihat stok. Setiap perubahan penting tercatat siapa pelakunya.",
+      en: "Cashiers see the till, warehouse staff see stock. Every important change records who made it.",
+    },
+  },
+  {
+    icon: CloudDownload,
+    title: { id: "Data bisa dibawa pulang", en: "You can take your data with you" },
+    desc: {
+      id: "Unduh semuanya kapan saja dalam bentuk file Excel, termasuk setelah berhenti berlangganan.",
+      en: "Download everything any time as spreadsheet files, including after you stop subscribing.",
+    },
+  },
 ];
 
 /**
