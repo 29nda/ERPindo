@@ -32,7 +32,7 @@ export function FiturPage() {
       <PublicHeader />
       <main className="flex-1">
         <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24">
-          <h1 className="max-w-4xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-6xl">
+          <h1 className="judul-hero max-w-4xl text-[2.75rem] sm:text-[4.25rem]">
             {L(lang, "Apa saja yang", "Everything ERPindo")}{" "}
             <span className="text-brand-600 dark:text-brand-400">
               {L(lang, "dikerjakan ERPindo", "actually does for you")}
@@ -74,7 +74,7 @@ export function FiturPage() {
                   <span className="flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-900/60 dark:text-brand-300">
                     <m.icon className="size-5" aria-hidden />
                   </span>
-                  <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+                  <h2 className="judul mt-4 text-[1.75rem] sm:text-[2rem]">
                     {pick(m.nama, lang)}
                   </h2>
 
@@ -130,7 +130,7 @@ export function FiturPage() {
         <section className="px-4 pb-20 pt-4 sm:px-6">
           <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 rounded-card bg-brand-600 px-8 py-12 text-white shadow-lg sm:flex-row sm:items-center">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              <h2 className="judul text-[1.75rem] sm:text-[2rem]">
                 {L(lang, "Lihat sendiri dengan data contoh", "See it yourself with sample data")}
               </h2>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-brand-50">
