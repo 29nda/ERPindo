@@ -102,13 +102,13 @@ function Hero() {
         }}
         aria-hidden
       />
-      <div className="mx-auto max-w-6xl px-4 pt-20 sm:px-6 sm:pt-32">
+      <div className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 sm:pt-24 lg:pt-32">
         {/* `uppercase` aman di sini: tak satu pun asersi membaca kalimat ini.
             Aturannya (lihat log 17d): JANGAN pakai `uppercase` pada teks yang
             dibaca asersi innerText — `text-transform` ikut mengubah nilainya. */}
         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand-700 dark:border-brand-800 dark:bg-brand-950 dark:text-brand-300">
           <Sparkles className="size-3.5" aria-hidden />{" "}
-          {L(lang, "ERP lengkap untuk bisnis Indonesia", "Complete ERP for Indonesian business")}
+          {L(lang, "Dibuat untuk usaha di Indonesia", "Built for businesses in Indonesia")}
         </div>
         {/* Rata kiri, bukan rata tengah: halaman ini menjual alat kerja, dan
             teks rata tengah membuat semuanya terbaca seperti brosur. */}
@@ -121,8 +121,8 @@ function Hero() {
         <p className="mt-7 max-w-[34rem] text-lg leading-[1.7] text-ink-soft">
           {L(
             lang,
-            "Berhenti menyalin angka dari nota ke Excel. Sekali catat, jurnal double-entry, stok, laporan keuangan, PPN, sampai PPh 21 karyawan ikut terisi sendiri — dan neracanya dijamin seimbang.",
-            "Stop copying numbers from receipts into Excel. Record once, and journals, stock, financial reports, VAT, and payroll tax all fill themselves in — with a balance sheet guaranteed to balance.",
+            "Catat penjualan sekali saja. Stok langsung berkurang, laporan keuangan terisi, dan pajaknya ikut terhitung. Tidak perlu dipindah lagi ke Excel.",
+            "Record a sale once. Stock drops, the financial reports fill in, and the tax is worked out too. Nothing needs copying into Excel afterwards.",
           )}
         </p>
         {/* Fase 24: urutannya SENGAJA dibalik. Tanpa trial, hal pertama yang
@@ -157,8 +157,8 @@ function Hero() {
         <p className="mt-3 text-sm text-ink-muted">
           {L(
             lang,
-            "Tanpa kartu kredit · bagan akun standar Indonesia sudah terpasang · demo tanpa daftar",
-            "No credit card · a standard Indonesian chart of accounts is preloaded · demo without signing up",
+            "Tanpa kartu kredit. Daftar akun standar Indonesia sudah terisi. Demo bisa dibuka tanpa mendaftar.",
+            "No credit card. A standard Indonesian chart of accounts is already set up. The demo opens without signing up.",
           )}
         </p>
       </div>
@@ -166,7 +166,7 @@ function Hero() {
       {/* Screenshot produk nyata. Bingkainya bukan lagi jendela macOS bertitik
           tiga (klise landing SaaS) melainkan bilah alat rapat dengan jalur rute
           bergaya mono — sama seperti aplikasinya sendiri. */}
-      <div className="mx-auto mt-20 max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto mt-12 max-w-6xl px-4 sm:mt-20 sm:px-6">
         <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
           <div className="flex items-center gap-2 border-b border-line bg-surface-muted px-3 py-1.5">
             <span className="size-1.5 rounded-full bg-emerald-500" />
@@ -198,7 +198,11 @@ function TrustBar() {
         {TRUST_POINTS.map((s) => (
           <div key={s.label.id} className="px-4 py-6 first:pl-0 lg:last:pr-0">
             <s.icon className="size-5 text-brand-600 dark:text-brand-400" aria-hidden />
-            <div className="num mt-2 text-2xl font-bold text-brand-600 dark:text-brand-400">{pick(s.value, lang)}</div>
+            {/* Fase 32e: `num` (mono + tabular) DIBUANG. Utilitas itu ada untuk angka —
+                dan bilah ini memang dulu berisi angka. Sejak isinya menjadi kalimat
+                pendek, mono berukuran 2xl memecahnya jadi tiga baris di layar 390px.
+                Serif memberi bobot yang sama tanpa memaksa lebar per karakter. */}
+            <div className="judul mt-3 text-lg text-ink">{pick(s.value, lang)}</div>
             <div className="mt-1 text-[13px] text-ink-muted">{pick(s.label, lang)}</div>
           </div>
         ))}
@@ -212,10 +216,10 @@ function Showcase() {
   const [active, setActive] = useState("pos");
   const item = SHOWCASE.find((s) => s.id === active) ?? SHOWCASE[0]!;
   return (
-    <section className="mx-auto max-w-6xl px-4 py-28 sm:py-36 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Lihat cara kerjanya", "See how it works")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
-        {L(lang, "Lima pekerjaan yang paling menyita waktu tiap hari. Pilih satu untuk melihat bentuk nyatanya di dalam aplikasi.", "The five jobs that eat the most time every day. Pick one to see what it actually looks like inside the app.")}
+        {L(lang, "Lima pekerjaan yang paling menyita waktu. Pilih satu untuk melihat tampilan aslinya.", "The five jobs that eat the most time. Pick one to see what it actually looks like.")}
       </p>
       {/* Tab bergaya bilah alat: sudut tegas, berdempetan dalam satu bingkai —
           bukan pil melayang berbayang. */}
@@ -269,15 +273,23 @@ function Showcase() {
 function Comparison() {
   const lang = useLang();
   return (
-    <section className="mx-auto max-w-6xl px-4 py-28 sm:py-36 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Masih pakai buku & Excel?", "Still using ledgers & Excel?")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
-        {L(lang, "Bukan soal rapi atau tidak rapi — soal berapa jam yang hilang tiap bulan, dan berapa selisih yang baru ketahuan saat tutup buku.", "It is not about being tidy — it is about the hours lost each month, and the discrepancies you only find at closing.")}
+        {L(lang, "Bukan soal rapi atau berantakan. Soal berapa jam yang habis tiap bulan, dan selisih yang baru ketahuan waktu tutup buku.", "It is not about being tidy. It is about the hours that disappear each month, and the gaps you only find at closing.")}
       </p>
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full min-w-[640px] border-separate border-spacing-0 overflow-hidden rounded-card border border-line text-[13px]">
-          <thead>
-            <tr className="bg-slate-100 text-left dark:bg-slate-900">
+      {/* Fase 32e — di layar kecil tabel ini MENUMPUK jadi kartu.
+          Sebelumnya ia `min-w-[640px]` di dalam wadah bergulir: tidak memecah
+          halaman, tetapi kolom ketiga — satu-satunya kolom yang menjual —
+          berada DI LUAR layar sampai pengunjung tahu harus menggeser tabel ke
+          samping. Kebanyakan tidak tahu.
+          Tekniknya sama dengan `<Table>` di components/ui.tsx (Fase 18d):
+          seluruh elemen tabel jadi `block`, kepala tabel disembunyikan, dan
+          tiap baris berdiri sebagai kartu. */}
+      <div className="mt-6 md:overflow-x-auto">
+        <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-card border border-line text-[13px] max-md:block max-md:border-0 md:min-w-[640px] max-md:[&>tbody]:block">
+          <thead className="max-md:hidden">
+            <tr className="bg-surface-muted text-left">
               <th className="px-3 py-2 text-[11px] font-semibold tracking-wider">{L(lang, "Pekerjaan", "Task")}</th>
               <th className="px-3 py-2 text-[11px] font-semibold tracking-wider text-ink-muted">{L(lang, "Manual / Excel", "Manual / Excel")}</th>
               <th className="bg-brand-600 px-3 py-2 text-[11px] font-semibold tracking-wider text-white">{L(lang, "Dengan ERPindo", "With ERPindo")}</th>
@@ -285,14 +297,19 @@ function Comparison() {
           </thead>
           <tbody>
             {COMPARISON.map((row, i) => (
-              <tr key={row.topic.id} className={i % 2 === 0 ? "bg-surface" : "bg-surface-sunken"}>
-                <td className="px-3 py-2 font-medium">{pick(row.topic, lang)}</td>
-                <td className="px-3 py-2 text-ink-muted">
+              <tr
+                key={row.topic.id}
+                className={`max-md:mb-3 max-md:block max-md:rounded-card max-md:border max-md:border-line max-md:bg-surface max-md:p-4 ${i % 2 === 0 ? "bg-surface" : "bg-surface-sunken"}`}
+              >
+                <td className="px-3 py-2 font-medium max-md:block max-md:px-0 max-md:pb-3 max-md:pt-0 max-md:text-[15px]">
+                  {pick(row.topic, lang)}
+                </td>
+                <td className="px-3 py-2 text-ink-muted max-md:block max-md:px-0 max-md:py-1">
                   <span className="flex items-start gap-2">
                     <X className="mt-0.5 size-3.5 shrink-0 text-red-400" aria-hidden /> {pick(row.manual, lang)}
                   </span>
                 </td>
-                <td className="bg-brand-50/60 px-3 py-2 text-ink dark:bg-brand-950/40">
+                <td className="bg-brand-50/60 px-3 py-2 text-ink max-md:mt-2 max-md:block max-md:rounded-control max-md:px-3 max-md:py-2 dark:bg-brand-950/40">
                   <span className="flex items-start gap-2">
                     <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-500" aria-hidden /> {pick(row.erpindo, lang)}
                   </span>
@@ -408,13 +425,13 @@ function Pricing() {
   const lang = useLang();
   return (
     <section id="harga" className="scroll-mt-16 border-t border-line bg-surface">
-      <div className="mx-auto max-w-6xl px-4 py-28 sm:py-36 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
         <h2 className="judul text-[2rem] sm:text-[2.5rem]">
           {L(lang, "Satu sistem, dari toko pertama sampai grup perusahaan", "One system, from your first shop to a group of companies")}
         </h2>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
           {L(lang, "Pengguna", "Users are")} <span className="font-semibold">{L(lang, "selalu tak terbatas", "always unlimited")}</span>{" "}
-          {L(lang, "dan seluruh modul terbuka — bukan dihitung per kepala, bukan dikunci per paket. Lihat dulu demo berisi data nyata lintas seluruh modul sebelum memutuskan.", "and every module is unlocked — never billed per head, never gated by tier. Explore our fully populated demo before you decide.")}
+          {L(lang, "dan semua fitur terbuka. Tidak dihitung per orang, tidak ada yang dikunci. Lihat dulu demonya sebelum memutuskan.", "and every feature is open. Not charged per person, nothing locked away. Look at the demo first before you decide.")}
         </p>
 
         {/* Satu kartu, di tengah (Fase 30). Kisi tiga kolom dibubarkan bersama
@@ -491,10 +508,10 @@ function Pricing() {
 function Security() {
   const lang = useLang();
   return (
-    <section className="mx-auto max-w-6xl px-4 py-28 sm:py-36 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Data bisnis Anda, aman di tangan Anda", "Your business data, safe in your hands")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
-        {L(lang, "Aman itu perlu, tapi tidak cukup. Anda juga harus bisa pergi kapan saja dan membawa seluruh data Anda.", "Secure is necessary, but not enough. You should also be able to leave whenever you want — and take all your data with you.")}
+        {L(lang, "Aman saja tidak cukup. Anda juga harus bisa berhenti kapan saja dan membawa seluruh data Anda.", "Secure is necessary, but not enough. You should also be able to leave whenever you want — and take all your data with you.")}
       </p>
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         {SECURITY_POINTS.map((s) => (
@@ -516,7 +533,7 @@ function Security() {
 function Faq() {
   const lang = useLang();
   return (
-    <section id="faq" className="mx-auto max-w-3xl scroll-mt-16 px-4 py-28 sm:py-36 sm:px-6">
+    <section id="faq" className="mx-auto max-w-3xl scroll-mt-16 px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Pertanyaan umum", "Frequently asked questions")}</h2>
       {/* Daftar menyatu berpembatas garis, bukan tumpukan kartu terpisah. */}
       <div className="mt-10 divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
@@ -546,8 +563,8 @@ function CtaBand() {
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-brand-50">
             {L(
               lang,
-              "Telusuri demo berisi data nyata lintas seluruh modul tanpa mendaftar. Berhenti kapan saja · data Anda bisa diekspor kapan pun.",
-              "Explore a demo holding real data across every module without signing up. Cancel anytime · export your data whenever you want.",
+              "Buka demonya tanpa mendaftar. Isinya data satu perusahaan sungguhan, dari penjualan sampai laporan keuangan.",
+              "Open the demo without signing up. It holds one real company, from sales all the way through to the financial statements.",
             )}
           </p>
         </div>
