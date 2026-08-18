@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FEATURE_GROUPS, INTEGRATIONS, SECURITY_POINTS, SHOWCASE, TRUST_POINTS } from "../src/pages/landing/sections";
+import { COMPARISON, INTEGRATIONS, SECURITY_POINTS, SHOWCASE, TRUST_POINTS } from "../src/pages/landing/sections";
 
 /**
  * Ikon halaman depan (Fase 27a).
@@ -34,10 +34,22 @@ describe("ikon seksi landing", () => {
   });
 
   it("seksi yang sudah berikon sejak awal tetap utuh", () => {
-    // Penjaga regresi: `FEATURE_GROUPS` dan `SHOWCASE` sudah memakai pola ini
-    // sebelum Fase 27a — pola barunya meniru mereka, bukan menciptakan yang lain.
-    for (const f of FEATURE_GROUPS) expect(f.icon, f.title.id).toBeTruthy();
+    // Penjaga regresi: `SHOWCASE` sudah memakai pola ini sebelum Fase 27a —
+    // pola barunya meniru dia, bukan menciptakan yang lain.
+    //
+    // Fase 32c: `FEATURE_GROUPS` dihapus bersama seksinya. Grid 11 kartu fitur
+    // mengulang isi `/fitur` yang memuat 22 modul dengan penjelasan penuh.
     for (const s of SHOWCASE) expect(s.icon, s.id).toBeTruthy();
+  });
+
+  it("tiap butir showcase membawa bukti, bukan sekadar kata sifat", () => {
+    // Setelah grid fitur dibuang, SHOWCASE menjadi satu-satunya tempat halaman
+    // depan menunjukkan produknya. Bila entrinya kehilangan gambar atau daftar
+    // manfaat, halaman kehilangan buktinya tanpa ada yang menyadarinya.
+    for (const s of SHOWCASE) {
+      expect(s.image, `${s.id} tanpa tangkapan layar`).toMatch(/^\/landing\/.+\.webp$/);
+      expect(s.benefits.length, `${s.id} tanpa daftar manfaat`).toBeGreaterThanOrEqual(3);
+    }
   });
 });
 
@@ -45,15 +57,25 @@ describe("teks landing", () => {
   it("tidak ada seksi yang menjanjikan masa coba gratis", () => {
     // Trial dihapus Fase 24a. Penjaga ini melengkapi cek smoke atas kerangka
     // HTML: yang ini menjaga sumber teksnya, yang itu menjaga hasil render.
-    const semua = JSON.stringify({ TRUST_POINTS, SHOWCASE, FEATURE_GROUPS, SECURITY_POINTS, INTEGRATIONS });
+    const semua = JSON.stringify({ TRUST_POINTS, SHOWCASE, SECURITY_POINTS, INTEGRATIONS });
     expect(/gratis\s*30\s*hari/i.test(semua)).toBe(false);
   });
 
   it("nama merek ditulis konsisten 'ERPindo' di teks seksi", () => {
     // Audit menemukan "erpindo" dan "ERPindo" bercampur dalam satu halaman —
     // terbaca seperti ditulis dua orang yang tidak saling bicara.
-    const semua = JSON.stringify({ TRUST_POINTS, SHOWCASE, FEATURE_GROUPS, SECURITY_POINTS, INTEGRATIONS });
-    const salahTulis = semua.match(/(?<![A-Za-z])erpindo/g) ?? [];
+    // Fase 32c: yang diperiksa NILAI string saja, bukan hasil `JSON.stringify`
+    // mentah. `COMPARISON` punya field bernama `erpindo`, dan memeriksa JSON
+    // mentah membuat NAMA KUNCI terhitung sebagai salah tulis — uji memerah
+    // untuk teks yang tidak pernah dilihat siapa pun.
+    const nilai: string[] = [];
+    const telusuri = (v: unknown): void => {
+      if (typeof v === "string") nilai.push(v);
+      else if (Array.isArray(v)) v.forEach(telusuri);
+      else if (v && typeof v === "object") Object.values(v).forEach(telusuri);
+    };
+    telusuri([TRUST_POINTS, SHOWCASE, COMPARISON, SECURITY_POINTS, INTEGRATIONS]);
+    const salahTulis = nilai.join(" ").match(/(?<![A-Za-z])erpindo/g) ?? [];
     expect(salahTulis, `ditemukan ${salahTulis.length} penulisan huruf kecil`).toEqual([]);
   });
 });

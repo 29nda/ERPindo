@@ -2705,8 +2705,13 @@ try {
     !/\d+\s*bulan\s+data/i.test(landingText),
     `→ ${(landingText.match(/\d+\s*bulan\s+data/i) ?? [""])[0]}`,
   );
+  // Fase 32c: nama asersi ini DIPERBAIKI, bukan cakupannya diubah. Namanya
+  // berbunyi "+ perbandingan kategori" padahal badannya tidak pernah memeriksa
+  // tabel itu sama sekali — hanya kalkulatornya. Nama yang menjanjikan lebih
+  // dari yang diperiksanya lebih berbahaya daripada tidak ada asersi: ia
+  // membuat pembaca berikutnya menyangka ada yang menjaga, lalu tenang.
   check(
-    "F15 landing memuat kalkulator per-pengguna + perbandingan kategori",
+    "F15 landing memuat kalkulator per-pengguna",
     landingText.includes("per pengguna") && landingText.includes("ERPindo"),
   );
   // F46 — Fase 24d. Trial 30 hari dihapus Fase 24a, tetapi tombol bilah atas
@@ -2758,25 +2763,46 @@ try {
   check("F47/30 tautan lama ?paket= tetap membuka formulir daftar tanpa galat", daftarLama >= 1, `→ ${daftarLama} form`);
   await gotoRoute("/", 600);
 
-  // Fase 14e: bukti sosial (badge kompatibilitas, proper noun lintas-bahasa) +
-  // output "Hemat" di kalkulator. Pakai penanda netral-bahasa.
+  // Fase 14e: output "Hemat" di kalkulator per-pengguna (penanda netral-bahasa).
   check(
-    "F15 landing: badge kompatibilitas (Xendit/Coretax) + hemat Rp di kalkulator",
-    landingText.includes("Xendit") && landingText.includes("Coretax") && landingText.includes("Hemat sekitar"),
-    `→ badge/hemat tidak tampil`,
+    "F15 landing: hemat Rp tampil di kalkulator per-pengguna",
+    landingText.includes("Hemat sekitar"),
+    `→ teks hemat tidak tampil`,
   );
-  // F21 — Fase 17d. Kisi modul kini BERBAGI garis (gap-px di atas latar garis),
-  // jadi jumlah sel yang tidak habis dibagi jumlah kolom meninggalkan lubang
-  // yang menganga — pada tata letak kartu terpisah yang lama, lubang itu tak
-  // terlihat sama sekali. FEATURE_GROUPS berisi 11 modul di kisi 3 kolom, dan
-  // sel ke-12 sengaja diisi ajakan. Penjaga ini akan berbunyi kalau modul
-  // ke-12 ditambahkan kelak dan lubang baru muncul di baris berikutnya.
-  const selModul = await page.locator('[data-kisi="modul"] > *').count();
+
+  // F15b — Fase 32c: klaim kompatibilitas DIPINDAHKAN ke /fitur, bukan dihapus.
+  //
+  // Asersi ini ditulis SEBELUM pita itu dibuang dari landing, dan dijalankan
+  // lebih dulu untuk membuktikan isinya benar-benar sudah ada di rumah barunya.
+  // Percobaan pertama melakukannya terbalik — membuang dulu, baru memindahkan
+  // asersi — dan langsung menemukan bahwa `/fitur` tidak menyebut "Xendit" sama
+  // sekali. Satu klaim nyata nyaris hilang dari seluruh situs.
+  await gotoRoute("/fitur", 700);
+  const teksFitur = await page.innerText("body");
   check(
-    "F21 kisi modul landing terisi penuh (kelipatan 3 kolom, tanpa sel kosong)",
-    selModul > 0 && selModul % 3 === 0,
-    `→ ${selModul} sel`,
+    "F15b /fitur memuat klaim kompatibilitas Xendit & Coretax",
+    teksFitur.includes("Xendit") && teksFitur.includes("Coretax"),
+    `→ Xendit=${teksFitur.includes("Xendit")} Coretax=${teksFitur.includes("Coretax")}`,
   );
+  await gotoRoute("/", 600);
+  // F21 — Fase 17d, DIPINDAHKAN pada 32c.
+  //
+  // Yang dijaga adalah KELAS cacatnya, bukan satu kisi tertentu: pada kisi yang
+  // berbagi garis (`gap-px` di atas latar garis), jumlah sel yang tidak habis
+  // dibagi jumlah kolom meninggalkan lubang menganga — dan pada tata letak
+  // kartu terpisah yang lama, lubang itu tak terlihat sama sekali.
+  //
+  // Kisi 11 modul di landing sudah dibuang (isinya ada di /fitur yang jauh
+  // lebih lengkap). Kisi integrasi di /fitur berisi 6 butir pada 3 kolom, jadi
+  // cacat yang sama bisa muncul di sana bila butir ke-7 ditambahkan kelak.
+  await gotoRoute("/fitur", 700);
+  const selIntegrasi = await page.locator('[data-kisi="integrasi"] > *').count();
+  check(
+    "F21 kisi integrasi /fitur terisi penuh (kelipatan 3 kolom, tanpa sel kosong)",
+    selIntegrasi > 0 && selIntegrasi % 3 === 0,
+    `→ ${selIntegrasi} sel`,
+  );
+  await gotoRoute("/", 600);
 
   // F22 — Fase 17e. Gambar produk di landing adalah aset ter-commit yang
   // dihasilkan skrip terpisah (`screenshots.mjs`). Skrip itu diam-diam rusak

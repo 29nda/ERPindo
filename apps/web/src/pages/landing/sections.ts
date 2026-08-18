@@ -1,25 +1,18 @@
 import {
-  BookOpenCheck,
   Boxes,
   CloudDownload,
-  Coins,
   Database,
-  Factory,
   FileSpreadsheet,
   FlaskConical,
   KeyRound,
-  Landmark,
   LineChart,
   Lock,
   Percent,
   QrCode,
   ReceiptText,
   ScrollText,
-  ShieldCheck,
   ShoppingBag,
   Store,
-  Target,
-  UsersRound,
   Wallet,
   WifiOff,
   type LucideIcon,
@@ -121,20 +114,6 @@ export const SHOWCASE: ShowcaseItem[] = [
   },
 ];
 
-export const FEATURE_GROUPS: { icon: LucideIcon; title: Dual; desc: Dual }[] = [
-  { icon: BookOpenCheck, title: { id: "Keuangan & Akuntansi", en: "Finance & Accounting" }, desc: { id: "Jurnal double-entry otomatis, buku besar, neraca, laba rugi, arus kas, dan tutup buku.", en: "Automatic double-entry journals, ledger, balance sheet, P&L, cash flow, and period close." } },
-  { icon: ReceiptText, title: { id: "Faktur & Pembayaran", en: "Invoices & Payments" }, desc: { id: "Faktur jual/beli, PPN otomatis, cetak/PDF berkop, catat sampai lunas, retur nota kredit.", en: "Sales/purchase invoices, automatic VAT, branded print/PDF, payment tracking, credit-note returns." } },
-  { icon: Boxes, title: { id: "Stok & Gudang", en: "Stock & Warehouse" }, desc: { id: "Stok multi-gudang, HPP rata-rata, lot & kedaluwarsa (FEFO), transfer, dan stok opname.", en: "Multi-warehouse stock, moving-average COGS, lots & expiry (FEFO), transfers, and stock counts." } },
-  { icon: Store, title: { id: "Kasir (POS)", en: "POS Cashier" }, desc: { id: "Layar kasir cepat, sesi shift kas, cetak struk, dan tetap jalan saat offline.", en: "Fast cashier screen, cash shift sessions, receipt printing, and offline operation." } },
-  { icon: Target, title: { id: "CRM & Helpdesk", en: "CRM & Helpdesk" }, desc: { id: "Pipeline lead & penawaran, konversi ke pelanggan, plus tiket dukungan pelanggan.", en: "Lead & quotation pipeline, conversion to customers, plus customer support tickets." } },
-  { icon: UsersRound, title: { id: "HR & Payroll", en: "HR & Payroll" }, desc: { id: "Data karyawan, gaji, hitung PPh 21 metode TER + BPJS, slip gaji & jurnal otomatis.", en: "Employee data, payroll, PPh 21 (TER) + BPJS calculation, payslips & automatic journals." } },
-  { icon: Landmark, title: { id: "Aset & Maintenance", en: "Assets & Maintenance" }, desc: { id: "Register aset, penyusutan otomatis, jadwal servis berkala, dan work order berbiaya.", en: "Asset register, automatic depreciation, scheduled servicing, and costed work orders." } },
-  { icon: Factory, title: { id: "Manufaktur & QC", en: "Manufacturing & QC" }, desc: { id: "Bill of Materials, perintah produksi biaya gabungan, dan inspeksi QC lulus/karantina.", en: "Bill of Materials, combined-cost production orders, and QC inspection pass/quarantine." } },
-  { icon: Coins, title: { id: "Multi-perusahaan & Valas", en: "Multi-company & FX" }, desc: { id: "Kelola banyak perusahaan satu akun, laporan konsolidasi, dan faktur multi mata uang.", en: "Manage many companies from one account, consolidated reports, and multi-currency invoices." } },
-  { icon: FileSpreadsheet, title: { id: "Pajak & Kepatuhan", en: "Tax & Compliance" }, desc: { id: "Ekspor e-Faktur XML Coretax, PPN, dan PPh 21 — mengikuti standar perpajakan Indonesia.", en: "e-Faktur XML export for Coretax, VAT, and PPh 21 — following Indonesian tax standards." } },
-  { icon: ShieldCheck, title: { id: "Keamanan & Platform", en: "Security & Platform" }, desc: { id: "Database terpisah tiap perusahaan, peran akses, 2FA, audit log, dan PWA offline.", en: "Separate database per company, access roles, 2FA, audit log, and offline PWA." } },
-];
-
 export const COMPARISON: { topic: Dual; manual: Dual; erpindo: Dual }[] = [
   { topic: { id: "Catat penjualan", en: "Record a sale" }, manual: { id: "Tulis nota, salin ke buku, hitung ulang di Excel", en: "Write a note, copy to a book, recompute in Excel" }, erpindo: { id: "Sekali input — jurnal, stok & piutang otomatis", en: "One entry — journal, stock & receivables automatic" } },
   { topic: { id: "Hitung PPN & e-Faktur", en: "Compute VAT & e-Faktur" }, manual: { id: "Rekap manual tiap masa pajak, rawan selisih", en: "Manual recap each tax period, error-prone" }, erpindo: { id: "PPN otomatis + unduh XML siap impor Coretax", en: "Automatic VAT + XML download ready for Coretax" } },
@@ -167,21 +146,6 @@ export const SINGLE_PLAN_MODULES: Dual[] = [
 /**
  * Perbandingan implisit per KATEGORI (Fase 13c) — tanpa menyebut merek.
  */
-export const CATEGORY_COMPARISON: { label: Dual; rows: Dual[] }[] = [
-  { label: { id: "Biaya per pengguna", en: "Cost per user" }, rows: [{ id: "—", en: "—" }, { id: "Naik per user", en: "Rises per user" }, { id: "Rp 300–400rb/user", en: "Rp 300–400k/user" }, { id: "Lisensi mahal", en: "Expensive licenses" }, { id: "Rp 0 (tak terbatas)", en: "Rp 0 (unlimited)" }] },
-  { label: { id: "Modul operasional (HR, manufaktur, proyek)", en: "Operational modules (HR, manufacturing, projects)" }, rows: [{ id: "✗", en: "✗" }, { id: "✗", en: "✗" }, { id: "Add-on berbayar", en: "Paid add-on" }, { id: "✓", en: "✓" }, { id: "✓ (paket Business)", en: "✓ (Business plan)" }] },
-  { label: { id: "Waktu sampai aktif", en: "Time to go live" }, rows: [{ id: "—", en: "—" }, { id: "Beberapa hari", en: "A few days" }, { id: "Berminggu-minggu", en: "Weeks" }, { id: "Berbulan-bulan", en: "Months" }, { id: "Hari ini", en: "Today" }] },
-  { label: { id: "Biaya implementasi", en: "Implementation cost" }, rows: [{ id: "—", en: "—" }, { id: "—", en: "—" }, { id: "Jutaan", en: "Millions" }, { id: "Ratusan juta", en: "Hundreds of millions" }, { id: "Mulai Rp 0 (mandiri)", en: "From Rp 0 (self-serve)" }] },
-  { label: { id: "Multi-perusahaan + konsolidasi", en: "Multi-company + consolidation" }, rows: [{ id: "✗", en: "✗" }, { id: "Terbatas", en: "Limited" }, { id: "Add-on", en: "Add-on" }, { id: "✓", en: "✓" }, { id: "✓ (termasuk)", en: "✓ (included)" }] },
-];
-export const CATEGORY_COMPARISON_HEADERS: Dual[] = [
-  { id: "Spreadsheet", en: "Spreadsheet" },
-  { id: "Software akuntansi", en: "Accounting software" },
-  { id: "ERP per-pengguna", en: "Per-user ERP" },
-  { id: "ERP konvensional", en: "Conventional ERP" },
-  { id: "ERPindo", en: "ERPindo" },
-];
-
 /**
  * Lima jaminan keamanan. Field `icon` ditambahkan Fase 27a: sebelumnya komponen
  * menggambar `ShieldCheck` yang sama untuk kelimanya, sehingga seksi ini tampil
