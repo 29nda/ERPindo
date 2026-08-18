@@ -15,7 +15,7 @@ import {
 import type { SqlExecutor } from "@erpindo/db";
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { postJournal, PeriodLockedError } from "../lib/accounting";
+import { postJournal, PeriodLockedError, SYS_ACCOUNTS } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { getTenantDb } from "../lib/tenantDb";
 import { requireAuth, requireTenantRole } from "../middleware/auth";
@@ -142,9 +142,24 @@ export async function postClosingEntry(
   return { entryNo: res.entryNo, netProfit };
 }
 
-/** Kode akun yang dipakai revaluasi valas (Fase 22a). */
-const AKUN_PIUTANG = "1-1200";
-const AKUN_HUTANG = "2-1100";
+/**
+ * Kode akun yang dipakai revaluasi valas (Fase 22a).
+ *
+ * Fase 33c — `AKUN_HUTANG` dulu berisi `"2-1100"`, dan itu **PPN Keluaran**,
+ * bukan Utang Usaha. Sisi utang direvaluasi ke akun pajak selama sebelas fase
+ * tanpa satu gerbang pun memerah, persis karena jurnalnya **tetap seimbang**:
+ * baris utang dan baris laba/rugi kurs sama besar, jadi neraca saldo cocok dan
+ * smoke yang hanya memeriksa `netProfit` ikut hijau.
+ *
+ * Akibatnya bukan angka yang meleset sedikit, melainkan angka yang salah tempat
+ * di satu-satunya akun yang paling sering dicocokkan pengguna dengan SPT-nya.
+ *
+ * Karena itu keduanya kini diambil dari `SYS_ACCOUNTS` — satu sumber yang sama
+ * dengan yang dipakai posting faktur, sehingga kode akun tidak bisa lagi
+ * menyimpang sendiri di berkas ini.
+ */
+const AKUN_PIUTANG = SYS_ACCOUNTS.PIUTANG;
+const AKUN_HUTANG = SYS_ACCOUNTS.HUTANG;
 const AKUN_LABA_KURS = "4-3000";
 const AKUN_RUGI_KURS = "5-6000";
 
