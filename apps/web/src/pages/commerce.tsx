@@ -454,7 +454,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{h.title}</h1>
+      <h1 className="judul text-[1.75rem]">{h.title}</h1>
 
       {isAdmin ? (
         <Card>

@@ -175,7 +175,7 @@ export function ManufacturingPage() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Factory className="size-6 text-brand-600" aria-hidden />
-        <h1 className="text-2xl font-semibold">{h.title}</h1>
+        <h1 className="judul text-[1.75rem]">{h.title}</h1>
       </div>
       <p className="text-sm text-ink-muted">{h.desc}</p>
 

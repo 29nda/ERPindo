@@ -37,7 +37,7 @@ export function SettingsPage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">{u("pengaturanJudul")}</h1>
+        <h1 className="judul text-[1.75rem]">{u("pengaturanJudul")}</h1>
         <p className="mt-1 text-sm text-ink-muted">
           {u("descPengaturan")}
         </p>

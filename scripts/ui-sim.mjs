@@ -242,7 +242,7 @@ try {
   // sedangkan kelas bisa berganti kapan saja tanpa mengubah apa pun yang dilihat
   // atau didengar pengguna.
   const latarWordmark = await page.evaluate(() => {
-    const el = document.querySelector('[aria-label="ERPindo"]');
+    const el = document.querySelector('[data-wordmark]');
     if (!el) return null;
     const bungkus = el.parentElement;
     const bg = getComputedStyle(bungkus).backgroundColor;
