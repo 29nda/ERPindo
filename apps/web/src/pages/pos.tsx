@@ -706,7 +706,7 @@ export function PosPage() {
   if (!shift) {
     return (
       <div className="mx-auto max-w-md space-y-6">
-        <h1 className="text-2xl font-semibold">{h.title}</h1>
+        <h1 className="judul text-[1.75rem]">{h.title}</h1>
         <Card>
           <CardHeader title={u("bukaShift")} description={u("descBukaShift")} />
           <CardBody className="space-y-4">
@@ -749,7 +749,7 @@ export function PosPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-semibold">{h.title}</h1>
+          <h1 className="judul text-[1.75rem]">{h.title}</h1>
           <Badge tone="brand">{shift.shiftNo}</Badge>
           <span className="text-sm text-ink-muted">
             {shift.salesCount} {u("transaksiSatuan")} · {formatIDR(shift.cashSalesTotal)}

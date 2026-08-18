@@ -27,7 +27,7 @@ export function PanduanAppIndexPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <h1 className="text-2xl font-semibold">{h.title}</h1>
+      <h1 className="judul text-[1.75rem]">{h.title}</h1>
       <p className="mt-1 text-sm text-ink-soft">{h.desc}</p>
       <div className="relative mt-4 max-w-md">
         <Search

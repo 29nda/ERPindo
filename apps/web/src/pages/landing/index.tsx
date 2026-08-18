@@ -7,13 +7,9 @@ import { BrandWordmark, Button } from "../../components/ui";
 import { PublicHeader, TAUTAN_BERANDA } from "../../components/publik";
 import { pick, useLang, type Lang } from "../../i18n";
 import {
-  CATEGORY_COMPARISON,
-  CATEGORY_COMPARISON_HEADERS,
   COMPARISON,
   FAQ,
-  FEATURE_GROUPS,
   formatRupiah,
-  INTEGRATIONS,
   SECURITY_POINTS,
   SHOWCASE,
   SINGLE_PLAN_MODULES,
@@ -106,7 +102,7 @@ function Hero() {
         }}
         aria-hidden
       />
-      <div className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24">
+      <div className="mx-auto max-w-6xl px-4 pt-20 sm:px-6 sm:pt-32">
         {/* `uppercase` aman di sini: tak satu pun asersi membaca kalimat ini.
             Aturannya (lihat log 17d): JANGAN pakai `uppercase` pada teks yang
             dibaca asersi innerText — `text-transform` ikut mengubah nilainya. */}
@@ -122,7 +118,7 @@ function Hero() {
             {L(lang, "beres dalam satu aplikasi", "all in one app")}
           </span>
         </h1>
-        <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ink-soft">
+        <p className="mt-7 max-w-[34rem] text-lg leading-[1.7] text-ink-soft">
           {L(
             lang,
             "Berhenti menyalin angka dari nota ke Excel. Sekali catat, jurnal double-entry, stok, laporan keuangan, PPN, sampai PPh 21 karyawan ikut terisi sendiri — dan neracanya dijamin seimbang.",
@@ -170,7 +166,7 @@ function Hero() {
       {/* Screenshot produk nyata. Bingkainya bukan lagi jendela macOS bertitik
           tiga (klise landing SaaS) melainkan bilah alat rapat dengan jalur rute
           bergaya mono — sama seperti aplikasinya sendiri. */}
-      <div className="mx-auto mt-14 max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto mt-20 max-w-6xl px-4 sm:px-6">
         <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
           <div className="flex items-center gap-2 border-b border-line bg-surface-muted px-3 py-1.5">
             <span className="size-1.5 rounded-full bg-emerald-500" />
@@ -216,7 +212,7 @@ function Showcase() {
   const [active, setActive] = useState("pos");
   const item = SHOWCASE.find((s) => s.id === active) ?? SHOWCASE[0]!;
   return (
-    <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 py-28 sm:py-36 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Lihat cara kerjanya", "See how it works")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
         {L(lang, "Lima pekerjaan yang paling menyita waktu tiap hari. Pilih satu untuk melihat bentuk nyatanya di dalam aplikasi.", "The five jobs that eat the most time every day. Pick one to see what it actually looks like inside the app.")}
@@ -270,55 +266,10 @@ function Showcase() {
   );
 }
 
-function FeaturesGrid() {
-  const lang = useLang();
-  return (
-    <section className="border-t border-line bg-surface">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-        <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Satu sistem untuk seluruh operasional", "One system for all your operations")}</h2>
-        <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
-          {L(lang, "Tidak ada modul yang berdiri sendiri. Apa pun yang Anda catat di satu tempat langsung terbaca di tempat lain — tanpa impor-ekspor antar aplikasi.", "No module stands alone. Whatever you record in one place is immediately readable in another — no importing and exporting between apps.")}
-        </p>
-        {/* Kisi rapat berbagi garis (gap-px di atas latar garis) — modul terlihat
-            sebagai satu sistem yang menyatu, bukan kartu-kartu terpisah. */}
-        <div
-          data-kisi="modul"
-          className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          {FEATURE_GROUPS.map((f) => (
-            <div key={f.title.id} className="rounded-card border border-line bg-surface p-5 shadow-card transition-shadow hover:shadow-md">
-              <span className="flex size-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-900/60 dark:text-brand-300">
-                <f.icon className="size-5" aria-hidden />
-              </span>
-              <h3 className="mt-3.5 text-base font-semibold">{pick(f.title, lang)}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{pick(f.desc, lang)}</p>
-            </div>
-          ))}
-          {/* Sel terakhir mengisi sisa kisi. FEATURE_GROUPS berisi 11 modul
-              sedangkan kisinya 3 kolom (12 slot); pada tata letak lama yang
-              memakai kartu terpisah lubang itu tak terlihat, tetapi kisi
-              berbagi-garis membuatnya menganga. Diisi ajakan, bukan ruang mati. */}
-          <div className="flex flex-col justify-center rounded-card border border-brand-200 bg-brand-50 p-5 dark:border-brand-900 dark:bg-brand-950/40">
-            <p className="text-sm font-semibold text-brand-800 dark:text-brand-200">
-              {L(lang, "Semua modul termasuk di setiap paket.", "Every module is included in every plan.")}
-            </p>
-            <a
-              href="/fitur"
-              className="mt-2 text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300"
-            >
-              {L(lang, "Lihat penjelasan tiap modul →", "See what each module does →")}
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function Comparison() {
   const lang = useLang();
   return (
-    <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 py-28 sm:py-36 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Masih pakai buku & Excel?", "Still using ledgers & Excel?")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
         {L(lang, "Bukan soal rapi atau tidak rapi — soal berapa jam yang hilang tiap bulan, dan berapa selisih yang baru ketahuan saat tutup buku.", "It is not about being tidy — it is about the hours lost each month, and the discrepancies you only find at closing.")}
@@ -453,53 +404,11 @@ function PerUserCalculator() {
   );
 }
 
-function CategoryComparison() {
-  const lang = useLang();
-  return (
-    <div className="mt-12">
-      <h3 className="text-base font-semibold">{L(lang, "Di mana posisi ERPindo?", "Where does ERPindo fit?")}</h3>
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[720px] border-separate border-spacing-0 overflow-hidden rounded-card border border-line text-[13px]">
-          <thead>
-            <tr className="bg-slate-100 text-left dark:bg-slate-900">
-              <th className="px-3 py-2 font-semibold"> </th>
-              {CATEGORY_COMPARISON_HEADERS.map((h) => (
-                <th
-                  key={h.id}
-                  className={`px-3 py-2 text-[11px] font-semibold tracking-wider ${h.id === "ERPindo" ? "bg-brand-600 text-white" : "text-ink-muted"}`}
-                >
-                  {pick(h, lang)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {CATEGORY_COMPARISON.map((row, i) => (
-              <tr key={row.label.id} className={i % 2 === 0 ? "bg-surface" : "bg-surface-sunken"}>
-                <td className="px-3 py-2 font-medium">{pick(row.label, lang)}</td>
-                {row.rows.map((cell, j) => (
-                  <td
-                    key={j}
-                    className={`px-3 py-2 ${j === row.rows.length - 1 ? "bg-brand-50/60 font-medium text-ink dark:bg-brand-950/40" : "text-ink-muted"}`}
-                  >
-                    {pick(cell, lang)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="mt-2 text-xs text-slate-400">{L(lang, "Perbandingan per kategori solusi — bukan merek tertentu.", "Compared by solution category — not specific brands.")}</p>
-    </div>
-  );
-}
-
 function Pricing() {
   const lang = useLang();
   return (
     <section id="harga" className="scroll-mt-16 border-t border-line bg-surface">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-28 sm:py-36 sm:px-6">
         <h2 className="judul text-[2rem] sm:text-[2.5rem]">
           {L(lang, "Satu sistem, dari toko pertama sampai grup perusahaan", "One system, from your first shop to a group of companies")}
         </h2>
@@ -556,7 +465,6 @@ function Pricing() {
         </p>
 
         <PerUserCalculator />
-        <CategoryComparison />
 
         {/* Fase 27b: blok ini dulu berisi DUA kartu. Kartu "Layanan
             pendampingan" dihapus bersama formulir "Jadwalkan demo": seluruh
@@ -583,7 +491,7 @@ function Pricing() {
 function Security() {
   const lang = useLang();
   return (
-    <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 py-28 sm:py-36 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Data bisnis Anda, aman di tangan Anda", "Your business data, safe in your hands")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
         {L(lang, "Aman itu perlu, tapi tidak cukup. Anda juga harus bisa pergi kapan saja dan membawa seluruh data Anda.", "Secure is necessary, but not enough. You should also be able to leave whenever you want — and take all your data with you.")}
@@ -608,7 +516,7 @@ function Security() {
 function Faq() {
   const lang = useLang();
   return (
-    <section id="faq" className="mx-auto max-w-3xl scroll-mt-16 px-4 py-20 sm:px-6">
+    <section id="faq" className="mx-auto max-w-3xl scroll-mt-16 px-4 py-28 sm:py-36 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Pertanyaan umum", "Frequently asked questions")}</h2>
       {/* Daftar menyatu berpembatas garis, bukan tumpukan kartu terpisah. */}
       <div className="mt-10 divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
@@ -629,7 +537,7 @@ function Faq() {
 function CtaBand() {
   const lang = useLang();
   return (
-    <section className="px-4 pb-14 sm:px-6">
+    <section className="px-4 pb-24 sm:px-6">
       {/* Gradien dua-warna diganti bidang merek datar berbingkai — pita CTA
           bergradien adalah salah satu penanda paling khas "SaaS umum". */}
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 rounded-card bg-brand-600 px-8 py-12 text-white shadow-lg sm:flex-row sm:items-center">
@@ -691,28 +599,6 @@ function Footer() {
  * Kompatibilitas & kepatuhan (Fase 14e) — bukti sosial faktual (bukan testimoni
  * karangan): alat & standar yang benar-benar didukung produk.
  */
-function IntegrationBadges() {
-  const lang = useLang();
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
-        {L(lang, "Kompatibel dengan alat & standar yang Anda pakai", "Works with the tools & standards you already use")}
-      </p>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {INTEGRATIONS.map((it) => (
-          <span
-            key={it.label.id}
-            className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm text-ink-soft shadow-sm"
-          >
-            <it.icon className="size-4 shrink-0 text-ink-faint" aria-hidden />
-            {pick(it.label, lang)}
-          </span>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 /** CTA lengket di bawah layar mobile (Fase 14e) — konversi di perangkat kecil. */
 function StickyMobileCta() {
   const lang = useLang();
@@ -737,11 +623,16 @@ export function LandingPage() {
       <PublicHeader tautan={TAUTAN_BERANDA} beranda />
       {/* pb ekstra di mobile agar CTA lengket tak menutup konten akhir */}
       <main className="flex-1 pb-20 sm:pb-0">
+        {/* Fase 32c — 12 bagian diringkas menjadi 8.
+            Yang dibuang: pita integrasi (PINDAH ke /fitur, bukan dihapus),
+            grid 11 kartu fitur, dan tabel perbandingan kategori. Ketiganya
+            mengulang isi /fitur yang sudah ditautkan dari bilah atas, dan
+            bersama-sama membentuk urutan hero → bukti → fitur → banding →
+            banding → harga yang menjadi kerangka halaman SaaS mana pun.
+            Bukti nyata (tangkapan layar produk) kini mendahului argumen. */}
         <Hero />
         <TrustBar />
-        <IntegrationBadges />
         <Showcase />
-        <FeaturesGrid />
         <Comparison />
         <Pricing />
         <Security />

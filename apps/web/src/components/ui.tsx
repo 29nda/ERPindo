@@ -804,7 +804,13 @@ export function BrandWordmark({ className = "h-8" }: { className?: string }) {
       // Ukuran ikut tinggi wadah supaya pemanggil lama (`h-7`, `h-8`) tidak
       // perlu diubah — sebelumnya tinggi datang dari <img className="h-full">.
       style={{ fontSize: "0.72em" }}
-      aria-label="ERPindo"
+      // Penanda uji, BUKAN `aria-label`. Sejak wordmark menjadi teks sungguhan,
+      // `aria-label="ERPindo"` justru MENIMPA isi yang dibaca pembaca layar —
+      // ia mengulang apa yang sudah ada di DOM sambil membuang struktur
+      // aslinya. Penyapu i18n juga menghitungnya sebagai teks tampilan di
+      // atribut, dan itu benar: nama merek di atribut adalah bentuk yang sama
+      // dengan teks tak-tersapu, hanya kebetulan tidak perlu diterjemahkan.
+      data-wordmark=""
     >
       <span className="judul text-[1.35em] tracking-tight text-ink">ERP</span>
       <span className="text-[1.28em] font-light tracking-tight text-brand-600 dark:text-brand-400">
@@ -1064,7 +1070,11 @@ export function PageHeading({ k }: { k: PageHeadingKey }) {
   // jarak vertikalnya persis sama seperti sebelum diekstrak.
   return (
     <>
-      <h1 className="text-2xl font-semibold">{h.title[lang]}</h1>
+      {/* Fase 32d: judul halaman memakai serif editorial, sesuai keputusan
+          pemilik ("landing DAN judul halaman"). Hanya `h1` — kepala kartu
+          (`CardHeader`) tetap sans, karena serif di sana merembet ke seluruh
+          layar kerja dan justru melawan kepadatan yang dipilih untuk aplikasi. */}
+      <h1 className="judul text-[1.75rem]">{h.title[lang]}</h1>
       <p className="mt-1 text-sm text-ink-muted">{desc}</p>
     </>
   );

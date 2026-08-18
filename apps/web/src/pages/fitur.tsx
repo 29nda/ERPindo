@@ -4,6 +4,7 @@ import { BrandWordmark, Button } from "../components/ui";
 import { pick, useLang, type Lang } from "../i18n";
 import { PublicHeader } from "../components/publik";
 import { MODUL_DETAIL } from "./landing/fiturDetail";
+import { INTEGRATIONS } from "./landing/sections";
 
 /**
  * Halaman `/fitur` (Fase 18f) — penjelasan mendalam per modul.
@@ -31,14 +32,14 @@ export function FiturPage() {
     <div className="flex min-h-full flex-col bg-surface-sunken text-ink">
       <PublicHeader />
       <main className="flex-1">
-        <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24">
+        <section className="mx-auto max-w-6xl px-4 pt-20 sm:px-6 sm:pt-32">
           <h1 className="judul-hero max-w-4xl text-[2.75rem] sm:text-[4.25rem]">
             {L(lang, "Apa saja yang", "Everything ERPindo")}{" "}
             <span className="text-brand-600 dark:text-brand-400">
               {L(lang, "dikerjakan ERPindo", "actually does for you")}
             </span>
           </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ink-soft">
+          <p className="mt-7 max-w-[34rem] text-lg leading-[1.7] text-ink-soft">
             {L(
               lang,
               "Bukan daftar kemampuan, tapi penjelasan tiap modul: masalah apa yang dipecahkan, bagaimana cara kerjanya di dalam aplikasi, dan hasil apa yang Anda dapat.",
@@ -68,7 +69,7 @@ export function FiturPage() {
             id={m.id}
             className={`scroll-mt-20 ${i % 2 === 1 ? "bg-surface" : ""}`}
           >
-            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+            <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32">
               <div className={`grid items-start gap-10 ${m.gambar ? "lg:grid-cols-2" : ""}`}>
                 <div>
                   <span className="flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-900/60 dark:text-brand-300">
@@ -126,6 +127,36 @@ export function FiturPage() {
             </div>
           </section>
         ))}
+
+        {/* Pita kompatibilitas — DIPINDAHKAN dari halaman depan (Fase 32c).
+
+            Di landing ia hanya satu baris ikon di antara sebelas seksi lain,
+            dan ikut membentuk urutan yang membuat halaman itu terbaca seperti
+            template SaaS mana pun. Di sini ia justru pada tempatnya: pembaca
+            yang sudah menelusuri 22 modul persis sedang bertanya "apakah ini
+            nyambung dengan yang sudah saya pakai".
+
+            Percobaan pertama membuang pita ini dari landing TANPA memindahkan
+            isinya lebih dulu, dan itu keliru: klaim kompatibilitas **Xendit
+            hanya ada di sini** — `/fitur` sama sekali tidak menyebutnya. Satu
+            klaim nyata nyaris hilang dari seluruh situs tanpa ada yang
+            menyadarinya. Asersi ui-sim yang menjaganya ikut pindah ke halaman
+            ini, bukan dihapus. */}
+        <section className="border-t border-line px-4 py-16 sm:px-6">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="judul text-[1.75rem] sm:text-[2rem]">
+              {L(lang, "Nyambung dengan yang sudah Anda pakai", "Works with what you already use")}
+            </h2>
+            <ul data-kisi="integrasi" className="mt-8 grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+              {INTEGRATIONS.map((it) => (
+                <li key={it.label.id} className="flex items-center gap-3 text-ink-soft">
+                  <it.icon className="size-4 shrink-0 text-brand-600 dark:text-brand-400" aria-hidden />
+                  <span className="text-[15px]">{pick(it.label, lang)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
 
         <section className="px-4 pb-20 pt-4 sm:px-6">
           <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 rounded-card bg-brand-600 px-8 py-12 text-white shadow-lg sm:flex-row sm:items-center">

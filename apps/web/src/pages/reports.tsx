@@ -494,7 +494,7 @@ export function AgingPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">{hAging.title}</h1>
+        <h1 className="judul text-[1.75rem]">{hAging.title}</h1>
         <div className="flex items-center gap-2">
           <Select
             aria-label={u("jenis")}
@@ -773,7 +773,7 @@ export function BalanceSheetPage() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">{hNeraca.title}</h1>
+          <h1 className="judul text-[1.75rem]">{hNeraca.title}</h1>
           {query.data ? (
             query.data.balanced ? (
               <Badge tone="brand">{u("seimbang")}</Badge>
