@@ -39,7 +39,7 @@ import { clientIp } from "./auth";
 /**
  * HR & Payroll (Fase 2o): karyawan + penggajian bulanan. Setiap run menghitung
  * PPh 21 (metode TER) & BPJS pekerja per karyawan, lalu memposting satu jurnal
- * beban gaji: Debit Beban Gaji (bruto), Kredit Kas (netto), Kredit Hutang Gaji
+ * beban gaji: Debit Beban Gaji (bruto), Kredit Kas (netto), Kredit Utang Gaji
  * (potongan yang harus disetor). Perhitungan pajak ada di paket shared (teruji).
  */
 
@@ -51,7 +51,7 @@ type PayrollLine = { accountId: string; description: string; debit: number; cred
 
 /**
  * Susun baris jurnal penggajian (murni, tanpa DB — bisa diuji langsung):
- * Debit Beban Gaji (bruto) · Kredit Kas (netto) · Kredit Hutang Gaji (potongan
+ * Debit Beban Gaji (bruto) · Kredit Kas (netto) · Kredit Utang Gaji (potongan
  * PPh21 & BPJS, bila ada) · Kredit Piutang Karyawan (cicilan kasbon, bila ada).
  * Karena bruto = netto + potongan + cicilan, jurnal selalu seimbang; baris
  * bernilai nol tidak disertakan.

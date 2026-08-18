@@ -412,6 +412,7 @@ const COA_SEED: [code: string, name: string, type: string][] = [
   ["1-1400", "PPN Masukan", "asset"],
   ["1-1500", "Aset Tetap", "asset"],
   ["1-1510", "Akumulasi Penyusutan", "asset"],
+  // "Hutang *" di bawah SENGAJA tidak diubah — lihat migrasi 0047_nama_akun_utang.
   ["2-1000", "Hutang Usaha", "liability"],
   ["2-1100", "PPN Keluaran", "liability"],
   ["2-1200", "Hutang Gaji", "liability"],
@@ -1852,6 +1853,36 @@ export const TENANT_MIGRATIONS: Migration[] = [
       )`,
       `CREATE UNIQUE INDEX price_group_items_unik ON price_group_items (group_id, product_id)`,
       `ALTER TABLE contacts ADD COLUMN price_group_id TEXT REFERENCES price_groups(id)`,
+    ],
+  },
+  {
+    // Fase 33d: nama akun "Hutang *" → "Utang *" (bentuk baku KBBI, dan yang
+    // dipakai seluruh naskah aplikasi sejak Fase 33b).
+    //
+    // Kenapa MIGRASI, bukan sekadar mengubah `COA_SEED`: benihnya duduk di
+    // migrasi 0002 yang sudah berjalan di setiap tenant yang ada. Mengubah
+    // entri lama melanggar aturan append-only berkas ini, dan lebih buruk lagi
+    // ia hanya berlaku untuk perusahaan BARU — pelanggan lama tetap memegang
+    // nama lama, sehingga naskah "utang" dan bagan akun "Hutang" bertabrakan
+    // di layar yang sama. `COA_SEED` karena itu sengaja dibiarkan apa adanya:
+    // tenant baru menjalankan 0002 lalu migrasi ini, tenant lama menjalankan
+    // migrasi ini saja, dan keduanya berakhir sama.
+    //
+    // Aman dilakukan karena TIDAK ADA satu pun kode yang mencari akun
+    // berdasarkan nama — seluruhnya lewat kode akun (`accountIdByCode`,
+    // `ensureAccountByCode`, `SYS_ACCOUNTS`). Nama akun murni teks tampilan.
+    //
+    // Syarat `AND name = '<nama lama persis>'` bukan hiasan: pengguna boleh
+    // mengganti nama akunnya sendiri, dan penyeragaman ejaan tidak boleh
+    // menimpa penamaan yang sengaja mereka pilih.
+    //
+    // `2-1400` dibuat sesuai kebutuhan oleh routes/tax.ts, jadi barisnya bisa
+    // saja belum ada — UPDATE tanpa baris yang cocok adalah no-op.
+    id: "0047_nama_akun_utang",
+    statements: [
+      `UPDATE accounts SET name = 'Utang Usaha' WHERE code = '2-1000' AND name = 'Hutang Usaha'`,
+      `UPDATE accounts SET name = 'Utang Gaji' WHERE code = '2-1200' AND name = 'Hutang Gaji'`,
+      `UPDATE accounts SET name = 'Utang PPh 23' WHERE code = '2-1400' AND name = 'Hutang PPh 23'`,
     ],
   },
 ];

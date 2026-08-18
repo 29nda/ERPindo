@@ -254,14 +254,14 @@ for (const b of [...bulan, bulanBerjalan]) {
     beban: lr.json?.totalExpense ?? 0,
     laba: (lr.json?.totalIncome ?? 0) - (lr.json?.totalExpense ?? 0),
     kas: cari("1-1000") + cari("1-1100"), // Kas + Bank
-    hutang: cari("2-1000"), // Hutang Usaha
+    hutang: cari("2-1000"), // Utang Usaha
   });
 }
 
 // Tabel — dicetak SELALU, lulus maupun gagal. Angkanya yang dilampirkan ke log
 // fase; tanpa dicetak, "sudah diverifikasi" hanyalah klaim.
 const lebar = (s, n) => String(s).padStart(n);
-console.log("  Periode  | Pendapatan      | Beban           | Laba            | Kas+Bank        | Hutang Usaha");
+console.log("  Periode  | Pendapatan      | Beban           | Laba            | Kas+Bank        | Utang Usaha");
 console.log("  ---------|-----------------|-----------------|-----------------|-----------------|----------------");
 for (const r of baris) {
   console.log(
@@ -301,7 +301,7 @@ periksa(
   `→ kosong: ${kosong.map((r) => r.periode).join(", ")}`,
 );
 
-// Hutang usaha yang menumpuk = perusahaan yang tidak pernah membayar pemasok.
+// Utang usaha yang menumpuk = perusahaan yang tidak pernah membayar pemasok.
 // Fase 28 menemukan Rp 231,8 juta menumpuk dengan kas hanya Rp 152 juta.
 const kasAkhir = baris[baris.length - 1].kas;
 const hutangAkhir = baris[baris.length - 1].hutang;

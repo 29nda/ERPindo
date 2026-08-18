@@ -26,7 +26,7 @@ import { clientIp } from "./auth";
  * Pajak UMKM (Fase 7d):
  * - PPh Final 0,5% (PP 55/2022): dihitung dari peredaran bruto (omzet) per masa bulan,
  *   dicatat sebagai Beban PPh Final dibayar dari kas/bank.
- * - PPh 23: pemotongan atas jasa/sewa/royalti/dll → bukti potong + Hutang PPh 23,
+ * - PPh 23: pemotongan atas jasa/sewa/royalti/dll → bukti potong + Utang PPh 23,
  *   lalu disetor (mengurangi utang).
  * - SPT Masa PPN 1111: rekap keluaran (faktur ber-PPN) vs masukan (pembelian ber-PPN).
  */
@@ -163,10 +163,10 @@ export const taxRoutes = new Hono<AppEnv>()
     const amount = Math.round((input.gross * input.rate) / 100);
     if (amount <= 0) return c.json({ error: "Nilai PPh 23 nol — periksa dasar & tarif." }, 400);
 
-    const hutang = await ensureAccountByCode(db, HUTANG_PPH23, "Hutang PPh 23", "liability");
+    const hutang = await ensureAccountByCode(db, HUTANG_PPH23, "Utang PPh 23", "liability");
     const docNo = await nextDocNo(db, "tax_pph23", "BP23");
     const memo = `Bukti potong PPh 23 ${docNo}`;
-    // Dr akun sumber (mis. Hutang Usaha yang dikurangi / kas) / Cr Hutang PPh 23.
+    // Dr akun sumber (mis. Utang Usaha yang dikurangi / kas) / Cr Utang PPh 23.
     const journal = await postJournal(db, {
       entryDate: input.taxDate,
       memo,
@@ -201,7 +201,7 @@ export const taxRoutes = new Hono<AppEnv>()
     const lockedBefore = await getLockedBefore(db);
     if (lockedBefore && input.depositDate <= lockedBefore) return c.json({ error: `Periode sampai ${lockedBefore} sudah ditutup.` }, 400);
 
-    const hutang = await ensureAccountByCode(db, HUTANG_PPH23, "Hutang PPh 23", "liability");
+    const hutang = await ensureAccountByCode(db, HUTANG_PPH23, "Utang PPh 23", "liability");
     const memo = `Setor PPh 23 ${row.doc_no}`;
     const journal = await postJournal(db, {
       entryDate: input.depositDate,

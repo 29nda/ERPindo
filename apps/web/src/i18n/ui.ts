@@ -1920,7 +1920,7 @@ export const UI = {
   // PPh 23
   buatBuktiPotong23: { id: "Buat bukti potong PPh 23", en: "Create a PPh 23 withholding slip" },
   descBuktiPotong23: {
-    id: "Potong PPh 23 atas jasa/sewa/royalti/dll dari rekanan. Menciptakan Hutang PPh 23 untuk disetor.",
+    id: "Potong PPh 23 atas jasa/sewa/royalti/dll dari rekanan. Menciptakan Utang PPh 23 untuk disetor.",
     en: "Withhold PPh 23 on services/rent/royalties/etc. from a counterparty. Creates a PPh 23 payable to remit.",
   },
   pilihRekanan: { id: "— pilih rekanan —", en: "— pick a counterparty —" },

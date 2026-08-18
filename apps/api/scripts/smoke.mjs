@@ -434,6 +434,23 @@ try {
   const penjualan = accounts.find((a) => a.code === "4-1000");
   check("akun Kas/Modal/Pendapatan ada", Boolean(kas && modal && penjualan));
 
+  // Fase 33d — ejaan baku KBBI ("utang"), diseragamkan lewat migrasi 0047 dan
+  // BUKAN dengan menyunting benih COA di migrasi 0002.
+  //
+  // Bedanya menentukan: menyunting benih hanya mengubah perusahaan BARU, jadi
+  // pelanggan lama tetap melihat "Hutang Usaha" di bagan akunnya sementara
+  // seluruh naskah aplikasi sudah menulis "utang". Migrasi menyatukan keduanya.
+  //
+  // Tenant smoke ini dibuat dari nol, jadi ia menempuh jalur "0002 lalu 0047" —
+  // yang membuktikan migrasinya benar-benar berjalan dan bukan sekadar benih
+  // yang kebetulan sudah benar.
+  const namaUtang = accounts.filter((a) => /^(Hutang|Utang)/.test(a.name)).map((a) => `${a.code} ${a.name}`).sort();
+  check(
+    "33d nama akun memakai ejaan baku 'Utang', tanpa satu pun 'Hutang' tersisa",
+    namaUtang.length === 2 && namaUtang.join(" | ") === "2-1000 Utang Usaha | 2-1200 Utang Gaji",
+    `→ ${namaUtang.join(" | ")}`,
+  );
+
   const newAcc = await owner("POST", `/api/tenants/${tenantId}/accounts`, {
     code: "1-1600",
     name: "Piutang Karyawan",

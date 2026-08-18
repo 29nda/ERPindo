@@ -158,16 +158,26 @@ perbaikan naskah.
 Diperiksa di Fase 33b: **tidak ada satu pun kode yang mencari akun berdasarkan
 nama** — seluruhnya lewat kode akun (`accountIdByCode`, `ensureAccountByCode`).
 Jadi namanya murni teks tampilan, dan migrasi append-only yang menyeragamkannya
-untuk tenant lama sekaligus baru memang bisa dibuat. Itu Fase 33c, bukan 33b.
+untuk tenant lama sekaligus baru memang bisa dibuat.
 
-Sampai migrasi itu jalan, naskah yang **menyebut akun itu sebagai akun** tetap
-menulis "Hutang" agar cocok dengan yang dilihat pengguna di bagan akunnya
-(`ui.ts` → `descBuktiPotong23`). Naskah yang memakai kata itu sebagai kata biasa
-sudah menjadi "utang".
+**Selesai di Fase 33d.** Migrasi `0047_nama_akun_utang` menyeragamkan
+"Hutang Usaha" → "Utang Usaha", "Hutang Gaji" → "Utang Gaji", dan
+"Hutang PPh 23" → "Utang PPh 23" untuk tenant **lama dan baru sekaligus**.
+`COA_SEED` di migrasi 0002 sengaja **tidak** disunting: mengubah entri lama
+melanggar aturan append-only berkas itu, dan hanya akan mengubah perusahaan
+baru. Tenant baru menempuh 0002 lalu 0047; tenant lama menempuh 0047 saja;
+keduanya berakhir sama.
 
-Nama field API dan nilai enum (`selisihHutang`, `sumber: "hutang"`) juga
-**bukan naskah**. Menggantinya memecah respons API dan smoke sekaligus tanpa
-satu pun pengguna melihat bedanya.
+Syarat `AND name = '<nama lama persis>'` melindungi pengguna yang sudah
+mengganti nama akunnya sendiri — ejaan tidak boleh menimpa penamaan yang
+sengaja dipilih.
+
+Yang tetap tidak berubah: nama field API dan nilai enum (`selisihHutang`,
+`sumber: "hutang"`).
+
+Alasannya berbeda dari nama akun: keduanya **dibaca mesin**. Menggantinya
+memecah respons API dan smoke sekaligus tanpa satu pun pengguna melihat
+bedanya.
 
 ## 6. Rupiah
 
