@@ -49,7 +49,7 @@ const MODE_CFG = {
     priceField: "buy_price" as const,
     queryKey: "purchases" as const,
     stockHint: {
-      id: "Stok bertambah otomatis (biaya rata-rata); jurnal persediaan, PPN & hutang dibuat otomatis.",
+      id: "Stok bertambah otomatis (biaya rata-rata); jurnal persediaan, PPN & utang dibuat otomatis.",
       en: "Stock is added automatically (average cost); inventory, PPN & payable entries are created for you.",
     },
   },
@@ -368,7 +368,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
    *
    * Harga terisi otomatis dari master produk **per satuan dasar**. Kalau satuan
    * diganti ke dus tanpa harganya ikut dikali isi, faktur beli sedus akan
-   * ditagih seharga sepcs: totalnya masuk akal di layar, hutangnya jauh terlalu
+   * ditagih seharga sepcs: totalnya masuk akal di layar, utangnya jauh terlalu
    * kecil, dan tidak ada satu pun angka yang terlihat aneh.
    */
   function gantiSatuan(i: number, line: DraftLine, satuan: SatuanBaris) {

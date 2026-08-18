@@ -49,8 +49,8 @@ export const FAQ_LANDING: TanyaJawab[] = [
       en: "What does it cost, and what do I get?",
     },
     a: {
-      id: "Rp499.000 per perusahaan per bulan. Satu harga, seluruh modul terbuka, pengguna tak terbatas. Tidak ada paket yang lebih mahal, jadi tidak ada fitur yang terkunci — dan menambah karyawan tidak menambah tagihan.",
-      en: "Rp499,000 per company per month. One price, every module unlocked, unlimited users. There is no pricier tier, so nothing is locked away — and adding staff never adds to your bill.",
+      id: "Rp 499.000 per perusahaan per bulan. Satu harga, seluruh modul terbuka, pengguna tak terbatas. Tidak ada paket yang lebih mahal, jadi tidak ada fitur yang terkunci — dan menambah karyawan tidak menambah tagihan.",
+      en: "Rp 499,000 per company per month. One price, every module unlocked, unlimited users. There is no pricier tier, so nothing is locked away — and adding staff never adds to your bill.",
     },
   },
   {

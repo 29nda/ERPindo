@@ -163,11 +163,11 @@ export type HasilRevaluasi = {
 };
 
 /**
- * Revaluasi saldo piutang/hutang valas ke kurs penutup (Fase 22a).
+ * Revaluasi saldo piutang/utang valas ke kurs penutup (Fase 22a).
  *
  * ## Kenapa ada jurnal PEMBALIK, dan kenapa itu bukan pilihan gaya
  *
- * Piutang & hutang disimpan dalam **IDR pada kurs faktur**: `invoices.total`
+ * Piutang & utang disimpan dalam **IDR pada kurs faktur**: `invoices.total`
  * adalah hasil `valas × exchange_rate`, dan pelunasan menguranginya sebesar
  * `round(valas × kursFaktur)`. Artinya buku besar Piutang selalu sama dengan
  * jumlah sisa faktur pada kurs faktur — dan `computeForexSettlement()`
@@ -248,11 +248,11 @@ export async function postForexRevaluation(
     });
   }
   if (selisihHutang !== 0) {
-    // Hutang bersaldo KREDIT: kenaikan nilainya dikredit, dan itu RUGI —
+    // Utang bersaldo KREDIT: kenaikan nilainya dikredit, dan itu RUGI —
     // tanda yang paling mudah terbalik di seluruh fase ini.
     baris.push({
       accountId: idHutang,
-      description: `Revaluasi hutang valas ${asOf}`,
+      description: `Revaluasi utang valas ${asOf}`,
       debit: selisihHutang < 0 ? -selisihHutang : 0,
       credit: selisihHutang > 0 ? selisihHutang : 0,
     });
@@ -631,7 +631,7 @@ export const financeExtraRoutes = new Hono<AppEnv>()
     }
   })
 
-  /** Revaluasi saldo piutang/hutang valas ke kurs penutup (Fase 22a). */
+  /** Revaluasi saldo piutang/utang valas ke kurs penutup (Fase 22a). */
   .post("/:tenantId/forex-revaluation", requireAuth, requireTenantRole("admin"), async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as { asOf?: string };
     const asOf = body.asOf ?? "";

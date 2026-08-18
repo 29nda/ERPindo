@@ -248,7 +248,7 @@ export const PAGE_HEADINGS = {
     title: { id: "Umur Piutang", en: "Receivables Aging" },
   },
   umurHutang: {
-    title: { id: "Umur Hutang", en: "Payables Aging" },
+    title: { id: "Umur Utang", en: "Payables Aging" },
   },
   pesananPenjualan: {
     title: { id: "Pesanan Penjualan", en: "Sales Orders" },

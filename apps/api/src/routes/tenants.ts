@@ -124,8 +124,8 @@ export const tenantRoutes = new Hono<AppEnv>()
     const inviteUrl = `${appOrigin(c)}/undangan?token=${token}`;
     await kirimEmail(c.env, {
       to: email,
-      subject: `Undangan bergabung ke ${tenant.name} di erpindo`,
-      text: `${user.name} mengundang Anda bergabung ke ${tenant.name} sebagai ${role}.\n\nBuka tautan berikut untuk menerima undangan:\n${inviteUrl}\n\n— Tim erpindo`,
+      subject: `Undangan bergabung ke ${tenant.name} di ERPindo`,
+      text: `${user.name} mengundang Anda bergabung ke ${tenant.name} sebagai ${role}.\n\nBuka tautan berikut untuk menerima undangan:\n${inviteUrl}\n\n— Tim ERPindo`,
     }, "tenants.undangan_tim");
 
     await audit(c.env, {

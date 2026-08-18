@@ -1,5 +1,5 @@
 /**
- * Ringkasan pengetahuan per modul untuk grounding Asisten erpindo.
+ * Ringkasan pengetahuan per modul untuk grounding Asisten ERPindo.
  * Diringkas dari konten panduan (apps/web/src/pages/panduan/content) —
  * cukup padat agar muat di prompt tanpa memboroskan token/neuron.
  */
@@ -52,9 +52,9 @@ export const GUIDE_KNOWLEDGE: GuideKnowledge[] = [
   {
     slug: "pembelian",
     title: "Pembelian",
-    keywords: ["pembelian", "purchase", "hutang", "lot", "restock", "ppn masukan"],
+    keywords: ["pembelian", "purchase", "utang", "hutang", "lot", "restock", "ppn masukan"],
     summary:
-      "Faktur pembelian: pemasok, gudang tujuan, PPN, baris produk (+lot & tanggal exp untuk produk berpelacakan kedaluwarsa). Posting menjurnal Persediaan & PPN Masukan; stok masuk pada biaya setelah diskon; hutang tercatat sampai dibayar.",
+      "Faktur pembelian: pemasok, gudang tujuan, PPN, baris produk (+lot & tanggal exp untuk produk berpelacakan kedaluwarsa). Posting menjurnal Persediaan & PPN Masukan; stok masuk pada biaya setelah diskon; utang tercatat sampai dibayar.",
   },
   {
     slug: "stok",
@@ -82,7 +82,7 @@ export const GUIDE_KNOWLEDGE: GuideKnowledge[] = [
     title: "Laporan Keuangan",
     keywords: ["laporan", "laba rugi", "neraca", "arus kas", "aging", "umur piutang", "ekspor", "csv"],
     summary:
-      "Laba Rugi, Neraca (selalu seimbang), Arus Kas, dan Umur Piutang/Hutang (bucket lancar/1-30/31-60/61-90/>90 hari) — real-time dari jurnal, bisa ekspor CSV & cetak. Anggaran vs realisasi per akun per bulan di halaman Anggaran.",
+      "Laba Rugi, Neraca (selalu seimbang), Arus Kas, dan Umur Piutang/Utang (bucket lancar/1-30/31-60/61-90/>90 hari) — real-time dari jurnal, bisa ekspor CSV & cetak. Anggaran vs realisasi per akun per bulan di halaman Anggaran.",
   },
   {
     slug: "pajak",
@@ -176,7 +176,7 @@ export const GUIDE_KNOWLEDGE: GuideKnowledge[] = [
     title: "Kamus Istilah",
     keywords: ["istilah", "arti", "apa itu", "debit", "kredit", "hpp", "neraca", "dpp", "prive", "ekuitas", "penyusutan", "aging"],
     summary:
-      "Kamus singkat: jurnal = catatan transaksi 2 sisi seimbang; debit/kredit = dua sisi pencatatan; HPP = biaya perolehan barang terjual; neraca = aset = kewajiban + ekuitas; piutang = tagihan ke pelanggan, hutang = kewajiban ke pemasok; DPP = nilai sebelum PPN; prive = uang diambil pemilik; penyusutan = beban pemakaian aset tetap per bulan; FEFO = kedaluwarsa terdekat keluar lebih dulu. Daftar lengkap di /panduan/istilah.",
+      "Kamus singkat: jurnal = catatan transaksi 2 sisi seimbang; debit/kredit = dua sisi pencatatan; HPP = biaya perolehan barang terjual; neraca = aset = kewajiban + ekuitas; piutang = tagihan ke pelanggan, utang = kewajiban ke pemasok; DPP = nilai sebelum PPN; prive = uang diambil pemilik; penyusutan = beban pemakaian aset tetap per bulan; FEFO = kedaluwarsa terdekat keluar lebih dulu. Daftar lengkap di /panduan/istilah.",
   },
 ];
 

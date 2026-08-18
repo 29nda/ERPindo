@@ -60,7 +60,7 @@ export const TRANSAKSI: GuideModule[] = [
     title: "Pembelian",
     appPath: "/app/pembelian",
     intro:
-      "Faktur pembelian mengisi stok dengan biaya rata-rata otomatis, mendukung lot kedaluwarsa, diskon per baris, PPN Masukan, dan hutang usaha.",
+      "Faktur pembelian mengisi stok dengan biaya rata-rata otomatis, mendukung lot kedaluwarsa, diskon per baris, PPN Masukan, dan utang usaha.",
     sections: [
       {
         heading: "Mencatat pembelian",
@@ -69,7 +69,7 @@ export const TRANSAKSI: GuideModule[] = [
         steps: [
           "Pilih pemasok, gudang tujuan, tarif PPN, dan baris produk.",
           "Untuk produk berpelacakan kedaluwarsa, isi nomor lot & tanggal exp per baris.",
-          "Posting: Persediaan & PPN Masukan terjurnal, stok masuk pada biaya setelah diskon, hutang tercatat sampai dibayar.",
+          "Posting: Persediaan & PPN Masukan terjurnal, stok masuk pada biaya setelah diskon, utang tercatat sampai dibayar.",
         ],
         tips: [
           "Pembelian oleh Admin di atas ambang tertentu bisa diwajibkan menunggu persetujuan Owner — lihat modul Persetujuan.",

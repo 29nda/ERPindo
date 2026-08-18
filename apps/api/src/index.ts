@@ -318,7 +318,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
         await kirimEmail(env, {
           to: owner.email,
           subject: `${apa} ${tenant.name} berakhir — masa tenggang ${GRACE_DAYS} hari`,
-          text: `Halo ${owner.name},\n\n${apa} ${tenant.name} di erpindo sudah berakhir. Kabar baiknya: Anda masih punya masa tenggang ${GRACE_DAYS} hari — pencatatan transaksi TETAP BISA dilakukan seperti biasa selama itu.\n\nSetelah ${GRACE_DAYS} hari akun beralih ke mode baca-saja (data tetap aman dan bisa diekspor).${tautan}\n\n— Tim erpindo`,
+          text: `Halo ${owner.name},\n\n${apa} ${tenant.name} di ERPindo sudah berakhir. Kabar baiknya: Anda masih punya masa tenggang ${GRACE_DAYS} hari — pencatatan transaksi TETAP BISA dilakukan seperti biasa selama itu.\n\nSetelah ${GRACE_DAYS} hari akun beralih ke mode baca-saja (data tetap aman dan bisa diekspor).${tautan}\n\n— Tim ERPindo`,
         }, "cron.masa_tenggang");
       }
       await env.RATE_KV.put(kvKey, "1", { expirationTtl: (GRACE_DAYS + 4) * 86_400 });
@@ -361,7 +361,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
         await kirimEmail(env, {
           to: owner.email,
           subject: `${apa} ${tenant.name} berakhir ${sisaHari} hari lagi`,
-          text: `Halo ${owner.name},\n\n${apa} ${tenant.name} di erpindo akan berakhir dalam ${sisaHari} hari. Setelah itu akun menjadi baca-saja — seluruh data Anda tetap aman dan tetap bisa dilihat serta diekspor.\n\n${ajakan}${tautan}\n\n— Tim erpindo`,
+          text: `Halo ${owner.name},\n\n${apa} ${tenant.name} di ERPindo akan berakhir dalam ${sisaHari} hari. Setelah itu akun menjadi baca-saja — seluruh data Anda tetap aman dan tetap bisa dilihat serta diekspor.\n\n${ajakan}${tautan}\n\n— Tim ERPindo`,
         }, "cron.pengingat_sebelum_berakhir");
       }
       // TTL sedikit lebih panjang dari jarak antar-tonggak supaya tidak
@@ -409,7 +409,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
         await kirimEmail(env, {
           to: owner.email,
           subject: `${tenant.name} masih dalam mode baca-saja`,
-          text: `Halo ${owner.name},\n\n${tenant.name} sudah tiga hari dalam mode baca-saja. Pencatatan transaksi baru terhenti, tetapi seluruh data Anda tetap aman — masih bisa dibuka, dibaca, dan diekspor kapan saja.\n\nAktifkan kembali langganan untuk melanjutkan operasional.${tautan}\n\n— Tim erpindo`,
+          text: `Halo ${owner.name},\n\n${tenant.name} sudah tiga hari dalam mode baca-saja. Pencatatan transaksi baru terhenti, tetapi seluruh data Anda tetap aman — masih bisa dibuka, dibaca, dan diekspor kapan saja.\n\nAktifkan kembali langganan untuk melanjutkan operasional.${tautan}\n\n— Tim ERPindo`,
         }, "cron.susulan_baca_saja");
       }
       await env.RATE_KV.put(kvKey, "1", { expirationTtl: 30 * 86_400 });

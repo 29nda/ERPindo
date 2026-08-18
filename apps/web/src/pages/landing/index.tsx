@@ -171,12 +171,12 @@ function Hero() {
           <div className="flex items-center gap-2 border-b border-line bg-surface-muted px-3 py-1.5">
             <span className="size-1.5 rounded-full bg-emerald-500" />
             <span className="font-mono text-[11px] text-ink-muted">
-              erpindo / dashboard
+              ERPindo / dashboard
             </span>
           </div>
           <img
             src="/landing/hero-dashboard.webp"
-            alt="Dashboard erpindo dengan grafik penjualan 30 hari dan ringkasan keuangan"
+            alt="Dashboard ERPindo dengan grafik penjualan 30 hari dan ringkasan keuangan"
             width={1400}
             height={875}
             className="w-full"
@@ -607,7 +607,7 @@ function Footer() {
           <Link to="/daftar" className="hover:text-ink">{L(lang, "Daftar", "Sign up")}</Link>
         </div>
       </div>
-      <div className="mx-auto max-w-6xl px-4 pb-5 text-xs text-slate-400 sm:px-6">© {new Date().getFullYear()} erpindo</div>
+      <div className="mx-auto max-w-6xl px-4 pb-5 text-xs text-slate-400 sm:px-6">© {new Date().getFullYear()} ERPindo</div>
     </footer>
   );
 }

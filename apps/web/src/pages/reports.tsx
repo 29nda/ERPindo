@@ -477,7 +477,7 @@ function ProyeksiArusKasCard() {
 }
 
 // ---------------------------------------------------------------------------
-// Umur Piutang / Hutang (aging)
+// Umur Piutang / Utang (aging)
 // ---------------------------------------------------------------------------
 
 export function AgingPage() {

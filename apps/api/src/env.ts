@@ -17,7 +17,7 @@ export type Env = {
   RATE_LIMITER?: DurableObjectNamespace;
   ASSETS: Fetcher;
 
-  /** Workers AI (Asisten erpindo). Opsional: absen di dev/CI → endpoint AI membalas 503. */
+  /** Workers AI (Asisten ERPindo). Opsional: absen di dev/CI → endpoint AI membalas 503. */
   AI?: WorkersAi;
 
   // Pool database tenant untuk mode lokal (lihat wrangler.jsonc).

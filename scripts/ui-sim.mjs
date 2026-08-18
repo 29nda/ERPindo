@@ -1248,17 +1248,17 @@ try {
 
   // Panel Asisten AI: hanya terlihat setelah tombol mengambangnya ditekan,
   // jadi tak pernah tersentuh sapuan innerText halaman mana pun.
-  await page.getByRole("button", { name: "Open the erpindo Assistant" }).first().click();
+  await page.getByRole("button", { name: "Open the ERPindo Assistant" }).first().click();
   await page.waitForTimeout(500);
   const aiEn = await page.innerText("body");
-  const adaAiEn = aiEn.includes("Ask how to use erpindo") && aiEn.includes("erpindo Assistant");
-  const tanpaAiId = !aiEn.includes("Tanyakan cara memakai erpindo");
+  const adaAiEn = aiEn.includes("Ask how to use ERPindo") && aiEn.includes("ERPindo Assistant");
+  const tanpaAiId = !aiEn.includes("Tanyakan cara memakai ERPindo");
   check(
     "F1u panel Asisten AI ikut EN: ajakan + contoh pertanyaan, tanpa teks Indonesia",
     adaAiEn && tanpaAiId,
     `→ EN=${adaAiEn} tanpaID=${tanpaAiId}`,
   );
-  await page.getByRole("button", { name: "Close the erpindo Assistant" }).first().click();
+  await page.getByRole("button", { name: "Close the ERPindo Assistant" }).first().click();
   await page.waitForTimeout(300);
 
   // Fase 16n — pelunasan utang 16e. Rute diverifikasi ke main.tsx:

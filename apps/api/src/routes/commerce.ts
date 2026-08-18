@@ -374,7 +374,7 @@ export const commerceRoutes = new Hono<AppEnv>()
       docRate = 1;
     }
     const direction = input.refType === "invoice" ? "receive" : "pay";
-    // counterCleared: IDR yang mengurangi piutang/hutang (kurs faktur);
+    // counterCleared: IDR yang mengurangi piutang/utang (kurs faktur);
     // cashIdr: IDR kas yang berpindah (kurs bayar); forexGain: selisih kurs.
     const { counterCleared, cashIdr, forexGain } = computeForexSettlement({
       direction,
@@ -403,7 +403,7 @@ export const commerceRoutes = new Hono<AppEnv>()
     const memo =
       direction === "receive" ? `Penerimaan ${doc.doc_no} (${paymentNo})` : `Pembayaran ${doc.doc_no} (${paymentNo})`;
 
-    // Selisih kurs favorable (laba): terima IDR > piutang, atau bayar IDR < hutang.
+    // Selisih kurs favorable (laba): terima IDR > piutang, atau bayar IDR < utang.
     const forexLine =
       forexGain === 0
         ? []

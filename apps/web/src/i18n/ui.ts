@@ -65,7 +65,17 @@ export const UI = {
   muatLebihBanyak: { id: "Muat lebih banyak", en: "Load more" },
   setujui: { id: "Setujui", en: "Approve" },
   tolak: { id: "Tolak", en: "Reject" },
-  batalkan: { id: "Batalkan", en: "Void" },
+  // Fase 33b — "Batalkan Dokumen", bukan "Batalkan".
+  //
+  // Sebelumnya kunci ini dan `batalkanPesanan` sama-sama berbunyi "Batalkan" di
+  // sisi Indonesia, sementara sisi Inggris membedakannya (Void vs Cancel
+  // order). Tombol "Batal" (tutup dialog, tidak ada yang berubah) berdiri
+  // bersebelahan dengan tombol yang membuat jurnal pembalik PERMANEN dan
+  // tercatat di audit log.
+  //
+  // Ini kelas kesalahan yang menghasilkan data rusak, bukan sekadar
+  // kebingungan — karena itu diperbaiki lebih dulu dari seluruh naskah lain.
+  batalkan: { id: "Batalkan Dokumen", en: "Void" },
 
   // Master data
   produk: { id: "Produk", en: "Product" },
@@ -727,7 +737,7 @@ export const UI = {
   pembeli: { id: "Pembeli", en: "Buyer" },
   omzet: { id: "Omzet", en: "Revenue" },
   piutang: { id: "Piutang", en: "Receivables" },
-  hutang: { id: "Hutang", en: "Payables" },
+  hutang: { id: "Utang", en: "Payables" },
   aset: { id: "Aset", en: "Assets" },
   kewajiban: { id: "Kewajiban", en: "Liabilities" },
   ekuitas: { id: "Ekuitas", en: "Equity" },
@@ -1358,7 +1368,7 @@ export const UI = {
     en: "No outstanding receivables. 🎉",
   },
   tidakAdaHutangBelumLunas: {
-    id: "Tidak ada hutang yang belum lunas. 🎉",
+    id: "Tidak ada utang yang belum lunas. 🎉",
     en: "No outstanding payables. 🎉",
   },
   descCoretax: {
@@ -1818,7 +1828,7 @@ export const UI = {
   katSewaTempat: { id: "Sewa tempat", en: "Rent" },
   katGajiKaryawan: { id: "Gaji karyawan", en: "Staff salaries" },
   katPerlengkapan: { id: "Perlengkapan & operasional", en: "Supplies & operations" },
-  katBayarHutang: { id: "Bayar hutang usaha", en: "Pay trade payables" },
+  katBayarHutang: { id: "Bayar utang usaha", en: "Pay trade payables" },
   katPrive: { id: "Prive (ambil uang pribadi)", en: "Prive (owner withdrawal)" },
   katSetoranModal: { id: "Setoran modal", en: "Capital injection" },
   katPendapatanLain: { id: "Pendapatan di luar faktur", en: "Income outside invoices" },
@@ -1916,7 +1926,7 @@ export const UI = {
   pilihRekanan: { id: "— pilih rekanan —", en: "— pick a counterparty —" },
   contohNominalBesar: { id: "mis. 10000000", en: "e.g. 10000000" },
   akunSumber: { id: "Akun sumber", en: "Source account" },
-  hutangUsahaAtauKas: { id: "— hutang usaha / kas —", en: "— trade payable / cash —" },
+  hutangUsahaAtauKas: { id: "— utang usaha / kas —", en: "— trade payable / cash —" },
   buatBuktiPotong: { id: "Buat bukti potong", en: "Create slip" },
   belumAdaBuktiPotong: { id: "Belum ada bukti potong.", en: "No withholding slips yet." },
   // `nomor` sudah ada sejak Fase 16 dengan isi sama — tidak ditambah ulang.
@@ -2012,7 +2022,7 @@ export const UI = {
   terimaBarang: { id: "Terima barang", en: "Receive goods" },
   // Sengaja BUKAN `batalkan` yang sudah ada: kunci itu berarti "Void"
   // (membatalkan faktur), sedangkan di sini yang dibatalkan adalah PESANAN.
-  batalkanPesanan: { id: "Batalkan", en: "Cancel order" },
+  batalkanPesanan: { id: "Batalkan Pesanan", en: "Cancel order" },
   grnJudul: { id: "3. Penerimaan barang (GRN)", en: "3. Goods receipt (GRN)" },
   descGrn: {
     id: "Riwayat penerimaan — tiap penerimaan otomatis menjadi faktur pembelian & menambah stok.",
@@ -2455,7 +2465,7 @@ export const UI = {
   kursDiperbarui: { id: "Terakhir diperbarui", en: "Last updated" },
   revaluasiValas: { id: "Revaluasi saldo valas", en: "Revalue foreign balances" },
   descRevaluasiValas: {
-    id: "Nilai ulang sisa piutang & hutang valas memakai kurs pada daftar mata uang di bawah. Jurnalnya otomatis dibalik keesokan harinya, sehingga laporan akhir periode memakai nilai wajar tanpa mengubah tagihan yang tercatat.",
+    id: "Nilai ulang sisa piutang & utang valas memakai kurs pada daftar mata uang di bawah. Jurnalnya otomatis dibalik keesokan harinya, sehingga laporan akhir periode memakai nilai wajar tanpa mengubah tagihan yang tercatat.",
     en: "Restate outstanding foreign-currency receivables and payables using the rates in the currency list below. The entry is reversed automatically the next day, so period-end reports use fair value without altering the recorded invoices.",
   },
   // `tanggalRevaluasi` sudah dipakai revaluasi ASET (Fase 20e); di sini artinya
@@ -2743,7 +2753,7 @@ export const UI = {
   // mulai mencatat data sendiri. Demo publik yang menggantikan masa coba.
   authDaftarGratisLangganan: {
     id: "Daftar gratis · telusuri demo dulu · berlangganan saat siap",
-    en: "Free to sign up · explore the 6-month demo first · subscribe when ready",
+    en: "Free to sign up · explore the demo first · subscribe when ready",
   },
   authSatuLangkahLagi: { id: "Satu langkah lagi", en: "One more step" },
   authDescGoogleLangkah: {
@@ -2775,8 +2785,8 @@ export const UI = {
   authLupaPassword: { id: "Lupa password?", en: "Forgot your password?" },
   authVerifikasiEmail: { id: "Verifikasi email", en: "Email verification" },
   authVerifikasiBerhasil: {
-    id: "Email Anda berhasil diverifikasi. Selamat menggunakan erpindo!",
-    en: "Your email is verified. Welcome to erpindo!",
+    id: "Email Anda berhasil diverifikasi. Selamat menggunakan ERPindo!",
+    en: "Your email is verified. Welcome to ERPindo!",
   },
   authBukaDashboard: { id: "Buka Dashboard", en: "Open dashboard" },
   authTautanTidakValid: {
@@ -2798,8 +2808,8 @@ export const UI = {
   authSimpanPasswordBaru: { id: "Simpan Password Baru", en: "Save new password" },
   authUndanganTim: { id: "Undangan tim", en: "Team invitation" },
   authDescUndangan: {
-    id: "Anda diundang bergabung ke sebuah perusahaan di erpindo.",
-    en: "You have been invited to join a company on erpindo.",
+    id: "Anda diundang bergabung ke sebuah perusahaan di ERPindo.",
+    en: "You have been invited to join a company on ERPindo.",
   },
   authSilakan: { id: "Silakan", en: "Please" },
   authMasukKecil: { id: "masuk", en: "sign in" },
@@ -3131,16 +3141,16 @@ export const UI = {
   cpTakAdaHasil: { id: "Tidak ada hasil.", en: "No results." },
   cpYaLanjutkan: { id: "Ya, lanjutkan", en: "Yes, continue" },
   cpBatal: { id: "Batal", en: "Cancel" },
-  cpAsisten: { id: "Asisten erpindo", en: "erpindo Assistant" },
-  cpAsistenAi: { id: "Asisten erpindo (AI)", en: "erpindo Assistant (AI)" },
-  cpTutupAsisten: { id: "Tutup Asisten erpindo", en: "Close the erpindo Assistant" },
-  cpBukaAsisten: { id: "Buka Asisten erpindo", en: "Open the erpindo Assistant" },
+  cpAsisten: { id: "Asisten ERPindo", en: "ERPindo Assistant" },
+  cpAsistenAi: { id: "Asisten ERPindo (AI)", en: "ERPindo Assistant (AI)" },
+  cpTutupAsisten: { id: "Tutup Asisten ERPindo", en: "Close the ERPindo Assistant" },
+  cpBukaAsisten: { id: "Buka Asisten ERPindo", en: "Open the ERPindo Assistant" },
   cpModeTanya: { id: "Tanya", en: "Ask" },
   cpModeLaporan: { id: "Laporan", en: "Reports" },
   cpModeJurnal: { id: "Draf Jurnal", en: "Journal Draft" },
   cpAjakanTanya: {
-    id: "Tanyakan cara memakai erpindo, misalnya:",
-    en: "Ask how to use erpindo, for example:",
+    id: "Tanyakan cara memakai ERPindo, misalnya:",
+    en: "Ask how to use ERPindo, for example:",
   },
   cpContohTanya1: {
     id: "Bagaimana cara ekspor XML Coretax?",
@@ -3186,7 +3196,7 @@ export const UI = {
   cpPlaceholderTanya: { id: "Tanya cara pakai…", en: "Ask how to use it…" },
   cpPlaceholderLaporan: { id: "Tanya soal laporan…", en: "Ask about a report…" },
   cpPlaceholderJurnal: { id: "Deskripsikan transaksinya…", en: "Describe the transaction…" },
-  cpPesanUntukAsisten: { id: "Pesan untuk Asisten erpindo", en: "Message for the erpindo Assistant" },
+  cpPesanUntukAsisten: { id: "Pesan untuk Asisten ERPindo", en: "Message for the ERPindo Assistant" },
   cpKirim: { id: "Kirim", en: "Send" },
   cpAiLamaMerespons: {
     id: "Asisten AI lama merespons (mungkin sedang sibuk). Coba lagi sebentar.",
@@ -3358,7 +3368,7 @@ export const UI = {
   // — Proyeksi arus kas 30/60/90 hari (Fase 22f) —
   pkJudul: { id: "Proyeksi arus kas 30/60/90 hari", en: "30/60/90-day cash projection" },
   pkDesc: {
-    id: "Perkiraan saldo kas ke depan dari piutang & hutang yang jatuh tempo dan faktur kontrak berikutnya. Tidak menjurnal apa pun.",
+    id: "Perkiraan saldo kas ke depan dari piutang & utang yang jatuh tempo dan faktur kontrak berikutnya. Tidak menjurnal apa pun.",
     en: "A forward view of your cash balance from receivables and payables coming due plus the next contract invoice. Nothing is journalled.",
   },
   pkSaldoSekarang: { id: "Saldo kas & bank sekarang", en: "Cash and bank balance today" },

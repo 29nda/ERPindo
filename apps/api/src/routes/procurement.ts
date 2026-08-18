@@ -23,7 +23,7 @@ import { executePurchase } from "../lib/commercePosting";
  * Procurement / procure-to-pay (Fase 6d): permintaan pembelian (PR) → pesanan ke
  * pemasok (PO) → penerimaan barang (GRN). Stok & jurnal TIDAK dibuat di PR/PO —
  * keduanya dokumen. Saat barang diterima, `executePurchase` (jalur faktur pembelian
- * yang teruji) dipanggil sekali: stok masuk (average cost) + jurnal Persediaan/Hutang.
+ * yang teruji) dipanggil sekali: stok masuk (average cost) + jurnal Persediaan/Utang.
  * Dengan begitu tak ada dobel-hitung dan buku tetap konsisten.
  */
 

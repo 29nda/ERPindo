@@ -8,7 +8,7 @@ import { getTenantDb } from "../lib/tenantDb";
 import { requireAuth, requireTenantRole } from "../middleware/auth";
 
 /**
- * Asisten erpindo — Workers AI (kuota gratis 10.000 neuron/hari).
+ * Asisten ERPindo — Workers AI (kuota gratis 10.000 neuron/hari).
  *
  * Prinsip keamanan: AI TIDAK PERNAH menulis data. Chat hanya menjawab cara
  * pakai (grounded pada ringkasan panduan); draf jurnal hanya USULAN yang
@@ -127,9 +127,9 @@ export const aiRoutes = new Hono<AppEnv>()
       .join("\n\n");
 
     const system = [
-      "Kamu adalah Asisten erpindo — pemandu aplikasi ERP untuk UMKM Indonesia.",
+      "Kamu adalah Asisten ERPindo — pemandu aplikasi ERP untuk UMKM Indonesia.",
       "Jawab SINGKAT (maks ±120 kata), ramah, dalam bahasa Indonesia, dengan langkah bernomor bila cocok.",
-      "Jawab HANYA seputar cara memakai erpindo (fitur, alur, menu). Jika pertanyaan di luar itu (topik umum, opini, kode), tolak sopan dan arahkan kembali ke erpindo.",
+      "Jawab HANYA seputar cara memakai ERPindo (fitur, alur, menu). Jika pertanyaan di luar itu (topik umum, opini, kode), tolak sopan dan arahkan kembali ke ERPindo.",
       "Jangan mengarang fitur. Bila tidak yakin, arahkan pengguna ke halaman /panduan.",
       "Kamu TIDAK bisa mengubah data pengguna — hanya memandu.",
       context ? `Konteks panduan terkait:\n\n${context}` : "",
@@ -317,7 +317,7 @@ function currentWeekStart(): string {
 
 /**
  * Ringkasan angka minggu ini vs minggu lalu untuk grounding ringkasan mingguan:
- * omzet & jumlah faktur, laba dari jurnal terposting, kas/piutang/hutang,
+ * omzet & jumlah faktur, laba dari jurnal terposting, kas/piutang/utang,
  * plus 3 produk terlaris minggu ini.
  */
 async function buildWeeklySnapshot(db: ReturnType<typeof getTenantDb>, weekStart: string): Promise<string> {
@@ -380,7 +380,7 @@ async function buildWeeklySnapshot(db: ReturnType<typeof getTenantDb>, weekStart
   return [
     `Minggu ini (mulai ${weekStart}): omzet ${rp(curSales.total)} dari ${curSales.count} faktur; pendapatan ${rp(curPl.income)}, beban ${rp(curPl.expense)}, laba ${rp(curPl.profit)}.`,
     `Minggu lalu (mulai ${prevWeek}): omzet ${rp(prevSales.total)} dari ${prevSales.count} faktur; laba ${rp(prevPl.profit)}.`,
-    `Saldo kas & bank: ${rp(cash)}. Piutang: ${rp(ar)}. Hutang: ${rp(ap)}.`,
+    `Saldo kas & bank: ${rp(cash)}. Piutang: ${rp(ar)}. Utang: ${rp(ap)}.`,
     `Produk terlaris minggu ini: ${top}.`,
   ].join("\n");
 }
@@ -388,7 +388,7 @@ async function buildWeeklySnapshot(db: ReturnType<typeof getTenantDb>, weekStart
 /**
  * Ringkasan angka buku untuk grounding AI laporan (Fase 11c). Semua dari jurnal
  * TERPOSTING. Bulan ini vs bulan lalu (pendapatan/beban/laba) + saldo kas/bank,
- * piutang, hutang. Dikembalikan sebagai teks ringkas berbahasa Indonesia.
+ * piutang, utang. Dikembalikan sebagai teks ringkas berbahasa Indonesia.
  */
 async function buildReportSnapshot(db: ReturnType<typeof getTenantDb>): Promise<string> {
   const curStart = monthStart(0);
@@ -410,12 +410,12 @@ async function buildReportSnapshot(db: ReturnType<typeof getTenantDb>): Promise<
   const rp = (n: number) => `Rp ${Math.round(n).toLocaleString("id-ID")}`;
   const cash = (balByCode.get("1-1000") ?? 0) + (balByCode.get("1-1100") ?? 0);
   const ar = balByCode.get("1-1200") ?? 0;
-  const ap = -(balByCode.get("2-1000") ?? 0); // hutang: saldo normal kredit
+  const ap = -(balByCode.get("2-1000") ?? 0); // utang: saldo normal kredit
 
   return [
     `Bulan ini (${curStart.slice(0, 7)}): pendapatan ${rp(cur.income)}, beban ${rp(cur.expense)}, laba bersih ${rp(cur.profit)}.`,
     `Bulan lalu (${prevStart.slice(0, 7)}): pendapatan ${rp(prev.income)}, beban ${rp(prev.expense)}, laba bersih ${rp(prev.profit)}.`,
     `Saldo kas & bank saat ini: ${rp(cash)}.`,
-    `Piutang usaha (belum tertagih): ${rp(ar)}. Hutang usaha (belum dibayar): ${rp(ap)}.`,
+    `Piutang usaha (belum tertagih): ${rp(ar)}. Utang usaha (belum dibayar): ${rp(ap)}.`,
   ].join("\n");
 }

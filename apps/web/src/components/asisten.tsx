@@ -6,7 +6,7 @@ import { Button, Spinner } from "./ui";
 import { useUi } from "../i18n/ui";
 
 /**
- * Asisten erpindo — panel chat mengambang (Workers AI, kuota gratis).
+ * Asisten ERPindo — panel chat mengambang (Workers AI, kuota gratis).
  * Tiga mode: Tanya (cara pakai, grounded panduan), Laporan (tanya kondisi
  * keuangan — dijawab dari buku nyata, read-only), dan Draf Jurnal (bahasa
  * alami → usulan jurnal seimbang yang dimuat ke form Jurnal Umum). AI tidak

@@ -27,7 +27,7 @@ import { clientIp } from "./auth";
  * - PPh Final 0,5% (PP 55/2022): dihitung dari peredaran bruto (omzet) per masa bulan,
  *   dicatat sebagai Beban PPh Final dibayar dari kas/bank.
  * - PPh 23: pemotongan atas jasa/sewa/royalti/dll → bukti potong + Hutang PPh 23,
- *   lalu disetor (mengurangi hutang).
+ *   lalu disetor (mengurangi utang).
  * - SPT Masa PPN 1111: rekap keluaran (faktur ber-PPN) vs masukan (pembelian ber-PPN).
  */
 

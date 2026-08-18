@@ -135,7 +135,7 @@ const NAV_ITEMS: { to: string; label: string; exact: boolean; section?: string; 
   { to: "/app/keuangan/laba-rugi", label: "Laba Rugi", exact: false, section: "Laporan", icon: LineChart, module: "laporan" },
   { to: "/app/keuangan/neraca", label: "Neraca", exact: false, section: "Laporan", icon: Scale, module: "laporan" },
   { to: "/app/keuangan/arus-kas", label: "Arus Kas", exact: false, section: "Laporan", icon: ArrowLeftRight, module: "laporan" },
-  { to: "/app/keuangan/umur-tagihan", label: "Umur Piutang/Hutang", exact: false, section: "Laporan", icon: Hourglass, module: "laporan" },
+  { to: "/app/keuangan/umur-tagihan", label: "Umur Piutang/Utang", exact: false, section: "Laporan", icon: Hourglass, module: "laporan" },
   { to: "/app/laporan/penjualan", label: "Laporan Penjualan", exact: false, section: "Laporan", icon: BarChart3, module: "laporan" },
   { to: "/app/keuangan/aset", label: "Aset Tetap", exact: false, section: "Aset & Pajak", icon: Landmark, module: "keuangan" },
   { to: "/app/maintenance", label: "Pemeliharaan", exact: false, section: "Aset & Pajak", icon: Wrench, module: "proyek" },

@@ -258,7 +258,7 @@ export const returnRoutes = new Hono<AppEnv>().post(
         accountIdByCode(db, SYS_ACCOUNTS.PPN_MASUKAN),
         accountIdByCode(db, "5-4000"),
       ]);
-      // Kurangi hutang sebatas sisa tagihan; kelebihan = kas masuk (refund dari pemasok).
+      // Kurangi utang sebatas sisa tagihan; kelebihan = kas masuk (refund dari pemasok).
       if (appliedToDoc > 0) lines.push({ accountId: hutang, description: memo, debit: appliedToDoc, credit: 0 });
       if (refund > 0 && refundAccountId) lines.push({ accountId: refundAccountId, description: `Refund ${memo}`, debit: refund, credit: 0 });
       if (inventoryValue > 0) lines.push({ accountId: persediaan, description: memo, debit: 0, credit: inventoryValue });

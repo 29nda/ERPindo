@@ -25,14 +25,15 @@ import type { Dual } from "../../i18n";
  */
 
 /**
- * Empat bukti di bawah hero. Tiap butir kini berikon (Fase 27a) — sebelumnya
- * hanya teks, dan tiga dari empat "angka"-nya bukan angka sehingga bilah ini
- * terbaca seperti deretan statistik yang statistiknya hilang.
+ * Empat bukti di bawah hero — pertanyaan yang benar-benar ditanyakan pembeli.
  *
- * Angka uji diperbarui Fase 27a: 555 unit + 1.113 smoke + 337 cek simulasi UI =
- * 2.005. Ditulis "2.000+" — dibulatkan KE BAWAH supaya klaimnya tetap benar
- * meski suite bergerak. Angka sebelumnya (1.300+, ditulis Fase 18e) sudah
- * tertinggal jauh; klaim kepercayaan yang basi melemahkan halamannya sendiri.
+ * Fase 32e mengganti isinya: sebelumnya butir pertama berbunyi "2.000+ uji
+ * otomatis dijalankan tiap kali kode berubah". Itu metrik pengembang, dan
+ * memajangnya ke pemilik toko justru membuat halaman terbaca seperti agensi
+ * menjual keahlian ngoding.
+ *
+ * Empat butir sekarang menjawab: harganya berapa, cocok dengan pajak Indonesia
+ * atau tidak, kalau internet mati bagaimana, dan datanya milik siapa.
  */
 export const TRUST_POINTS: { value: Dual; label: Dual; icon: LucideIcon }[] = [
   {

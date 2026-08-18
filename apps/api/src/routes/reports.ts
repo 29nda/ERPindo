@@ -410,7 +410,7 @@ export const reportRoutes = new Hono<AppEnv>()
   })
 
   // -------------------------------------------------------------------------
-  // Umur piutang/hutang (aging) per kontak, berdasarkan tanggal jatuh tempo
+  // Umur piutang/utang (aging) per kontak, berdasarkan tanggal jatuh tempo
   // -------------------------------------------------------------------------
   .get("/:tenantId/reports/aging", requireAuth, requireTenantRole("viewer"), heavyLimit(), async (c) => {
     const kind = c.req.query("type");

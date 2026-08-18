@@ -292,8 +292,8 @@ export const authRoutes = new Hono<AppEnv>()
     const verifyToken = await createEmailToken(c.env, { type: "verify", email, userId });
     await kirimEmail(c.env, {
       to: email,
-      subject: "Verifikasi email erpindo Anda",
-      text: `Halo ${name},\n\nSelamat datang di erpindo! Klik tautan berikut untuk memverifikasi email Anda:\n${appOrigin(c)}/verifikasi?token=${verifyToken}\n\nTautan berlaku ${TOKEN_HOURS} jam.\n\n— Tim erpindo`,
+      subject: "Verifikasi email ERPindo Anda",
+      text: `Halo ${name},\n\nSelamat datang di ERPindo! Klik tautan berikut untuk memverifikasi email Anda:\n${appOrigin(c)}/verifikasi?token=${verifyToken}\n\nTautan berlaku ${TOKEN_HOURS} jam.\n\n— Tim ERPindo`,
     }, "auth.verifikasi_email");
 
     await audit(c.env, {
@@ -685,8 +685,8 @@ export const authRoutes = new Hono<AppEnv>()
       const token = await createEmailToken(c.env, { type: "reset", email: parsed.data.email, userId: user.id });
       await kirimEmail(c.env, {
         to: parsed.data.email,
-        subject: "Reset password erpindo",
-        text: `Halo ${user.name},\n\nKlik tautan berikut untuk mengatur ulang password Anda:\n${appOrigin(c)}/reset-password?token=${token}\n\nAbaikan email ini bila Anda tidak meminta reset.\n\n— Tim erpindo`,
+        subject: "Reset password ERPindo",
+        text: `Halo ${user.name},\n\nKlik tautan berikut untuk mengatur ulang password Anda:\n${appOrigin(c)}/reset-password?token=${token}\n\nAbaikan email ini bila Anda tidak meminta reset.\n\n— Tim ERPindo`,
       }, "auth.reset_password");
     }
     return c.json({ ok: true });

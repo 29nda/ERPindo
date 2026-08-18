@@ -905,7 +905,7 @@ export function DashboardPage() {
       to: "/app/keuangan/umur-tagihan",
     },
     {
-      label: en ? "Payables Outstanding" : "Hutang Belum Lunas",
+      label: en ? "Payables Outstanding" : "Utang Belum Lunas",
       value: dash.data?.payableOutstanding,
       icon: ArrowUpFromLine,
       chip: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",

@@ -162,7 +162,7 @@ export function InvoicePrintPage() {
       </table>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan erpindo — ERP untuk UMKM Indonesia
+        Dibuat dengan ERPindo — ERP untuk UMKM Indonesia
       </footer>
     </div>
   );
@@ -313,7 +313,7 @@ export function QuotationPrintPage() {
       </p>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan erpindo — ERP untuk UMKM Indonesia
+        Dibuat dengan ERPindo — ERP untuk UMKM Indonesia
       </footer>
     </div>
   );
@@ -467,7 +467,7 @@ export function PayslipPrintPage() {
       </div>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Slip gaji ini dihasilkan otomatis oleh erpindo. Tarif PPh 21 (TER) & BPJS mengikuti ketentuan yang berlaku.
+        Slip gaji ini dihasilkan otomatis oleh ERPindo. Tarif PPh 21 (TER) & BPJS mengikuti ketentuan yang berlaku.
       </footer>
     </div>
   );
@@ -602,12 +602,12 @@ export function Form1721A1PrintPage() {
       </table>
 
       <p className="mt-6 text-xs text-ink-muted">
-        Ringkasan ini disusun dari data penggajian di erpindo sebagai alat bantu. Untuk pelaporan pajak resmi,
+        Ringkasan ini disusun dari data penggajian di ERPindo sebagai alat bantu. Untuk pelaporan pajak resmi,
         cocokkan dengan formulir 1721-A1 dan ketentuan DJP yang berlaku.
       </p>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan erpindo — ERP untuk UMKM Indonesia
+        Dibuat dengan ERPindo — ERP untuk UMKM Indonesia
       </footer>
     </div>
   );
