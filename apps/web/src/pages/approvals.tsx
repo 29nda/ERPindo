@@ -14,6 +14,7 @@ import { CheckCircle2, ClipboardCheck, Plus, Send, Settings2, Trash2 } from "luc
 import { useState } from "react";
 import { api, formatIDR } from "../api/client";
 import { Badge, Button, Card, CardBody, CardHeader, EmptyState, Input, Label, PageHeading, Select, Spinner, useToast } from "../components/ui";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -420,7 +421,7 @@ function PurchaseApprovalTab() {
   const approve = useMutation({
     mutationFn: (id: string) => api.approveRequest(tenant.tenantId, id),
     onSuccess: (res) => {
-      toast("success", `${u("toastDisetujuiFakturPrefix")} ${res.docNo} ${u("toastDiposting")} (${formatIDR(res.total)}).`);
+      toast("success", isi(u("toastDisetujuiDiposting"), res.docNo, formatIDR(res.total)));
       invalidate();
     },
     onError: (err) => toast("error", (err as Error).message),

@@ -4,6 +4,7 @@ import {
 } from "@erpindo/shared";
 import { ScanLine } from "lucide-react";
 import { useHeading } from "../i18n/pageHeadings";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -226,7 +227,7 @@ function RefundPanel({ tenantId, onDone }: { tenantId: string; onDone: () => voi
     onSuccess: (res) => {
       toast(
         "success",
-        `Refund ${res.returnNo} — ${formatIDR(res.total)} keluar dari laci (jurnal ${res.journalNo}).`
+        isi(u("toastRefundPos"), res.returnNo, formatIDR(res.total), res.journalNo)
       );
       setActiveId(null);
       setQtyMap({});
@@ -391,7 +392,7 @@ export function PosPage() {
         openingCash: Number(openingCash) || 0,
       }),
     onSuccess: (res) => {
-      toast("success", `Shift ${res.shiftNo} dibuka.`);
+      toast("success", isi(u("toastShiftDibuka"), res.shiftNo));
       invalidateShift();
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -419,7 +420,7 @@ export function PosPage() {
         })),
       }),
     onSuccess: (res) => {
-      toast("success", `${res.invoiceNo} — kembalian ${formatIDR(res.change)}`);
+      toast("success", isi(u("toastKembalian"), res.invoiceNo, formatIDR(res.change)));
       printReceipt({
         companyName: tenant.tenantName,
         logoDataUrl: settingsQuery.data?.settings.logo_data_url,
@@ -468,7 +469,7 @@ export function PosPage() {
         taxRate,
       }),
     onSuccess: () => {
-      toast("success", "Transaksi ditahan.");
+      toast("success", u("toastTransaksiDitahan"));
       setCart([]);
       setTenders([]);
       setHoldLabel("");
@@ -661,9 +662,9 @@ export function PosPage() {
               unit: res.product.unit,
               sell_price: res.product.sellPrice,
             });
-            toast("success", `${res.product.sku} · ${res.product.name}`);
+            toast("success", isi(u("toastProdukDipindai"), res.product.sku, res.product.name));
           } catch {
-            toast("error", `${u("barcodeTidakDikenal")}: ${kode}`);
+            toast("error", isi(u("toastBarcodeTakDikenal"), kode));
           }
         })();
       });

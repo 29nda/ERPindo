@@ -24,6 +24,7 @@ import {
   Tr,
   useToast,
 } from "../components/ui";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -149,7 +150,7 @@ export function ManufacturingPage() {
   const complete = useMutation({
     mutationFn: (id: string) => api.completeProduction(tenant.tenantId, id),
     onSuccess: (res) => {
-      toast("success", `${u("toastProduksiSelesaiPrefix")} ${formatIDR(res.totalCost)}.`);
+      toast("success", isi(u("toastProduksiSelesai"), formatIDR(res.totalCost)));
       invalidate();
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -510,7 +511,7 @@ export function ManufacturingPage() {
                               size="xs"
                               onClick={() => {
                                 if (!qcWarehouse) {
-                                  toast("error", "Pilih gudang karantina dulu.");
+                                  toast("error", u("toastPilihGudangKarantina"));
                                   return;
                                 }
                                 qc.mutate({ id: o.id, result: "quarantined" });

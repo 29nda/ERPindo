@@ -72,3 +72,29 @@ export function pick(v: Dual, lang: Lang): string {
 // berlaku sekarang hanya satu: `UI` di `./ui`, dipakai lewat `useUi()`.
 // Landing memakai `pick()` + `sections.ts`, keduanya masih hidup di bawah ini.
 // ---------------------------------------------------------------------------
+
+/**
+ * Isi lubang `{0}`, `{1}`, … pada kalimat dwibahasa (Fase 33h).
+ *
+ * Ada karena pola yang digantikannya salah secara struktural, bukan sekadar
+ * berantakan. Toast bernilai dinamis dulu dirakit dari potongan:
+ *
+ * ```
+ * toast("success", `${u("toastPermintaanPrefix")} ${res.reqNo} ${u("toastDiajukan")}`)
+ * ```
+ *
+ * Potongan itu **mengunci urutan kata Indonesia ke dalam kode**. Bahasa Inggris
+ * yang menaruh nomornya di tempat lain tidak punya cara mengubahnya — kamus
+ * hanya boleh mengisi potongan, tidak boleh menyusun ulang. Hasilnya kalimat
+ * Inggris berpola Indonesia, dan tidak ada gerbang yang bisa melihatnya karena
+ * tiap potongnya memang sudah diterjemahkan.
+ *
+ * Dengan `{0}` di dalam kalimat utuh, tiap bahasa menaruh nilainya di tempat
+ * yang benar menurut tata bahasanya sendiri.
+ */
+export function isi(kalimat: string, ...nilai: (string | number)[]): string {
+  return kalimat.replace(/\{(\d+)\}/g, (utuh, i) => {
+    const v = nilai[Number(i)];
+    return v === undefined ? utuh : String(v);
+  });
+}

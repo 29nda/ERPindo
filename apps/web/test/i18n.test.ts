@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { getLang, LANGS, pick, setLang } from "../src/i18n";
+import { getLang, isi, LANGS, pick, setLang } from "../src/i18n";
 import { UI } from "../src/i18n/ui";
 
 describe("i18n core (Fase 13d)", () => {
@@ -105,5 +105,71 @@ describe("judul halaman vs label menu (Fase 33e)", () => {
         .some((k) => /^[a-z]/.test(k) && !/[A-Z]/.test(k) && !sambung.has(k) && !k.startsWith("(")),
     );
     expect(salah, `judul dengan kata bermula huruf kecil: ${salah.join(" · ")}`).toEqual([]);
+  });
+});
+
+/**
+ * Fase 33h — toast tidak boleh dirakit dari potongan kamus.
+ *
+ * Pola yang dilarang:
+ *
+ * ```
+ * toast("success", `${u("toastPermintaanPrefix")} ${res.reqNo} ${u("toastDiajukan")}`)
+ * ```
+ *
+ * Ia terlihat sudah diterjemahkan — kedua potongnya memang ada di kamus. Yang
+ * tidak terlihat: **urutan katanya terkunci di dalam kode**. Bahasa yang
+ * menaruh nomornya di tempat lain tidak punya cara mengubahnya, karena kamus
+ * hanya boleh mengisi potongan, bukan menyusun ulang kalimat.
+ *
+ * Karena itu penjaga ini tidak memeriksa "sudah pakai u() atau belum" — itu
+ * justru yang lolos. Yang diperiksa: apakah masih ada TEMPLATE STRING di dalam
+ * `toast(...)`. Kalimat utuh berlubang `{0}` + `isi()` adalah gantinya.
+ */
+describe("toast dwibahasa (Fase 33h)", () => {
+  const HALAMAN = new URL("../src/pages", import.meta.url).pathname;
+
+  function tsxDi(dir: string): string[] {
+    const keluar: string[] = [];
+    for (const nama of readdirSync(dir)) {
+      const p = `${dir}/${nama}`;
+      if (statSync(p).isDirectory()) keluar.push(...tsxDi(p));
+      else if (nama.endsWith(".tsx")) keluar.push(p);
+    }
+    return keluar;
+  }
+
+  it("tidak ada toast yang dirakit dari template string", () => {
+    const pelanggar: string[] = [];
+    for (const f of tsxDi(HALAMAN)) {
+      const isiBerkas = readFileSync(f, "utf8");
+      for (const m of isiBerkas.matchAll(/toast\(\s*"(?:success|error)"\s*,\s*(`[^`]*`)/g)) {
+        pelanggar.push(`${f.split("/").pop()}: ${m[1].slice(0, 60)}`);
+      }
+    }
+    expect(pelanggar, `toast dirakit dari template: ${pelanggar.join(" · ")}`).toEqual([]);
+  });
+
+  it("tidak ada toast berisi literal Indonesia", () => {
+    // Literal apa pun di posisi pesan berarti satu bahasa saja. Nama variabel
+    // dan pemanggilan fungsi (`u(...)`, `isi(...)`, `err.message`) tidak kena.
+    const pelanggar: string[] = [];
+    for (const f of tsxDi(HALAMAN)) {
+      const isiBerkas = readFileSync(f, "utf8");
+      for (const m of isiBerkas.matchAll(/toast\(\s*"(?:success|error)"\s*,\s*"([^"]{4,})"/g)) {
+        pelanggar.push(`${f.split("/").pop()}: ${m[1].slice(0, 50)}`);
+      }
+    }
+    expect(pelanggar, `toast berliteral: ${pelanggar.join(" · ")}`).toEqual([]);
+  });
+
+  it("isi() menaruh nilai sesuai urutan kata tiap bahasa", () => {
+    // Inti alasan `isi()` ada: kalimat yang sama menaruh nilainya di posisi
+    // berbeda per bahasa, dan keduanya harus benar.
+    expect(isi("Pengajuan {0} {1} hari dicatat.", "cuti", 3)).toBe("Pengajuan cuti 3 hari dicatat.");
+    expect(isi("A {1}-day {0} request was recorded.", "leave", 3)).toBe("A 3-day leave request was recorded.");
+    // Lubang tanpa nilai dibiarkan apa adanya — lebih baik terlihat di layar
+    // daripada berubah diam-diam menjadi "undefined".
+    expect(isi("Jurnal {0} diposting.")).toBe("Jurnal {0} diposting.");
   });
 });

@@ -17,6 +17,7 @@ import {
   Tr,
   useToast,
 } from "../components/ui";
+import { isi } from "../i18n";
 import { useUi } from "../i18n/ui";
 import { useWorkspace } from "./app";
 import { ExportButton } from "./reports";
@@ -48,7 +49,7 @@ function BudgetRow({
     mutationFn: (amount: number) =>
       api.setBudget(tenant.tenantId, { accountId: row.accountId, period, amount }),
     onSuccess: () => {
-      toast("success", `Anggaran ${row.name} disimpan.`);
+      toast("success", isi(u("toastAnggaranDisimpan"), row.name));
       queryClient.invalidateQueries({ queryKey: ["budgets", tenant.tenantId, period] });
     },
     onError: (err) => toast("error", (err as Error).message),

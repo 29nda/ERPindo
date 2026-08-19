@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { api, ApiRequestError, formatDate, formatIDR } from "../api/client";
-import { useLang } from "../i18n";
+import { isi, useLang } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { Alert, Button, Card, CardBody, CardHeader, Skeleton, useToast } from "../components/ui";
 import { useWorkspace } from "./app";
@@ -652,7 +652,7 @@ function ScheduledReportsWidget({ tenantId, canRun }: { tenantId: string; canRun
       return api.runReportSnapshot(tenantId, prev.toISOString().slice(0, 7));
     },
     onSuccess: (res) => {
-      toast("success", `Rekap ${res.period} disusun.`);
+      toast("success", isi(u("toastRekapDisusun"), res.period));
       queryClient.invalidateQueries({ queryKey: ["report-snapshots", tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),

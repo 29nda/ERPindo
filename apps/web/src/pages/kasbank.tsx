@@ -21,6 +21,7 @@ import {
   Tr,
   useToast,
 } from "../components/ui";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -152,7 +153,7 @@ export function KasBankPage() {
     onSuccess: (res) => {
       toast(
         "success",
-        `${res.imported} ${u("mutasiDiimporSuffix")} — ${res.autoMatched} ${u("langsungCocokSuffix")}`
+        isi(u("toastMutasiDiimpor"), res.imported, res.autoMatched)
       );
       setCsvText("");
       queryClient.invalidateQueries({ queryKey: ["bank-recon", tenant.tenantId] });
@@ -197,7 +198,7 @@ export function KasBankPage() {
     mutationFn: () =>
       api.pettyCashReplenish(tenant.tenantId, { sourceAccountId: sumberIsiUlang, entryDate: hariIni }),
     onSuccess: (res) => {
-      toast("success", `${formatIDR(res.jumlah)} ${u("kkTerisiSuffix")} — ${res.entryNo}`);
+      toast("success", isi(u("toastKasKecilTerisi"), formatIDR(res.jumlah), res.entryNo));
       segarkanKas();
     },
     onError: (err) => toast("error", (err as Error).message),

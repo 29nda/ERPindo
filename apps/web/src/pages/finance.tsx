@@ -6,6 +6,7 @@ import {
   type ApiJournalTemplate,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { Search } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
@@ -74,7 +75,7 @@ export function AccountsPage() {
     mutationFn: (input: Parameters<typeof api.createAccount>[1]) =>
       api.createAccount(tenant.tenantId, input),
     onSuccess: () => {
-      toast("success", "Akun ditambahkan.");
+      toast("success", u("toastAkunDitambah"));
       queryClient.invalidateQueries({ queryKey: ["accounts", tenant.tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -94,7 +95,7 @@ export function AccountsPage() {
     mutationFn: (vars: { id: string; name: string }) =>
       api.renameAccount(tenant.tenantId, vars.id, vars.name),
     onSuccess: () => {
-      toast("success", "Nama akun diperbarui.");
+      toast("success", u("toastNamaAkunDiperbarui"));
       setRenamingId(null);
       queryClient.invalidateQueries({ queryKey: ["accounts", tenant.tenantId] });
     },
@@ -104,7 +105,7 @@ export function AccountsPage() {
   function saveRename(id: string) {
     const name = renameValue.trim();
     if (name.length < 2) {
-      toast("error", "Nama akun minimal 2 karakter.");
+      toast("error", u("toastNamaAkunPendek"));
       return;
     }
     rename.mutate({ id, name });
@@ -325,7 +326,7 @@ export function JournalPage() {
     onSuccess: (res) => {
       toast(
         "success",
-        `Jurnal ${res.entryNo} dibalik — pembalik ${res.reversalEntryNo} diposting.`
+        isi(u("toastJurnalDibalik"), res.entryNo, res.reversalEntryNo)
       );
       setReverseTarget(null);
       setReverseToday(false);
@@ -366,7 +367,7 @@ export function JournalPage() {
         ...(templateMonthly ? { nextRunDate: templateFirstDate } : {}),
       }),
     onSuccess: () => {
-      toast("success", `Template "${templateName.trim()}" tersimpan.`);
+      toast("success", isi(u("toastTemplateTersimpan"), templateName.trim()));
       setTemplateOpen(false);
       setTemplateName("");
       queryClient.invalidateQueries({ queryKey: ["journal-templates", tenant.tenantId] });
@@ -397,7 +398,7 @@ export function JournalPage() {
           costCenterId: "",
         }))
       );
-      toast("success", "Draf dari Asisten AI dimuat — periksa lalu posting.");
+      toast("success", u("toastDrafAiDimuat"));
     } catch {
       /* draf rusak — abaikan */
     }
@@ -408,7 +409,7 @@ export function JournalPage() {
     mutationFn: (input: Parameters<typeof api.createJournalEntry>[1]) =>
       api.createJournalEntry(tenant.tenantId, input),
     onSuccess: (res) => {
-      toast("success", `Jurnal ${res.entryNo} diposting.`);
+      toast("success", isi(u("toastJurnalDiposting"), res.entryNo));
       setLines([emptyLine(), emptyLine()]);
       setMemo("");
       setError(null);
@@ -660,7 +661,7 @@ export function JournalPage() {
                 costCenterId: "",
               }))
             );
-            toast("success", `Template "${t.name}" dimuat ke form — periksa lalu posting.`);
+            toast("success", isi(u("toastTemplateDimuat"), t.name));
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         />
@@ -1040,7 +1041,7 @@ function TemplatesCard({
   const postNow = useMutation({
     mutationFn: (id: string) => api.postJournalTemplate(tenantId, id),
     onSuccess: (res) => {
-      toast("success", `Jurnal ${res.entryNo} diposting dari template.`);
+      toast("success", isi(u("toastJurnalDariTemplate"), res.entryNo));
       queryClient.invalidateQueries({ queryKey: ["journal", tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),

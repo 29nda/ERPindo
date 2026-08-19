@@ -109,7 +109,7 @@ export function RolesCard({ tenantId }: { tenantId: string }) {
   });
   const del = useMutation({
     mutationFn: (id: string) => api.deleteRole(tenantId, id),
-    onSuccess: () => { toast("success", "Peran dihapus."); setToDelete(null); invalidate(); },
+    onSuccess: () => { toast("success", u("toastPeranDihapus")); setToDelete(null); invalidate(); },
     onError: (e: Error) => toast("error", e.message),
   });
 
@@ -235,7 +235,7 @@ export function MembersCard({ tenantId }: { tenantId: string }) {
   const invite = useMutation({
     mutationFn: (input: { email: string; role: "admin" | "viewer" }) => api.invite(tenantId, input),
     onSuccess: (res) => {
-      toast("success", "Undangan dikirim.");
+      toast("success", u("toastUndanganDikirim"));
       setInviteUrl(res.inviteUrl);
       invalidate();
     },
@@ -251,7 +251,7 @@ export function MembersCard({ tenantId }: { tenantId: string }) {
         : api.assignMemberRole(tenantId, v.userId, { preset: val as "owner" | "admin" | "viewer" });
     },
     onSuccess: () => {
-      toast("success", "Peran anggota diperbarui.");
+      toast("success", u("toastPeranAnggotaDiperbarui"));
       invalidate();
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -260,7 +260,7 @@ export function MembersCard({ tenantId }: { tenantId: string }) {
   const remove = useMutation({
     mutationFn: (userId: string) => api.removeMember(tenantId, userId),
     onSuccess: () => {
-      toast("success", "Anggota dikeluarkan.");
+      toast("success", u("toastAnggotaDikeluarkan"));
       setRemoving(null);
       invalidate();
     },

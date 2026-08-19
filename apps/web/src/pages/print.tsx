@@ -2,6 +2,7 @@ import type { ApiCommerceDoc, ApiEmployee, ApiPayslip, ApiQuotation } from "@erp
 import { useQuery } from "@tanstack/react-query";
 import { api, formatDate, formatIDR } from "../api/client";
 import { Spinner } from "../components/ui";
+import { useUi } from "../i18n/ui";
 
 const MONTH_NAMES_ID = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -19,6 +20,7 @@ function periodLabel(period: string): string {
  * Tombol "Cetak / Simpan PDF" memakai dialog print browser (bisa Save as PDF).
  */
 export function InvoicePrintPage() {
+  const u = useUi();
   const params = new URLSearchParams(window.location.search);
   const tenantId = params.get("tenant") ?? "";
   const invoiceId = params.get("id") ?? "";
@@ -45,7 +47,7 @@ export function InvoicePrintPage() {
     );
   }
   if (!doc) {
-    return <div className="p-8 text-sm">Faktur tidak ditemukan atau Anda tidak punya akses.</div>;
+    return <div className="p-8 text-sm">{u("prFakturTakDitemukan")}</div>;
   }
 
   return (

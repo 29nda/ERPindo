@@ -25,6 +25,7 @@ import {
   useToast,
   PageHeading,
 } from "../components/ui";
+import { isi } from "../i18n";
 import { useUi } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -133,7 +134,7 @@ function RequisitionCard({
           .map((l) => ({ productId: l.productId, qty: Number(l.qty), ...(l.note.trim() ? { note: l.note.trim() } : {}) })),
       }),
     onSuccess: (res) => {
-      toast("success", `${u("toastPermintaanPrefix")} ${res.reqNo} ${u("toastDiajukan")}`);
+      toast("success", isi(u("toastPermintaanDiajukan"), res.reqNo));
       setLines([{ productId: "", qty: "1", note: "" }]);
       setNote("");
       invalidate();
@@ -284,7 +285,7 @@ function PurchaseOrderCard({
         lines: lines.filter((l) => l.productId && Number(l.qty) > 0).map((l) => ({ productId: l.productId, qty: Number(l.qty), unitPrice: Number(l.unitPrice) || 0 })),
       }),
     onSuccess: (res) => {
-      toast("success", `${u("toastPesananPrefix")} ${res.poNo} ${u("toastDibuat")}`);
+      toast("success", isi(u("toastPesananPoDibuat"), res.poNo));
       setHead({ requisitionId: "", contactId: "", warehouseId: "", taxRate: "0", orderDate: today(), expectedDate: "" });
       setLines([{ productId: "", qty: "1", unitPrice: "" }]);
       invalidate();
@@ -424,7 +425,7 @@ function PurchaseOrderRow({ tenantId, order, isAdmin, onChange }: { tenantId: st
         lines: order.lines.map((l) => ({ poLineId: l.id, qtyReceived: Number(recv[l.id]) || 0 })),
       }),
     onSuccess: (res) => {
-      toast("success", `${u("toastBarangDiterimaPrefix")} ${res.purchaseNo} ${u("toastTerbentukStokMasuk")}`);
+      toast("success", isi(u("toastBarangDiterima"), res.purchaseNo));
       setReceiving(false);
       onChange();
     },

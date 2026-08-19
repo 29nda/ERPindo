@@ -7,6 +7,7 @@ import {
   type ProjectTaskPriority,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import {
   CalendarClock,
@@ -110,7 +111,7 @@ export function ProjectsPage() {
         budget: Number(form.budget) || 0,
       }),
     onSuccess: () => {
-      toast("success", "Proyek dibuat.");
+      toast("success", u("toastProyekDibuat"));
       setForm({ code: "", name: "", contactId: "", budget: "" });
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["projects", tenant.tenantId] });
@@ -242,7 +243,7 @@ function ProjectRow({ project, isAdmin }: { project: ApiProject; isAdmin: boolea
   const setStatus = useMutation({
     mutationFn: (status: string) => api.setProjectStatus(tenant.tenantId, project.id, status),
     onSuccess: () => {
-      toast("success", "Status proyek diperbarui.");
+      toast("success", u("toastStatusProyek"));
       invalidate();
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -997,7 +998,7 @@ function MilestonesSection({
         warehouseId: warehouseId || warehouses[0]?.id || "",
       }),
     onSuccess: (res) => {
-      toast("success", `Faktur ${res.docNo} dibuat dari termin (${formatIDR(res.total)}).`);
+      toast("success", isi(u("toastFakturDariTermin"), res.docNo, formatIDR(res.total)));
       setInvoicing(null);
       onChange();
       queryClient.invalidateQueries({ queryKey: ["invoices", tenant.tenantId] });

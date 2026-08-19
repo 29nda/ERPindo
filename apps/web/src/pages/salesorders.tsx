@@ -22,6 +22,7 @@ import {
   useToast,
   PageHeading,
 } from "../components/ui";
+import { isi } from "../i18n";
 import { useUi } from "../i18n/ui";
 import { hargaBaris, useGrupHarga } from "../lib/hargaGrup";
 import { useWorkspace } from "./app";
@@ -180,7 +181,7 @@ function NewOrderCard({ tenantId, products, customers, warehouses }: { tenantId:
           .map((l) => ({ productId: l.productId, qty: Number(l.qty), unitPrice: Number(l.unitPrice) || 0, ...(Number(l.discountPct) > 0 ? { discountPct: Number(l.discountPct) } : {}) })),
       }),
     onSuccess: (res) => {
-      toast("success", `Pesanan ${res.soNo} dibuat.`);
+      toast("success", isi(u("toastPesananDibuat"), res.soNo));
       setHead({ contactId: "", warehouseId: "", taxRate: "0", orderDate: today(), expectedDate: "" });
       setLines([barisKosong()]);
       queryClient.invalidateQueries({ queryKey: ["sales-orders", tenantId] });
@@ -288,22 +289,22 @@ function OrderRow({ order, isAdmin, cashAccounts, companyName }: { order: ApiSal
 
   const deliver = useMutation({
     mutationFn: () => api.deliverSalesOrder(tenant.tenantId, order.id, { deliveryDate: today() }),
-    onSuccess: (res) => { toast("success", `Surat jalan ${res.doNo} — barang keluar.`); invalidate(); },
+    onSuccess: (res) => { toast("success", isi(u("toastSuratJalan"), res.doNo)); invalidate(); },
     onError: (err) => toast("error", (err as Error).message),
   });
   const invoice = useMutation({
     mutationFn: () => api.invoiceSalesOrder(tenant.tenantId, order.id, { invoiceDate: today() }),
-    onSuccess: (res) => { toast("success", `Faktur ${res.invoiceNo} diterbitkan.`); invalidate(); },
+    onSuccess: (res) => { toast("success", isi(u("toastFakturDiterbitkan"), res.invoiceNo)); invalidate(); },
     onError: (err) => toast("error", (err as Error).message),
   });
   const cancel = useMutation({
     mutationFn: () => api.cancelSalesOrder(tenant.tenantId, order.id),
-    onSuccess: () => { toast("success", "Pesanan dibatalkan."); invalidate(); },
+    onSuccess: () => { toast("success", u("toastPesananDibatalkanSo")); invalidate(); },
     onError: (err) => toast("error", (err as Error).message),
   });
   const downPayment = useMutation({
     mutationFn: () => api.soDownPayment(tenant.tenantId, order.id, { amount: Number(dp.amount) || 0, accountId: dp.accountId || cashAccounts[0]?.id || "", paymentDate: today() }),
-    onSuccess: () => { toast("success", "Uang muka dicatat."); setDpOpen(false); setDp({ amount: "", accountId: "" }); invalidate(); },
+    onSuccess: () => { toast("success", u("toastUangMukaDicatat")); setDpOpen(false); setDp({ amount: "", accountId: "" }); invalidate(); },
     onError: (err) => toast("error", (err as Error).message),
   });
 

@@ -16,6 +16,7 @@ import {
   Spinner,
   useToast,
 } from "../components/ui";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -159,7 +160,7 @@ export function CatatPage() {
       return api.createJournalEntry(tenant.tenantId, { entryDate, memo, lines });
     },
     onSuccess: () => {
-      toast("success", `${u("tercatatPrefix")} ${preview ?? u("transaksiTersimpan")}`);
+      toast("success", isi(u("toastTransaksiTercatat"), preview ?? u("transaksiTersimpan")));
       setAmount("");
       setNote("");
       queryClient.invalidateQueries({ queryKey: ["journal", tenant.tenantId] });

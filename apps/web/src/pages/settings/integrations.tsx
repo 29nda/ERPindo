@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ApiRequestError } from "../../api/client";
 import { Alert, Button, Card, CardBody, CardHeader, ConfirmDialog, Input, Label, Select, Spinner, useToast } from "../../components/ui";
+import { isi } from "../../i18n";
 import { useUi } from "../../i18n/ui";
 
 export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
@@ -33,7 +34,7 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
   const revokeKey = useMutation({
     mutationFn: (id: string) => api.revokeApiKey(tenantId, id),
     onSuccess: () => {
-      toast("success", "API key dicabut.");
+      toast("success", u("toastApiKeyDicabut"));
       queryClient.invalidateQueries({ queryKey: ["api-keys", tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -50,7 +51,7 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
   const deleteHook = useMutation({
     mutationFn: (id: string) => api.deleteWebhook(tenantId, id),
     onSuccess: () => {
-      toast("success", "Webhook dihapus.");
+      toast("success", u("toastWebhookDihapus"));
       queryClient.invalidateQueries({ queryKey: ["webhooks", tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -221,7 +222,7 @@ export function CloseBooksCard({ tenantId }: { tenantId: string }) {
   const closing = useMutation({
     mutationFn: () => api.closingEntry(tenantId, date),
     onSuccess: (res) => {
-      toast("success", `Jurnal penutup ${res.entryNo} diposting — laba/rugi bersih dipindahkan ke Laba Ditahan.`);
+      toast("success", isi(u("toastJurnalPenutup"), res.entryNo));
       setClosingOpen(false);
     },
     onError: (err) => {
@@ -232,7 +233,7 @@ export function CloseBooksCard({ tenantId }: { tenantId: string }) {
   const close = useMutation({
     mutationFn: () => api.closeBooks(tenantId, date),
     onSuccess: (res) => {
-      toast("success", `Pembukuan dikunci sampai ${res.lockedBefore}.`);
+      toast("success", isi(u("toastBukuDikunci"), res.lockedBefore));
       setConfirmOpen(false);
       queryClient.invalidateQueries({ queryKey: ["settings", tenantId] });
     },
