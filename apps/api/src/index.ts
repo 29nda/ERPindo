@@ -176,7 +176,7 @@ const app = new Hono<AppEnv>()
   .route("/api/invites", inviteRoutes)
   .notFound((c) =>
     c.req.path.startsWith("/api/")
-      ? c.json({ error: "Endpoint tidak ditemukan." }, 404)
+      ? c.json({ error: "Endpoint tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404)
       : c.env.ASSETS.fetch(c.req.raw),
   )
   .onError((err, c) => {

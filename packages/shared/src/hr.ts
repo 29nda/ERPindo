@@ -49,7 +49,7 @@ export type ApiOrgNode = {
 /** Jalankan penggajian: satu bulan + akun kas pembayar. */
 export const runPayrollSchema = z.object({
   period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Periode harus berformat YYYY-MM"),
-  cashAccountId: z.string().min(1, "Akun kas/bank wajib dipilih"),
+  cashAccountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
   paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
 });
 export type RunPayrollInput = z.infer<typeof runPayrollSchema>;
@@ -143,7 +143,7 @@ export const employeeLoanSchema = z
     name: z.string().trim().min(2, "Keterangan minimal 2 karakter").max(100),
     principal: amountSchema.refine((v) => v > 0, "Pokok pinjaman harus lebih dari 0"),
     monthlyDeduction: amountSchema.refine((v) => v > 0, "Cicilan per bulan harus lebih dari 0"),
-    cashAccountId: z.string().min(1, "Akun kas/bank wajib dipilih"),
+    cashAccountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
     loanDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
   })
   .refine((v) => v.monthlyDeduction <= v.principal, {
@@ -287,7 +287,7 @@ export const fixedAssetSchema = z
     acquisitionCost: z.number().int().min(1, "Nilai perolehan minimal Rp 1").max(1_000_000_000_000),
     usefulLifeMonths: z.number().int().min(1, "Masa manfaat minimal 1 bulan").max(600),
     residualValue: amountSchema.default(0),
-    cashAccountId: z.string().min(1, "Akun kas/bank wajib dipilih"),
+    cashAccountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
     // Fase 22d. Bawaannya `garis_lurus` supaya bentuk permintaan lama tetap sah
     // dan perilakunya persis seperti sebelum fase ini.
     depreciationMethod: z.enum(METODE_PENYUSUTAN).default("garis_lurus"),
@@ -335,7 +335,7 @@ export type RunDepreciationInput = z.infer<typeof runDepreciationSchema>;
 export const disposeAssetSchema = z.object({
   disposalDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
   proceeds: amountSchema.default(0),
-  cashAccountId: z.string().min(1, "Akun kas/bank wajib dipilih"),
+  cashAccountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
 });
 export type DisposeAssetInput = z.infer<typeof disposeAssetSchema>;
 

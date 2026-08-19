@@ -649,7 +649,7 @@ export async function voidDoc(
       journal_entry_id: string;
     }>();
   const doc = docs[0];
-  if (!doc) return { error: "Dokumen tidak ditemukan.", status: 404 };
+  if (!doc) return { error: "Dokumen tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru.", status: 404 };
   if (doc.voided_at) return { error: "Dokumen sudah dibatalkan sebelumnya.", status: 400 };
   if (doc.paid_amount > 0) {
     return { error: "Dokumen sudah menerima pembayaran — batalkan lewat Retur, bukan void.", status: 400 };

@@ -79,7 +79,7 @@ export const budgetRoutes = new Hono<AppEnv>()
       .prepare(`SELECT type FROM accounts WHERE id = ? AND is_archived = 0`)
       .bind(input.accountId)
       .all<{ type: string }>();
-    if (!accs[0]) return c.json({ error: "Akun tidak ditemukan." }, 400);
+    if (!accs[0]) return c.json({ error: "Akun tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
     if (!["income", "expense"].includes(accs[0].type)) {
       return c.json({ error: "Anggaran hanya untuk akun pendapatan atau beban." }, 400);
     }

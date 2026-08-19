@@ -83,9 +83,9 @@ export const manufacturingRoutingRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, tenant.dbRef);
     const productionId = c.req.param("id");
     const prod = await db.prepare(`SELECT id FROM production_orders WHERE id = ?`).bind(productionId).all<{ id: string }>();
-    if (!prod.results[0]) return c.json({ error: "Perintah produksi tidak ditemukan." }, 404);
+    if (!prod.results[0]) return c.json({ error: "Perintah produksi tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const wc = await db.prepare(`SELECT id FROM work_centers WHERE id = ? AND is_archived = 0`).bind(parsed.data.workCenterId).all<{ id: string }>();
-    if (!wc.results[0]) return c.json({ error: "Work center tidak ditemukan." }, 400);
+    if (!wc.results[0]) return c.json({ error: "Work center tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
     const { results: maxRows } = await db.prepare(`SELECT COALESCE(MAX(step_order), 0) AS m FROM production_routing_steps WHERE production_id = ?`).bind(productionId).all<{ m: number }>();
     const id = crypto.randomUUID();
     await db
@@ -104,7 +104,7 @@ export const manufacturingRoutingRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, tenant.dbRef);
     const stepId = c.req.param("stepId");
     const { results } = await db.prepare(`SELECT id, status FROM production_routing_steps WHERE id = ? AND production_id = ?`).bind(stepId, c.req.param("id")).all<{ id: string; status: string }>();
-    if (!results[0]) return c.json({ error: "Tahap routing tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Tahap routing tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (results[0].status === "done") return c.json({ error: "Tahap ini sudah selesai." }, 409);
     await db.prepare(`UPDATE production_routing_steps SET actual_cost = ?, status = 'done' WHERE id = ?`).bind(parsed.data.actualCost, stepId).run();
     await audit(c.env, { action: "manufacturing.routing.completed", userId: c.get("user").id, tenantId: tenant.id, detail: { stepId, actual: parsed.data.actualCost }, ip: clientIp(c) });

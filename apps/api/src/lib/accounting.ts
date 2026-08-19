@@ -25,6 +25,26 @@ export const SYS_ACCOUNTS = {
   PRODUKSI_DISERAP: "5-2100",
 } as const;
 
+/**
+ * Satu kalimat untuk SATU aturan: akun yang dipakai membayar atau menerima uang
+ * harus bertipe **aset** dan belum diarsipkan.
+ *
+ * Fase 33g — aturan ini sebelumnya diucapkan dengan **sembilan bunyi berbeda**
+ * di sebelas tempat: "Akun pembayar harus akun kas/bank (aset).", "Akun
+ * pembayaran harus akun kas/bank (tipe aset).", "Akun refund harus akun aset
+ * (kas/bank) yang aktif.", dan seterusnya. Aturannya sama persis; yang berbeda
+ * hanya kata yang kebetulan dipilih penulisnya saat itu.
+ *
+ * Akibatnya bukan sekadar tidak rapi: pengguna yang menemuinya di dua layar
+ * berbeda tidak punya cara tahu bahwa ia sedang menabrak aturan yang sama.
+ *
+ * Peran (`pembayar`, `penerima`, `sumber`, …) tetap disebut karena di layar
+ * dengan beberapa pilihan akun, ia satu-satunya petunjuk kolom mana yang salah.
+ */
+export function galatAkunKasBank(peran: string): string {
+  return `Akun ${peran} harus akun kas atau bank yang masih aktif. Pilih salah satunya di daftar akun.`;
+}
+
 export async function accountIdByCode(db: SqlExecutor, code: string): Promise<string> {
   const { results } = await db.prepare(`SELECT id FROM accounts WHERE code = ?`).bind(code).all<{ id: string }>();
   const row = results[0];

@@ -51,7 +51,7 @@ export const leadFormRoutes = new Hono<AppEnv>().post(
     )
       .bind(c.req.param("slug"))
       .first<{ id: string; db_ref: string }>();
-    if (!tenant) return c.json({ error: "Form tidak ditemukan." }, 404);
+    if (!tenant) return c.json({ error: "Form tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const db = getTenantDb(c.env, tenant.db_ref);
     const { results } = await db

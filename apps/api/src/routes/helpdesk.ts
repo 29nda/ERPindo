@@ -81,7 +81,7 @@ export const helpdeskRoutes = new Hono<AppEnv>()
   .get("/:tenantId/tickets/:id", requireAuth, requireTenantRole("viewer"), async (c) => {
     const db = getTenantDb(c.env, c.get("tenant").dbRef);
     const row = await loadTicket(db, c.req.param("id"));
-    if (!row) return c.json({ error: "Tiket tidak ditemukan." }, 404);
+    if (!row) return c.json({ error: "Tiket tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const { results: replies } = await db
       .prepare(
@@ -119,7 +119,7 @@ export const helpdeskRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM contacts WHERE id = ? AND is_archived = 0`)
       .bind(input.contactId)
       .all<{ id: string }>();
-    if (!contact[0]) return c.json({ error: "Kontak tidak ditemukan." }, 400);
+    if (!contact[0]) return c.json({ error: "Kontak tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
 
     const id = crypto.randomUUID();
     const ticketNo = await nextDocNo(db, "tickets", "TKT");
@@ -152,7 +152,7 @@ export const helpdeskRoutes = new Hono<AppEnv>()
     const user = c.get("user");
 
     const { results: t } = await db.prepare(`SELECT id FROM tickets WHERE id = ?`).bind(id).all<{ id: string }>();
-    if (!t[0]) return c.json({ error: "Tiket tidak ditemukan." }, 404);
+    if (!t[0]) return c.json({ error: "Tiket tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     await db
       .prepare(
@@ -186,7 +186,7 @@ export const helpdeskRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id, status FROM tickets WHERE id = ?`)
       .bind(id)
       .all<{ id: string; status: string }>();
-    if (!t[0]) return c.json({ error: "Tiket tidak ditemukan." }, 404);
+    if (!t[0]) return c.json({ error: "Tiket tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     // Penugasan: assignedTo harus anggota tenant (dilihat dari control-plane).
     if (input.assignedTo !== undefined) {

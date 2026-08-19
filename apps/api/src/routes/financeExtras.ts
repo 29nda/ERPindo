@@ -15,7 +15,7 @@ import {
 import type { SqlExecutor } from "@erpindo/db";
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { postJournal, PeriodLockedError, SYS_ACCOUNTS } from "../lib/accounting";
+import { galatAkunKasBank, postJournal, PeriodLockedError, SYS_ACCOUNTS } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { getTenantDb } from "../lib/tenantDb";
 import { requireAuth, requireTenantRole } from "../middleware/auth";
@@ -121,7 +121,7 @@ export async function postClosingEntry(
   const retained = (
     await db.prepare(`SELECT id FROM accounts WHERE code = '3-2000'`).all<{ id: string }>()
   ).results[0];
-  if (!retained) return { error: "Akun Laba Ditahan (3-2000) tidak ditemukan." };
+  if (!retained) return { error: "Akun Laba Ditahan (3-2000) tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." };
 
   // Balik saldo tiap akun P/L (income bersaldo kredit → debit; expense sebaliknya),
   // selisihnya (laba/rugi bersih) mendarat di Laba Ditahan.
@@ -251,7 +251,7 @@ export async function postForexRevaluation(
     idAkun(db, AKUN_LABA_KURS),
     idAkun(db, AKUN_RUGI_KURS),
   ]);
-  if (!idPiutang || !idHutang || !idLaba || !idRugi) return { error: "Akun sistem selisih kurs tidak ditemukan." };
+  if (!idPiutang || !idHutang || !idLaba || !idRugi) return { error: "Akun sistem selisih kurs tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." };
 
   const baris: { accountId: string; description: string; debit: number; credit: number }[] = [];
   if (selisihPiutang !== 0) {
@@ -515,7 +515,7 @@ export const financeExtraRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, c.get("tenant").dbRef);
     const { results } = await db.prepare(`SELECT * FROM journal_templates WHERE id = ?`).bind(c.req.param("id")).all<TemplateRow>();
     const t = results[0];
-    if (!t) return c.json({ error: "Template tidak ditemukan." }, 404);
+    if (!t) return c.json({ error: "Template tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     try {
       const res = await postJournal(db, {
         entryDate: new Date().toISOString().slice(0, 10),
@@ -542,7 +542,7 @@ export const financeExtraRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM accounts WHERE id = ? AND type = 'asset' AND is_archived = 0`)
       .bind(accountId)
       .all();
-    if (acc.results.length === 0) return c.json({ error: "Pilih akun kas/bank yang valid." }, 400);
+    if (acc.results.length === 0) return c.json({ error: "Akun kas atau bank itu tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar akun." }, 400);
 
     const candidates = await candidateLines(db, accountId);
     const used = new Set<string>();
@@ -608,7 +608,7 @@ export const financeExtraRoutes = new Hono<AppEnv>()
     const item = (
       await db.prepare(`SELECT id, account_id FROM bank_statement_items WHERE id = ?`).bind(c.req.param("itemId")).all<{ id: string; account_id: string }>()
     ).results[0];
-    if (!item) return c.json({ error: "Baris mutasi tidak ditemukan." }, 404);
+    if (!item) return c.json({ error: "Baris mutasi tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const line = (
       await db.prepare(`SELECT id FROM journal_lines WHERE id = ? AND account_id = ?`).bind(body.journalLineId, item.account_id).all()
     ).results[0];
@@ -719,7 +719,7 @@ export const financeExtraRoutes = new Hono<AppEnv>()
         .all<AkunRingkas>()
     ).results[0];
     if (!sumber || sumber.type !== "asset" || sumber.is_archived) {
-      return c.json({ error: "Akun sumber harus akun kas/bank (aset) yang aktif." }, 400);
+      return c.json({ error: galatAkunKasBank("sumber") }, 400);
     }
     // Memindahkan uang dari kas kecil ke kas kecil: jurnalnya SEIMBANG, saldonya
     // tidak berubah, dan layarnya akan melaporkan pengisian yang berhasil.

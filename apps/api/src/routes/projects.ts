@@ -181,7 +181,7 @@ export const projectRoutes = new Hono<AppEnv>()
     const id = c.req.param("id");
 
     const { results } = await db.prepare(`SELECT id FROM projects WHERE id = ?`).bind(id).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Proyek tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Proyek tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     await db.prepare(`UPDATE projects SET status = ? WHERE id = ?`).bind(parsed.data.status, id).run();
     await audit(c.env, {
@@ -198,7 +198,7 @@ export const projectRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, c.get("tenant").dbRef);
     const id = c.req.param("id");
     const row = await fetchProject(db, id);
-    if (!row) return c.json({ error: "Proyek tidak ditemukan." }, 404);
+    if (!row) return c.json({ error: "Proyek tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const { results: tasks } = await db
       .prepare(
@@ -350,13 +350,13 @@ export const projectRoutes = new Hono<AppEnv>()
     const projectId = c.req.param("id");
 
     const { results } = await db.prepare(`SELECT id FROM projects WHERE id = ?`).bind(projectId).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Proyek tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Proyek tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     // Validasi penanggung jawab bila diisi.
     const assigneeId = parsed.data.assigneeId && parsed.data.assigneeId.length > 0 ? parsed.data.assigneeId : null;
     if (assigneeId) {
       const { results: emp } = await db.prepare(`SELECT id FROM employees WHERE id = ?`).bind(assigneeId).all<{ id: string }>();
-      if (!emp[0]) return c.json({ error: "Penanggung jawab tidak ditemukan." }, 404);
+      if (!emp[0]) return c.json({ error: "Penanggung jawab tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     }
 
     // Tugas baru masuk ke akhir kolom todo (sort_order = maks + 1).
@@ -379,7 +379,7 @@ export const projectRoutes = new Hono<AppEnv>()
     const taskId = c.req.param("taskId");
 
     const { results } = await db.prepare(`SELECT id FROM project_tasks WHERE id = ?`).bind(taskId).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Tugas tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Tugas tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const sets: string[] = [];
     const vals: unknown[] = [];
@@ -390,7 +390,7 @@ export const projectRoutes = new Hono<AppEnv>()
       const assigneeId = parsed.data.assigneeId && parsed.data.assigneeId.length > 0 ? parsed.data.assigneeId : null;
       if (assigneeId) {
         const { results: emp } = await db.prepare(`SELECT id FROM employees WHERE id = ?`).bind(assigneeId).all<{ id: string }>();
-        if (!emp[0]) return c.json({ error: "Penanggung jawab tidak ditemukan." }, 404);
+        if (!emp[0]) return c.json({ error: "Penanggung jawab tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
       }
       sets.push("assignee_id = ?");
       vals.push(assigneeId);
@@ -426,7 +426,7 @@ export const projectRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, tenant.dbRef);
     const projectId = c.req.param("id");
     const { results } = await db.prepare(`SELECT id FROM projects WHERE id = ?`).bind(projectId).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Proyek tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Proyek tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const id = crypto.randomUUID();
     await db
@@ -452,7 +452,7 @@ export const projectRoutes = new Hono<AppEnv>()
       .bind(projectId)
       .all<{ contact_id: string | null }>();
     const proj = projs[0];
-    if (!proj) return c.json({ error: "Proyek tidak ditemukan." }, 404);
+    if (!proj) return c.json({ error: "Proyek tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (!proj.contact_id) return c.json({ error: "Proyek belum punya pelanggan — tetapkan pelanggan sebelum menagih termin." }, 400);
 
     const { results: ms } = await db
@@ -460,7 +460,7 @@ export const projectRoutes = new Hono<AppEnv>()
       .bind(mid, projectId)
       .all<{ name: string; amount: number; status: string }>();
     const milestone = ms[0];
-    if (!milestone) return c.json({ error: "Termin tidak ditemukan." }, 404);
+    if (!milestone) return c.json({ error: "Termin tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (milestone.status === "invoiced") return c.json({ error: "Termin ini sudah difakturkan." }, 400);
 
     const serviceProductId = await ensureServiceProduct(db);
@@ -497,7 +497,7 @@ export const projectRoutes = new Hono<AppEnv>()
       .prepare(`SELECT status FROM project_milestones WHERE id = ? AND project_id = ?`)
       .bind(mid, c.req.param("id"))
       .all<{ status: string }>();
-    if (!results[0]) return c.json({ error: "Termin tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Termin tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (results[0].status === "invoiced") return c.json({ error: "Termin yang sudah difakturkan tidak bisa dihapus." }, 409);
     await db.prepare(`DELETE FROM project_milestones WHERE id = ?`).bind(mid).run();
     return c.json({ ok: true });
@@ -515,7 +515,7 @@ export const projectRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, c.get("tenant").dbRef);
     const projectId = c.req.param("id");
     const { results } = await db.prepare(`SELECT id FROM projects WHERE id = ?`).bind(projectId).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Proyek tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Proyek tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const id = crypto.randomUUID();
     await db
       .prepare(`INSERT INTO project_budgets (id, project_id, category, planned_amount) VALUES (?, ?, ?, ?)`)
@@ -530,7 +530,7 @@ export const projectRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM project_budgets WHERE id = ? AND project_id = ?`)
       .bind(c.req.param("bid"), c.req.param("id"))
       .all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Baris RAB tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Baris RAB tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     await db.prepare(`DELETE FROM project_budgets WHERE id = ?`).bind(c.req.param("bid")).run();
     return c.json({ ok: true });
   })
@@ -548,14 +548,14 @@ export const projectRoutes = new Hono<AppEnv>()
     const projectId = c.req.param("id");
     const input = parsed.data;
     const { results } = await db.prepare(`SELECT id FROM projects WHERE id = ?`).bind(projectId).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Proyek tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Proyek tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     if (input.employeeId) {
       const { results: emp } = await db
         .prepare(`SELECT id FROM employees WHERE id = ?`)
         .bind(input.employeeId)
         .all<{ id: string }>();
-      if (!emp[0]) return c.json({ error: "Karyawan tidak ditemukan." }, 404);
+      if (!emp[0]) return c.json({ error: "Karyawan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     }
 
     const id = crypto.randomUUID();
@@ -572,7 +572,7 @@ export const projectRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM time_entries WHERE id = ? AND project_id = ?`)
       .bind(c.req.param("eid"), c.req.param("id"))
       .all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Entri timesheet tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Entri timesheet tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     await db.prepare(`DELETE FROM time_entries WHERE id = ?`).bind(c.req.param("eid")).run();
     return c.json({ ok: true });
   });

@@ -92,7 +92,7 @@ export type ApiApprovalFlow = {
 export const createPaymentSchema = z.object({
   refType: z.enum(["invoice", "purchase"]),
   refId: z.string().min(1),
-  accountId: z.string().min(1, "Akun kas/bank wajib dipilih"),
+  accountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
   /** Nominal IDR (dokumen IDR). Untuk dokumen valas, isi foreignAmount + exchangeRate. */
   amount: z.number().int().min(1, "Nominal minimal Rp 1").optional(),
   /** Jumlah dibayar dalam mata uang faktur (dokumen valas). */

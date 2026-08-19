@@ -23,6 +23,7 @@ import {
   stockIn,
   stockOut,
   SYS_ACCOUNTS,
+  galatAkunKasBank,
 } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { emitWebhook } from "../lib/webhooks";
@@ -349,7 +350,7 @@ export const commerceRoutes = new Hono<AppEnv>()
       .bind(input.refId)
       .all<{ doc_no: string; total: number; paid_amount: number; returned_amount: number; currency: string; exchange_rate: number; voided_at: string | null }>();
     const doc = docs[0];
-    if (!doc) return c.json({ error: "Dokumen tidak ditemukan." }, 404);
+    if (!doc) return c.json({ error: "Dokumen tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (doc.voided_at) return c.json({ error: "Dokumen sudah dibatalkan — tidak bisa menerima pembayaran." }, 400);
     const lockError = await checkPeriodOpen(db, input.paymentDate);
     if (lockError) return c.json({ error: lockError }, 400);
@@ -394,7 +395,7 @@ export const commerceRoutes = new Hono<AppEnv>()
       .bind(input.accountId)
       .all<{ type: string }>();
     if (!accs[0] || accs[0].type !== "asset") {
-      return c.json({ error: "Akun pembayaran harus akun kas/bank (tipe aset)." }, 400);
+      return c.json({ error: galatAkunKasBank("pembayaran") }, 400);
     }
 
     const counterId = await accountIdByCode(db, direction === "receive" ? SYS_ACCOUNTS.PIUTANG : SYS_ACCOUNTS.HUTANG);
@@ -576,7 +577,7 @@ export const commerceRoutes = new Hono<AppEnv>()
         voided_at: string | null;
       }>();
     const payment = rows[0];
-    if (!payment) return c.json({ error: "Pembayaran tidak ditemukan." }, 404);
+    if (!payment) return c.json({ error: "Pembayaran tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (payment.voided_at) return c.json({ error: "Pembayaran sudah dibatalkan sebelumnya." }, 400);
 
     // JEBAKAN POS: pembayaran POS berbagi journal_entry_id dengan faktur
@@ -665,7 +666,7 @@ export const commerceRoutes = new Hono<AppEnv>()
       .bind(input.productId)
       .all<{ sku: string; name: string }>();
     const product = products[0];
-    if (!product) return c.json({ error: "Produk tidak ditemukan." }, 400);
+    if (!product) return c.json({ error: "Produk tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
 
     const { results: levels } = await db
       .prepare(`SELECT qty, avg_cost FROM stock_levels WHERE product_id = ? AND warehouse_id = ?`)
@@ -769,7 +770,7 @@ export const commerceRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM warehouses WHERE is_archived = 0 AND id IN (?, ?)`)
       .bind(input.fromWarehouseId, input.toWarehouseId)
       .all<{ id: string }>();
-    if (whs.length !== 2) return c.json({ error: "Gudang asal/tujuan tidak ditemukan." }, 400);
+    if (whs.length !== 2) return c.json({ error: "Gudang asal/tujuan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
 
     const transferId = crypto.randomUUID();
     let cost: number;

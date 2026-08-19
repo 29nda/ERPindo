@@ -152,7 +152,7 @@ export const tenantRoutes = new Hono<AppEnv>()
     const target = await c.env.DB.prepare(`SELECT role FROM memberships WHERE tenant_id = ? AND user_id = ?`)
       .bind(tenant.id, targetUserId)
       .first<{ role: Role }>();
-    if (!target) return c.json({ error: "Anggota tidak ditemukan." }, 404);
+    if (!target) return c.json({ error: "Anggota tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     // Menurunkan owner terakhir menghilangkan pemilik → tolak.
     if (target.role === "owner" && newRole !== "owner") {
@@ -187,7 +187,7 @@ export const tenantRoutes = new Hono<AppEnv>()
     const target = await c.env.DB.prepare(`SELECT role FROM memberships WHERE tenant_id = ? AND user_id = ?`)
       .bind(tenant.id, targetUserId)
       .first<{ role: Role }>();
-    if (!target) return c.json({ error: "Anggota tidak ditemukan." }, 404);
+    if (!target) return c.json({ error: "Anggota tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (target.role === "owner") {
       const owners = await c.env.DB.prepare(
         `SELECT COUNT(*) AS n FROM memberships WHERE tenant_id = ? AND role = 'owner'`,
@@ -269,7 +269,7 @@ export const tenantRoutes = new Hono<AppEnv>()
     const tenant = c.get("tenant");
     const roleId = c.req.param("roleId");
     const existing = await c.env.DB.prepare(`SELECT id FROM custom_roles WHERE id = ? AND tenant_id = ?`).bind(roleId, tenant.id).first<{ id: string }>();
-    if (!existing) return c.json({ error: "Peran tidak ditemukan." }, 404);
+    if (!existing) return c.json({ error: "Peran tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const scopeJsonUpd = parsed.data.scopeCostCenterIds?.length ? JSON.stringify(parsed.data.scopeCostCenterIds) : null;
     // Fase 26d (temuan audit H): predikat tenant ikut dibawa ke MUTASI, bukan
     // hanya ke cek keberadaan di atas. Cek-lalu-ubah menyandarkan isolasi pada
@@ -310,7 +310,7 @@ export const tenantRoutes = new Hono<AppEnv>()
     const tenant = c.get("tenant");
     const targetUserId = c.req.param("userId");
     const target = await c.env.DB.prepare(`SELECT role FROM memberships WHERE tenant_id = ? AND user_id = ?`).bind(tenant.id, targetUserId).first<{ role: Role }>();
-    if (!target) return c.json({ error: "Anggota tidak ditemukan." }, 404);
+    if (!target) return c.json({ error: "Anggota tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     if (parsed.data.preset) {
       // Menurunkan owner terakhir → tolak.
@@ -321,7 +321,7 @@ export const tenantRoutes = new Hono<AppEnv>()
       await c.env.DB.prepare(`UPDATE memberships SET role = ?, custom_role_id = NULL WHERE tenant_id = ? AND user_id = ?`).bind(parsed.data.preset, tenant.id, targetUserId).run();
     } else {
       const role = await c.env.DB.prepare(`SELECT base_role FROM custom_roles WHERE id = ? AND tenant_id = ?`).bind(parsed.data.customRoleId, tenant.id).first<{ base_role: "admin" | "viewer" }>();
-      if (!role) return c.json({ error: "Peran kustom tidak ditemukan." }, 404);
+      if (!role) return c.json({ error: "Peran kustom tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
       if (target.role === "owner") {
         const owners = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM memberships WHERE tenant_id = ? AND role = 'owner'`).bind(tenant.id).first<{ n: number }>();
         if ((owners?.n ?? 0) <= 1) return c.json({ error: "Tidak bisa menurunkan pemilik terakhir." }, 400);

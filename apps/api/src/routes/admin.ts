@@ -423,7 +423,7 @@ export const adminRoutes = new Hono<AppEnv>()
     const { plan, status, legacyFullAccess, subscriptionEndsAt } = parsed.data;
 
     const exists = await c.env.DB.prepare(`SELECT id FROM tenants WHERE id = ?`).bind(tenantId).first();
-    if (!exists) return c.json({ error: "Perusahaan tidak ditemukan." }, 404);
+    if (!exists) return c.json({ error: "Perusahaan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     // Bangun UPDATE dinamis hanya untuk field yang dikirim.
     const sets: string[] = ["plan = ?"];
@@ -498,7 +498,7 @@ export const adminRoutes = new Hono<AppEnv>()
     const body = (await c.req.json().catch(() => ({}))) as { status?: string; adminNote?: string };
     const id = c.req.param("id");
     const row = await c.env.DB.prepare(`SELECT id FROM feedback WHERE id = ?`).bind(id).first<{ id: string }>();
-    if (!row) return c.json({ error: "Masukan tidak ditemukan." }, 404);
+    if (!row) return c.json({ error: "Masukan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const status = body.status && (FEEDBACK_STATUSES as readonly string[]).includes(body.status) ? body.status : null;
     const note = typeof body.adminNote === "string" ? body.adminNote.slice(0, 500) : null;
     if (!status && note === null) return c.json({ error: "Tidak ada perubahan." }, 400);
@@ -552,7 +552,7 @@ export const adminRoutes = new Hono<AppEnv>()
   .patch("/blog-posts/:id", requireAuth, requirePlatformAdmin, async (c) => {
     const id = c.req.param("id");
     const row = await c.env.DB.prepare(`SELECT * FROM blog_posts WHERE id = ?`).bind(id).first<BlogRow>();
-    if (!row) return c.json({ error: "Artikel tidak ditemukan." }, 404);
+    if (!row) return c.json({ error: "Artikel tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
 
     // Terbit/tarik: { published: true|false } — kolom lain lewat skema penuh.
@@ -600,7 +600,7 @@ export const adminRoutes = new Hono<AppEnv>()
   .delete("/blog-posts/:id", requireAuth, requirePlatformAdmin, async (c) => {
     const id = c.req.param("id");
     const row = await c.env.DB.prepare(`SELECT slug FROM blog_posts WHERE id = ?`).bind(id).first<{ slug: string }>();
-    if (!row) return c.json({ error: "Artikel tidak ditemukan." }, 404);
+    if (!row) return c.json({ error: "Artikel tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     await c.env.DB.prepare(`DELETE FROM blog_posts WHERE id = ?`).bind(id).run();
     await audit(c.env, {
       action: "admin.blog_deleted",

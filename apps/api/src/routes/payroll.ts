@@ -30,6 +30,7 @@ import {
   PeriodLockedError,
   postJournal,
   reverseJournal,
+  galatAkunKasBank,
 } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { getTenantDb } from "../lib/tenantDb";
@@ -222,7 +223,7 @@ export const payrollRoutes = new Hono<AppEnv>()
     const id = c.req.param("id");
 
     const { results } = await db.prepare(`SELECT id FROM employees WHERE id = ?`).bind(id).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Karyawan tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Karyawan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     // Nonaktifkan/aktifkan atau perbarui field via skema parsial.
     if (typeof body.isActive === "boolean") {
@@ -377,7 +378,7 @@ export const payrollRoutes = new Hono<AppEnv>()
       .prepare(`SELECT type FROM accounts WHERE id = ? AND is_archived = 0`)
       .bind(input.cashAccountId)
       .all<{ type: string }>();
-    if (!accs[0] || accs[0].type !== "asset") return c.json({ error: "Akun pembayar harus akun kas/bank (aset)." }, 400);
+    if (!accs[0] || accs[0].type !== "asset") return c.json({ error: galatAkunKasBank("pembayar") }, 400);
 
     const { results: emps } = await db
       .prepare(`SELECT id, ptkp_status, base_salary, allowances FROM employees WHERE is_active = 1`)
@@ -540,7 +541,7 @@ export const payrollRoutes = new Hono<AppEnv>()
       .bind(runId)
       .all<{ id: string; run_no: string; period: string; journal_entry_id: string; voided_at: string | null }>();
     const run = runs[0];
-    if (!run) return c.json({ error: "Penggajian tidak ditemukan." }, 404);
+    if (!run) return c.json({ error: "Penggajian tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (run.voided_at) return c.json({ error: "Penggajian sudah dibatalkan sebelumnya." }, 400);
 
     // Guard urutan: hanya run aktif TERBARU yang boleh dibatalkan — saldo
@@ -700,7 +701,7 @@ export const payrollRoutes = new Hono<AppEnv>()
       .prepare(`SELECT run_id FROM payroll_adjustments WHERE id = ?`)
       .bind(id)
       .all<{ run_id: string | null }>();
-    if (!results[0]) return c.json({ error: "Komponen tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Komponen tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (results[0].run_id) return c.json({ error: "Komponen sudah terpakai di penggajian — tidak bisa dihapus." }, 409);
     await db.prepare(`DELETE FROM payroll_adjustments WHERE id = ?`).bind(id).run();
     await audit(c.env, {
@@ -774,7 +775,7 @@ export const payrollRoutes = new Hono<AppEnv>()
       .prepare(`SELECT type FROM accounts WHERE id = ? AND is_archived = 0`)
       .bind(input.cashAccountId)
       .all<{ type: string }>();
-    if (!accs[0] || accs[0].type !== "asset") return c.json({ error: "Akun pencairan harus akun kas/bank (aset)." }, 400);
+    if (!accs[0] || accs[0].type !== "asset") return c.json({ error: galatAkunKasBank("pencairan") }, 400);
 
     const lockedBefore = await getLockedBefore(db);
     if (lockedBefore && input.loanDate <= lockedBefore) {
@@ -900,7 +901,7 @@ export const payrollRoutes = new Hono<AppEnv>()
       .bind(id)
       .all<{ employee_id: string; type: LeaveType; days: number; status: string }>();
     const req = results[0];
-    if (!req) return c.json({ error: "Pengajuan tidak ditemukan." }, 404);
+    if (!req) return c.json({ error: "Pengajuan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (req.status !== "pending") return c.json({ error: "Pengajuan sudah diputuskan." }, 409);
 
     if (parsed.data.status === "approved" && req.type === "annual") {
@@ -1064,7 +1065,7 @@ export const payrollRoutes = new Hono<AppEnv>()
       .prepare(`SELECT employee_id, date FROM attendance WHERE id = ?`)
       .bind(id)
       .all<{ employee_id: string; date: string }>();
-    if (!results[0]) return c.json({ error: "Catatan kehadiran tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Catatan kehadiran tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     await db.prepare(`DELETE FROM attendance WHERE id = ?`).bind(id).run();
     await audit(c.env, {
       action: "hr.attendance.deleted",

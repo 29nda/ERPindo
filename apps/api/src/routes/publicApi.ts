@@ -145,7 +145,7 @@ export const publicApiAdminRoutes = new Hono<AppEnv>()
     const res = await c.env.DB.prepare(`UPDATE api_keys SET revoked_at = ? WHERE id = ? AND tenant_id = ? AND revoked_at IS NULL`)
       .bind(now(), id, tenant.id)
       .run();
-    if (!res.meta.changes) return c.json({ error: "API key tidak ditemukan." }, 404);
+    if (!res.meta.changes) return c.json({ error: "API key tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     await audit(c.env, { action: "api.key_revoked", userId: c.get("user").id, tenantId: tenant.id, detail: { id }, ip: clientIp(c) });
     return c.json({ ok: true });
   })
@@ -199,7 +199,7 @@ export const publicApiAdminRoutes = new Hono<AppEnv>()
     const tenant = c.get("tenant");
     const id = c.req.param("id");
     const res = await c.env.DB.prepare(`DELETE FROM webhooks WHERE id = ? AND tenant_id = ?`).bind(id, tenant.id).run();
-    if (!res.meta.changes) return c.json({ error: "Webhook tidak ditemukan." }, 404);
+    if (!res.meta.changes) return c.json({ error: "Webhook tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     await audit(c.env, { action: "api.webhook_deleted", userId: c.get("user").id, tenantId: tenant.id, detail: { id }, ip: clientIp(c) });
     return c.json({ ok: true });
   })

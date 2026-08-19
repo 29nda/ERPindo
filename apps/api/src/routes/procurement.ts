@@ -69,7 +69,7 @@ export const procurementRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM products WHERE id IN (${ids.map(() => "?").join(",")})`)
       .bind(...ids)
       .all<{ id: string }>();
-    if (prods.length !== ids.length) return c.json({ error: "Ada produk yang tidak ditemukan." }, 404);
+    if (prods.length !== ids.length) return c.json({ error: "Ada produk yang tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const id = crypto.randomUUID();
     const reqNo = await nextDocNo(db, "purchase_requisitions", "PR");
@@ -104,7 +104,7 @@ export const procurementRoutes = new Hono<AppEnv>()
       .prepare(`SELECT status FROM purchase_requisitions WHERE id = ?`)
       .bind(id)
       .all<{ status: RequisitionStatus }>();
-    if (!results[0]) return c.json({ error: "Permintaan tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Permintaan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (results[0].status !== "submitted") return c.json({ error: "Permintaan sudah diputuskan." }, 409);
 
     await db.prepare(`UPDATE purchase_requisitions SET status = ? WHERE id = ?`).bind(parsed.data.status, id).run();
@@ -194,15 +194,15 @@ export const procurementRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM contacts WHERE id = ? AND type IN ('supplier','both')`)
       .bind(input.contactId)
       .all<{ id: string }>();
-    if (!supplier.results[0]) return c.json({ error: "Pemasok tidak ditemukan." }, 404);
+    if (!supplier.results[0]) return c.json({ error: "Pemasok tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const wh = await db.prepare(`SELECT id FROM warehouses WHERE id = ?`).bind(input.warehouseId).all<{ id: string }>();
-    if (!wh.results[0]) return c.json({ error: "Gudang tidak ditemukan." }, 404);
+    if (!wh.results[0]) return c.json({ error: "Gudang tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const prodIds = [...new Set(input.lines.map((l) => l.productId))];
     const { results: prods } = await db
       .prepare(`SELECT id FROM products WHERE id IN (${prodIds.map(() => "?").join(",")})`)
       .bind(...prodIds)
       .all<{ id: string }>();
-    if (prods.length !== prodIds.length) return c.json({ error: "Ada produk yang tidak ditemukan." }, 404);
+    if (prods.length !== prodIds.length) return c.json({ error: "Ada produk yang tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     // Bila dari PR: PR harus approved, lalu ditandai 'ordered'.
     if (input.requisitionId) {
@@ -210,7 +210,7 @@ export const procurementRoutes = new Hono<AppEnv>()
         .prepare(`SELECT status FROM purchase_requisitions WHERE id = ?`)
         .bind(input.requisitionId)
         .all<{ status: RequisitionStatus }>();
-      if (!reqRows[0]) return c.json({ error: "Permintaan sumber tidak ditemukan." }, 404);
+      if (!reqRows[0]) return c.json({ error: "Permintaan sumber tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
       if (reqRows[0].status !== "approved") return c.json({ error: "Permintaan harus disetujui dulu sebelum jadi pesanan." }, 400);
     }
 
@@ -247,7 +247,7 @@ export const procurementRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, tenant.dbRef);
     const id = c.req.param("id");
     const { results } = await db.prepare(`SELECT status FROM purchase_orders WHERE id = ?`).bind(id).all<{ status: PoStatus }>();
-    if (!results[0]) return c.json({ error: "Pesanan tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Pesanan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (results[0].status !== "ordered") return c.json({ error: "Hanya pesanan berstatus 'dipesan' yang bisa dibatalkan." }, 409);
     await db.prepare(`UPDATE purchase_orders SET status = 'cancelled' WHERE id = ?`).bind(id).run();
     await audit(c.env, {
@@ -274,7 +274,7 @@ export const procurementRoutes = new Hono<AppEnv>()
       .bind(poId)
       .all<{ id: string; contact_id: string; warehouse_id: string; tax_rate: number; status: PoStatus }>();
     const po = poRows[0];
-    if (!po) return c.json({ error: "Pesanan tidak ditemukan." }, 404);
+    if (!po) return c.json({ error: "Pesanan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (po.status !== "ordered") return c.json({ error: "Pesanan ini sudah diterima atau dibatalkan." }, 409);
 
     const { results: poLines } = await db

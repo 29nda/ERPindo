@@ -71,7 +71,7 @@ export const orgStructureRoutes = new Hono<AppEnv>()
       const parent = (await db
         .prepare(`SELECT id FROM departments WHERE id = ? AND is_archived = 0`)
         .bind(input.parentId).all<{ id: string }>()).results[0];
-      if (!parent) return c.json({ error: "Departemen induk tidak ditemukan." }, 400);
+      if (!parent) return c.json({ error: "Departemen induk tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
     }
 
     const id = crypto.randomUUID();
@@ -100,7 +100,7 @@ export const orgStructureRoutes = new Hono<AppEnv>()
     const input = parsed.data;
 
     const existing = (await db.prepare(`SELECT id FROM departments WHERE id = ?`).bind(id).all<{ id: string }>()).results[0];
-    if (!existing) return c.json({ error: "Departemen tidak ditemukan." }, 404);
+    if (!existing) return c.json({ error: "Departemen tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const dup = (await db
       .prepare(`SELECT id FROM departments WHERE code = ? AND id != ?`)
@@ -112,7 +112,7 @@ export const orgStructureRoutes = new Hono<AppEnv>()
       const parent = (await db
         .prepare(`SELECT id FROM departments WHERE id = ? AND is_archived = 0`)
         .bind(input.parentId).all<{ id: string }>()).results[0];
-      if (!parent) return c.json({ error: "Departemen induk tidak ditemukan." }, 400);
+      if (!parent) return c.json({ error: "Departemen induk tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
       if (await formsCycle(db, id, input.parentId)) {
         return c.json({ error: "Struktur melingkar: departemen induk berada di bawah departemen ini." }, 400);
       }
@@ -140,7 +140,7 @@ export const orgStructureRoutes = new Hono<AppEnv>()
     const existing = (await db
       .prepare(`SELECT parent_id FROM departments WHERE id = ? AND is_archived = 0`)
       .bind(id).all<{ parent_id: string | null }>()).results[0];
-    if (!existing) return c.json({ error: "Departemen tidak ditemukan." }, 404);
+    if (!existing) return c.json({ error: "Departemen tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     await db.prepare(`UPDATE departments SET parent_id = ? WHERE parent_id = ?`).bind(existing.parent_id, id).run();
     await db.prepare(`UPDATE employees SET department_id = NULL WHERE department_id = ?`).bind(id).run();

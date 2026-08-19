@@ -89,7 +89,7 @@ export const collectionRoutes = new Hono<AppEnv>()
       )
       .bind(invoiceId)
       .first<{ invoice_no: string; total: number; paid_amount: number; returned_amount: number; voided_at: string | null; contact_name: string }>();
-    if (!inv) return c.json({ error: "Faktur tidak ditemukan." }, 404);
+    if (!inv) return c.json({ error: "Faktur tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (inv.voided_at) return c.json({ error: "Faktur sudah dibatalkan." }, 400);
     const outstanding = inv.total - inv.paid_amount - inv.returned_amount;
     if (outstanding <= 0) return c.json({ error: "Faktur ini sudah lunas." }, 400);

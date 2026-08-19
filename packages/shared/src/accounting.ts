@@ -409,7 +409,7 @@ const TAX_PERIOD_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 /** PPh Final UMKM 0,5% (PP 55/2022): setoran per masa (bulan). */
 export const pphFinalSchema = z.object({
   period: z.string().regex(TAX_PERIOD_RE, "Masa pajak harus format YYYY-MM"),
-  accountId: z.string().min(1, "Pilih akun kas/bank"),
+  accountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
   paidDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal setor wajib diisi"),
 });
 export type PphFinalInput = z.infer<typeof pphFinalSchema>;
@@ -442,12 +442,12 @@ export const pph23Schema = z.object({
   objectType: z.enum(PPH23_OBJECTS.map((o) => o.code) as [string, ...string[]]),
   gross: amountSchema.refine((n) => n >= 1, "Dasar pengenaan minimal 1"),
   rate: z.number().min(0).max(100),
-  sourceAccountId: z.string().min(1, "Pilih akun sumber (utang/kas/bank)"),
+  sourceAccountId: z.string().min(1, "Pilih akun sumber lebih dulu — bisa utang, kas, atau bank."),
   note: z.string().trim().max(200).optional().or(z.literal("")),
 });
 export type Pph23Input = z.infer<typeof pph23Schema>;
 export const pph23DepositSchema = z.object({
-  accountId: z.string().min(1, "Pilih akun kas/bank"),
+  accountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
   depositDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal setor wajib diisi"),
 });
 export type Pph23DepositInput = z.infer<typeof pph23DepositSchema>;
@@ -790,7 +790,7 @@ export type KasKecilDanaTetapInput = z.infer<typeof kasKecilDanaTetapSchema>;
 
 /** Pengisian ulang kas kecil (Fase 22c). Jumlahnya DIHITUNG, tidak diketik. */
 export const kasKecilPengisianSchema = z.object({
-  sourceAccountId: z.string().min(1, "Pilih akun kas/bank sumber"),
+  sourceAccountId: z.string().min(1, "Pilih akun kas atau bank sumber lebih dulu."),
   entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal wajib diisi"),
 });
 export type KasKecilPengisianInput = z.infer<typeof kasKecilPengisianSchema>;

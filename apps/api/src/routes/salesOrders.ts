@@ -11,7 +11,7 @@ import {
 import type { SqlExecutor } from "@erpindo/db";
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { accountIdByCode, getLockedBefore, InsufficientStockError, nextDocNo, postJournal, stockOut, SYS_ACCOUNTS } from "../lib/accounting";
+import { accountIdByCode, galatAkunKasBank, getLockedBefore, InsufficientStockError, nextDocNo, postJournal, stockOut, SYS_ACCOUNTS } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { getTenantDb } from "../lib/tenantDb";
 import { requireAuth, requireTenantRole } from "../middleware/auth";
@@ -136,12 +136,12 @@ export const salesOrderRoutes = new Hono<AppEnv>()
     const input = parsed.data;
 
     const cust = await db.prepare(`SELECT id FROM contacts WHERE id = ? AND type IN ('customer','both')`).bind(input.contactId).all<{ id: string }>();
-    if (!cust.results[0]) return c.json({ error: "Pelanggan tidak ditemukan." }, 404);
+    if (!cust.results[0]) return c.json({ error: "Pelanggan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const wh = await db.prepare(`SELECT id FROM warehouses WHERE id = ?`).bind(input.warehouseId).all<{ id: string }>();
-    if (!wh.results[0]) return c.json({ error: "Gudang tidak ditemukan." }, 404);
+    if (!wh.results[0]) return c.json({ error: "Gudang tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const prodIds = [...new Set(input.lines.map((l) => l.productId))];
     const { results: prods } = await db.prepare(`SELECT id FROM products WHERE id IN (${prodIds.map(() => "?").join(",")})`).bind(...prodIds).all<{ id: string }>();
-    if (prods.length !== prodIds.length) return c.json({ error: "Ada produk yang tidak ditemukan." }, 404);
+    if (prods.length !== prodIds.length) return c.json({ error: "Ada produk yang tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const id = crypto.randomUUID();
     const soNo = await nextDocNo(db, "sales_orders", "SO");
@@ -164,7 +164,7 @@ export const salesOrderRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, tenant.dbRef);
     const id = c.req.param("id");
     const { results } = await db.prepare(`SELECT status FROM sales_orders WHERE id = ?`).bind(id).all<{ status: SalesOrderStatus }>();
-    if (!results[0]) return c.json({ error: "Pesanan tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Pesanan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (results[0].status !== "open") return c.json({ error: "Hanya pesanan terbuka yang bisa dibatalkan." }, 409);
     await db.prepare(`UPDATE sales_orders SET status = 'cancelled' WHERE id = ?`).bind(id).run();
     await audit(c.env, { action: "sales.so.cancelled", userId: c.get("user").id, tenantId: tenant.id, detail: { id }, ip: clientIp(c) });
@@ -181,10 +181,10 @@ export const salesOrderRoutes = new Hono<AppEnv>()
 
     const { results } = await db.prepare(`SELECT status, so_no FROM sales_orders WHERE id = ?`).bind(id).all<{ status: SalesOrderStatus; so_no: string }>();
     const so = results[0];
-    if (!so) return c.json({ error: "Pesanan tidak ditemukan." }, 404);
+    if (!so) return c.json({ error: "Pesanan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (so.status === "invoiced" || so.status === "cancelled") return c.json({ error: "Pesanan sudah difakturkan/dibatalkan." }, 409);
     const acc = await db.prepare(`SELECT type FROM accounts WHERE id = ? AND is_archived = 0`).bind(input.accountId).all<{ type: string }>();
-    if (!acc.results[0] || acc.results[0].type !== "asset") return c.json({ error: "Akun uang muka harus akun kas/bank (aset)." }, 400);
+    if (!acc.results[0] || acc.results[0].type !== "asset") return c.json({ error: galatAkunKasBank("uang muka") }, 400);
     const lockedBefore = await getLockedBefore(db);
     if (lockedBefore && input.paymentDate <= lockedBefore) return c.json({ error: `Periode sampai ${lockedBefore} sudah ditutup.` }, 400);
 
@@ -214,7 +214,7 @@ export const salesOrderRoutes = new Hono<AppEnv>()
 
     const { results: soRows } = await db.prepare(`SELECT so_no, warehouse_id, status FROM sales_orders WHERE id = ?`).bind(id).all<{ so_no: string; warehouse_id: string; status: SalesOrderStatus }>();
     const so = soRows[0];
-    if (!so) return c.json({ error: "Pesanan tidak ditemukan." }, 404);
+    if (!so) return c.json({ error: "Pesanan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (so.status !== "open") return c.json({ error: "Hanya pesanan terbuka yang bisa dikirim." }, 409);
     const lockedBefore = await getLockedBefore(db);
     if (lockedBefore && input.deliveryDate <= lockedBefore) return c.json({ error: `Periode sampai ${lockedBefore} sudah ditutup.` }, 400);
@@ -277,7 +277,7 @@ export const salesOrderRoutes = new Hono<AppEnv>()
       .bind(id)
       .all<{ so_no: string; contact_id: string; warehouse_id: string; tax_rate: number; status: SalesOrderStatus; dp_amount: number }>();
     const so = soRows[0];
-    if (!so) return c.json({ error: "Pesanan tidak ditemukan." }, 404);
+    if (!so) return c.json({ error: "Pesanan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (so.status !== "delivered") return c.json({ error: "Pesanan harus dikirim (surat jalan) sebelum difakturkan." }, 409);
 
     const { results: lines } = await db.prepare(`SELECT product_id, qty, unit_price, discount_pct FROM sales_order_lines WHERE so_id = ?`).bind(id).all<{ product_id: string; qty: number; unit_price: number; discount_pct: number }>();

@@ -175,7 +175,7 @@ export const crmRoutes = new Hono<AppEnv>()
       .bind(id)
       .all<{ status: string }>();
     const lead = results[0];
-    if (!lead) return c.json({ error: "Lead tidak ditemukan." }, 404);
+    if (!lead) return c.json({ error: "Lead tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (lead.status !== "open") return c.json({ error: "Lead sudah ditutup — tidak bisa diubah." }, 400);
 
     // Bangun SET dinamis hanya untuk field yang dikirim.
@@ -285,7 +285,7 @@ export const crmRoutes = new Hono<AppEnv>()
     const input = parsed.data;
 
     const { results } = await db.prepare(`SELECT id FROM leads WHERE id = ?`).bind(leadId).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Lead tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Lead tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const id = crypto.randomUUID();
     await db
@@ -323,7 +323,7 @@ export const crmRoutes = new Hono<AppEnv>()
         converted_contact_id: string | null;
       }>();
     const lead = results[0];
-    if (!lead) return c.json({ error: "Lead tidak ditemukan." }, 404);
+    if (!lead) return c.json({ error: "Lead tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (lead.converted_contact_id) return c.json({ error: "Lead ini sudah dikonversi menjadi pelanggan." }, 400);
 
     const contactId = crypto.randomUUID();
@@ -414,7 +414,7 @@ export const crmRoutes = new Hono<AppEnv>()
       .prepare(`SELECT type FROM contacts WHERE id = ? AND is_archived = 0`)
       .bind(input.contactId)
       .all<{ type: string }>();
-    if (!contacts[0]) return c.json({ error: "Kontak tidak ditemukan." }, 400);
+    if (!contacts[0]) return c.json({ error: "Kontak tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
     if (!["customer", "both"].includes(contacts[0].type)) return c.json({ error: "Kontak tersebut bukan pelanggan." }, 400);
 
     const productIds = [...new Set(input.lines.map((l) => l.productId))];
@@ -494,7 +494,7 @@ export const crmRoutes = new Hono<AppEnv>()
       .prepare(`SELECT status FROM quotations WHERE id = ?`)
       .bind(id)
       .all<{ status: string }>();
-    if (!check[0]) return c.json({ error: "Penawaran tidak ditemukan." }, 404);
+    if (!check[0]) return c.json({ error: "Penawaran tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (check[0].status === "converted") return c.json({ error: "Penawaran sudah dikonversi ke faktur." }, 400);
 
     await db.prepare(`UPDATE quotations SET status = ? WHERE id = ?`).bind(parsed.data.status, id).run();
@@ -524,7 +524,7 @@ export const crmRoutes = new Hono<AppEnv>()
       .bind(id)
       .all<{ contact_id: string; tax_rate: number; status: string }>();
     const quote = quotes[0];
-    if (!quote) return c.json({ error: "Penawaran tidak ditemukan." }, 404);
+    if (!quote) return c.json({ error: "Penawaran tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (quote.status === "converted") return c.json({ error: "Penawaran sudah dikonversi ke faktur." }, 400);
     if (quote.status !== "accepted") {
       return c.json({ error: "Hanya penawaran berstatus 'diterima' yang bisa dikonversi ke faktur." }, 400);
