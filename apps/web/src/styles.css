@@ -71,6 +71,20 @@
 
   --erp-line: #e3ddd0;
   --erp-line-strong: #cec5b3;
+
+  /* Fase 35a — peran warna MEREK yang ikut tema.
+     
+     Sebelumnya halaman menulis `text-brand-600 dark:text-brand-400` di mana
+     pun merek perlu tampil sebagai teks. Pasangan itu benar hasilnya, tetapi
+     ia menambah satu utang `dark:` untuk setiap pemakaian — dan `sapu-warna`
+     menghitungnya, dengan alasan yang tepat: ramp merek TIDAK bertukar
+     mengikuti tema, jadi tiap halaman harus mengingat pasangannya sendiri.
+     
+     Tiga token di bawah menyelesaikannya di satu tempat, persis seperti yang
+     sudah dilakukan `ink`/`surface`/`line` sejak Fase 31a. */
+  --erp-brand-ink: #a8492a;
+  --erp-brand-line: #d9a385;
+  --erp-accent-ink: #ea580c;
 }
 
 /* Nilai mentah — GELAP. Masih didukung penuh; bukan bawaan (keputusan 18a,
@@ -90,10 +104,19 @@
 
   --erp-line: #332f29;
   --erp-line-strong: #4a453c;
+
+  /* Sisi gelap naik satu-dua tingkat pada ramp yang sama supaya kontrasnya
+     bertahan di atas permukaan gelap. */
+  --erp-brand-ink: #c87d57;
+  --erp-brand-line: #8b3a22;
+  --erp-accent-ink: #fb923c;
 }
 
 @theme inline {
   /* Peran permukaan & teks — inilah yang dipakai halaman. */
+  --color-brand-ink: var(--erp-brand-ink);
+  --color-brand-line: var(--erp-brand-line);
+  --color-accent-ink: var(--erp-accent-ink);
   --color-surface: var(--erp-surface);
   --color-surface-raised: var(--erp-surface-raised);
   --color-surface-sunken: var(--erp-surface-sunken);

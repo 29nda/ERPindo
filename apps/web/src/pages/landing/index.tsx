@@ -1,7 +1,7 @@
 import { ASSUMED_PER_USER_PRICE, perUserMonthlyCost, PLAN_LIMITS } from "@erpindo/shared";
 import { Link } from "@tanstack/react-router";
-import { Check, Eye, Plus, Sparkles, X } from "lucide-react";
-import { useState } from "react";
+import { Check, Eye, Plus, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { BrandWordmark, Button } from "../../components/ui";
 import { PublicHeader, TAUTAN_BERANDA } from "../../components/publik";
@@ -15,6 +15,7 @@ import {
   SINGLE_PLAN_MODULES,
   TRUST_POINTS,
 } from "./sections";
+import { PertunjukanHero } from "./pertunjukan";
 
 /**
  * Landing page marketing — halaman konversi utama. Konten di sections.ts;
@@ -102,87 +103,61 @@ function Hero() {
         }}
         aria-hidden
       />
-      <div className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 sm:pt-24 lg:pt-32">
-        {/* `uppercase` aman di sini: tak satu pun asersi membaca kalimat ini.
-            Aturannya (lihat log 17d): JANGAN pakai `uppercase` pada teks yang
-            dibaca asersi innerText — `text-transform` ikut mengubah nilainya. */}
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand-700 dark:border-brand-800 dark:bg-brand-950 dark:text-brand-300">
-          <Sparkles className="size-3.5" aria-hidden />{" "}
-          {L(lang, "Dibuat untuk usaha di Indonesia", "Built for businesses in Indonesia")}
-        </div>
-        {/* Rata kiri, bukan rata tengah: halaman ini menjual alat kerja, dan
-            teks rata tengah membuat semuanya terbaca seperti brosur. */}
-        <h1 className="judul-hero max-w-4xl text-[2.75rem] sm:text-[4.25rem]">
-          {L(lang, "Pembukuan, stok, gaji, dan pajak —", "Accounting, stock, payroll, and tax —")}{" "}
-          <span className="text-brand-600 dark:text-brand-400">
-            {L(lang, "beres dalam satu aplikasi", "all in one app")}
+      <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 sm:pt-14">
+        {/* Fase 35a — badge pil DIBUANG.
+        
+            Ia penanda paling khas landing SaaS mana pun, memakan 60px di layar
+            pertama, dan isinya ("Dibuat untuk usaha di Indonesia") sudah
+            dinyatakan lebih baik oleh nama produk dan seluruh naskahnya. */}
+
+        {/* Judul dipendekkan dari tiga baris menjadi dua, dan diturunkan dari
+            4,25rem ke 3,25rem. Bukan demi kerapian: setiap piksel di sini
+            menentukan apakah PERAGAAN ikut terlihat di layar pertama, dan
+            peragaan itulah satu-satunya hal di halaman ini yang membuktikan
+            klaimnya sendiri. */}
+        <h1 className="judul-hero max-w-3xl text-[2.25rem] sm:text-[3.25rem]">
+          {L(lang, "Anda mencatat satu penjualan", "You record every sale")}{" "}
+          <span className="text-brand-ink">
+            {L(lang, "tiga kali. Itu dua kali kebanyakan.", "three times. That is twice too many.")}
           </span>
         </h1>
-        <p className="mt-7 max-w-[34rem] text-lg leading-[1.7] text-ink-soft">
+        <p className="mt-5 max-w-[38rem] text-lg leading-[1.65] text-ink-soft">
           {L(
             lang,
-            "Catat penjualan sekali saja. Stok langsung berkurang, laporan keuangan terisi, dan pajaknya ikut terhitung. Tidak perlu dipindah lagi ke Excel.",
-            "Record a sale once. Stock drops, the financial reports fill in, and the tax is worked out too. Nothing needs copying into Excel afterwards.",
+            "Nota, lalu buku, lalu Excel — tiga kali menyalin angka yang sama, dan tiga kesempatan untuk keliru. Di bawah ini satu faktur diposting sekali. Perhatikan sisanya.",
+            "A note, then a ledger, then Excel — the same figures copied three times, and three chances to get them wrong. Below, one invoice is posted once. Watch what follows.",
           )}
         </p>
-        {/* Fase 24: urutannya SENGAJA dibalik. Tanpa trial, hal pertama yang
-            bisa dilakukan pengunjung bukan lagi "coba" melainkan "lihat" —
-            jadi demo yang berisi data nyata naik jadi ajakan utama,
-            dan mendaftar menyusul setelah ia melihat isinya. */}
-        <div className="mt-9 flex flex-wrap items-start gap-3">
+        <div className="mt-7 flex flex-wrap items-center gap-3">
           <DemoButton />
           <Link to="/daftar">
             <Button variant="secondary" size="lg">
               {L(lang, "Daftar & Berlangganan", "Sign up & subscribe")}
             </Button>
           </Link>
+          {/* Harga dan syaratnya dirapatkan menjadi SATU baris di samping
+              tombol. Sebelumnya dua paragraf terpisah di bawahnya, dan keduanya
+              mendorong peragaan keluar dari layar pertama. */}
+          <p className="text-sm text-ink-muted">
+            <span className="num font-semibold text-ink">
+              {formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}
+            </span>{" "}
+            {L(lang, "/bulan/perusahaan · tanpa kartu kredit", "/month/company · no credit card")}
+          </p>
         </div>
-        {/* Fase 30b: harga dinyatakan DI HERO, bukan hanya di seksi harga yang
-            harus digulir dulu. Sebelum paket tunggal, menyebut harga di sini
-            mustahil — ada tiga angka dan yang mana pun dipilih akan menyesatkan.
-            Dengan satu harga, angkanya justru menjadi kalimat penjualan terkuat
-            dan menahannya sampai bawah halaman hanya membuang perhatian. */}
-        <p className="mt-6 text-base text-ink">
-          <span className="num font-bold text-ink">
-            {formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}
-          </span>{" "}
-          <span className="text-ink-muted">{L(lang, "/bulan/perusahaan", "/month/company")}</span>
-          {" — "}
-          {L(
-            lang,
-            "satu harga, seluruh modul terbuka, pengguna tak terbatas.",
-            "one price, every module unlocked, unlimited users.",
-          )}
-        </p>
-        <p className="mt-3 text-sm text-ink-muted">
-          {L(
-            lang,
-            "Tanpa kartu kredit. Daftar akun standar Indonesia sudah terisi. Demo bisa dibuka tanpa mendaftar.",
-            "No credit card. A standard Indonesian chart of accounts is already set up. The demo opens without signing up.",
-          )}
-        </p>
       </div>
 
-      {/* Screenshot produk nyata. Bingkainya bukan lagi jendela macOS bertitik
-          tiga (klise landing SaaS) melainkan bilah alat rapat dengan jalur rute
-          bergaya mono — sama seperti aplikasinya sendiri. */}
-      <div className="mx-auto mt-12 max-w-6xl px-4 sm:mt-20 sm:px-6">
-        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
-          <div className="flex items-center gap-2 border-b border-line bg-surface-muted px-3 py-1.5">
-            <span className="size-1.5 rounded-full bg-emerald-500" />
-            <span className="font-mono text-[11px] text-ink-muted">
-              ERPindo / dashboard
-            </span>
-          </div>
-          <img
-            src="/landing/hero-dashboard.webp"
-            alt="Dashboard ERPindo dengan grafik penjualan 30 hari dan ringkasan keuangan"
-            width={1400}
-            height={875}
-            className="w-full"
-            fetchPriority="high"
-          />
-        </div>
+      {/* Fase 35a — tangkapan layar MATI diganti PERAGAAN HIDUP.
+          
+          Yang lama: gambar dasbor di bawah lipatan, terpotong, dan tidak
+          membuktikan apa pun. Ia meminta pengunjung mempercayai klaim "catat
+          sekali, sisanya otomatis" begitu saja.
+          
+          Padahal itu satu-satunya klaim di halaman ini yang bisa DIPERAGAKAN.
+          Jadi diperagakan — dan angkanya dibuat benar-benar seimbang, karena
+          pembeli yang paham pembukuan akan memeriksanya. */}
+      <div className="mx-auto mt-10 max-w-6xl px-4 sm:mt-14 sm:px-6">
+        <PertunjukanHero />
       </div>
     </section>
   );
@@ -449,8 +424,21 @@ function Pricing() {
                 {L(lang, "Satu paket untuk semua", "One plan for everything")}
               </span>
             </div>
+            {/* Fase 35a — klaim "seluruh modul terbuka" dikembalikan ke sini.
+            
+                Ia dulu ikut di baris harga hero, dan hilang saat baris itu
+                dirapatkan agar peragaan masuk layar pertama. Kehilangan itu
+                nyata: klaim tersebut adalah seluruh isi argumen harga tunggal —
+                tanpa paket yang lebih mahal, tidak ada fitur yang terkunci.
+                
+                Seksi Harga memang tempatnya yang benar, dan asersi ui-sim F15
+                menangkap hilangnya dalam satu kali jalan. */}
             <p className="mt-0.5 text-xs text-ink-muted">
-              {L(lang, "Dari toko pertama sampai grup perusahaan", "From your first shop to a group of companies")}
+              {L(
+                lang,
+                "Seluruh modul terbuka, pengguna tak terbatas — dari toko pertama sampai grup perusahaan",
+                "Every module unlocked, unlimited users — from your first shop to a group of companies",
+              )}
             </p>
             <div className="mt-3 flex items-end gap-1">
               <span className="num text-3xl font-bold">{formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}</span>
@@ -619,6 +607,21 @@ function Footer() {
 /** CTA lengket di bawah layar mobile (Fase 14e) — konversi di perangkat kecil. */
 function StickyMobileCta() {
   const lang = useLang();
+  // Fase 35a — bilah ini dulu tampil SEJAK layar pertama, sementara tombol yang
+  // sama persis sudah ada di dalam hero tepat di atasnya. Hasilnya empat tombol
+  // di satu layar 390px, dua di antaranya duplikat — dan keduanya menekan
+  // peragaan turun.
+  //
+  // Sekarang ia muncul setelah hero terlewati: saat tombol aslinya sudah tidak
+  // terlihat, dan pengunjung memang butuh jalan pintas.
+  const [terlihat, setTerlihat] = useState(false);
+  useEffect(() => {
+    const cek = () => setTerlihat(window.scrollY > 560);
+    cek();
+    window.addEventListener("scroll", cek, { passive: true });
+    return () => window.removeEventListener("scroll", cek);
+  }, []);
+  if (!terlihat) return null;
   return (
     /* Fase 27a: dulu berisi "Daftar & Berlangganan" + "Hubungi" (ke formulir),
        sehingga demo — ajakan utama sejak Fase 24 — sama sekali tak terjangkau di
