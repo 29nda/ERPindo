@@ -94,7 +94,7 @@ export type ApiDimensionReport = { from: string; to: string; rows: ApiDimensionR
 
 /** Aturan auto-match rekonsiliasi bank v2: kata kunci deskripsi + toleransi hari. */
 export const bankMatchRuleSchema = z.object({
-  accountId: z.string().min(1, "Pilih akun bank"),
+  accountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
   keyword: z.string().trim().min(1, "Kata kunci wajib diisi").max(60),
   dateTolerance: z.number().int().min(0).max(14).default(3),
 });

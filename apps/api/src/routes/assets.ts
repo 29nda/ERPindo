@@ -15,7 +15,7 @@ import {
 import type { SqlExecutor } from "@erpindo/db";
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { accountIdByCode, getLockedBefore, postJournal } from "../lib/accounting";
+import { accountIdByCode, galatAkunKasBank, getLockedBefore, postJournal } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { getTenantDb } from "../lib/tenantDb";
 import { requireAuth, requireTenantRole } from "../middleware/auth";
@@ -303,7 +303,7 @@ export const assetRoutes = new Hono<AppEnv>()
     const input = parsed.data;
 
     if (!(await assertCashAccount(db, input.cashAccountId))) {
-      return c.json({ error: "Akun pembayar harus akun kas/bank (aset)." }, 400);
+      return c.json({ error: galatAkunKasBank("pembayar") }, 400);
     }
     const lockedBefore = await getLockedBefore(db);
     if (lockedBefore && input.acquisitionDate <= lockedBefore) {
@@ -391,10 +391,10 @@ export const assetRoutes = new Hono<AppEnv>()
       .bind(id)
       .all<{ name: string; acquisition_cost: number; accumulated_depreciation: number; status: string }>();
     const asset = results[0];
-    if (!asset) return c.json({ error: "Aset tidak ditemukan." }, 404);
+    if (!asset) return c.json({ error: "Aset tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (asset.status === "disposed") return c.json({ error: "Aset sudah dilepas." }, 400);
     if (input.proceeds > 0 && !(await assertCashAccount(db, input.cashAccountId))) {
-      return c.json({ error: "Akun penerima harus akun kas/bank (aset)." }, 400);
+      return c.json({ error: galatAkunKasBank("penerima") }, 400);
     }
     const lockError = await getLockedBefore(db);
     if (lockError && input.disposalDate <= lockError) {
@@ -459,7 +459,7 @@ export const assetRoutes = new Hono<AppEnv>()
       .bind(id)
       .all<{ name: string; acquisition_cost: number; accumulated_depreciation: number; status: string }>();
     const asset = results[0];
-    if (!asset) return c.json({ error: "Aset tidak ditemukan." }, 404);
+    if (!asset) return c.json({ error: "Aset tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (asset.status === "disposed") return c.json({ error: "Aset sudah dilepas, tidak bisa direvaluasi." }, 400);
     const lockError = await getLockedBefore(db);
     if (lockError && input.revalDate <= lockError) {
@@ -552,7 +552,7 @@ export const assetRoutes = new Hono<AppEnv>()
     const asset = (
       await db.prepare(`SELECT id, tax_group FROM fixed_assets WHERE id = ?`).bind(id).all<{ id: string; tax_group: string | null }>()
     ).results[0];
-    if (!asset) return c.json({ error: "Aset tidak ditemukan." }, 404);
+    if (!asset) return c.json({ error: "Aset tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     // Larangan bangunan diperiksa ULANG terhadap kelompok yang BERLAKU sesudah
     // perubahan ini — skema hanya melihat medan yang dikirim. Tanpa ini, memberi

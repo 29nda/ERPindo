@@ -19,6 +19,7 @@ import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { api, formatDate } from "../../api/client";
 import { Badge, Button, Card, CardBody, CardHeader, ConfirmDialog, Input, Label, Select, Skeleton, Spinner, useToast } from "../../components/ui";
 import { TIPE_KEY } from "../../components/customFields";
+import { isi } from "../../i18n";
 import { useUi, type UiKey } from "../../i18n/ui";
 import { useWorkspace } from "../app";
 
@@ -39,7 +40,7 @@ export function DocNumberingCard({ tenantId }: { tenantId: string }) {
   const save = useMutation({
     mutationFn: () => api.updateDocNumbering(tenantId, patterns),
     onSuccess: (res) => {
-      toast("success", "Format nomor dokumen disimpan.");
+      toast("success", u("toastFormatNomorDisimpan"));
       setPatterns(res.numbering ?? {});
       queryClient.invalidateQueries({ queryKey: ["doc-numbering", tenantId] });
     },
@@ -299,7 +300,7 @@ export function CustomFieldsCard({ tenantId }: { tenantId: string }) {
     onSuccess: () => {
       reset();
       queryClient.invalidateQueries({ queryKey: ["custom-fields", tenantId] });
-      toast("success", `${u("fieldKustom")}: ${label}`);
+      toast("success", isi(u("toastFieldKustom"), label));
     },
     onError: (e: Error) => toast("error", e.message),
   });
@@ -436,7 +437,7 @@ export function CompanySettingsCard({ tenantId, readOnly }: { tenantId: string; 
     mutationFn: (input: { displayName?: string; address?: string; npwp?: string }) =>
       api.updateSettings(tenantId, input),
     onSuccess: () => {
-      toast("success", "Pengaturan perusahaan disimpan.");
+      toast("success", u("toastPengaturanDisimpan"));
       queryClient.invalidateQueries({ queryKey: ["settings", tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -511,7 +512,7 @@ function LogoUploader({ tenantId, current, readOnly }: { tenantId: string; curre
     e.target.value = "";
     if (!file) return;
     if (!/^image\/(png|jpeg|webp|svg\+xml)$/.test(file.type)) {
-      toast("error", "Format harus PNG, JPEG, WebP, atau SVG.");
+      toast("error", u("toastFormatLogo"));
       return;
     }
     const img = new Image();
@@ -526,14 +527,14 @@ function LogoUploader({ tenantId, current, readOnly }: { tenantId: string; curre
       canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL("image/png");
       if (dataUrl.length > 90_000) {
-        toast("error", "Logo masih terlalu besar setelah dikecilkan — gunakan gambar yang lebih sederhana.");
+        toast("error", u("toastLogoBesar"));
         return;
       }
       save.mutate(dataUrl);
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      toast("error", "Gambar tidak bisa dibaca.");
+      toast("error", u("toastGambarRusak"));
     };
     img.src = objectUrl;
   }
@@ -580,7 +581,7 @@ export function NewCompanyCard() {
   const create = useMutation({
     mutationFn: () => api.createCompany({ companyName: companyName.trim() }),
     onSuccess: (res) => {
-      toast("success", "Perusahaan baru dibuat. Beralih ke perusahaan tersebut…");
+      toast("success", u("toastPerusahaanDibuat"));
       setCompanyName("");
       queryClient.invalidateQueries({ queryKey: ["me"] });
       localStorage.setItem("erpindo-tenant", res.tenantId);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COMPARISON, INTEGRATIONS, SECURITY_POINTS, SHOWCASE, TRUST_POINTS } from "../src/pages/landing/sections";
+import { COMPARISON, INTEGRATIONS, SECURITY_POINTS, SHOWCASE, SINGLE_PLAN_MODULES, TRUST_POINTS } from "../src/pages/landing/sections";
 
 /**
  * Ikon halaman depan (Fase 27a).
@@ -77,5 +77,47 @@ describe("teks landing", () => {
     telusuri([TRUST_POINTS, SHOWCASE, COMPARISON, SECURITY_POINTS, INTEGRATIONS]);
     const salahTulis = nilai.join(" ").match(/(?<![A-Za-z])erpindo/g) ?? [];
     expect(salahTulis, `ditemukan ${salahTulis.length} penulisan huruf kecil`).toEqual([]);
+  });
+});
+
+describe("register naskah halaman depan (Fase 33i)", () => {
+  /**
+   * Istilah akuntan yang Fase 32e putuskan TIDAK dipakai di halaman depan.
+   *
+   * Bukan daftar kata terlarang di seluruh repo: `/fitur` boleh memakainya —
+   * pembaca yang sudah menelusuri 22 modul memang sedang membandingkan produk,
+   * dan di sana pun polanya sudah benar (hal biasanya dulu, istilahnya di dalam
+   * kurung: "lot yang paling dekat kedaluwarsa lebih dulu (FEFO)").
+   *
+   * Yang dijaga di sini hanya HALAMAN DEPAN, tempat pengunjung memutuskan
+   * apakah akan membaca lebih jauh.
+   */
+  const ISTILAH_AKUNTAN = ["double-entry", "FEFO", "BoM", "HPP", "moving average", "SO →"];
+
+  it("daftar modul di seksi Harga tidak memakai istilah akuntan", () => {
+    // Letaknya yang membuat ini penting: seksi Harga adalah layar terakhir
+    // sebelum orang memutuskan membayar, dan satu-satunya tempat di halaman
+    // depan yang menjanjikan "seluruh modul terbuka". Daftar yang tidak bisa
+    // dibaca tidak membuktikan apa pun.
+    const ditemukan: string[] = [];
+    for (const m of SINGLE_PLAN_MODULES) {
+      for (const istilah of ISTILAH_AKUNTAN) {
+        if (m.id.includes(istilah) || m.en.includes(istilah)) ditemukan.push(`${m.id} → ${istilah}`);
+      }
+    }
+    expect(ditemukan, `istilah akuntan di seksi Harga: ${ditemukan.join(" · ")}`).toEqual([]);
+  });
+
+  it("bilah bukti, showcase, dan perbandingan juga bebas istilah akuntan", () => {
+    const nilai: string[] = [];
+    const telusuri = (v: unknown): void => {
+      if (typeof v === "string") nilai.push(v);
+      else if (Array.isArray(v)) v.forEach(telusuri);
+      else if (v && typeof v === "object") Object.values(v).forEach(telusuri);
+    };
+    telusuri([TRUST_POINTS, SHOWCASE, COMPARISON, SECURITY_POINTS]);
+    const gabung = nilai.join(" ");
+    const ditemukan = ISTILAH_AKUNTAN.filter((t) => gabung.includes(t));
+    expect(ditemukan, `istilah akuntan di halaman depan: ${ditemukan.join(" · ")}`).toEqual([]);
   });
 });

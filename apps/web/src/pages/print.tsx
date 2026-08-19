@@ -2,6 +2,7 @@ import type { ApiCommerceDoc, ApiEmployee, ApiPayslip, ApiQuotation } from "@erp
 import { useQuery } from "@tanstack/react-query";
 import { api, formatDate, formatIDR } from "../api/client";
 import { Spinner } from "../components/ui";
+import { useUi } from "../i18n/ui";
 
 const MONTH_NAMES_ID = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -19,6 +20,7 @@ function periodLabel(period: string): string {
  * Tombol "Cetak / Simpan PDF" memakai dialog print browser (bisa Save as PDF).
  */
 export function InvoicePrintPage() {
+  const u = useUi();
   const params = new URLSearchParams(window.location.search);
   const tenantId = params.get("tenant") ?? "";
   const invoiceId = params.get("id") ?? "";
@@ -45,7 +47,7 @@ export function InvoicePrintPage() {
     );
   }
   if (!doc) {
-    return <div className="p-8 text-sm">Faktur tidak ditemukan atau Anda tidak punya akses.</div>;
+    return <div className="p-8 text-sm">{u("prFakturTakDitemukan")}</div>;
   }
 
   return (
@@ -162,7 +164,7 @@ export function InvoicePrintPage() {
       </table>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan erpindo — ERP untuk UMKM Indonesia
+        Dibuat dengan ERPindo — ERP untuk UMKM Indonesia
       </footer>
     </div>
   );
@@ -313,7 +315,7 @@ export function QuotationPrintPage() {
       </p>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan erpindo — ERP untuk UMKM Indonesia
+        Dibuat dengan ERPindo — ERP untuk UMKM Indonesia
       </footer>
     </div>
   );
@@ -462,12 +464,12 @@ export function PayslipPrintPage() {
       </div>
 
       <div className="mt-6 flex items-center justify-between border-t-2 border-slate-900 pt-3">
-        <span className="text-lg font-bold">Gaji dibawa pulang (netto)</span>
+        <span className="text-lg font-bold">Gaji bersih (dibawa pulang)</span>
         <span className="text-lg font-bold tabular-nums">{formatIDR(slip.net)}</span>
       </div>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Slip gaji ini dihasilkan otomatis oleh erpindo. Tarif PPh 21 (TER) & BPJS mengikuti ketentuan yang berlaku.
+        Slip gaji ini dihasilkan otomatis oleh ERPindo. Tarif PPh 21 (TER) & BPJS mengikuti ketentuan yang berlaku.
       </footer>
     </div>
   );
@@ -551,7 +553,7 @@ export function Form1721A1PrintPage() {
 
       <section className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <div className="font-semibold text-ink-muted">Nama pegawai</div>
+          <div className="font-semibold text-ink-muted">Nama karyawan</div>
           <div className="font-medium">{employee.name}</div>
           {employee.position ? <div className="text-ink-muted">{employee.position}</div> : null}
         </div>
@@ -602,12 +604,12 @@ export function Form1721A1PrintPage() {
       </table>
 
       <p className="mt-6 text-xs text-ink-muted">
-        Ringkasan ini disusun dari data penggajian di erpindo sebagai alat bantu. Untuk pelaporan pajak resmi,
+        Ringkasan ini disusun dari data penggajian di ERPindo sebagai alat bantu. Untuk pelaporan pajak resmi,
         cocokkan dengan formulir 1721-A1 dan ketentuan DJP yang berlaku.
       </p>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan erpindo — ERP untuk UMKM Indonesia
+        Dibuat dengan ERPindo — ERP untuk UMKM Indonesia
       </footer>
     </div>
   );

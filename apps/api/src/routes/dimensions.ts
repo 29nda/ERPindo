@@ -112,7 +112,7 @@ export const dimensionRoutes = new Hono<AppEnv>()
     const tenant = c.get("tenant");
     const db = getTenantDb(c.env, tenant.dbRef);
     const acc = await db.prepare(`SELECT id FROM accounts WHERE id = ? AND is_archived = 0`).bind(parsed.data.accountId).all<{ id: string }>();
-    if (!acc.results[0]) return c.json({ error: "Akun bank tidak ditemukan." }, 400);
+    if (!acc.results[0]) return c.json({ error: "Akun bank tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
     const id = crypto.randomUUID();
     await db.prepare(`INSERT INTO bank_match_rules (id, account_id, keyword, date_tolerance) VALUES (?, ?, ?, ?)`).bind(id, parsed.data.accountId, parsed.data.keyword, parsed.data.dateTolerance).run();
     await audit(c.env, { action: "dimension.bank_rule.created", userId: c.get("user").id, tenantId: tenant.id, detail: { keyword: parsed.data.keyword }, ip: clientIp(c) });

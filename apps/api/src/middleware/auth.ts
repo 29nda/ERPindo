@@ -78,7 +78,7 @@ export const requirePlatformAdmin: MiddlewareHandler<AppEnv> = async (c, next) =
 export function requireTenantRole(minRole: Role): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const tenantId = c.req.param("tenantId");
-    if (!tenantId) return c.json({ error: "Tenant tidak ditemukan." }, 404);
+    if (!tenantId) return c.json({ error: "Tenant tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const user = c.get("user");
     const row = await c.env.DB.prepare(

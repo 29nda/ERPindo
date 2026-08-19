@@ -55,7 +55,7 @@ const TOURS: { prefix: string; exact?: boolean; tour: Tour }[] = [
     tour: {
       id: "pembelian",
       steps: [
-        { selector: "main h1", title: "Pembelian", body: "Catat faktur pembelian dari pemasok. Stok bertambah (biaya rata-rata) & hutang tercatat otomatis." },
+        { selector: "main h1", title: "Pembelian", body: "Catat faktur pembelian dari pemasok. Stok bertambah (biaya rata-rata) & utang tercatat otomatis." },
         { title: "Bertahap lewat Pengadaan", body: "Butuh alur permintaan → pesanan → penerimaan? Gunakan menu Pengadaan; penerimaan barang di sanalah yang menambah stok." },
       ],
     },

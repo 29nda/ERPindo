@@ -11,6 +11,7 @@ import {
   stockIn,
   stockOut,
   SYS_ACCOUNTS,
+  galatAkunKasBank,
 } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { getTenantDb } from "../lib/tenantDb";
@@ -137,7 +138,7 @@ export const returnRoutes = new Hono<AppEnv>().post(
       .bind(input.refId)
       .all<DocRow>();
     const doc = docs[0];
-    if (!doc) return c.json({ error: "Dokumen asal tidak ditemukan." }, 404);
+    if (!doc) return c.json({ error: "Dokumen asal tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (doc.voided_at) return c.json({ error: "Dokumen asal sudah dibatalkan — tidak bisa diretur." }, 400);
 
     // Validasi qty per produk terhadap dokumen asal dan retur sebelumnya.
@@ -187,7 +188,7 @@ export const returnRoutes = new Hono<AppEnv>().post(
         .prepare(`SELECT id FROM accounts WHERE id = ? AND type = 'asset' AND is_archived = 0`)
         .bind(input.refundAccountId)
         .all<{ id: string }>();
-      if (!accts[0]) return c.json({ error: "Akun refund harus akun aset (kas/bank) yang aktif." }, 400);
+      if (!accts[0]) return c.json({ error: galatAkunKasBank("refund") }, 400);
       refundAccountId = input.refundAccountId;
     }
 
@@ -258,7 +259,7 @@ export const returnRoutes = new Hono<AppEnv>().post(
         accountIdByCode(db, SYS_ACCOUNTS.PPN_MASUKAN),
         accountIdByCode(db, "5-4000"),
       ]);
-      // Kurangi hutang sebatas sisa tagihan; kelebihan = kas masuk (refund dari pemasok).
+      // Kurangi utang sebatas sisa tagihan; kelebihan = kas masuk (refund dari pemasok).
       if (appliedToDoc > 0) lines.push({ accountId: hutang, description: memo, debit: appliedToDoc, credit: 0 });
       if (refund > 0 && refundAccountId) lines.push({ accountId: refundAccountId, description: `Refund ${memo}`, debit: refund, credit: 0 });
       if (inventoryValue > 0) lines.push({ accountId: persediaan, description: memo, debit: 0, credit: inventoryValue });

@@ -53,7 +53,7 @@ export function ProfileCard() {
   const saveName = useMutation({
     mutationFn: () => api.updateProfile(name),
     onSuccess: () => {
-      toast("success", "Nama diperbarui.");
+      toast("success", u("toastNamaDiperbarui"));
       queryClient.invalidateQueries({ queryKey: ["me"] });
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -61,7 +61,7 @@ export function ProfileCard() {
   const savePassword = useMutation({
     mutationFn: () => api.changePassword(currentPassword, newPassword),
     onSuccess: () => {
-      toast("success", "Password diganti. Sesi di perangkat lain telah dikeluarkan.");
+      toast("success", u("toastPasswordDiganti"));
       setCurrentPassword("");
       setNewPassword("");
     },
@@ -127,7 +127,7 @@ export function SecurityCard() {
   const enable = useMutation({
     mutationFn: () => api.totpEnable(code),
     onSuccess: () => {
-      toast("success", "2FA aktif. Kode authenticator kini diminta setiap login.");
+      toast("success", u("toast2faAktif"));
       setSetupData(null);
       setCode("");
       queryClient.invalidateQueries({ queryKey: ["me"] });
@@ -137,7 +137,7 @@ export function SecurityCard() {
   const disable = useMutation({
     mutationFn: () => api.totpDisable(code),
     onSuccess: () => {
-      toast("success", "2FA dinonaktifkan.");
+      toast("success", u("toast2faNonaktif"));
       setCode("");
       setDisableOpen(false);
       queryClient.invalidateQueries({ queryKey: ["me"] });

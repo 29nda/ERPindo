@@ -434,6 +434,23 @@ try {
   const penjualan = accounts.find((a) => a.code === "4-1000");
   check("akun Kas/Modal/Pendapatan ada", Boolean(kas && modal && penjualan));
 
+  // Fase 33d — ejaan baku KBBI ("utang"), diseragamkan lewat migrasi 0047 dan
+  // BUKAN dengan menyunting benih COA di migrasi 0002.
+  //
+  // Bedanya menentukan: menyunting benih hanya mengubah perusahaan BARU, jadi
+  // pelanggan lama tetap melihat "Hutang Usaha" di bagan akunnya sementara
+  // seluruh naskah aplikasi sudah menulis "utang". Migrasi menyatukan keduanya.
+  //
+  // Tenant smoke ini dibuat dari nol, jadi ia menempuh jalur "0002 lalu 0047" —
+  // yang membuktikan migrasinya benar-benar berjalan dan bukan sekadar benih
+  // yang kebetulan sudah benar.
+  const namaUtang = accounts.filter((a) => /^(Hutang|Utang)/.test(a.name)).map((a) => `${a.code} ${a.name}`).sort();
+  check(
+    "33d nama akun memakai ejaan baku 'Utang', tanpa satu pun 'Hutang' tersisa",
+    namaUtang.length === 2 && namaUtang.join(" | ") === "2-1000 Utang Usaha | 2-1200 Utang Gaji",
+    `→ ${namaUtang.join(" | ")}`,
+  );
+
   const newAcc = await owner("POST", `/api/tenants/${tenantId}/accounts`, {
     code: "1-1600",
     name: "Piutang Karyawan",
@@ -3162,6 +3179,79 @@ try {
   // Kurs dikembalikan supaya blok setelah ini tidak terpengaruh.
   await owner("PUT", `/api/tenants/${tenantId}/currencies`, { code: "USD", name: "Dolar AS", rate: 16_000 });
 
+  // --- Sisi UTANG revaluasi valas (Fase 33c) ------------------------------------
+  //
+  // Blok 22a di atas hanya pernah menguji sisi PIUTANG: tidak ada satu pun
+  // pembelian valas di seluruh smoke, jadi cabang `selisihHutang` tidak pernah
+  // dieksekusi sama sekali.
+  //
+  // Di celah itulah `AKUN_HUTANG = "2-1100"` bertahan sebelas fase. `2-1100`
+  // adalah **PPN Keluaran**, bukan Utang Usaha — jadi revaluasi sisi utang
+  // menumpuk selisih kurs ke akun pajak. Neraca saldo tetap seimbang (baris
+  // utang dan baris laba/rugi kurs sama besar), `labaBersih` tetap benar, dan
+  // pembaliknya tetap rapi. Tidak ada gerbang yang punya alasan memerah.
+  //
+  // Karena itu yang diperiksa di sini bukan angka totalnya, melainkan **akun
+  // mana yang bergerak** — satu-satunya hal yang membedakan benar dari salah.
+  const prodFxAp = await owner("POST", `/api/tenants/${tenantId}/products`, { sku: "BRG-FX-AP", name: "Bahan Impor", unit: "pcs", sellPrice: 0, buyPrice: 0 });
+
+  // Beli USD 1.000 @kurs faktur 15.000 = 15jt IDR, sengaja DIBIARKAN belum lunas.
+  // Kurs master USD sudah 16.000, jadi revaluasi menaikkan nilai utang 1jt (RUGI).
+  const fxBeli = await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id,
+    invoiceDate: "2026-09-05",
+    taxRate: 0,
+    warehouseId: whUtama.id,
+    currency: "USD",
+    exchangeRate: 15_000,
+    lines: [{ productId: prodFxAp.json.id, qty: 1, unitPrice: 1000 }],
+  });
+  check("33c pembelian USD 1.000 @15.000 belum lunas → 15jt IDR", fxBeli.status === 201 && fxBeli.json?.total === 15_000_000, `→ ${JSON.stringify(fxBeli.json)}`);
+
+  const nilaiNeraca = async (asOf, code) => {
+    const r = await owner("GET", `/api/tenants/${tenantId}/reports/balance-sheet?asOf=${asOf}`);
+    return [...(r.json?.assets ?? []), ...(r.json?.liabilities ?? [])].find((x) => x.code === code)?.amount ?? 0;
+  };
+  const utangSebelum = await nilaiNeraca("2026-09-30", "2-1000");
+  const ppnKeluaranSebelum = await nilaiNeraca("2026-09-30", "2-1100");
+
+  const fxRevAp = await owner("POST", `/api/tenants/${tenantId}/forex-revaluation`, { asOf: "2026-09-30" });
+  check(
+    "33c revaluasi menjangkau 2 dokumen valas (faktur + pembelian)",
+    fxRevAp.status === 201 && fxRevAp.json?.jumlahDokumen === 2,
+    `→ ${JSON.stringify(fxRevAp.json)}`,
+  );
+  check(
+    "33c selisih utang 1jt dan itu RUGI — labaBersih = 2jt piutang − 1jt utang",
+    fxRevAp.json?.selisihHutang === 1_000_000 && fxRevAp.json?.labaBersih === 1_000_000,
+    `→ selisihHutang=${fxRevAp.json?.selisihHutang} labaBersih=${fxRevAp.json?.labaBersih}`,
+  );
+
+  const utangSesudah = await nilaiNeraca("2026-09-30", "2-1000");
+  const ppnKeluaranSesudah = await nilaiNeraca("2026-09-30", "2-1100");
+
+  // ⚠️ CEK INTI FASE 33c. Kedua asersi di bawah gagal pada kode lama, dan
+  // TIDAK ADA asersi lain di seluruh repo yang gagal bersamanya.
+  check(
+    "33c revaluasi utang menaikkan GL UTANG USAHA (2-1000) tepat 1jt",
+    utangSesudah - utangSebelum === 1_000_000,
+    `→ ${utangSebelum} → ${utangSesudah}`,
+  );
+  check(
+    "33c revaluasi utang TIDAK menyentuh PPN Keluaran (2-1100)",
+    ppnKeluaranSesudah === ppnKeluaranSebelum,
+    `→ ${ppnKeluaranSebelum} → ${ppnKeluaranSesudah}`,
+  );
+
+  // Pembaliknya juga harus mengembalikan akun yang benar, bukan sekadar
+  // menyeimbangkan kembali neraca saldo.
+  const utangPembalik = await nilaiNeraca("2026-10-01", "2-1000");
+  check(
+    "33c sesudah pembalik, GL Utang Usaha kembali ke kurs faktur",
+    utangPembalik === utangSebelum,
+    `→ ${utangSebelum} vs ${utangPembalik}`,
+  );
+
   // Tanggal sebelum faktur valas mana pun: TIDAK ada saldo untuk direvaluasi.
   // Yang dijaga di sini adalah "jangan posting jurnal kosong" — jawabannya 400
   // dengan alasan, bukan sepasang jurnal bernilai nol yang mengotori buku besar.
@@ -5870,7 +5960,10 @@ try {
   );
 
   await new Promise((r) => setTimeout(r, 400));
-  const habisMail = findInLogs(/subject="Langganan .* telah berakhir"/);
+  // Fase 33j — subjek kini diawali "ERPindo — " supaya penerima tahu siapa
+  // pengirimnya sebelum membuka. Asersi ikut menyebut awalan itu, bukan
+  // dilonggarkan menjadi pencocokan sebagian.
+  const habisMail = findInLogs(/subject="ERPindo — langganan .* telah berakhir"/);
   check("email pemberitahuan langganan berakhir terkirim ke Owner", Boolean(habisMail));
 
   // --- Fase 21b: rekap bulanan DIKIRIM, bukan hanya disimpan ----------------

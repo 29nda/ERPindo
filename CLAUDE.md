@@ -34,6 +34,16 @@ node scripts/sapu-warna.mjs
 # Penjaga tautan dokumen (Fase 31e) — Markdown tidak dikompilasi, jadi tautan
 # mati tidak pernah memunculkan galat sampai pemilik mengekliknya.
 node scripts/periksa-tautan-dokumen.mjs
+# Penyapu istilah (Fase 33k) — memaksa keputusan di `docs/glosarium.md`:
+# ejaan "utang", merek "ERPindo", "Rp 499.000" berspasi, "karyawan" bukan
+# "pegawai". Ada karena keputusan yang hanya hidup di dokumen akan dilanggar
+# oleh orang yang tidak membaca dokumen itu — dan tsc/eslint/smoke tidak bisa
+# melihatnya, karena string apa pun tetap sah.
+node scripts/sapu-istilah.mjs
+# Penyapu gaya (Fase 33k) — BENTUK kalimat, bukan pilihan katanya. Berambang
+# seperti sapu-warna: terjemahan Inggris dalam kurung, empty state buntu,
+# placeholder angka tanpa pemisah ribuan.
+node scripts/sapu-gaya.mjs
 ```
 
 Jumlah cek hanya boleh **naik**, tidak boleh turun. Fitur baru wajib diberi cek
@@ -75,3 +85,13 @@ smoke (`apps/api/scripts/smoke.mjs`) dan, bila menyentuh UI, cek ui-sim.
   sebelumnya tidak pernah terasa; rinciannya di `docs/riwayat.md` §6.
 - Jangan menaruh tombol/tautan baru di dalam `aside nav` shell aplikasi tanpa
   memeriksa ui-sim: sebelas asersi menghitung `aside nav a:visible`.
+- Naskah yang dilihat pengguna tunduk pada `docs/glosarium.md`, dan itu
+  **dipaksa** oleh `scripts/sapu-istilah.mjs`. Pengecualiannya (kunci kamus,
+  nilai enum kontrak API, kunci `localStorage`, nama berkas unduhan) sudah
+  terdaftar di sana — tambahkan ke daftar itu, jangan longgarkan polanya.
+- Toast TIDAK boleh dirakit dari potongan kamus
+  (`` `${u("prefix")} ${nilai} ${u("suffix")}` ``). Potongan mengunci urutan
+  kata Indonesia ke dalam kode, dan bahasa lain tidak punya cara mengubahnya —
+  padahal tiap potongnya terlihat sudah diterjemahkan. Pakai kalimat utuh
+  berlubang `{0}` + `isi()` dari `apps/web/src/i18n`. Dijaga tiga uji di
+  `apps/web/test/i18n.test.ts`.

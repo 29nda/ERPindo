@@ -104,14 +104,14 @@ const MODUL_RINGKAS: [nama: string, isi: string][] = [
   ["Stok & Gudang", "Multi-gudang dengan HPP rata-rata bergerak dihitung ulang di setiap transaksi, lot & kedaluwarsa FEFO, ambang stok minimum, dan stok opname sebagai jurnal penyesuaian."],
   ["Gaji & PPh 21", "PPh 21 metode TER terbaru dan BPJS dihitung otomatis, slip gaji & formulir 1721-A1 siap cetak, beban gaji langsung terjurnal."],
   ["Pajak & e-Faktur", "PPN keluaran/masukan terkumpul otomatis dari faktur, ekspor XML siap impor Coretax DJP, plus PPh Final UMKM dan PPh 23."],
-  ["Laporan Keuangan", "Laba Rugi, Neraca, Arus Kas, Buku Besar, dan Umur Piutang/Hutang dibaca langsung dari jurnal kapan pun, bisa per dimensi/cost center, ekspor Excel."],
+  ["Laporan Keuangan", "Laba Rugi, Neraca, Arus Kas, Buku Besar, dan Umur Piutang/Utang dibaca langsung dari jurnal kapan pun, bisa per dimensi/cost center, ekspor Excel."],
   ["Multi-perusahaan & Konsolidasi", "Beberapa perusahaan dari satu akun, laporan konsolidasi lintas perusahaan, dan faktur multi mata uang dengan selisih kurs saat pelunasan."],
   ["Keamanan & Kepemilikan Data", "Satu database terpisah per perusahaan, peran & hak akses per modul, 2FA, pembatasan IP, audit log, dan unduh seluruh data sebagai ZIP CSV kapan pun."],
   // Fase 24c: daftar ini sebelumnya memuat 9 modul dari ±21 yang benar-benar
   // ada — perayap melihat produk yang jauh lebih kecil daripada kenyataannya.
   // Disamakan dengan MODUL_DETAIL di apps/web/src/pages/landing/fiturDetail.ts;
   // keduanya harus dirawat bersama.
-  ["Dasbor & Mulai Cepat", "Penjualan, laba bulan berjalan, kas & bank, piutang, hutang, dan persediaan dalam satu layar — tiap kartu bisa diklik menuju laporan sumbernya. Widget peringatan menandai faktur jatuh tempo, stok menipis, dan beban yang melonjak."],
+  ["Dasbor & Mulai Cepat", "Penjualan, laba bulan berjalan, kas & bank, piutang, utang, dan persediaan dalam satu layar — tiap kartu bisa diklik menuju laporan sumbernya. Widget peringatan menandai faktur jatuh tempo, stok menipis, dan beban yang melonjak."],
   ["Pembelian & Pengadaan", "Alur permintaan (PR) → pesanan (PO) → penerimaan (GRN); penerimaan otomatis menjadi faktur pembelian dan stok masuk. Produk di bawah stok minimum menjadi usulan pembelian sekali klik."],
   ["Persetujuan Berjenjang", "Aturan per jenis dokumen dan ambang nilai, persetujuan berurutan per peran, antrean pribadi tiap penyetuju, dan jejak siapa menyetujui apa dan kapan."],
   ["Kas & Bank", "Saldo tiap dompet dengan mutasi berjalan, impor rekening koran CSV (BCA/Mandiri/BRI) dengan pencocokan otomatis nominal & tanggal, aturan auto-match tersimpan, dan kas kecil sistem dana tetap."],

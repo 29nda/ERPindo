@@ -243,7 +243,7 @@ export const contractRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, tenant.dbRef);
     const id = c.req.param("id");
     const { results } = await db.prepare(`SELECT id FROM contracts WHERE id = ?`).bind(id).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Kontrak tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Kontrak tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     await db.prepare(`UPDATE contracts SET status = ? WHERE id = ?`).bind(parsed.data.status, id).run();
     await audit(c.env, {

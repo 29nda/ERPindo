@@ -147,7 +147,7 @@ function crudRoutes<S extends z.ZodTypeAny>(path: string, cfg: EntityConfig<S>) 
       const columns = Object.keys(row);
 
       const { results } = await db.prepare(`SELECT id FROM ${cfg.table} WHERE id = ?`).bind(id).all();
-      if (results.length === 0) return c.json({ error: "Data tidak ditemukan." }, 404);
+      if (results.length === 0) return c.json({ error: "Data tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
       // Kolom unik (SKU/kode) tidak boleh menabrak baris lain.
       if (cfg.uniqueField) {

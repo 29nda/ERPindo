@@ -4,7 +4,7 @@ import { type ApiAuditLog } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ApiRequestError, formatDate, formatIDR } from "../../api/client";
-import { useLang } from "../../i18n";
+import { isi, useLang } from "../../i18n";
 import { useUi } from "../../i18n/ui";
 import { Alert, Button, Card, CardBody, CardHeader, Label, Skeleton, Spinner, useToast } from "../../components/ui";
 
@@ -20,7 +20,7 @@ export function ExportBackupCard({ tenantId }: { tenantId: string }) {
   const backupNow = useMutation({
     mutationFn: () => api.driveBackupNow(tenantId),
     onSuccess: (res) => {
-      toast("success", `Cadangan terkirim ke Google Drive: ${res.fileName}`);
+      toast("success", isi(u("toastCadanganDrive"), res.fileName));
       queryClient.invalidateQueries({ queryKey: ["drive-status", tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -28,7 +28,7 @@ export function ExportBackupCard({ tenantId }: { tenantId: string }) {
   const disconnect = useMutation({
     mutationFn: () => api.driveDisconnect(tenantId),
     onSuccess: () => {
-      toast("success", "Sambungan Google Drive diputus.");
+      toast("success", u("toastDriveDiputus"));
       queryClient.invalidateQueries({ queryKey: ["drive-status", tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -456,7 +456,7 @@ export function TenantSecurityCard({ tenantId }: { tenantId: string }) {
       return api.updateSecurity(tenantId, { require2fa, allowedIps });
     },
     onSuccess: () => {
-      toast("success", "Kebijakan keamanan disimpan.");
+      toast("success", u("toastKeamananDisimpan"));
       queryClient.invalidateQueries({ queryKey: ["tenant-security", tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),

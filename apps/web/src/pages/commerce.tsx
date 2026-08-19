@@ -1,5 +1,5 @@
 import type { ApiCommerceDoc, SatuanBaris } from "@erpindo/shared";
-import { useLang, pick } from "../i18n";
+import { isi, useLang, pick } from "../i18n";
 import { useUi } from "../i18n/ui";
 import { useHeading } from "../i18n/pageHeadings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,7 +49,7 @@ const MODE_CFG = {
     priceField: "buy_price" as const,
     queryKey: "purchases" as const,
     stockHint: {
-      id: "Stok bertambah otomatis (biaya rata-rata); jurnal persediaan, PPN & hutang dibuat otomatis.",
+      id: "Stok bertambah otomatis (biaya rata-rata); jurnal persediaan, PPN & utang dibuat otomatis.",
       en: "Stock is added automatically (average cost); inventory, PPN & payable entries are created for you.",
     },
   },
@@ -225,10 +225,10 @@ export function CommercePage({ mode }: { mode: Mode }) {
       if (res.pendingApproval) {
         toast(
           "success",
-          `Pengajuan ${res.requestNo} menunggu persetujuan Owner (${formatIDR(res.total)}).`
+          isi(u("toastPengajuanMenunggu"), res.requestNo ?? "", formatIDR(res.total))
         );
       } else {
-        toast("success", `${cfg.docLabel} ${res.docNo} diposting (${formatIDR(res.total)}).`);
+        toast("success", isi(u("toastDokumenDiposting"), pick(cfg.docLabel, lang), res.docNo ?? "", formatIDR(res.total)));
       }
       setLines([emptyLine()]);
       setError(null);
@@ -368,7 +368,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
    *
    * Harga terisi otomatis dari master produk **per satuan dasar**. Kalau satuan
    * diganti ke dus tanpa harganya ikut dikali isi, faktur beli sedus akan
-   * ditagih seharga sepcs: totalnya masuk akal di layar, hutangnya jauh terlalu
+   * ditagih seharga sepcs: totalnya masuk akal di layar, utangnya jauh terlalu
    * kecil, dan tidak ada satu pun angka yang terlihat aneh.
    */
   function gantiSatuan(i: number, line: DraftLine, satuan: SatuanBaris) {
@@ -977,7 +977,7 @@ function DocRow({
     onSuccess: (res) => {
       toast(
         "success",
-        `${res.docNo} dibatalkan — jurnal pembalik ${res.reversalEntryNo} diposting, stok dikembalikan.`
+        isi(u("toastDokumenDibatalkan"), res.docNo, res.reversalEntryNo)
       );
       setVoidOpen(false);
       if (editOpen) {
@@ -1011,7 +1011,7 @@ function DocRow({
     onSuccess: (res) => {
       toast(
         "success",
-        `Pembayaran ${res.paymentNo} dihapus — jurnal pembalik ${res.reversalEntryNo} diposting.`
+        isi(u("toastPembayaranDihapus"), res.paymentNo, res.reversalEntryNo)
       );
       setVoidPaymentId(null);
       queryClient.invalidateQueries({ queryKey: ["payments", tenant.tenantId] });
@@ -1047,7 +1047,7 @@ function DocRow({
       const refundNote = res.refund > 0 ? `${u("cmRefundTunai")} ${formatIDR(res.refund)}` : "";
       toast(
         "success",
-        `Retur ${res.returnNo} diposting (${formatIDR(res.total)}${refundNote}, jurnal ${res.journalNo}).`
+        isi(u("toastReturDiposting"), res.returnNo, formatIDR(res.total), refundNote, res.journalNo)
       );
       setReturnOpen(false);
       setReturnQty({});

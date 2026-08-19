@@ -73,7 +73,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     },
     cara: [
       {
-        id: "Setiap transaksi — faktur, kasir, gaji, penyusutan aset — otomatis membuat jurnal double-entry saat disimpan. Tidak ada langkah 'posting ke akuntansi' yang bisa terlupa.",
+        id: "Setiap transaksi — faktur, kasir, gaji, penyusutan aset — otomatis membuat jurnal dua sisi yang selalu seimbang (double-entry) saat disimpan. Tidak ada langkah 'posting ke akuntansi' yang bisa terlupa.",
         en: "Every transaction — invoice, POS sale, payroll, depreciation — automatically creates a double-entry journal on save. There is no separate 'post to accounting' step to forget.",
       },
       {
@@ -165,8 +165,8 @@ export const MODUL_DETAIL: ModulDetail[] = [
     },
     cara: [
       {
-        id: "Stok multi-gudang dengan HPP rata-rata bergerak dihitung ulang otomatis di setiap penjualan dan pembelian.",
-        en: "Multi-warehouse stock with moving-average COGS recalculated automatically on every sale and purchase.",
+        id: "Stok di banyak gudang, dengan modal barang (HPP) dirata-rata ulang otomatis di setiap penjualan dan pembelian.",
+        en: "Stock across warehouses, with cost of goods re-averaged automatically on every sale and purchase.",
       },
       {
         id: "Lot dan tanggal kedaluwarsa: penjualan mengambil lot yang paling dekat kedaluwarsa lebih dulu (FEFO), otomatis.",
@@ -257,7 +257,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     },
     cara: [
       {
-        id: "Laba Rugi, Neraca, Arus Kas, Buku Besar, dan Umur Piutang/Hutang dibaca langsung dari jurnal, kapan pun diminta.",
+        id: "Laba Rugi, Neraca, Arus Kas, Buku Besar, dan Umur Piutang/Utang dibaca langsung dari jurnal, kapan pun diminta.",
         en: "P&L, Balance Sheet, Cash Flow, General Ledger, and Receivables/Payables Aging read straight from the journal, whenever asked.",
       },
       {
@@ -352,7 +352,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       en: "Business numbers are scattered, so a question as simple as \"did we profit this month?\" means opening several reports and adding things up yourself.",
     },
     cara: [
-      { id: "Satu layar memuat penjualan, laba bulan berjalan, kas & bank, piutang, hutang, dan nilai persediaan — semuanya dihitung dari jurnal Anda sendiri.", en: "One screen holds sales, current-month profit, cash and bank, receivables, payables and inventory value — all computed from your own journals." },
+      { id: "Satu layar memuat penjualan, laba bulan berjalan, kas & bank, piutang, utang, dan nilai persediaan — semuanya dihitung dari jurnal Anda sendiri.", en: "One screen holds sales, current-month profit, cash and bank, receivables, payables and inventory value — all computed from your own journals." },
       { id: "Tiap kartu bisa diklik menuju laporan sumbernya, jadi angka yang mengejutkan bisa langsung ditelusuri.", en: "Every card links through to the report behind it, so a surprising number can be traced immediately." },
       { id: "Widget peringatan aktif: faktur lewat jatuh tempo, stok menipis, dan beban yang melonjak dibanding kebiasaan tiga bulan terakhir.", en: "Active warning widgets: overdue invoices, low stock, and expenses that spiked against the last three months' pattern." },
       { id: "Checklist \"Mulai cepat\" menuntun pengisian awal; contoh produk & kontak bisa diisikan sekali klik sesuai jenis usaha.", en: "A quick-start checklist guides initial setup; sample products and contacts can be filled in with one click per business type." },
@@ -386,7 +386,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       en: "Big spends get approved over chat, and later nobody can prove who approved what.",
     },
     cara: [
-      { id: "Aturan bisa disetel sendiri per jenis dokumen dan per ambang nilai — misalnya pembelian di atas Rp5 juta wajib lewat Pemilik.", en: "Rules are configurable per document type and threshold — for example, purchases above Rp5 million must pass the Owner." },
+      { id: "Aturan bisa disetel sendiri per jenis dokumen dan per ambang nilai — misalnya pembelian di atas Rp 5 juta wajib lewat Pemilik.", en: "Rules are configurable per document type and threshold — for example, purchases above Rp 5 million must pass the Owner." },
       { id: "Persetujuan berjalan berurutan per peran, dengan antrean pribadi untuk tiap penyetuju.", en: "Approvals run in sequence per role, with a personal queue for each approver." },
       { id: "Tiap langkah meninggalkan jejak: siapa, kapan, dan disetujui atau ditolak.", en: "Every step leaves a trail: who, when, and approved or rejected." },
     ],

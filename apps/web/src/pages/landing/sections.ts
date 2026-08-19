@@ -25,14 +25,15 @@ import type { Dual } from "../../i18n";
  */
 
 /**
- * Empat bukti di bawah hero. Tiap butir kini berikon (Fase 27a) — sebelumnya
- * hanya teks, dan tiga dari empat "angka"-nya bukan angka sehingga bilah ini
- * terbaca seperti deretan statistik yang statistiknya hilang.
+ * Empat bukti di bawah hero — pertanyaan yang benar-benar ditanyakan pembeli.
  *
- * Angka uji diperbarui Fase 27a: 555 unit + 1.113 smoke + 337 cek simulasi UI =
- * 2.005. Ditulis "2.000+" — dibulatkan KE BAWAH supaya klaimnya tetap benar
- * meski suite bergerak. Angka sebelumnya (1.300+, ditulis Fase 18e) sudah
- * tertinggal jauh; klaim kepercayaan yang basi melemahkan halamannya sendiri.
+ * Fase 32e mengganti isinya: sebelumnya butir pertama berbunyi "2.000+ uji
+ * otomatis dijalankan tiap kali kode berubah". Itu metrik pengembang, dan
+ * memajangnya ke pemilik toko justru membuat halaman terbaca seperti agensi
+ * menjual keahlian ngoding.
+ *
+ * Empat butir sekarang menjawab: harganya berapa, cocok dengan pajak Indonesia
+ * atau tidak, kalau internet mati bagaimana, dan datanya milik siapa.
  */
 export const TRUST_POINTS: { value: Dual; label: Dual; icon: LucideIcon }[] = [
   {
@@ -174,23 +175,42 @@ export const COMPARISON: { topic: Dual; manual: Dual; erpindo: Dual }[] = [
   },
 ];
 
-/** Daftar modul yang semuanya termasuk dalam paket (dipakai seksi Harga). */
+/**
+ * Daftar modul yang semuanya termasuk dalam paket (dipakai seksi Harga).
+ *
+ * Fase 33i — ditulis ulang dengan register yang sama dengan seksi lain di
+ * halaman depan. Fase 32e sudah membuang istilah akuntan dari bilah bukti,
+ * showcase, dan tabel perbandingan ("jurnal double-entry … neracanya dijamin
+ * seimbang" → "Stok langsung berkurang, laporan keuangan terisi"), tetapi
+ * daftar ini tertinggal dan masih berbunyi "Akuntansi double-entry",
+ * "Stok multi-gudang & FEFO", "Manufaktur, BoM & QC".
+ *
+ * Letaknya membuat itu mahal: ia ada di seksi **Harga** — layar terakhir
+ * sebelum orang memutuskan membayar, dan satu-satunya tempat di halaman depan
+ * yang menjanjikan "seluruh modul terbuka". Daftar yang tidak bisa dibaca tidak
+ * membuktikan apa pun.
+ *
+ * Istilah yang TETAP: PPN, PPh 21, TER, BPJS, e-Faktur, Coretax, POS, CRM,
+ * Excel. Semuanya kata yang pemilik usaha Indonesia memang memakainya sehari-
+ * hari (keputusan Fase 32e); menghindarinya justru membuat daftar ini
+ * mengambang.
+ */
 export const SINGLE_PLAN_MODULES: Dual[] = [
-  { id: "Akuntansi double-entry", en: "Double-entry accounting" },
+  { id: "Pembukuan & laporan keuangan", en: "Bookkeeping & financial reports" },
   { id: "Faktur & PPN (Coretax)", en: "Invoices & VAT (Coretax)" },
-  { id: "Kasir (POS) + shift kas", en: "POS cashier + cash shifts" },
-  { id: "Stok multi-gudang & FEFO", en: "Multi-warehouse stock & FEFO" },
-  { id: "Penjualan SO → Surat Jalan", en: "Sales SO → Delivery Order" },
+  { id: "Kasir (POS) & tutup shift", en: "POS cashier & shift close-out" },
+  { id: "Stok banyak gudang & kedaluwarsa", en: "Stock across warehouses & expiry" },
+  { id: "Pesanan, surat jalan & faktur", en: "Orders, delivery notes & invoices" },
   { id: "Pembelian & pengadaan", en: "Purchasing & procurement" },
   { id: "Gaji + PPh 21 TER + BPJS", en: "Payroll + PPh 21 TER + BPJS" },
   { id: "Absensi & cuti karyawan", en: "Attendance & employee leave" },
-  { id: "CRM pipeline & penawaran", en: "CRM pipeline & quotations" },
-  { id: "Proyek, RAB & timesheet", en: "Projects, budgets & timesheets" },
-  { id: "Manufaktur, BoM & QC", en: "Manufacturing, BoM & QC" },
+  { id: "Calon pelanggan & penawaran", en: "Prospects & quotations" },
+  { id: "Proyek, anggaran & catatan jam", en: "Projects, budgets & time logs" },
+  { id: "Produksi, resep & pemeriksaan mutu", en: "Production, recipes & quality checks" },
   { id: "Aset tetap & penyusutan", en: "Fixed assets & depreciation" },
   { id: "Pajak UMKM & e-Faktur", en: "SME tax & e-Faktur" },
-  { id: "Anggaran & rekonsiliasi bank", en: "Budgets & bank reconciliation" },
-  { id: "Persetujuan berjenjang", en: "Multi-level approvals" },
+  { id: "Anggaran & pencocokan rekening koran", en: "Budgets & bank statement matching" },
+  { id: "Persetujuan bertingkat", en: "Multi-level approvals" },
   { id: "Laporan lengkap + Excel", en: "Full reports + Excel" },
 ];
 

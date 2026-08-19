@@ -65,7 +65,7 @@ function CostCenterCard() {
       setCode("");
       setName("");
       invalidate();
-      toast("success", "Cost center ditambahkan.");
+      toast("success", u("toastCostCenterDitambah"));
     },
     onError: (e: Error) => toast("error", e.message),
   });
@@ -74,7 +74,7 @@ function CostCenterCard() {
     onSuccess: () => {
       setToArchive(null);
       invalidate();
-      toast("success", "Cost center diarsipkan.");
+      toast("success", u("toastCostCenterDiarsip"));
     },
     onError: (e: Error) => toast("error", e.message),
   });
@@ -301,7 +301,7 @@ function BankRuleCard() {
     onSuccess: () => {
       setKeyword("");
       invalidate();
-      toast("success", "Aturan auto-match disimpan.");
+      toast("success", u("toastAturanDisimpan"));
     },
     onError: (e: Error) => toast("error", e.message),
   });
@@ -309,7 +309,7 @@ function BankRuleCard() {
     mutationFn: (id: string) => api.deleteBankMatchRule(tenant.tenantId, id),
     onSuccess: () => {
       invalidate();
-      toast("success", "Aturan dihapus.");
+      toast("success", u("toastAturanDihapus"));
     },
     onError: (e: Error) => toast("error", e.message),
   });

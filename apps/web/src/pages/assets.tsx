@@ -20,6 +20,7 @@ import {
   useToast,
 } from "../components/ui";
 import { KELOMPOK_HARTA, type MetodePenyusutan } from "@erpindo/shared";
+import { isi } from "../i18n";
 import { useUi } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -76,7 +77,7 @@ export function AssetsPage() {
         taxGroup: form.taxGroup || null,
       }),
     onSuccess: () => {
-      toast("success", "Aset terdaftar & jurnal perolehan dibuat.");
+      toast("success", u("toastAsetTerdaftar"));
       setForm({
         name: "",
         category: "",
@@ -418,7 +419,7 @@ function AssetRow({
       // dilaporkan dengan kalimat yang sama.
       toast(
         "success",
-        `${res.difference >= 0 ? u("toastSurplusRevaluasi") : u("toastRugiRevaluasi")} ${formatIDR(Math.abs(res.difference))}.`,
+        isi(u("toastRevaluasiTersimpan"), res.difference >= 0 ? u("surplusKata") : u("rugiPenurunanKata"), formatIDR(Math.abs(res.difference))),
       );
       setRevalOpen(false);
       setFairValue("");
@@ -437,7 +438,7 @@ function AssetRow({
     onSuccess: (res) => {
       toast(
         "success",
-        `Aset dilepas. ${res.gain >= 0 ? "Laba" : "Rugi"} pelepasan ${formatIDR(Math.abs(res.gain))}.`
+        isi(u("toastAsetDilepas"), res.gain >= 0 ? u("labaKata") : u("rugiKata"), formatIDR(Math.abs(res.gain)))
       );
       setOpen(false);
       setConfirmOpen(false);

@@ -7,6 +7,7 @@ import {
   type LeadStage,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { ArrowRight, Check, FileText, Send, UserPlus, Users, X } from "lucide-react";
 import { useState } from "react";
@@ -337,7 +338,7 @@ function KanbanBoard({ leads, isAdmin }: { leads: ApiLead[]; isAdmin: boolean })
     mutationFn: (vars: { id: string; stage: LeadStage }) =>
       api.updateLead(tenant.tenantId, vars.id, { stage: vars.stage }),
     onSuccess: () => {
-      toast("success", "Tahap diperbarui.");
+      toast("success", u("toastTahapDiperbarui"));
       queryClient.invalidateQueries({ queryKey: ["leads", tenant.tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -491,7 +492,7 @@ function LeadRow({ lead, isAdmin }: { lead: ApiLead; isAdmin: boolean }) {
   const moveStage = useMutation({
     mutationFn: (stage: LeadStage) => api.updateLead(tenant.tenantId, lead.id, { stage }),
     onSuccess: () => {
-      toast("success", "Tahap diperbarui.");
+      toast("success", u("toastTahapDiperbarui"));
       invalidate();
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -506,7 +507,7 @@ function LeadRow({ lead, isAdmin }: { lead: ApiLead; isAdmin: boolean }) {
         ...(act.dueAt ? { dueAt: act.dueAt } : {}),
       }),
     onSuccess: () => {
-      toast("success", "Aktivitas dicatat.");
+      toast("success", u("toastAktivitasDicatat"));
       setAct({ type: "call", note: "", dueAt: "" });
       invalidate();
     },
@@ -516,7 +517,7 @@ function LeadRow({ lead, isAdmin }: { lead: ApiLead; isAdmin: boolean }) {
   const convert = useMutation({
     mutationFn: () => api.convertLead(tenant.tenantId, lead.id),
     onSuccess: () => {
-      toast("success", "Lead menjadi pelanggan. Sekarang bisa dibuatkan penawaran/faktur.");
+      toast("success", u("toastLeadJadiPelanggan"));
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["contacts", tenant.tenantId] });
     },
@@ -751,7 +752,7 @@ export function QuotationsPage() {
           })),
       }),
     onSuccess: (res) => {
-      toast("success", `Penawaran ${res.quoteNo} dibuat (${formatIDR(res.total)}).`);
+      toast("success", isi(u("toastPenawaranDibuat"), res.quoteNo, formatIDR(res.total)));
       setLines([emptyLine()]);
       setContactId("");
       setError(null);
@@ -992,7 +993,7 @@ function QuoteRow({ quote, isAdmin }: { quote: ApiQuotation; isAdmin: boolean })
     mutationFn: (status: "sent" | "accepted" | "rejected") =>
       api.setQuotationStatus(tenant.tenantId, quote.id, { status }),
     onSuccess: () => {
-      toast("success", "Status penawaran diperbarui.");
+      toast("success", u("toastStatusPenawaran"));
       invalidate();
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -1005,7 +1006,7 @@ function QuoteRow({ quote, isAdmin }: { quote: ApiQuotation; isAdmin: boolean })
         invoiceDate,
       }),
     onSuccess: (res) => {
-      toast("success", `Faktur ${res.docNo} dibuat dari penawaran (${formatIDR(res.total)}).`);
+      toast("success", isi(u("toastFakturDariPenawaran"), res.docNo, formatIDR(res.total)));
       setConvertOpen(false);
       invalidate();
       queryClient.invalidateQueries({ queryKey: ["invoices", tenant.tenantId] });

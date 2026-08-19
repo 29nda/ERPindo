@@ -105,7 +105,7 @@ export const accountingRoutes = new Hono<AppEnv>()
       .bind(accountId)
       .all<{ code: string; name: string }>();
     const account = results[0];
-    if (!account) return c.json({ error: "Akun tidak ditemukan." }, 404);
+    if (!account) return c.json({ error: "Akun tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     await db.prepare(`UPDATE accounts SET name = ? WHERE id = ?`).bind(parsed.data.name, accountId).run();
     await audit(c.env, {
@@ -128,7 +128,7 @@ export const accountingRoutes = new Hono<AppEnv>()
       .bind(accountId)
       .all<{ is_system: number }>();
     const account = results[0];
-    if (!account) return c.json({ error: "Akun tidak ditemukan." }, 404);
+    if (!account) return c.json({ error: "Akun tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (account.is_system === 1) return c.json({ error: "Akun sistem tidak dapat diarsipkan." }, 400);
 
     const { results: used } = await db
@@ -172,7 +172,7 @@ export const accountingRoutes = new Hono<AppEnv>()
       .bind(accountId)
       .all<{ code: string; name: string }>();
     const account = results[0];
-    if (!account) return c.json({ error: "Akun tidak ditemukan." }, 404);
+    if (!account) return c.json({ error: "Akun tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     await db
       .prepare(`UPDATE accounts SET is_intercompany = ? WHERE id = ?`)
@@ -314,14 +314,14 @@ export const accountingRoutes = new Hono<AppEnv>()
 
     if (input.projectId) {
       const { results } = await db.prepare(`SELECT id FROM projects WHERE id = ?`).bind(input.projectId).all();
-      if (!results[0]) return c.json({ error: "Proyek tidak ditemukan." }, 400);
+      if (!results[0]) return c.json({ error: "Proyek tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
     }
 
     // Validasi dimensi (cost center) opsional per baris (Fase 7f).
     const ccIds = [...new Set(input.lines.map((l) => l.costCenterId).filter((x): x is string => Boolean(x)))];
     if (ccIds.length > 0) {
       const { results } = await db.prepare(`SELECT id FROM cost_centers WHERE is_archived = 0 AND id IN (${ccIds.map(() => "?").join(",")})`).bind(...ccIds).all<{ id: string }>();
-      if (results.length !== ccIds.length) return c.json({ error: "Ada cost center yang tidak ditemukan." }, 400);
+      if (results.length !== ccIds.length) return c.json({ error: "Ada cost center yang tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
 
       // RBAC berdimensi (Fase 8d): peran ber-scope hanya boleh membukukan ke
       // cost center dalam scope-nya. Scope NULL = tanpa batasan (jalur lama).
@@ -392,7 +392,7 @@ export const accountingRoutes = new Hono<AppEnv>()
         reverses_entry_id: string | null;
       }>();
     const entry = rows[0];
-    if (!entry) return c.json({ error: "Jurnal tidak ditemukan." }, 404);
+    if (!entry) return c.json({ error: "Jurnal tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (entry.status !== "posted") return c.json({ error: "Hanya jurnal terposting yang bisa dibalik." }, 400);
     if (entry.reverses_entry_id) {
       return c.json({ error: "Jurnal ini sendiri adalah pembalik — tidak bisa dibalik lagi." }, 400);
@@ -461,7 +461,7 @@ export const accountingRoutes = new Hono<AppEnv>()
       .bind(accountId)
       .all<AccountRow>();
     const account = accounts[0];
-    if (!account) return c.json({ error: "Akun tidak ditemukan." }, 404);
+    if (!account) return c.json({ error: "Akun tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     // Paginasi keyset (Fase 9a): default memuat `limit` baris TERBARU dengan
     // saldo awal (openingBalance) dihitung agregat, sehingga saldo berjalan

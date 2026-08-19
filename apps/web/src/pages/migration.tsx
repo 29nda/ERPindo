@@ -13,6 +13,7 @@ import {
   Spinner,
   useToast,
 } from "../components/ui";
+import { isi } from "../i18n";
 import { useUi } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -95,7 +96,7 @@ export function MigrationPage() {
     onSuccess: (res) => {
       toast(
         "success",
-        `${u("toastSaldoAwalPrefix")} ${res.entryNo}, ${u("toastNilaiStok")} ${formatIDR(res.stockValue)}).`
+        isi(u("toastSaldoAwalTersimpan"), res.entryNo, formatIDR(res.stockValue))
       );
       setAccountsCsv("");
       setStockCsv("");

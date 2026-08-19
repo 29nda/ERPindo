@@ -145,7 +145,7 @@ export const stockAdvancedRoutes = new Hono<AppEnv>()
       .bind(barcode)
       .all<{ id: string; sku: string; name: string; unit: string; sell_price: number; buy_price: number }>();
     const p = results[0];
-    if (!p) return c.json({ error: "Produk dengan barcode tersebut tidak ditemukan." }, 404);
+    if (!p) return c.json({ error: "Produk dengan barcode tersebut tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     return c.json({
       product: { id: p.id, sku: p.sku, name: p.name, unit: p.unit, sellPrice: p.sell_price, buyPrice: p.buy_price },
     });
@@ -182,7 +182,7 @@ export const stockAdvancedRoutes = new Hono<AppEnv>()
     const input = parsed.data;
 
     const prod = await db.prepare(`SELECT id FROM products WHERE id = ? AND is_archived = 0`).bind(productId).all<{ id: string }>();
-    if (!prod.results[0]) return c.json({ error: "Produk tidak ditemukan." }, 404);
+    if (!prod.results[0]) return c.json({ error: "Produk tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const dupe = await db.prepare(`SELECT id FROM product_serials WHERE product_id = ? AND serial_no = ?`).bind(productId, input.serialNo).all<{ id: string }>();
     if (dupe.results[0]) return c.json({ error: `Nomor seri '${input.serialNo}' sudah terdaftar untuk produk ini.` }, 409);
 
@@ -202,7 +202,7 @@ export const stockAdvancedRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, tenant.dbRef);
     const serialId = c.req.param("serialId");
     const { results } = await db.prepare(`SELECT id FROM product_serials WHERE id = ? AND product_id = ?`).bind(serialId, c.req.param("id")).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Nomor seri tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Nomor seri tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     await db.prepare(`UPDATE product_serials SET status = ? WHERE id = ?`).bind(parsed.data.status, serialId).run();
     await audit(c.env, { action: "stock.serial.status", userId: c.get("user").id, tenantId: tenant.id, detail: { serialId, status: parsed.data.status }, ip: clientIp(c) });
     return c.json({ ok: true });

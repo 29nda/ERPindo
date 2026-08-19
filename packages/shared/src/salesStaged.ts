@@ -57,7 +57,7 @@ export type InvoiceFromSoInput = z.infer<typeof invoiceFromSoSchema>;
 /** Uang muka (DP) atas SO — kas/bank masuk, diakui sebagai uang muka pelanggan. */
 export const soDownPaymentSchema = z.object({
   amount: z.number().int().min(1, "Nominal minimal Rp 1"),
-  accountId: z.string().min(1, "Akun kas/bank wajib dipilih"),
+  accountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
   paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
 });
 export type SoDownPaymentInput = z.infer<typeof soDownPaymentSchema>;

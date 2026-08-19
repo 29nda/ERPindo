@@ -134,7 +134,7 @@ export const manufacturingRoutes = new Hono<AppEnv>()
   .get("/:tenantId/boms/:productId", requireAuth, requireTenantRole("viewer"), async (c) => {
     const db = getTenantDb(c.env, c.get("tenant").dbRef);
     const bom = await loadBom(db, c.req.param("productId"));
-    if (!bom) return c.json({ error: "Resep (BoM) tidak ditemukan." }, 404);
+    if (!bom) return c.json({ error: "Resep (BoM) tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     return c.json(bom);
   })
 
@@ -153,7 +153,7 @@ export const manufacturingRoutes = new Hono<AppEnv>()
       .bind(input.productId)
       .all<{ id: string; is_service: number }>();
     const product = prodRows[0];
-    if (!product) return c.json({ error: "Produk jadi tidak ditemukan." }, 400);
+    if (!product) return c.json({ error: "Produk jadi tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
     if (product.is_service === 1) return c.json({ error: "Produk jasa tidak bisa diproduksi." }, 400);
 
     if (input.lines.some((l) => l.componentId === input.productId)) {
@@ -170,7 +170,7 @@ export const manufacturingRoutes = new Hono<AppEnv>()
       .bind(...input.lines.map((l) => l.componentId))
       .all<{ id: string }>();
     if (comps.length !== uniqueComponents.size) {
-      return c.json({ error: "Sebagian komponen tidak ditemukan." }, 400);
+      return c.json({ error: "Sebagian komponen tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
     }
 
     // Upsert header + ganti seluruh baris.
@@ -238,7 +238,7 @@ export const manufacturingRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM warehouses WHERE id = ? AND is_archived = 0`)
       .bind(input.warehouseId)
       .all<{ id: string }>();
-    if (!whRows[0]) return c.json({ error: "Gudang tidak ditemukan." }, 400);
+    if (!whRows[0]) return c.json({ error: "Gudang tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
 
     const id = crypto.randomUUID();
     const orderNo = await nextDocNo(db, "production_orders", "PRD");
@@ -286,7 +286,7 @@ export const manufacturingRoutes = new Hono<AppEnv>()
         overhead_cost: number;
       }>();
     const order = orderRows[0];
-    if (!order) return c.json({ error: "Perintah produksi tidak ditemukan." }, 404);
+    if (!order) return c.json({ error: "Perintah produksi tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (order.status !== "draft") return c.json({ error: "Perintah produksi sudah dijalankan." }, 409);
 
     const bom = await loadBom(db, order.product_id);
@@ -398,7 +398,7 @@ export const manufacturingRoutes = new Hono<AppEnv>()
       .bind(orderId)
       .all<{ id: string; product_id: string; warehouse_id: string; qty: number; status: string; qc_status: string }>();
     const order = orderRows[0];
-    if (!order) return c.json({ error: "Perintah produksi tidak ditemukan." }, 404);
+    if (!order) return c.json({ error: "Perintah produksi tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (order.status !== "produced" || order.qc_status !== "pending") {
       return c.json({ error: "Hanya hasil produksi yang menunggu QC yang bisa diinspeksi." }, 409);
     }
@@ -415,7 +415,7 @@ export const manufacturingRoutes = new Hono<AppEnv>()
         .prepare(`SELECT id FROM warehouses WHERE id = ? AND is_archived = 0`)
         .bind(input.warehouseId)
         .all<{ id: string }>();
-      if (!qcWhRows[0]) return c.json({ error: "Gudang karantina tidak ditemukan." }, 400);
+      if (!qcWhRows[0]) return c.json({ error: "Gudang karantina tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
 
       let cost: number;
       try {

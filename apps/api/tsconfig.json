@@ -4,7 +4,8 @@
     "types": ["@cloudflare/workers-types"]
   },
   "include": ["src", "test"],
-  // rbac-guard membaca src/routes via node:fs — butuh tipe Node yang bentrok
-  // dengan @cloudflare/workers-types; tetap dijalankan penuh oleh vitest.
-  "exclude": ["test/rbac-guard.test.ts"]
+  // Dua uji ini membaca berkas sumber via node:fs — butuh tipe Node yang
+  // bentrok dengan @cloudflare/workers-types. Keduanya TETAP dijalankan penuh
+  // oleh vitest; yang dilewati hanya pemeriksaan tipenya.
+  "exclude": ["test/rbac-guard.test.ts", "test/pesan-galat.test.ts"]
 }

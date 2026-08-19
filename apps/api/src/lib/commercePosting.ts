@@ -18,7 +18,7 @@ import {
 
 /**
  * Siklus penjualan & pembelian. Setiap dokumen otomatis:
- *  - membuat jurnal double-entry (piutang/pendapatan/PPN atau persediaan/hutang)
+ *  - membuat jurnal double-entry (piutang/pendapatan/PPN atau persediaan/utang)
  *  - menggerakkan stok (keluar dengan HPP moving-average, masuk dengan biaya beli)
  * Dokumen terposting immutable, sama seperti jurnal.
  */
@@ -206,11 +206,11 @@ export async function resolveCurrency(
 
 /**
  * Hitung angka pelunasan (valas maupun IDR): `counterCleared` = IDR yang
- * menutup piutang/hutang pada **kurs faktur**; `cashIdr` = IDR kas yang benar-
+ * menutup piutang/utang pada **kurs faktur**; `cashIdr` = IDR kas yang benar-
  * benar berpindah pada **kurs bayar**; `forexGain` = selisih kurs. Untuk faktur
  * IDR, `docRate` & `paymentRate` = 1 sehingga selisih selalu 0. Selisih
  * favorable (laba, >0) bila menerima IDR lebih besar dari piutang, atau membayar
- * IDR lebih kecil dari hutang; unfavorable (rugi, <0) sebaliknya.
+ * IDR lebih kecil dari utang; unfavorable (rugi, <0) sebaliknya.
  */
 export function computeForexSettlement(params: {
   direction: "receive" | "pay";
@@ -649,7 +649,7 @@ export async function voidDoc(
       journal_entry_id: string;
     }>();
   const doc = docs[0];
-  if (!doc) return { error: "Dokumen tidak ditemukan.", status: 404 };
+  if (!doc) return { error: "Dokumen tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru.", status: 404 };
   if (doc.voided_at) return { error: "Dokumen sudah dibatalkan sebelumnya.", status: 400 };
   if (doc.paid_amount > 0) {
     return { error: "Dokumen sudah menerima pembayaran — batalkan lewat Retur, bukan void.", status: 400 };

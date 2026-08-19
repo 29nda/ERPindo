@@ -22,6 +22,7 @@ import {
   Tr,
   useToast,
 } from "../components/ui";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -323,7 +324,7 @@ function Pph23Section({ isAdmin }: { isAdmin: boolean }) {
     onSuccess: (r) => {
       queryClient.invalidateQueries({ queryKey: ["pph23", tenant.tenantId] });
       setGross("");
-      toast("success", `${u("toastBuktiPotongPrefix")} ${r.docNo} ${u("toastBuktiPotongDibuat")}`);
+      toast("success", isi(u("toastBuktiPotongSiap"), r.docNo));
     },
     onError: (e: Error) => toast("error", e.message),
   });

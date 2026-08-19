@@ -14,7 +14,7 @@ import { useUi } from "../i18n/ui";
 import { PAGE_HEADINGS, type PageHeadingKey } from "../i18n/pageHeadings";
 
 /**
- * Komponen dasar design system erpindo (gaya shadcn/ui, tanpa dependensi
+ * Komponen dasar design system ERPindo (gaya shadcn/ui, tanpa dependensi
  * eksternal). Akan dipindah ke packages/ui saat jumlah komponen bertambah.
  */
 

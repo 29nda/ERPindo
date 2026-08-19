@@ -279,7 +279,7 @@ export const posRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM warehouses WHERE id = ? AND is_archived = 0`)
       .bind(parsed.data.warehouseId)
       .all();
-    if (!wh[0]) return c.json({ error: "Gudang tidak ditemukan." }, 400);
+    if (!wh[0]) return c.json({ error: "Gudang tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
 
     const id = crypto.randomUUID();
     const shiftNo = await nextDocNo(db, "pos_shifts", "SHF");
@@ -552,7 +552,7 @@ export const posRoutes = new Hono<AppEnv>()
         pos_shift_id: string | null;
       }>();
     const inv = invs[0];
-    if (!inv) return c.json({ error: "Struk tidak ditemukan." }, 404);
+    if (!inv) return c.json({ error: "Struk tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (!inv.pos_shift_id) return c.json({ error: "Bukan struk POS — gunakan Retur Penjualan biasa." }, 400);
     if (inv.voided_at) return c.json({ error: "Struk sudah dibatalkan." }, 400);
 
@@ -702,7 +702,7 @@ export const posRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, c.get("tenant").dbRef);
     const id = c.req.param("id");
     const { results } = await db.prepare(`SELECT id FROM pos_held_sales WHERE id = ?`).bind(id).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Transaksi tahan tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Transaksi tahan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     await db.prepare(`DELETE FROM pos_held_sales WHERE id = ?`).bind(id).run();
     return c.json({ ok: true });
   })

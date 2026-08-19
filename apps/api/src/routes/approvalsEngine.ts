@@ -109,7 +109,7 @@ export const approvalEngineRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, tenant.dbRef);
     const id = c.req.param("id");
     const { results } = await db.prepare(`SELECT id FROM approval_rules WHERE id = ?`).bind(id).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Aturan tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Aturan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     const sets: string[] = [];
     const vals: unknown[] = [];
@@ -136,7 +136,7 @@ export const approvalEngineRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, tenant.dbRef);
     const id = c.req.param("id");
     const { results } = await db.prepare(`SELECT id FROM approval_rules WHERE id = ?`).bind(id).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Aturan tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Aturan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     await db.prepare(`DELETE FROM approval_rules WHERE id = ?`).bind(id).run();
     await audit(c.env, {
       action: "approval.rule.deleted",
@@ -274,7 +274,7 @@ export const approvalEngineRoutes = new Hono<AppEnv>()
       .bind(flowId)
       .all<{ id: string; status: ApprovalStatus; current_step: number }>();
     const flow = flowRows[0];
-    if (!flow) return c.json({ error: "Alur tidak ditemukan." }, 404);
+    if (!flow) return c.json({ error: "Alur tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (flow.status !== "pending") return c.json({ error: "Alur sudah selesai." }, 409);
 
     const { results: stepRows } = await db
@@ -282,7 +282,7 @@ export const approvalEngineRoutes = new Hono<AppEnv>()
       .bind(flowId, flow.current_step)
       .all<{ id: string; approver_role: ApprovalRole; step_order: number }>();
     const step = stepRows[0];
-    if (!step) return c.json({ error: "Langkah aktif tidak ditemukan." }, 404);
+    if (!step) return c.json({ error: "Langkah aktif tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     // Peran pemutus harus sesuai langkah aktif.
     if (tenant.role !== step.approver_role) {
       return c.json({ error: `Langkah ini menunggu persetujuan ${step.approver_role}, bukan peran Anda.` }, 403);

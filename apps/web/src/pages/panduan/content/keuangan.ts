@@ -6,7 +6,7 @@ export const KEUANGAN: GuideModule[] = [
     title: "Akuntansi & Jurnal",
     appPath: "/app/keuangan/jurnal",
     intro:
-      "Fondasi erpindo adalah pembukuan double-entry sungguhan: setiap transaksi menjadi jurnal seimbang, buku besar per akun, dan neraca saldo yang dijamin balance.",
+      "Fondasi ERPindo adalah pembukuan double-entry sungguhan: setiap transaksi menjadi jurnal seimbang, buku besar per akun, dan neraca saldo yang dijamin balance.",
     sections: [
       {
         heading: "Bagan akun & jurnal umum",
@@ -33,7 +33,7 @@ export const KEUANGAN: GuideModule[] = [
     title: "Laporan Keuangan",
     appPath: "/app/keuangan/laba-rugi",
     intro:
-      "Laba Rugi, Neraca, Arus Kas, dan Umur Piutang/Hutang — semuanya dihitung real-time dari jurnal, bisa diekspor CSV dan dicetak.",
+      "Laba Rugi, Neraca, Arus Kas, dan Umur Piutang/Utang — semuanya dihitung real-time dari jurnal, bisa diekspor CSV dan dicetak.",
     sections: [
       {
         heading: "Laba Rugi & Neraca",
@@ -48,7 +48,7 @@ export const KEUANGAN: GuideModule[] = [
         image: "/panduan/laporan-2.webp",
         imageAlt: "Laporan arus kas",
         body: [
-          "Arus Kas menampilkan uang masuk/keluar per keterangan jurnal — memudahkan melihat ke mana kas mengalir. Umur Piutang/Hutang mengelompokkan tagihan per usia (lancar, 1–30, 31–60, 61–90, >90 hari) agar penagihan terprioritas.",
+          "Arus Kas menampilkan uang masuk/keluar per keterangan jurnal — memudahkan melihat ke mana kas mengalir. Umur Piutang/Utang mengelompokkan tagihan per usia (lancar, 1–30, 31–60, 61–90, >90 hari) agar penagihan terprioritas.",
         ],
       },
       {

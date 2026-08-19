@@ -94,7 +94,7 @@ export const customFieldRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM custom_field_defs WHERE id = ? AND is_archived = 0`)
       .bind(id)
       .all<{ id: string }>();
-    if (!ada.results[0]) return c.json({ error: "Field kustom tidak ditemukan." }, 404);
+    if (!ada.results[0]) return c.json({ error: "Field kustom tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
 
     await db.prepare(`UPDATE custom_field_defs SET is_archived = 1 WHERE id = ?`).bind(id).run();
     await audit(c.env, {

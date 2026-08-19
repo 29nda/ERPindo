@@ -6,6 +6,7 @@ import {
   type LeaveType,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { CalendarDays, HandCoins, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
@@ -97,7 +98,7 @@ export function PayrollPage() {
         managerId: emp.managerId || undefined,
       }),
     onSuccess: () => {
-      toast("success", "Karyawan ditambahkan.");
+      toast("success", u("toastKaryawanDitambah"));
       setEmp({
         name: "",
         position: "",
@@ -130,7 +131,7 @@ export function PayrollPage() {
     onSuccess: (res) => {
       toast(
         "success",
-        `Penggajian ${res.runNo}: ${res.employees} karyawan, netto ${formatIDR(res.totalNet)}.`
+        isi(u("toastPenggajianSelesai"), res.runNo, res.employees, formatIDR(res.totalNet))
       );
       setRunError(null);
       queryClient.invalidateQueries({ queryKey: ["payroll-runs", tenant.tenantId] });
@@ -493,7 +494,7 @@ function DepartmentsCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boo
         parentId: form.parentId || undefined,
       }),
     onSuccess: () => {
-      toast("success", "Departemen ditambahkan.");
+      toast("success", u("toastDepartemenDitambah"));
       setForm({ code: "", name: "", parentId: "" });
       refresh();
     },
@@ -502,7 +503,7 @@ function DepartmentsCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boo
   const archive = useMutation({
     mutationFn: (id: string) => api.archiveDepartment(tenantId, id),
     onSuccess: () => {
-      toast("success", "Departemen diarsipkan.");
+      toast("success", u("toastDepartemenDiarsip"));
       refresh();
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -698,7 +699,7 @@ function AdjustmentsCard({
         amount: (form.kind === "minus" ? -1 : 1) * Math.abs(Math.round(Number(form.amount) || 0)),
       }),
     onSuccess: () => {
-      toast("success", "Komponen ditambahkan — akan ikut dihitung saat periode ini digaji.");
+      toast("success", u("toastKomponenDitambah"));
       setForm({ employeeId: form.employeeId, name: "", amount: "", kind: "plus" });
       invalidate();
     },
@@ -708,7 +709,7 @@ function AdjustmentsCard({
   const remove = useMutation({
     mutationFn: (id: string) => api.deletePayrollAdjustment(tenantId, id),
     onSuccess: () => {
-      toast("success", "Komponen dihapus.");
+      toast("success", u("toastKomponenDihapus"));
       invalidate();
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -872,7 +873,7 @@ function LoansCard({
     onSuccess: (res) => {
       toast(
         "success",
-        `Kasbon dicairkan (jurnal ${res.journalNo}). Cicilan otomatis memotong gaji tiap run.`
+        isi(u("toastKasbonDicairkan"), res.journalNo)
       );
       setForm({
         employeeId: form.employeeId,
@@ -1087,7 +1088,7 @@ function LeaveCard({
     onSuccess: (res) => {
       toast(
         "success",
-        `Pengajuan ${u(LEAVE_LABEL[form.type]).toLowerCase()} ${res.days} hari dicatat — menunggu persetujuan.`
+        isi(u("toastCutiDicatat"), u(LEAVE_LABEL[form.type]).toLowerCase(), res.days)
       );
       setForm({ ...form, note: "" });
       invalidate();
@@ -1247,7 +1248,7 @@ function RunRow({
     onSuccess: (res) => {
       toast(
         "success",
-        `Penggajian ${res.runNo} dibatalkan — jurnal pembalik ${res.reversalEntryNo}, saldo kasbon pulih.`
+        isi(u("toastPenggajianDibatalkan"), res.runNo, res.reversalEntryNo)
       );
       setVoidOpen(false);
       queryClient.invalidateQueries({ queryKey: ["payroll-runs", tenantId] });

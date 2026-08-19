@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { Download, PackageOpen } from "lucide-react";
 import { useState } from "react";
@@ -148,7 +149,7 @@ function StockAdjustmentForm() {
     onSuccess: (res) => {
       toast(
         "success",
-        `Stok disesuaikan (${res.delta > 0 ? "+" : ""}${res.delta}${res.entryNo ? `, jurnal ${res.entryNo}` : ""}).`
+        isi(u("toastStokDisesuaikan"), `${res.delta > 0 ? "+" : ""}${res.delta}`, res.entryNo ? isi(u("toastJurnalSuffix"), res.entryNo) : "")
       );
       setPhysicalQty("");
       setNote("");
@@ -252,7 +253,7 @@ function StockTransferForm() {
         qty: Number(qty),
       }),
     onSuccess: (res) => {
-      toast("success", `Transfer ${res.qty} unit berhasil (nilai ${formatIDR(res.value)}).`);
+      toast("success", isi(u("toastTransferStok"), res.qty, formatIDR(res.value)));
       setQty("");
       queryClient.invalidateQueries({ queryKey: ["stock", tenant.tenantId] });
     },
@@ -406,7 +407,7 @@ function ReorderCard() {
   const createPr = useMutation({
     mutationFn: () =>
       api.createRequisition(tenant.tenantId, {
-        note: "Usulan otomatis dari titik pesan (stok menipis)",
+        note: u("stokUsulanCatatan"),
         lines: suggestions.map((s) => ({
           productId: s.productId,
           qty: s.suggestedQty,
@@ -415,7 +416,7 @@ function ReorderCard() {
       }),
     onSuccess: (r) => {
       queryClient.invalidateQueries({ queryKey: ["requisitions", tenant.tenantId] });
-      toast("success", `Permintaan pembelian ${r.reqNo} dibuat — lanjutkan di menu Pengadaan.`);
+      toast("success", isi(u("toastPermintaanDibuat"), r.reqNo));
     },
     onError: (e: Error) => toast("error", e.message),
   });

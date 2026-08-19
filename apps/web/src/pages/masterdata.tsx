@@ -7,7 +7,7 @@ import {
   type IndustryKey,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLang } from "../i18n";
+import { isi, useLang } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { Contact, Download, Package, Search, Upload, Warehouse } from "lucide-react";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
@@ -94,7 +94,7 @@ function ImportCsvButton({
     if (!file) return;
     const rows = parseCsv(await file.text());
     if (rows.length === 0) {
-      toast("error", "File kosong atau header tidak terbaca.");
+      toast("error", u("toastFileKosong"));
       return;
     }
     importMutation.mutate(rows.map(mapRow));
@@ -150,6 +150,7 @@ function useEntityPage<Row extends { id: string }>(entity: "products" | "contact
   const { tenant } = useWorkspace();
   const isAdmin = tenant.role !== "viewer";
   const toast = useToast();
+  const u = useUi();
   const queryClient = useQueryClient();
   const [issues, setIssues] = useState<Record<string, string[]>>({});
   const [editing, setEditing] = useState<Row | null>(null);
@@ -170,7 +171,7 @@ function useEntityPage<Row extends { id: string }>(entity: "products" | "contact
     mutationFn: (input: Parameters<typeof api.createItem>[2]) =>
       api.createItem(tenant.tenantId, entity, input),
     onSuccess: () => {
-      toast("success", "Data tersimpan.");
+      toast("success", u("toastDataTersimpan"));
       invalidate();
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -180,7 +181,7 @@ function useEntityPage<Row extends { id: string }>(entity: "products" | "contact
     mutationFn: (vars: { id: string; input: Parameters<typeof api.updateItem>[3] }) =>
       api.updateItem(tenant.tenantId, entity, vars.id, vars.input),
     onSuccess: () => {
-      toast("success", "Perubahan tersimpan.");
+      toast("success", u("toastPerubahanTersimpan"));
       setEditing(null);
       invalidate();
     },
@@ -190,7 +191,7 @@ function useEntityPage<Row extends { id: string }>(entity: "products" | "contact
   const archive = useMutation({
     mutationFn: (id: string) => api.archiveItem(tenant.tenantId, entity, id),
     onSuccess: () => {
-      toast("success", "Data diarsipkan.");
+      toast("success", u("toastDataDiarsipkan"));
       setToArchive(null);
       invalidate();
     },
@@ -361,7 +362,7 @@ function SerialManager({ product }: { product: ProductRow }) {
     onSuccess: () => {
       setSerialNo("");
       queryClient.invalidateQueries({ queryKey: key });
-      toast("success", "Nomor seri ditambahkan.");
+      toast("success", u("toastNomorSeriDitambah"));
     },
     onError: (e: Error) => toast("error", e.message),
   });
@@ -449,7 +450,7 @@ function IndustryTemplateCard() {
   const apply = useMutation({
     mutationFn: () => api.applyIndustryTemplate(tenant.tenantId, industry),
     onSuccess: (r) => {
-      toast("success", `${r.productsAdded} contoh produk & ${r.contactsAdded} kontak ditambahkan.`);
+      toast("success", isi(u("toastContohDitambah"), r.productsAdded, r.contactsAdded));
       void qc.invalidateQueries({ queryKey: ["products", tenant.tenantId] });
       void qc.invalidateQueries({ queryKey: ["contacts", tenant.tenantId] });
     },

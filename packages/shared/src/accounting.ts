@@ -409,7 +409,7 @@ const TAX_PERIOD_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 /** PPh Final UMKM 0,5% (PP 55/2022): setoran per masa (bulan). */
 export const pphFinalSchema = z.object({
   period: z.string().regex(TAX_PERIOD_RE, "Masa pajak harus format YYYY-MM"),
-  accountId: z.string().min(1, "Pilih akun kas/bank"),
+  accountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
   paidDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal setor wajib diisi"),
 });
 export type PphFinalInput = z.infer<typeof pphFinalSchema>;
@@ -442,12 +442,12 @@ export const pph23Schema = z.object({
   objectType: z.enum(PPH23_OBJECTS.map((o) => o.code) as [string, ...string[]]),
   gross: amountSchema.refine((n) => n >= 1, "Dasar pengenaan minimal 1"),
   rate: z.number().min(0).max(100),
-  sourceAccountId: z.string().min(1, "Pilih akun sumber (hutang/kas/bank)"),
+  sourceAccountId: z.string().min(1, "Pilih akun sumber lebih dulu — bisa utang, kas, atau bank."),
   note: z.string().trim().max(200).optional().or(z.literal("")),
 });
 export type Pph23Input = z.infer<typeof pph23Schema>;
 export const pph23DepositSchema = z.object({
-  accountId: z.string().min(1, "Pilih akun kas/bank"),
+  accountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
   depositDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal setor wajib diisi"),
 });
 export type Pph23DepositInput = z.infer<typeof pph23DepositSchema>;
@@ -621,14 +621,14 @@ export type HasilRevaluasiValas = {
 /**
  * Revaluasi satu dokumen valas ke kurs penutup (Fase 22a).
  *
- * Piutang/hutang disimpan dalam **IDR pada kurs faktur**, jadi sisa valasnya
+ * Piutang/utang disimpan dalam **IDR pada kurs faktur**, jadi sisa valasnya
  * harus dipulihkan lewat pembagian. Itu menyisakan pembulatan sub-rupiah pada
  * faktur yang sudah dicicil sebagian — dikembalikan lewat `sisaValas` supaya
  * bisa diperiksa, bukan hilang diam-diam.
  *
- * Fungsi ini TIDAK tahu arah (piutang/hutang): pemanggilnya yang memutuskan
+ * Fungsi ini TIDAK tahu arah (piutang/utang): pemanggilnya yang memutuskan
  * sisi debit/kredit, karena kenaikan nilai piutang adalah laba sedangkan
- * kenaikan nilai hutang adalah rugi.
+ * kenaikan nilai utang adalah rugi.
  */
 export function revaluasiBarisValas(
   baris: BarisRevaluasiValas,
@@ -647,7 +647,7 @@ export function revaluasiBarisValas(
  *
  * `selisihPiutang` dan `selisihHutang` dipisah karena akun lawannya berbeda,
  * tetapi keduanya bermuara ke satu pasangan akun laba/rugi selisih kurs.
- * Kenaikan piutang = laba; kenaikan hutang = **rugi** (kita berutang lebih
+ * Kenaikan piutang = laba; kenaikan utang = **rugi** (kita berutang lebih
  * banyak rupiah) — inilah tanda yang paling mudah terbalik.
  */
 export function ringkasRevaluasiValas(input: {
@@ -790,7 +790,7 @@ export type KasKecilDanaTetapInput = z.infer<typeof kasKecilDanaTetapSchema>;
 
 /** Pengisian ulang kas kecil (Fase 22c). Jumlahnya DIHITUNG, tidak diketik. */
 export const kasKecilPengisianSchema = z.object({
-  sourceAccountId: z.string().min(1, "Pilih akun kas/bank sumber"),
+  sourceAccountId: z.string().min(1, "Pilih akun kas atau bank sumber lebih dulu."),
   entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal wajib diisi"),
 });
 export type KasKecilPengisianInput = z.infer<typeof kasKecilPengisianSchema>;
@@ -957,7 +957,7 @@ export function tenggatMendatang(semua: TenggatPajak[], hariKeDepan = 14, hariKe
 export type ArusDiproyeksikan = {
   /** `YYYY-MM-DD` perkiraan uangnya bergerak. */
   tanggal: string;
-  /** Positif = masuk (piutang, kontrak); negatif = keluar (hutang). */
+  /** Positif = masuk (piutang, kontrak); negatif = keluar (utang). */
   jumlah: number;
   sumber: "piutang" | "hutang" | "kontrak";
   keterangan: string;

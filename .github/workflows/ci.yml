@@ -109,6 +109,18 @@ jobs:
       - name: Penjaga warna (token semantik)
         run: node scripts/sapu-warna.mjs
 
+      # Fase 33k: keputusan istilah di docs/glosarium.md. Tanpa gerbang ini ia
+      # berumur persis sampai halaman berikutnya ditulis — string apa pun tetap
+      # sah bagi tsc, eslint, dan smoke, jadi tidak ada yang bisa melihatnya.
+      - name: Penjaga istilah (glosarium)
+        run: node scripts/sapu-istilah.mjs
+
+      # Fase 33k: bentuk kalimat — terjemahan Inggris dalam kurung, empty state
+      # buntu, placeholder angka tanpa pemisah ribuan. Berambang seperti
+      # sapu-warna: hanya boleh TURUN.
+      - name: Penjaga gaya naskah
+        run: node scripts/sapu-gaya.mjs
+
       # Fase 31e: Markdown tidak dikompilasi, jadi tautan mati tidak pernah
       # menghasilkan galat. Memadatkan 258 log fase meninggalkan 21 rujukan
       # menggantung sekaligus — dua di antaranya di dokumen yang justru dibaca

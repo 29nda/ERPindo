@@ -16,7 +16,7 @@ import {
 import type { SqlExecutor } from "@erpindo/db";
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { getLockedBefore, nextDocNo, postJournal } from "../lib/accounting";
+import { galatAkunKasBank, getLockedBefore, nextDocNo, postJournal } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { getTenantDb } from "../lib/tenantDb";
 import { requireAuth, requirePermission, requireTenantRole } from "../middleware/auth";
@@ -26,8 +26,8 @@ import { clientIp } from "./auth";
  * Pajak UMKM (Fase 7d):
  * - PPh Final 0,5% (PP 55/2022): dihitung dari peredaran bruto (omzet) per masa bulan,
  *   dicatat sebagai Beban PPh Final dibayar dari kas/bank.
- * - PPh 23: pemotongan atas jasa/sewa/royalti/dll → bukti potong + Hutang PPh 23,
- *   lalu disetor (mengurangi hutang).
+ * - PPh 23: pemotongan atas jasa/sewa/royalti/dll → bukti potong + Utang PPh 23,
+ *   lalu disetor (mengurangi utang).
  * - SPT Masa PPN 1111: rekap keluaran (faktur ber-PPN) vs masukan (pembelian ber-PPN).
  */
 
@@ -88,7 +88,7 @@ export const taxRoutes = new Hono<AppEnv>()
 
     const dup = await db.prepare(`SELECT id FROM tax_pph_final WHERE period = ?`).bind(input.period).all<{ id: string }>();
     if (dup.results[0]) return c.json({ error: `Masa ${input.period} sudah dicatat.` }, 409);
-    if (!(await assetAccount(db, input.accountId))) return c.json({ error: "Akun pembayaran harus akun kas/bank (aset)." }, 400);
+    if (!(await assetAccount(db, input.accountId))) return c.json({ error: galatAkunKasBank("pembayaran") }, 400);
     const lockedBefore = await getLockedBefore(db);
     if (lockedBefore && input.paidDate <= lockedBefore) return c.json({ error: `Periode sampai ${lockedBefore} sudah ditutup.` }, 400);
 
@@ -154,19 +154,19 @@ export const taxRoutes = new Hono<AppEnv>()
     const input = parsed.data;
 
     const cust = await db.prepare(`SELECT id FROM contacts WHERE id = ?`).bind(input.contactId).all<{ id: string }>();
-    if (!cust.results[0]) return c.json({ error: "Rekanan tidak ditemukan." }, 404);
+    if (!cust.results[0]) return c.json({ error: "Rekanan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const src = await db.prepare(`SELECT id FROM accounts WHERE id = ? AND is_archived = 0`).bind(input.sourceAccountId).all<{ id: string }>();
-    if (!src.results[0]) return c.json({ error: "Akun sumber tidak ditemukan." }, 400);
+    if (!src.results[0]) return c.json({ error: "Akun sumber tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
     const lockedBefore = await getLockedBefore(db);
     if (lockedBefore && input.taxDate <= lockedBefore) return c.json({ error: `Periode sampai ${lockedBefore} sudah ditutup.` }, 400);
 
     const amount = Math.round((input.gross * input.rate) / 100);
     if (amount <= 0) return c.json({ error: "Nilai PPh 23 nol — periksa dasar & tarif." }, 400);
 
-    const hutang = await ensureAccountByCode(db, HUTANG_PPH23, "Hutang PPh 23", "liability");
+    const hutang = await ensureAccountByCode(db, HUTANG_PPH23, "Utang PPh 23", "liability");
     const docNo = await nextDocNo(db, "tax_pph23", "BP23");
     const memo = `Bukti potong PPh 23 ${docNo}`;
-    // Dr akun sumber (mis. Hutang Usaha yang dikurangi / kas) / Cr Hutang PPh 23.
+    // Dr akun sumber (mis. Utang Usaha yang dikurangi / kas) / Cr Utang PPh 23.
     const journal = await postJournal(db, {
       entryDate: input.taxDate,
       memo,
@@ -195,13 +195,13 @@ export const taxRoutes = new Hono<AppEnv>()
 
     const { results } = await db.prepare(`SELECT doc_no, amount, deposited FROM tax_pph23 WHERE id = ?`).bind(id).all<{ doc_no: string; amount: number; deposited: number }>();
     const row = results[0];
-    if (!row) return c.json({ error: "Bukti potong tidak ditemukan." }, 404);
+    if (!row) return c.json({ error: "Bukti potong tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (row.deposited === 1) return c.json({ error: "Bukti potong ini sudah disetor." }, 409);
-    if (!(await assetAccount(db, input.accountId))) return c.json({ error: "Akun setor harus akun kas/bank (aset)." }, 400);
+    if (!(await assetAccount(db, input.accountId))) return c.json({ error: galatAkunKasBank("setor") }, 400);
     const lockedBefore = await getLockedBefore(db);
     if (lockedBefore && input.depositDate <= lockedBefore) return c.json({ error: `Periode sampai ${lockedBefore} sudah ditutup.` }, 400);
 
-    const hutang = await ensureAccountByCode(db, HUTANG_PPH23, "Hutang PPh 23", "liability");
+    const hutang = await ensureAccountByCode(db, HUTANG_PPH23, "Utang PPh 23", "liability");
     const memo = `Setor PPh 23 ${row.doc_no}`;
     const journal = await postJournal(db, {
       entryDate: input.depositDate,

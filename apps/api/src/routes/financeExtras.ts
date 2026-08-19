@@ -15,7 +15,7 @@ import {
 import type { SqlExecutor } from "@erpindo/db";
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { postJournal, PeriodLockedError } from "../lib/accounting";
+import { galatAkunKasBank, postJournal, PeriodLockedError, SYS_ACCOUNTS } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { getTenantDb } from "../lib/tenantDb";
 import { requireAuth, requireTenantRole } from "../middleware/auth";
@@ -121,7 +121,7 @@ export async function postClosingEntry(
   const retained = (
     await db.prepare(`SELECT id FROM accounts WHERE code = '3-2000'`).all<{ id: string }>()
   ).results[0];
-  if (!retained) return { error: "Akun Laba Ditahan (3-2000) tidak ditemukan." };
+  if (!retained) return { error: "Akun Laba Ditahan (3-2000) tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." };
 
   // Balik saldo tiap akun P/L (income bersaldo kredit → debit; expense sebaliknya),
   // selisihnya (laba/rugi bersih) mendarat di Laba Ditahan.
@@ -142,9 +142,24 @@ export async function postClosingEntry(
   return { entryNo: res.entryNo, netProfit };
 }
 
-/** Kode akun yang dipakai revaluasi valas (Fase 22a). */
-const AKUN_PIUTANG = "1-1200";
-const AKUN_HUTANG = "2-1100";
+/**
+ * Kode akun yang dipakai revaluasi valas (Fase 22a).
+ *
+ * Fase 33c — `AKUN_HUTANG` dulu berisi `"2-1100"`, dan itu **PPN Keluaran**,
+ * bukan Utang Usaha. Sisi utang direvaluasi ke akun pajak selama sebelas fase
+ * tanpa satu gerbang pun memerah, persis karena jurnalnya **tetap seimbang**:
+ * baris utang dan baris laba/rugi kurs sama besar, jadi neraca saldo cocok dan
+ * smoke yang hanya memeriksa `netProfit` ikut hijau.
+ *
+ * Akibatnya bukan angka yang meleset sedikit, melainkan angka yang salah tempat
+ * di satu-satunya akun yang paling sering dicocokkan pengguna dengan SPT-nya.
+ *
+ * Karena itu keduanya kini diambil dari `SYS_ACCOUNTS` — satu sumber yang sama
+ * dengan yang dipakai posting faktur, sehingga kode akun tidak bisa lagi
+ * menyimpang sendiri di berkas ini.
+ */
+const AKUN_PIUTANG = SYS_ACCOUNTS.PIUTANG;
+const AKUN_HUTANG = SYS_ACCOUNTS.HUTANG;
 const AKUN_LABA_KURS = "4-3000";
 const AKUN_RUGI_KURS = "5-6000";
 
@@ -163,11 +178,11 @@ export type HasilRevaluasi = {
 };
 
 /**
- * Revaluasi saldo piutang/hutang valas ke kurs penutup (Fase 22a).
+ * Revaluasi saldo piutang/utang valas ke kurs penutup (Fase 22a).
  *
  * ## Kenapa ada jurnal PEMBALIK, dan kenapa itu bukan pilihan gaya
  *
- * Piutang & hutang disimpan dalam **IDR pada kurs faktur**: `invoices.total`
+ * Piutang & utang disimpan dalam **IDR pada kurs faktur**: `invoices.total`
  * adalah hasil `valas × exchange_rate`, dan pelunasan menguranginya sebesar
  * `round(valas × kursFaktur)`. Artinya buku besar Piutang selalu sama dengan
  * jumlah sisa faktur pada kurs faktur — dan `computeForexSettlement()`
@@ -236,7 +251,7 @@ export async function postForexRevaluation(
     idAkun(db, AKUN_LABA_KURS),
     idAkun(db, AKUN_RUGI_KURS),
   ]);
-  if (!idPiutang || !idHutang || !idLaba || !idRugi) return { error: "Akun sistem selisih kurs tidak ditemukan." };
+  if (!idPiutang || !idHutang || !idLaba || !idRugi) return { error: "Akun sistem selisih kurs tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." };
 
   const baris: { accountId: string; description: string; debit: number; credit: number }[] = [];
   if (selisihPiutang !== 0) {
@@ -248,11 +263,11 @@ export async function postForexRevaluation(
     });
   }
   if (selisihHutang !== 0) {
-    // Hutang bersaldo KREDIT: kenaikan nilainya dikredit, dan itu RUGI —
+    // Utang bersaldo KREDIT: kenaikan nilainya dikredit, dan itu RUGI —
     // tanda yang paling mudah terbalik di seluruh fase ini.
     baris.push({
       accountId: idHutang,
-      description: `Revaluasi hutang valas ${asOf}`,
+      description: `Revaluasi utang valas ${asOf}`,
       debit: selisihHutang < 0 ? -selisihHutang : 0,
       credit: selisihHutang > 0 ? selisihHutang : 0,
     });
@@ -500,7 +515,7 @@ export const financeExtraRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, c.get("tenant").dbRef);
     const { results } = await db.prepare(`SELECT * FROM journal_templates WHERE id = ?`).bind(c.req.param("id")).all<TemplateRow>();
     const t = results[0];
-    if (!t) return c.json({ error: "Template tidak ditemukan." }, 404);
+    if (!t) return c.json({ error: "Template tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     try {
       const res = await postJournal(db, {
         entryDate: new Date().toISOString().slice(0, 10),
@@ -527,7 +542,7 @@ export const financeExtraRoutes = new Hono<AppEnv>()
       .prepare(`SELECT id FROM accounts WHERE id = ? AND type = 'asset' AND is_archived = 0`)
       .bind(accountId)
       .all();
-    if (acc.results.length === 0) return c.json({ error: "Pilih akun kas/bank yang valid." }, 400);
+    if (acc.results.length === 0) return c.json({ error: "Akun kas atau bank itu tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar akun." }, 400);
 
     const candidates = await candidateLines(db, accountId);
     const used = new Set<string>();
@@ -593,7 +608,7 @@ export const financeExtraRoutes = new Hono<AppEnv>()
     const item = (
       await db.prepare(`SELECT id, account_id FROM bank_statement_items WHERE id = ?`).bind(c.req.param("itemId")).all<{ id: string; account_id: string }>()
     ).results[0];
-    if (!item) return c.json({ error: "Baris mutasi tidak ditemukan." }, 404);
+    if (!item) return c.json({ error: "Baris mutasi tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     const line = (
       await db.prepare(`SELECT id FROM journal_lines WHERE id = ? AND account_id = ?`).bind(body.journalLineId, item.account_id).all()
     ).results[0];
@@ -631,7 +646,7 @@ export const financeExtraRoutes = new Hono<AppEnv>()
     }
   })
 
-  /** Revaluasi saldo piutang/hutang valas ke kurs penutup (Fase 22a). */
+  /** Revaluasi saldo piutang/utang valas ke kurs penutup (Fase 22a). */
   .post("/:tenantId/forex-revaluation", requireAuth, requireTenantRole("admin"), async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as { asOf?: string };
     const asOf = body.asOf ?? "";
@@ -704,7 +719,7 @@ export const financeExtraRoutes = new Hono<AppEnv>()
         .all<AkunRingkas>()
     ).results[0];
     if (!sumber || sumber.type !== "asset" || sumber.is_archived) {
-      return c.json({ error: "Akun sumber harus akun kas/bank (aset) yang aktif." }, 400);
+      return c.json({ error: galatAkunKasBank("sumber") }, 400);
     }
     // Memindahkan uang dari kas kecil ke kas kecil: jurnalnya SEIMBANG, saldonya
     // tidak berubah, dan layarnya akan melaporkan pengisian yang berhasil.

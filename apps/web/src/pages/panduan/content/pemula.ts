@@ -7,7 +7,7 @@ export const PEMULA: GuideModule[] = [
     title: "Akuntansi untuk Pemula",
     appPath: "/app/keuangan/catat",
     intro:
-      "Tidak paham debit-kredit, SAK, atau jurnal? Tidak masalah. erpindo dirancang agar pembukuan berjalan benar tanpa Anda harus menjadi akuntan — panduan ini menjelaskan 5 hal inti yang cukup Anda tahu.",
+      "Tidak paham debit-kredit, SAK, atau jurnal? Tidak masalah. ERPindo dirancang agar pembukuan berjalan benar tanpa Anda harus menjadi akuntan — panduan ini menjelaskan 5 hal inti yang cukup Anda tahu.",
     sections: [
       {
         heading: "1. Anda tidak perlu menulis jurnal",
@@ -49,7 +49,7 @@ export const PEMULA: GuideModule[] = [
     slug: "istilah",
     title: "Kamus Istilah",
     intro:
-      "Penjelasan singkat dan sederhana untuk istilah akuntansi & bisnis yang muncul di erpindo — tanpa teori yang berat.",
+      "Penjelasan singkat dan sederhana untuk istilah akuntansi & bisnis yang muncul di ERPindo — tanpa teori yang berat.",
     sections: [
       {
         heading: "Dasar pembukuan",
@@ -68,7 +68,7 @@ export const PEMULA: GuideModule[] = [
         steps: [
           "Faktur (invoice) — dokumen tagihan resmi atas penjualan/pembelian.",
           "Piutang usaha — uang yang belum dibayar pelanggan kepada Anda.",
-          "Hutang usaha — uang yang belum Anda bayar ke pemasok.",
+          "Utang usaha — uang yang belum Anda bayar ke pemasok.",
           "Jatuh tempo — batas tanggal pembayaran tagihan.",
           "Retur — pengembalian barang; pembukuannya otomatis dibalik secara proporsional.",
           "Void — membatalkan dokumen yang salah input (belum dibayar); jurnal pembalik dibuat otomatis.",
@@ -94,7 +94,7 @@ export const PEMULA: GuideModule[] = [
           "Neraca — potret kekayaan pada satu tanggal: aset = kewajiban + ekuitas (selalu seimbang).",
           "Arus kas — uang benar-benar masuk dan keluar dari kas & bank.",
           "Aset — semua yang dimiliki perusahaan (kas, piutang, stok, kendaraan).",
-          "Kewajiban (liabilitas) — semua yang harus dibayar (hutang usaha, hutang gaji, PPN keluaran).",
+          "Kewajiban (liabilitas) — semua yang harus dibayar (utang usaha, utang gaji, PPN keluaran).",
           "Ekuitas (modal) — hak pemilik: aset dikurangi kewajiban.",
           "Penyusutan (depresiasi) — nilai aset tetap yang \"dipakai habis\" sedikit demi sedikit tiap bulan dan dibukukan sebagai beban.",
         ],
@@ -104,7 +104,7 @@ export const PEMULA: GuideModule[] = [
         steps: [
           "PPN — Pajak Pertambahan Nilai yang dipungut saat menjual (keluaran) dan dibayar saat membeli (masukan).",
           "DPP — Dasar Pengenaan Pajak: nilai transaksi sebelum PPN.",
-          "e-Faktur / Coretax — sistem faktur pajak elektronik DJP; erpindo menyiapkan berkas XML siap impor.",
+          "e-Faktur / Coretax — sistem faktur pajak elektronik DJP; ERPindo menyiapkan berkas XML siap impor.",
           "NPWP — Nomor Pokok Wajib Pajak; sejak Coretax dinormalkan menjadi 16 digit.",
           "PPh 21 — pajak penghasilan karyawan yang dipotong dari gaji; dihitung dengan tarif efektif rata-rata (TER).",
           "BPJS — iuran jaminan kesehatan & ketenagakerjaan yang dipotong/ditanggung sesuai ketentuan.",

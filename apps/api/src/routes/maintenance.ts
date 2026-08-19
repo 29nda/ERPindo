@@ -10,7 +10,7 @@ import {
 import type { SqlExecutor } from "@erpindo/db";
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { accountIdByCode, getLockedBefore, nextDocNo, postJournal } from "../lib/accounting";
+import { accountIdByCode, galatAkunKasBank, getLockedBefore, nextDocNo, postJournal } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { getTenantDb } from "../lib/tenantDb";
 import { requireAuth, requireTenantRole } from "../middleware/auth";
@@ -191,7 +191,7 @@ export const maintenanceRoutes = new Hono<AppEnv>()
     const db = getTenantDb(c.env, c.get("tenant").dbRef);
     const id = c.req.param("id");
     const { results } = await db.prepare(`SELECT id FROM maintenance_schedules WHERE id = ?`).bind(id).all<{ id: string }>();
-    if (!results[0]) return c.json({ error: "Jadwal tidak ditemukan." }, 404);
+    if (!results[0]) return c.json({ error: "Jadwal tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     await db
       .prepare(`UPDATE maintenance_schedules SET active = ? WHERE id = ?`)
       .bind(parsed.data.active ? 1 : 0, id)
@@ -273,7 +273,7 @@ export const maintenanceRoutes = new Hono<AppEnv>()
       .bind(id)
       .all<{ id: string; title: string; status: string }>();
     const wo = results[0];
-    if (!wo) return c.json({ error: "Work order tidak ditemukan." }, 404);
+    if (!wo) return c.json({ error: "Work order tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (wo.status === "done") return c.json({ error: "Work order sudah selesai." }, 409);
 
     let journalId: string | null = null;
@@ -283,7 +283,7 @@ export const maintenanceRoutes = new Hono<AppEnv>()
         .prepare(`SELECT type FROM accounts WHERE id = ? AND is_archived = 0`)
         .bind(input.cashAccountId)
         .all<{ type: string }>();
-      if (acc[0]?.type !== "asset") return c.json({ error: "Akun pembayar harus akun kas/bank (aset)." }, 400);
+      if (acc[0]?.type !== "asset") return c.json({ error: galatAkunKasBank("pembayar") }, 400);
 
       const lockedBefore = await getLockedBefore(db);
       if (lockedBefore && input.completedDate <= lockedBefore) {

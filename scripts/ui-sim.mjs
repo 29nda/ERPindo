@@ -439,10 +439,10 @@ try {
   // Fase 16l — pelunasan utang 16c: teks yang dulu tertinggal berbahasa
   // Indonesia di halaman ini. Penanda negatifnya murni teks UI (bukan nama
   // produk/kontak), sesuai pelajaran Fase 16e.
-  const adaAddItem = jualEn.includes("Add item") && jualEn.includes("Post Invoice");
+  const adaAddItem = jualEn.includes("Add item") && jualEn.includes("Post invoice");
   const tanpaSisaId =
     !jualEn.includes("Tambah barang") &&
-    !jualEn.includes("Posting Faktur") &&
+    !jualEn.includes("Posting faktur") &&
     !jualEn.includes("Dokumen yang Anda posting");
   check(
     "F0n sisa teks halaman Penjualan ikut EN: tombol baris & posting, tanpa teks Indonesia",
@@ -782,9 +782,9 @@ try {
   // bila ada proyek, jadi asersinya hanya menuntut tombolnya.
   await gotoRoute("/app/proyek", 800);
   const prjSisaEn = await page.innerText("body");
-  const adaProyekSisaEn = prjSisaEn.includes("Create Project");
+  const adaProyekSisaEn = prjSisaEn.includes("Create project");
   const tanpaProyekSisaId =
-    !prjSisaEn.includes("Buat Proyek") && !prjSisaEn.includes("Seret kartu untuk memindahkan");
+    !prjSisaEn.includes("Buat proyek") && !prjSisaEn.includes("Seret kartu untuk memindahkan");
   check(
     "F0t sisa teks Proyek ikut EN: tombol buat proyek, tanpa teks Indonesia",
     adaProyekSisaEn && tanpaProyekSisaId,
@@ -795,9 +795,9 @@ try {
   // penanda positifnya tak bergantung ada/tidaknya jurnal tersimpan.
   await gotoRoute("/app/keuangan/jurnal", 900);
   const jrSisaEn = await page.innerText("body");
-  const adaJurnalSisaEn = jrSisaEn.includes("Post Entry") && jrSisaEn.includes("Add line");
+  const adaJurnalSisaEn = jrSisaEn.includes("Post entry") && jrSisaEn.includes("Add line");
   const tanpaJurnalSisaId =
-    !jrSisaEn.includes("Posting Jurnal") &&
+    !jrSisaEn.includes("Posting jurnal") &&
     !jrSisaEn.includes("Tambah baris") &&
     !jrSisaEn.includes("belum seimbang");
   check(
@@ -1248,17 +1248,17 @@ try {
 
   // Panel Asisten AI: hanya terlihat setelah tombol mengambangnya ditekan,
   // jadi tak pernah tersentuh sapuan innerText halaman mana pun.
-  await page.getByRole("button", { name: "Open the erpindo Assistant" }).first().click();
+  await page.getByRole("button", { name: "Open the ERPindo Assistant" }).first().click();
   await page.waitForTimeout(500);
   const aiEn = await page.innerText("body");
-  const adaAiEn = aiEn.includes("Ask how to use erpindo") && aiEn.includes("erpindo Assistant");
-  const tanpaAiId = !aiEn.includes("Tanyakan cara memakai erpindo");
+  const adaAiEn = aiEn.includes("Ask how to use ERPindo") && aiEn.includes("ERPindo Assistant");
+  const tanpaAiId = !aiEn.includes("Tanyakan cara memakai ERPindo");
   check(
     "F1u panel Asisten AI ikut EN: ajakan + contoh pertanyaan, tanpa teks Indonesia",
     adaAiEn && tanpaAiId,
     `→ EN=${adaAiEn} tanpaID=${tanpaAiId}`,
   );
-  await page.getByRole("button", { name: "Close the erpindo Assistant" }).first().click();
+  await page.getByRole("button", { name: "Close the ERPindo Assistant" }).first().click();
   await page.waitForTimeout(300);
 
   // Fase 16n — pelunasan utang 16e. Rute diverifikasi ke main.tsx:
@@ -2090,8 +2090,8 @@ try {
   await page.getByRole("tab", { name: "Data & Security" }).click();
   await page.waitForTimeout(700);
   const auditEn = await page.innerText("body");
-  const adaAuditEn = auditEn.includes("Export & Backup") && auditEn.includes("Activity history");
-  const tanpaAuditId = !auditEn.includes("Ekspor & Cadangan") && !auditEn.includes("Riwayat aktivitas");
+  const adaAuditEn = auditEn.includes("Export & backup") && auditEn.includes("Activity history");
+  const tanpaAuditId = !auditEn.includes("Ekspor & cadangan") && !auditEn.includes("Riwayat aktivitas");
   check(
     "F2d tab Data & Keamanan ikut EN termasuk kartu audit log",
     adaAuditEn && tanpaAuditId,

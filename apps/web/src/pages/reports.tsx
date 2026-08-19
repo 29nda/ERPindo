@@ -477,7 +477,7 @@ function ProyeksiArusKasCard() {
 }
 
 // ---------------------------------------------------------------------------
-// Umur Piutang / Hutang (aging)
+// Umur Piutang / Utang (aging)
 // ---------------------------------------------------------------------------
 
 export function AgingPage() {
@@ -598,7 +598,7 @@ export function EfakturPage() {
     try {
       const xml = await api.efakturXml(tenant.tenantId, from, to);
       downloadXml(`efaktur-coretax-${from}-sd-${to}.xml`, xml);
-      toast("success", "XML Coretax terunduh — impor lewat menu e-Faktur → Impor Faktur Keluaran.");
+      toast("success", u("toastXmlCoretax"));
     } catch (err) {
       toast("error", (err as Error).message);
     } finally {

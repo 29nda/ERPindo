@@ -33,7 +33,7 @@ export const openingStockLineSchema = z.object({
 
 export const openingBalanceSchema = z.object({
   asOfDate: dateStr,
-  /** Saldo awal akun NON-persediaan (kas, bank, piutang, hutang, modal, dst.). */
+  /** Saldo awal akun NON-persediaan (kas, bank, piutang, utang, modal, dst.). */
   accounts: z.array(openingAccountLineSchema).max(500).default([]),
   /** Stok awal — nilainya otomatis menjadi saldo akun Persediaan (1-1300). */
   stock: z.array(openingStockLineSchema).max(5000).default([]),
