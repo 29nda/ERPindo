@@ -165,23 +165,22 @@ function Hero() {
 
 function TrustBar() {
   const lang = useLang();
-  // Angka memakai utilitas `num` (mono + tabular) — di sinilah font angka yang
-  // ditambahkan Fase 17a terbayar: deretan statistik jadi berbaris rapi.
+  // Fase 35b — dulu EMPAT kolom berisi ikon + judul serif + paragraf, tepat di
+  // bawah peragaan yang baru saja membuktikan hal yang sama. Ia memakan hampir
+  // satu layar penuh untuk mengulang.
+  //
+  // Kini satu bilah rapat: judulnya saja, dipisah titik tengah. Isi lengkapnya
+  // tetap ada di seksi Harga, Keamanan, dan FAQ — yang memang tempatnya.
   return (
     <section className="border-b border-line bg-surface">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 divide-line px-4 sm:px-6 lg:grid-cols-4 lg:divide-x">
+      <ul className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-4 text-[13px] sm:px-6">
         {TRUST_POINTS.map((s) => (
-          <div key={s.label.id} className="px-4 py-6 first:pl-0 lg:last:pr-0">
-            <s.icon className="size-5 text-brand-600 dark:text-brand-400" aria-hidden />
-            {/* Fase 32e: `num` (mono + tabular) DIBUANG. Utilitas itu ada untuk angka —
-                dan bilah ini memang dulu berisi angka. Sejak isinya menjadi kalimat
-                pendek, mono berukuran 2xl memecahnya jadi tiga baris di layar 390px.
-                Serif memberi bobot yang sama tanpa memaksa lebar per karakter. */}
-            <div className="judul mt-3 text-lg text-ink">{pick(s.value, lang)}</div>
-            <div className="mt-1 text-[13px] text-ink-muted">{pick(s.label, lang)}</div>
-          </div>
+          <li key={s.label.id} className="flex items-center gap-2 text-ink-soft">
+            <s.icon className="size-4 shrink-0 text-brand-ink" aria-hidden />
+            <span className="font-medium text-ink">{pick(s.value, lang)}</span>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
@@ -191,7 +190,7 @@ function Showcase() {
   const [active, setActive] = useState("pos");
   const item = SHOWCASE.find((s) => s.id === active) ?? SHOWCASE[0]!;
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Lihat cara kerjanya", "See how it works")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
         {L(lang, "Lima pekerjaan yang paling menyita waktu. Pilih satu untuk melihat tampilan aslinya.", "The five jobs that eat the most time. Pick one to see what it actually looks like.")}
@@ -248,9 +247,21 @@ function Showcase() {
 function Comparison() {
   const lang = useLang();
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
+    /* Fase 35b — PITA KONTRAS, dan ini satu-satunya di halaman.
+    
+       Keluhan "membosankan" bukan hanya soal kata: delapan seksi berturut-turut
+       memakai bentuk yang sama persis (judul + grid kartu) di atas krem yang
+       sama, dari atas sampai bawah. Tidak ada satu pun momen yang membuat mata
+       berhenti.
+       
+       Seksi inilah tempatnya: ia berisi pertentangan — cara lama vs cara ini —
+       dan pertentangan pantas terlihat berbeda. `bg-ink text-ink-invert`
+       membalik sendiri mengikuti tema, jadi ia gelap di tema terang dan terang
+       di tema gelap tanpa satu pun kelas `dark:`. */
+    <section className="bg-ink text-ink-invert">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Masih pakai buku & Excel?", "Still using ledgers & Excel?")}</h2>
-      <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
+      <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-invert/75">
         {L(lang, "Bukan soal rapi atau berantakan. Soal berapa jam yang habis tiap bulan, dan selisih yang baru ketahuan waktu tutup buku.", "It is not about being tidy. It is about the hours that disappear each month, and the gaps you only find at closing.")}
       </p>
       {/* Fase 32e — di layar kecil tabel ini MENUMPUK jadi kartu.
@@ -262,7 +273,14 @@ function Comparison() {
           seluruh elemen tabel jadi `block`, kepala tabel disembunyikan, dan
           tiap baris berdiri sebagai kartu. */}
       <div className="mt-6 md:overflow-x-auto">
-        <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-card border border-line text-[13px] max-md:block max-md:border-0 md:min-w-[640px] max-md:[&>tbody]:block">
+        {/* `text-ink` MEMULIHKAN warna teks normal di dalam tabel.
+          
+              Tanpa baris ini, sel mewarisi `text-ink-invert` dari pita gelap
+              sementara latarnya sendiri tetap terang — dan kolom pertama
+              (nama pekerjaan) menjadi putih di atas putih. Tidak ada gerbang
+              yang bisa melihatnya: kontras bukan sesuatu yang diperiksa
+              asersi teks. Ia hanya terlihat karena halamannya dipotret. */}
+        <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-card border border-line text-[13px] text-ink max-md:block max-md:border-0 md:min-w-[640px] max-md:[&>tbody]:block">
           <thead className="max-md:hidden">
             <tr className="bg-surface-muted text-left">
               <th className="px-3 py-2 text-[11px] font-semibold tracking-wider">{L(lang, "Pekerjaan", "Task")}</th>
@@ -293,6 +311,7 @@ function Comparison() {
             ))}
           </tbody>
         </table>
+      </div>
       </div>
     </section>
   );
@@ -400,7 +419,7 @@ function Pricing() {
   const lang = useLang();
   return (
     <section id="harga" className="scroll-mt-16 border-t border-line bg-surface">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
         <h2 className="judul text-[2rem] sm:text-[2.5rem]">
           {L(lang, "Satu sistem, dari toko pertama sampai grup perusahaan", "One system, from your first shop to a group of companies")}
         </h2>
@@ -496,7 +515,7 @@ function Pricing() {
 function Security() {
   const lang = useLang();
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Data bisnis Anda, aman di tangan Anda", "Your business data, safe in your hands")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
         {L(lang, "Aman saja tidak cukup. Anda juga harus bisa berhenti kapan saja dan membawa seluruh data Anda.", "Secure is necessary, but not enough. You should also be able to leave whenever you want — and take all your data with you.")}
@@ -521,7 +540,7 @@ function Security() {
 function Faq() {
   const lang = useLang();
   return (
-    <section id="faq" className="mx-auto max-w-3xl scroll-mt-16 px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
+    <section id="faq" className="mx-auto max-w-3xl scroll-mt-16 px-4 py-14 sm:py-20 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Pertanyaan umum", "Frequently asked questions")}</h2>
       {/* Daftar menyatu berpembatas garis, bukan tumpukan kartu terpisah. */}
       <div className="mt-10 divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
