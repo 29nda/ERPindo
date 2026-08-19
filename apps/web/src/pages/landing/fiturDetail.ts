@@ -73,7 +73,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     },
     cara: [
       {
-        id: "Setiap transaksi — faktur, kasir, gaji, penyusutan aset — otomatis membuat jurnal double-entry saat disimpan. Tidak ada langkah 'posting ke akuntansi' yang bisa terlupa.",
+        id: "Setiap transaksi — faktur, kasir, gaji, penyusutan aset — otomatis membuat jurnal dua sisi yang selalu seimbang (double-entry) saat disimpan. Tidak ada langkah 'posting ke akuntansi' yang bisa terlupa.",
         en: "Every transaction — invoice, POS sale, payroll, depreciation — automatically creates a double-entry journal on save. There is no separate 'post to accounting' step to forget.",
       },
       {
@@ -165,8 +165,8 @@ export const MODUL_DETAIL: ModulDetail[] = [
     },
     cara: [
       {
-        id: "Stok multi-gudang dengan HPP rata-rata bergerak dihitung ulang otomatis di setiap penjualan dan pembelian.",
-        en: "Multi-warehouse stock with moving-average COGS recalculated automatically on every sale and purchase.",
+        id: "Stok di banyak gudang, dengan modal barang (HPP) dirata-rata ulang otomatis di setiap penjualan dan pembelian.",
+        en: "Stock across warehouses, with cost of goods re-averaged automatically on every sale and purchase.",
       },
       {
         id: "Lot dan tanggal kedaluwarsa: penjualan mengambil lot yang paling dekat kedaluwarsa lebih dulu (FEFO), otomatis.",
