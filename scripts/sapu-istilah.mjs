@@ -50,6 +50,31 @@ const ATURAN = [
     pesan: 'rupiah ditulis "Rp 499.000" dengan spasi (glosarium §6)',
   },
   {
+    // Fase 34a — pemilik menegaskan yang diminta adalah TATA BAHASA YANG BENAR,
+    // bukan sekadar bahasa yang mudah dipahami. Keduanya bukan hal yang sama,
+    // dan Fase 32e mengejar yang kedua: naskah landing jadi jernih tetapi
+    // ragamnya turun ke bahasa percakapan.
+    //
+    // Diaudit dengan aturan PUEBI/KBBI. Ejaannya ternyata bersih; yang meleset
+    // justru RAGAM — kata percakapan dan verba yang kehilangan awalannya.
+    //
+    // Hanya kata yang padanan bakunya tidak berubah makna yang masuk sini.
+    // "bisa" TIDAK didaftarkan: ia baku menurut KBBI, hanya lebih santai
+    // daripada "dapat", dan memaksanya di 78 tempat adalah churn tanpa nilai.
+    nama: "ragam-percakapan",
+    pola: /\b(cuma|gampang|telat|bikin|kayak|banget|nggak|udah|aja|ribet|kelar|doang|kalo|emang|gitu|gini|sampe|dikit|bareng)\b/i,
+    pesan: "pakai padanan baku (hanya, mudah, terlambat, membuat, seperti, …)",
+  },
+  {
+    // Verba yang kehilangan awalannya di kalimat deskriptif: "Kasir tetap
+    // jalan" (seharusnya "berjalan"), "slip gaji langsung jadi" (seharusnya
+    // "terbentuk"). Kalimat perintah pada tombol TIDAK kena — polanya menuntut
+    // kata keterangan di depannya.
+    nama: "awalan-verba-hilang",
+    pola: /\b(tetap|masih|sudah|bisa|dapat|akan|langsung)\s+(jalan|kerja|jadi)\b/i,
+    pesan: "verba deskriptif perlu awalannya (berjalan, bekerja, terbentuk)",
+  },
+  {
     nama: "istilah-pegawai",
     pola: /\bnama pegawai\b/i,
     pesan: '"karyawan", bukan "pegawai" (glosarium §5b)',

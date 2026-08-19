@@ -193,6 +193,42 @@ Selalu diawali **`ERPindo — `**. Penerima yang membaca "Langganan PT Maju tela
 berakhir" di kotak masuknya tidak punya petunjuk siapa pengirimnya, dan email
 tanpa pengirim yang dikenali adalah email yang tidak dibuka.
 
+## 5c. Ragam: baku, bukan percakapan
+
+Keputusan pemilik (Fase 34a): yang diminta **tata bahasa yang benar**, bukan
+sekadar bahasa yang mudah dipahami. Keduanya bukan hal yang sama — naskah bisa
+jernih sekaligus salah ragam.
+
+| Pakai | Jangan |
+|---|---|
+| hanya | cuma |
+| mudah | gampang |
+| terlambat | telat |
+| membuat | bikin |
+| seperti | kayak |
+| jika *(dalam kalimat berita)* | kalau |
+| ponsel | HP |
+| berkas | file |
+| basis data | database |
+| kata sandi | password *(kecuali label teknis)* |
+| daring | online |
+| dompet elektronik | e-wallet |
+
+**Verba deskriptif memakai awalannya.** "Kasir tetap **berjalan**", bukan
+"tetap jalan". "Slip gaji langsung **terbentuk**", bukan "langsung jadi".
+Kalimat perintah pada tombol tetap tanpa awalan — "Simpan", "Tambah produk" —
+dan itu memang bentuk yang benar.
+
+**Dua klausa berpredikat tidak dipisah koma saja.** "Internet mati, penjualan
+tetap tercatat" → "**Saat** internet mati, penjualan tetap tercatat."
+
+**Kalimat tidak dimulai tanpa subjek.** "Tersimpan sendiri begitu koneksi
+kembali" → "**Datanya** tersimpan sendiri begitu koneksi kembali."
+
+**`bisa` TIDAK dilarang.** Ia baku menurut KBBI, hanya lebih santai daripada
+`dapat`. Memaksanya di 78 tempat adalah churn tanpa nilai. Yang dipakai di
+naskah penjualan dan keamanan: `dapat`.
+
 ## 6. Rupiah
 
 Satu sumber: `formatRupiah()` di `packages/shared`. Menghasilkan `Rp 499.000`

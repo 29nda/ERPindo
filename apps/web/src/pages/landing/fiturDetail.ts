@@ -160,7 +160,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     icon: Boxes,
     nama: { id: "Stok & Gudang", en: "Stock & Warehouse" },
     masalah: {
-      id: "Stok di catatan tidak sama dengan stok di rak. HPP ditebak, jadi laba yang dilaporkan sebenarnya tidak diketahui. Barang kedaluwarsa ditemukan saat sudah telat.",
+      id: "Stok di catatan tidak sama dengan stok di rak. HPP ditebak, jadi laba yang dilaporkan sebenarnya tidak diketahui. Barang kedaluwarsa baru ditemukan setelah terlambat.",
       en: "Recorded stock doesn't match what's on the shelf. COGS is guessed, so reported profit is really unknown. Expired goods are found too late.",
     },
     cara: [
@@ -173,7 +173,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
         en: "Lots and expiry dates: sales pull the nearest-expiry lot first (FEFO), automatically.",
       },
       {
-        id: "Ambang stok minimum memicu usulan pembelian yang bisa langsung jadi Permintaan Pembelian.",
+        id: "Ambang stok minimum memicu usulan pembelian yang dapat langsung menjadi Permintaan Pembelian.",
         en: "Minimum-stock thresholds trigger purchase suggestions that can become a Purchase Request in one click.",
       },
       {
@@ -415,7 +415,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     icon: Building2,
     nama: { id: "Aset Tetap", en: "Fixed Assets" },
     masalah: {
-      id: "Penyusutan dihitung di spreadsheet terpisah dan sering telat dibukukan, sehingga laba terlihat lebih besar dari sebenarnya.",
+      id: "Penyusutan dihitung di spreadsheet terpisah dan sering terlambat dibukukan, sehingga laba terlihat lebih besar dari sebenarnya.",
       en: "Depreciation lives in a separate spreadsheet and is often booked late, making profit look bigger than it is.",
     },
     cara: [
