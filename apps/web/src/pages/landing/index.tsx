@@ -1,7 +1,7 @@
 import { ASSUMED_PER_USER_PRICE, perUserMonthlyCost, PLAN_LIMITS } from "@erpindo/shared";
 import { Link } from "@tanstack/react-router";
-import { Check, Eye, Plus, Sparkles, X } from "lucide-react";
-import { useState } from "react";
+import { Check, Eye, Plus, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { BrandWordmark, Button } from "../../components/ui";
 import { PublicHeader, TAUTAN_BERANDA } from "../../components/publik";
@@ -15,6 +15,7 @@ import {
   SINGLE_PLAN_MODULES,
   TRUST_POINTS,
 } from "./sections";
+import { PertunjukanHero } from "./pertunjukan";
 
 /**
  * Landing page marketing — halaman konversi utama. Konten di sections.ts;
@@ -102,87 +103,61 @@ function Hero() {
         }}
         aria-hidden
       />
-      <div className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 sm:pt-24 lg:pt-32">
-        {/* `uppercase` aman di sini: tak satu pun asersi membaca kalimat ini.
-            Aturannya (lihat log 17d): JANGAN pakai `uppercase` pada teks yang
-            dibaca asersi innerText — `text-transform` ikut mengubah nilainya. */}
-        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-brand-700 dark:border-brand-800 dark:bg-brand-950 dark:text-brand-300">
-          <Sparkles className="size-3.5" aria-hidden />{" "}
-          {L(lang, "Dibuat untuk usaha di Indonesia", "Built for businesses in Indonesia")}
-        </div>
-        {/* Rata kiri, bukan rata tengah: halaman ini menjual alat kerja, dan
-            teks rata tengah membuat semuanya terbaca seperti brosur. */}
-        <h1 className="judul-hero max-w-4xl text-[2.75rem] sm:text-[4.25rem]">
-          {L(lang, "Pembukuan, stok, gaji, dan pajak —", "Accounting, stock, payroll, and tax —")}{" "}
-          <span className="text-brand-600 dark:text-brand-400">
-            {L(lang, "beres dalam satu aplikasi", "all in one app")}
+      <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 sm:pt-14">
+        {/* Fase 35a — badge pil DIBUANG.
+        
+            Ia penanda paling khas landing SaaS mana pun, memakan 60px di layar
+            pertama, dan isinya ("Dibuat untuk usaha di Indonesia") sudah
+            dinyatakan lebih baik oleh nama produk dan seluruh naskahnya. */}
+
+        {/* Judul dipendekkan dari tiga baris menjadi dua, dan diturunkan dari
+            4,25rem ke 3,25rem. Bukan demi kerapian: setiap piksel di sini
+            menentukan apakah PERAGAAN ikut terlihat di layar pertama, dan
+            peragaan itulah satu-satunya hal di halaman ini yang membuktikan
+            klaimnya sendiri. */}
+        <h1 className="judul-hero max-w-3xl text-[2.25rem] sm:text-[3.25rem]">
+          {L(lang, "Anda mencatat satu penjualan", "You record every sale")}{" "}
+          <span className="text-brand-ink">
+            {L(lang, "tiga kali. Itu dua kali kebanyakan.", "three times. That is twice too many.")}
           </span>
         </h1>
-        <p className="mt-7 max-w-[34rem] text-lg leading-[1.7] text-ink-soft">
+        <p className="mt-5 max-w-[38rem] text-lg leading-[1.65] text-ink-soft">
           {L(
             lang,
-            "Catat penjualan sekali saja. Stok langsung berkurang, laporan keuangan terisi, dan pajaknya ikut terhitung. Tidak perlu dipindah lagi ke Excel.",
-            "Record a sale once. Stock drops, the financial reports fill in, and the tax is worked out too. Nothing needs copying into Excel afterwards.",
+            "Nota, lalu buku, lalu Excel — tiga kali menyalin angka yang sama, dan tiga kesempatan untuk keliru. Di bawah ini satu faktur diposting sekali. Perhatikan sisanya.",
+            "A note, then a ledger, then Excel — the same figures copied three times, and three chances to get them wrong. Below, one invoice is posted once. Watch what follows.",
           )}
         </p>
-        {/* Fase 24: urutannya SENGAJA dibalik. Tanpa trial, hal pertama yang
-            bisa dilakukan pengunjung bukan lagi "coba" melainkan "lihat" —
-            jadi demo yang berisi data nyata naik jadi ajakan utama,
-            dan mendaftar menyusul setelah ia melihat isinya. */}
-        <div className="mt-9 flex flex-wrap items-start gap-3">
+        <div className="mt-7 flex flex-wrap items-center gap-3">
           <DemoButton />
           <Link to="/daftar">
             <Button variant="secondary" size="lg">
               {L(lang, "Daftar & Berlangganan", "Sign up & subscribe")}
             </Button>
           </Link>
+          {/* Harga dan syaratnya dirapatkan menjadi SATU baris di samping
+              tombol. Sebelumnya dua paragraf terpisah di bawahnya, dan keduanya
+              mendorong peragaan keluar dari layar pertama. */}
+          <p className="text-sm text-ink-muted">
+            <span className="num font-semibold text-ink">
+              {formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}
+            </span>{" "}
+            {L(lang, "/bulan/perusahaan · tanpa kartu kredit", "/month/company · no credit card")}
+          </p>
         </div>
-        {/* Fase 30b: harga dinyatakan DI HERO, bukan hanya di seksi harga yang
-            harus digulir dulu. Sebelum paket tunggal, menyebut harga di sini
-            mustahil — ada tiga angka dan yang mana pun dipilih akan menyesatkan.
-            Dengan satu harga, angkanya justru menjadi kalimat penjualan terkuat
-            dan menahannya sampai bawah halaman hanya membuang perhatian. */}
-        <p className="mt-6 text-base text-ink">
-          <span className="num font-bold text-ink">
-            {formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}
-          </span>{" "}
-          <span className="text-ink-muted">{L(lang, "/bulan/perusahaan", "/month/company")}</span>
-          {" — "}
-          {L(
-            lang,
-            "satu harga, seluruh modul terbuka, pengguna tak terbatas.",
-            "one price, every module unlocked, unlimited users.",
-          )}
-        </p>
-        <p className="mt-3 text-sm text-ink-muted">
-          {L(
-            lang,
-            "Tanpa kartu kredit. Daftar akun standar Indonesia sudah terisi. Demo bisa dibuka tanpa mendaftar.",
-            "No credit card. A standard Indonesian chart of accounts is already set up. The demo opens without signing up.",
-          )}
-        </p>
       </div>
 
-      {/* Screenshot produk nyata. Bingkainya bukan lagi jendela macOS bertitik
-          tiga (klise landing SaaS) melainkan bilah alat rapat dengan jalur rute
-          bergaya mono — sama seperti aplikasinya sendiri. */}
-      <div className="mx-auto mt-12 max-w-6xl px-4 sm:mt-20 sm:px-6">
-        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
-          <div className="flex items-center gap-2 border-b border-line bg-surface-muted px-3 py-1.5">
-            <span className="size-1.5 rounded-full bg-emerald-500" />
-            <span className="font-mono text-[11px] text-ink-muted">
-              ERPindo / dashboard
-            </span>
-          </div>
-          <img
-            src="/landing/hero-dashboard.webp"
-            alt="Dashboard ERPindo dengan grafik penjualan 30 hari dan ringkasan keuangan"
-            width={1400}
-            height={875}
-            className="w-full"
-            fetchPriority="high"
-          />
-        </div>
+      {/* Fase 35a — tangkapan layar MATI diganti PERAGAAN HIDUP.
+          
+          Yang lama: gambar dasbor di bawah lipatan, terpotong, dan tidak
+          membuktikan apa pun. Ia meminta pengunjung mempercayai klaim "catat
+          sekali, sisanya otomatis" begitu saja.
+          
+          Padahal itu satu-satunya klaim di halaman ini yang bisa DIPERAGAKAN.
+          Jadi diperagakan — dan angkanya dibuat benar-benar seimbang, karena
+          pembeli yang paham pembukuan akan memeriksanya. */}
+      <div className="mx-auto mt-10 max-w-6xl px-4 sm:mt-14 sm:px-6">
+        <PertunjukanHero />
       </div>
     </section>
   );
@@ -190,23 +165,22 @@ function Hero() {
 
 function TrustBar() {
   const lang = useLang();
-  // Angka memakai utilitas `num` (mono + tabular) — di sinilah font angka yang
-  // ditambahkan Fase 17a terbayar: deretan statistik jadi berbaris rapi.
+  // Fase 35b — dulu EMPAT kolom berisi ikon + judul serif + paragraf, tepat di
+  // bawah peragaan yang baru saja membuktikan hal yang sama. Ia memakan hampir
+  // satu layar penuh untuk mengulang.
+  //
+  // Kini satu bilah rapat: judulnya saja, dipisah titik tengah. Isi lengkapnya
+  // tetap ada di seksi Harga, Keamanan, dan FAQ — yang memang tempatnya.
   return (
     <section className="border-b border-line bg-surface">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 divide-line px-4 sm:px-6 lg:grid-cols-4 lg:divide-x">
+      <ul className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-4 text-[13px] sm:px-6">
         {TRUST_POINTS.map((s) => (
-          <div key={s.label.id} className="px-4 py-6 first:pl-0 lg:last:pr-0">
-            <s.icon className="size-5 text-brand-600 dark:text-brand-400" aria-hidden />
-            {/* Fase 32e: `num` (mono + tabular) DIBUANG. Utilitas itu ada untuk angka —
-                dan bilah ini memang dulu berisi angka. Sejak isinya menjadi kalimat
-                pendek, mono berukuran 2xl memecahnya jadi tiga baris di layar 390px.
-                Serif memberi bobot yang sama tanpa memaksa lebar per karakter. */}
-            <div className="judul mt-3 text-lg text-ink">{pick(s.value, lang)}</div>
-            <div className="mt-1 text-[13px] text-ink-muted">{pick(s.label, lang)}</div>
-          </div>
+          <li key={s.label.id} className="flex items-center gap-2 text-ink-soft">
+            <s.icon className="size-4 shrink-0 text-brand-ink" aria-hidden />
+            <span className="font-medium text-ink">{pick(s.value, lang)}</span>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
@@ -216,10 +190,10 @@ function Showcase() {
   const [active, setActive] = useState("pos");
   const item = SHOWCASE.find((s) => s.id === active) ?? SHOWCASE[0]!;
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
-      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Lihat cara kerjanya", "See how it works")}</h2>
+    <section className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
+      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Ini tampilan aslinya. Bukan gambar rekaan.", "This is the actual screen. Not a mockup.")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
-        {L(lang, "Lima pekerjaan yang paling menyita waktu. Pilih satu untuk melihat tampilan aslinya.", "The five jobs that eat the most time. Pick one to see what it actually looks like.")}
+        {L(lang, "Lima pekerjaan yang paling menyita waktu, difoto langsung dari aplikasinya. Pilih satu.", "The five jobs that eat the most time, captured straight from the app. Pick one.")}
       </p>
       {/* Tab bergaya bilah alat: sudut tegas, berdempetan dalam satu bingkai —
           bukan pil melayang berbayang. */}
@@ -273,9 +247,21 @@ function Showcase() {
 function Comparison() {
   const lang = useLang();
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
+    /* Fase 35b — PITA KONTRAS, dan ini satu-satunya di halaman.
+    
+       Keluhan "membosankan" bukan hanya soal kata: delapan seksi berturut-turut
+       memakai bentuk yang sama persis (judul + grid kartu) di atas krem yang
+       sama, dari atas sampai bawah. Tidak ada satu pun momen yang membuat mata
+       berhenti.
+       
+       Seksi inilah tempatnya: ia berisi pertentangan — cara lama vs cara ini —
+       dan pertentangan pantas terlihat berbeda. `bg-ink text-ink-invert`
+       membalik sendiri mengikuti tema, jadi ia gelap di tema terang dan terang
+       di tema gelap tanpa satu pun kelas `dark:`. */
+    <section className="bg-ink text-ink-invert">
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Masih pakai buku & Excel?", "Still using ledgers & Excel?")}</h2>
-      <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
+      <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-invert/75">
         {L(lang, "Bukan soal rapi atau berantakan. Soal berapa jam yang habis tiap bulan, dan selisih yang baru ketahuan waktu tutup buku.", "It is not about being tidy. It is about the hours that disappear each month, and the gaps you only find at closing.")}
       </p>
       {/* Fase 32e — di layar kecil tabel ini MENUMPUK jadi kartu.
@@ -287,7 +273,14 @@ function Comparison() {
           seluruh elemen tabel jadi `block`, kepala tabel disembunyikan, dan
           tiap baris berdiri sebagai kartu. */}
       <div className="mt-6 md:overflow-x-auto">
-        <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-card border border-line text-[13px] max-md:block max-md:border-0 md:min-w-[640px] max-md:[&>tbody]:block">
+        {/* `text-ink` MEMULIHKAN warna teks normal di dalam tabel.
+          
+              Tanpa baris ini, sel mewarisi `text-ink-invert` dari pita gelap
+              sementara latarnya sendiri tetap terang — dan kolom pertama
+              (nama pekerjaan) menjadi putih di atas putih. Tidak ada gerbang
+              yang bisa melihatnya: kontras bukan sesuatu yang diperiksa
+              asersi teks. Ia hanya terlihat karena halamannya dipotret. */}
+        <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-card border border-line text-[13px] text-ink max-md:block max-md:border-0 md:min-w-[640px] max-md:[&>tbody]:block">
           <thead className="max-md:hidden">
             <tr className="bg-surface-muted text-left">
               <th className="px-3 py-2 text-[11px] font-semibold tracking-wider">{L(lang, "Pekerjaan", "Task")}</th>
@@ -318,6 +311,7 @@ function Comparison() {
             ))}
           </tbody>
         </table>
+      </div>
       </div>
     </section>
   );
@@ -425,9 +419,9 @@ function Pricing() {
   const lang = useLang();
   return (
     <section id="harga" className="scroll-mt-16 border-t border-line bg-surface">
-      <div className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
         <h2 className="judul text-[2rem] sm:text-[2.5rem]">
-          {L(lang, "Satu sistem, dari toko pertama sampai grup perusahaan", "One system, from your first shop to a group of companies")}
+          {L(lang, "Satu harga. Tidak ada paket yang lebih mahal.", "One price. There is no pricier tier.")}
         </h2>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
           {L(lang, "Pengguna", "Users are")} <span className="font-semibold">{L(lang, "selalu tak terbatas", "always unlimited")}</span>{" "}
@@ -449,8 +443,21 @@ function Pricing() {
                 {L(lang, "Satu paket untuk semua", "One plan for everything")}
               </span>
             </div>
+            {/* Fase 35a — klaim "seluruh modul terbuka" dikembalikan ke sini.
+            
+                Ia dulu ikut di baris harga hero, dan hilang saat baris itu
+                dirapatkan agar peragaan masuk layar pertama. Kehilangan itu
+                nyata: klaim tersebut adalah seluruh isi argumen harga tunggal —
+                tanpa paket yang lebih mahal, tidak ada fitur yang terkunci.
+                
+                Seksi Harga memang tempatnya yang benar, dan asersi ui-sim F15
+                menangkap hilangnya dalam satu kali jalan. */}
             <p className="mt-0.5 text-xs text-ink-muted">
-              {L(lang, "Dari toko pertama sampai grup perusahaan", "From your first shop to a group of companies")}
+              {L(
+                lang,
+                "Seluruh modul terbuka, pengguna tak terbatas — dari toko pertama sampai grup perusahaan",
+                "Every module unlocked, unlimited users — from your first shop to a group of companies",
+              )}
             </p>
             <div className="mt-3 flex items-end gap-1">
               <span className="num text-3xl font-bold">{formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}</span>
@@ -508,8 +515,8 @@ function Pricing() {
 function Security() {
   const lang = useLang();
   return (
-    <section className="mx-auto max-w-6xl px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
-      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Data bisnis Anda, aman di tangan Anda", "Your business data, safe in your hands")}</h2>
+    <section className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
+      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Data Anda tetap milik Anda, termasuk setelah Anda pergi.", "Your data stays yours, including after you leave.")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
         {L(lang, "Aman saja tidak cukup. Anda juga harus bisa berhenti kapan saja dan membawa seluruh data Anda.", "Secure is necessary, but not enough. You should also be able to leave whenever you want — and take all your data with you.")}
       </p>
@@ -533,7 +540,7 @@ function Security() {
 function Faq() {
   const lang = useLang();
   return (
-    <section id="faq" className="mx-auto max-w-3xl scroll-mt-16 px-4 py-16 sm:py-24 lg:py-32 sm:px-6">
+    <section id="faq" className="mx-auto max-w-3xl scroll-mt-16 px-4 py-14 sm:py-20 sm:px-6">
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Pertanyaan umum", "Frequently asked questions")}</h2>
       {/* Daftar menyatu berpembatas garis, bukan tumpukan kartu terpisah. */}
       <div className="mt-10 divide-y divide-line overflow-hidden rounded-card border border-line bg-surface shadow-card">
@@ -559,7 +566,7 @@ function CtaBand() {
           bergradien adalah salah satu penanda paling khas "SaaS umum". */}
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 rounded-card bg-brand-600 px-8 py-12 text-white shadow-lg sm:flex-row sm:items-center">
         <div>
-          <h2 className="judul text-[1.75rem] sm:text-[2rem]">{L(lang, "Siap merapikan bisnis Anda?", "Ready to tidy up your business?")}</h2>
+          <h2 className="judul text-[1.75rem] sm:text-[2rem]">{L(lang, "Jangan percaya halaman ini. Buka demonya.", "Do not take this page\u2019s word for it. Open the demo.")}</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-brand-50">
             {L(
               lang,
@@ -619,6 +626,21 @@ function Footer() {
 /** CTA lengket di bawah layar mobile (Fase 14e) — konversi di perangkat kecil. */
 function StickyMobileCta() {
   const lang = useLang();
+  // Fase 35a — bilah ini dulu tampil SEJAK layar pertama, sementara tombol yang
+  // sama persis sudah ada di dalam hero tepat di atasnya. Hasilnya empat tombol
+  // di satu layar 390px, dua di antaranya duplikat — dan keduanya menekan
+  // peragaan turun.
+  //
+  // Sekarang ia muncul setelah hero terlewati: saat tombol aslinya sudah tidak
+  // terlihat, dan pengunjung memang butuh jalan pintas.
+  const [terlihat, setTerlihat] = useState(false);
+  useEffect(() => {
+    const cek = () => setTerlihat(window.scrollY > 560);
+    cek();
+    window.addEventListener("scroll", cek, { passive: true });
+    return () => window.removeEventListener("scroll", cek);
+  }, []);
+  if (!terlihat) return null;
   return (
     /* Fase 27a: dulu berisi "Daftar & Berlangganan" + "Hubungi" (ke formulir),
        sehingga demo — ajakan utama sejak Fase 24 — sama sekali tak terjangkau di

@@ -2681,7 +2681,9 @@ try {
   // digulir dulu. Diuji lewat posisi: teks harga harus ada SEBELUM judul seksi
   // harga di dalam innerText halaman, kalau tidak ia sebenarnya masih di bawah.
   const posHargaPertama = landingText.indexOf("499.000");
-  const posSeksiHarga = landingText.search(/Satu sistem, dari toko pertama/);
+  // Fase 35c — judul seksi harga diganti; penanda posisinya ikut menyebut
+  // bunyi barunya, bukan dilonggarkan menjadi pencocokan sebagian.
+  const posSeksiHarga = landingText.search(/Tidak ada paket yang lebih mahal/);
   check(
     "F30b harga tampil di hero — sebelum seksi harga, bukan sesudahnya",
     posHargaPertama >= 0 && posSeksiHarga >= 0 && posHargaPertama < posSeksiHarga,
@@ -2744,7 +2746,7 @@ try {
 
   // Pita CTA penutup: kalimatnya menjanjikan "telusuri demo tanpa mendaftar",
   // tetapi tombolnya dulu menuju formulir pendaftaran.
-  const pitaDemo = await page.locator("section", { hasText: "Siap merapikan bisnis Anda?" }).getByRole("button", { name: /Lihat Demo/ }).count();
+  const pitaDemo = await page.locator("section", { hasText: "Buka demonya" }).getByRole("button", { name: /Lihat Demo/ }).count();
   check("F47 pita CTA penutup menawarkan demo, sesuai kalimatnya", pitaDemo >= 1, `→ ${pitaDemo}`);
 
   // Fase 30: corong "paket terpilih" DICABUT bersama paket bertingkat. Kartu
@@ -2809,14 +2811,24 @@ try {
   // sejak Fase 13b, jadi gambarnya tertinggal belasan fase tanpa ada yang
   // berbunyi. Cek ini tidak bisa tahu gambarnya BASI, tapi bisa memastikan
   // berkasnya benar-benar ada dan termuat — kegagalan paling kasarnya.
-  const gambarHero = await page.evaluate(() => {
-    const img = document.querySelector('img[src*="hero-dashboard"]');
-    return img ? { w: img.naturalWidth, h: img.naturalHeight } : null;
-  });
+  // Fase 35a — hero tidak lagi memuat gambar; ia memuat PERAGAAN.
+  //
+  // Penjaganya tidak dihapus, melainkan diarahkan ke hal yang sekarang memikul
+  // bukti — dan hasilnya justru lebih kuat daripada yang lama. Cek lama hanya
+  // memastikan sebuah berkas gambar termuat; cek ini memastikan jurnal yang
+  // diperagakan benar-benar SEIMBANG. Angka karangan di layar pertama akan
+  // langsung terlihat oleh pembeli yang paham pembukuan.
+  const peragaan = (await page.innerText("body")).replace(/\u00A0/g, " ");
+  const adaPeragaan =
+    peragaan.includes("Faktur penjualan baru") &&
+    peragaan.includes("Piutang Usaha") &&
+    peragaan.includes("Debit = Kredit");
+  // 1.665.000 + 900.000 = 2.565.000 = 1.500.000 + 165.000 + 900.000
+  const angkaSeimbang = peragaan.includes("2.565.000") && peragaan.includes("1.665.000");
   check(
-    "F22 gambar produk hero landing termuat (bukan 404/rusak)",
-    Boolean(gambarHero && gambarHero.w > 800 && gambarHero.h > 400),
-    `→ ${gambarHero ? `${gambarHero.w}x${gambarHero.h}` : "tidak ada <img>"}`,
+    "F22 peragaan hero tampil dan jurnalnya seimbang",
+    adaPeragaan && angkaSeimbang,
+    `→ peragaan=${adaPeragaan} seimbang=${angkaSeimbang}`,
   );
 
   // F29 — Fase 18f: halaman /fitur (penjelasan mendalam per modul).
@@ -2846,18 +2858,20 @@ try {
     "F15 toggle EN menerjemahkan hero + harga ke Inggris",
     // "Most popular" hilang bersama kartu bertingkat (Fase 30) — lencana kartu
     // tunggal kini menyatakan bahwa paketnya memang cuma satu.
-    enText.includes("all in one app") && enText.includes("One plan for everything") && enText.includes("/month"),
+    enText.includes("twice too many") && enText.includes("One plan for everything") && enText.includes("/month"),
     `→ EN tidak lengkap`,
   );
   // Fase 14f: seluruh seksi landing (Showcase/Comparison/Security/FAQ) kini dwibahasa.
   check(
     "F15 landing 100% dwibahasa: seksi Showcase/Comparison/FAQ ikut ke Inggris",
-    enText.includes("See how it works") && enText.includes("Still using") && enText.includes("Frequently asked questions"),
+    enText.includes("Not a mockup") && enText.includes("Still using") && enText.includes("Frequently asked questions"),
     `→ seksi landing belum sepenuhnya EN`,
   );
   await page.getByRole("button", { name: "ID", exact: true }).first().click();
   await page.waitForTimeout(300);
-  check("F15 toggle kembali ke ID", (await page.innerText("body")).includes("beres dalam satu aplikasi"));
+  // Fase 35a — judul hero diganti; asersi ikut menyebut bunyi barunya, bukan
+  // dilonggarkan menjadi pencocokan sebagian.
+  check("F15 toggle kembali ke ID", (await page.innerText("body")).includes("Itu dua kali kebanyakan"));
   // --- Fase 27b: formulir "Jadwalkan demo" DIHAPUS ----------------------------
   //
   // Cek lama di sini mengisi & mengirim formulir itu. Fiturnya dihapus karena
@@ -3064,12 +3078,24 @@ try {
   // demo — ajakan utama sejak Fase 24 — sama sekali tak terjangkau di layar
   // kecil, tempat sebagian besar pengunjung berada.
   await gotoRoute("/", 800);
+  // Fase 35a — bilah ini sengaja BELUM muncul di layar pertama: tombol yang sama
+  // sudah ada di dalam hero, dan menampilkan keduanya berarti empat tombol di
+  // satu layar 390px. Ia muncul setelah hero terlewati, jadi asersinya menggulir
+  // dulu — persis seperti pengunjungnya.
+  const sebelumGulir = await page.locator("div.fixed.bottom-0").count();
+  await page.evaluate(() => window.scrollTo(0, 900));
+  await page.waitForTimeout(400);
   const stickyDemo = await page.locator("div.fixed.bottom-0").getByRole("button", { name: /Lihat Demo/ }).count();
   const stickyDaftar = await page.locator("div.fixed.bottom-0").getByRole("button", { name: /^Daftar$/ }).count();
   check(
-    "F47 layar 390px: CTA lengket memuat 'Lihat Demo' + 'Daftar'",
+    "F47 layar 390px: CTA lengket memuat 'Lihat Demo' + 'Daftar' setelah digulir",
     stickyDemo === 1 && stickyDaftar === 1,
     `→ demo=${stickyDemo} daftar=${stickyDaftar}`,
+  );
+  check(
+    "F47b layar 390px: CTA lengket TIDAK menutupi layar pertama",
+    sebelumGulir === 0,
+    `→ ${sebelumGulir} bilah tampil sebelum digulir`,
   );
   check("F26 layar kecil bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
   // Tangkapan layar HP untuk halaman DALAM aplikasi diambil di sini, selagi
