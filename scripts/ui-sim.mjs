@@ -2681,7 +2681,9 @@ try {
   // digulir dulu. Diuji lewat posisi: teks harga harus ada SEBELUM judul seksi
   // harga di dalam innerText halaman, kalau tidak ia sebenarnya masih di bawah.
   const posHargaPertama = landingText.indexOf("499.000");
-  const posSeksiHarga = landingText.search(/Satu sistem, dari toko pertama/);
+  // Fase 35c — judul seksi harga diganti; penanda posisinya ikut menyebut
+  // bunyi barunya, bukan dilonggarkan menjadi pencocokan sebagian.
+  const posSeksiHarga = landingText.search(/Tidak ada paket yang lebih mahal/);
   check(
     "F30b harga tampil di hero — sebelum seksi harga, bukan sesudahnya",
     posHargaPertama >= 0 && posSeksiHarga >= 0 && posHargaPertama < posSeksiHarga,
@@ -2744,7 +2746,7 @@ try {
 
   // Pita CTA penutup: kalimatnya menjanjikan "telusuri demo tanpa mendaftar",
   // tetapi tombolnya dulu menuju formulir pendaftaran.
-  const pitaDemo = await page.locator("section", { hasText: "Siap merapikan bisnis Anda?" }).getByRole("button", { name: /Lihat Demo/ }).count();
+  const pitaDemo = await page.locator("section", { hasText: "Buka demonya" }).getByRole("button", { name: /Lihat Demo/ }).count();
   check("F47 pita CTA penutup menawarkan demo, sesuai kalimatnya", pitaDemo >= 1, `→ ${pitaDemo}`);
 
   // Fase 30: corong "paket terpilih" DICABUT bersama paket bertingkat. Kartu
@@ -2862,7 +2864,7 @@ try {
   // Fase 14f: seluruh seksi landing (Showcase/Comparison/Security/FAQ) kini dwibahasa.
   check(
     "F15 landing 100% dwibahasa: seksi Showcase/Comparison/FAQ ikut ke Inggris",
-    enText.includes("See how it works") && enText.includes("Still using") && enText.includes("Frequently asked questions"),
+    enText.includes("Not a mockup") && enText.includes("Still using") && enText.includes("Frequently asked questions"),
     `→ seksi landing belum sepenuhnya EN`,
   );
   await page.getByRole("button", { name: "ID", exact: true }).first().click();

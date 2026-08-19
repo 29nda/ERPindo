@@ -191,9 +191,9 @@ function Showcase() {
   const item = SHOWCASE.find((s) => s.id === active) ?? SHOWCASE[0]!;
   return (
     <section className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
-      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Lihat cara kerjanya", "See how it works")}</h2>
+      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Ini tampilan aslinya. Bukan gambar rekaan.", "This is the actual screen. Not a mockup.")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
-        {L(lang, "Lima pekerjaan yang paling menyita waktu. Pilih satu untuk melihat tampilan aslinya.", "The five jobs that eat the most time. Pick one to see what it actually looks like.")}
+        {L(lang, "Lima pekerjaan yang paling menyita waktu, difoto langsung dari aplikasinya. Pilih satu.", "The five jobs that eat the most time, captured straight from the app. Pick one.")}
       </p>
       {/* Tab bergaya bilah alat: sudut tegas, berdempetan dalam satu bingkai —
           bukan pil melayang berbayang. */}
@@ -421,7 +421,7 @@ function Pricing() {
     <section id="harga" className="scroll-mt-16 border-t border-line bg-surface">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
         <h2 className="judul text-[2rem] sm:text-[2.5rem]">
-          {L(lang, "Satu sistem, dari toko pertama sampai grup perusahaan", "One system, from your first shop to a group of companies")}
+          {L(lang, "Satu harga. Tidak ada paket yang lebih mahal.", "One price. There is no pricier tier.")}
         </h2>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
           {L(lang, "Pengguna", "Users are")} <span className="font-semibold">{L(lang, "selalu tak terbatas", "always unlimited")}</span>{" "}
@@ -516,7 +516,7 @@ function Security() {
   const lang = useLang();
   return (
     <section className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
-      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Data bisnis Anda, aman di tangan Anda", "Your business data, safe in your hands")}</h2>
+      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Data Anda tetap milik Anda, termasuk setelah Anda pergi.", "Your data stays yours, including after you leave.")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
         {L(lang, "Aman saja tidak cukup. Anda juga harus bisa berhenti kapan saja dan membawa seluruh data Anda.", "Secure is necessary, but not enough. You should also be able to leave whenever you want — and take all your data with you.")}
       </p>
@@ -566,7 +566,7 @@ function CtaBand() {
           bergradien adalah salah satu penanda paling khas "SaaS umum". */}
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 rounded-card bg-brand-600 px-8 py-12 text-white shadow-lg sm:flex-row sm:items-center">
         <div>
-          <h2 className="judul text-[1.75rem] sm:text-[2rem]">{L(lang, "Siap merapikan bisnis Anda?", "Ready to tidy up your business?")}</h2>
+          <h2 className="judul text-[1.75rem] sm:text-[2rem]">{L(lang, "Jangan percaya halaman ini. Buka demonya.", "Do not take this page\u2019s word for it. Open the demo.")}</h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-brand-50">
             {L(
               lang,
