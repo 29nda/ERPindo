@@ -6,7 +6,7 @@ import { api } from "../../api/client";
 import { BrandWordmark, Button } from "../../components/ui";
 import { PublicHeader, TAUTAN_BERANDA } from "../../components/publik";
 import { pick, useLang, type Lang } from "../../i18n";
-import {
+import { KEGAGALAN_ERP,
   COMPARISON,
   FAQ,
   formatRupiah,
@@ -115,17 +115,42 @@ function Hero() {
             menentukan apakah PERAGAAN ikut terlihat di layar pertama, dan
             peragaan itulah satu-satunya hal di halaman ini yang membuktikan
             klaimnya sendiri. */}
+        {/* Fase 37b — halaman ini menyasar PERUSAHAAN, bukan UMKM.
+        
+            Untuk pembeli perusahaan, harga bukan keberatan pertama. Yang
+            pertama adalah "proyeknya akan gagal seperti yang dulu" — dan itu
+            bukan ketakutan yang mengada-ada: 68% proyek ERP gagal memenuhi
+            tujuan awalnya, dengan biaya rata-rata membengkak 189%.
+            
+            Sudut itu belum dipakai siapa pun di pasar ini, dan ERPindo memang
+            berhak memakainya: ia tidak punya proyek implementasi. Bagan akun,
+            tarif pajak, dan seluruh modul sudah terpasang saat perusahaan
+            dibuat.
+            
+            Layar pertama melayani DUA pembeli sekaligus (lihat
+            docs/posisi-produk.md): angka dan sumber untuk yang menyetujui,
+            peragaan hidup di bawahnya untuk yang menilai. */}
         <h1 className="judul-hero max-w-3xl text-[2.25rem] sm:text-[3.25rem]">
-          {L(lang, "Anda mencatat satu penjualan", "You record every sale")}{" "}
+          {L(lang, "ERP untuk perusahaan,", "Enterprise ERP,")}{" "}
           <span className="text-brand-ink">
-            {L(lang, "tiga kali. Itu dua kali kebanyakan.", "three times. That is twice too many.")}
+            {L(lang, "tanpa proyek implementasi.", "without the implementation project.")}
           </span>
         </h1>
-        <p className="mt-5 max-w-[38rem] text-lg leading-[1.65] text-ink-soft">
+        <p className="mt-5 max-w-[40rem] text-lg leading-[1.65] text-ink-soft">
           {L(
             lang,
-            "Nota, lalu buku, lalu Excel — tiga kali menyalin angka yang sama, dan tiga kesempatan untuk keliru. Di bawah ini satu faktur diposting sekali. Perhatikan sisanya.",
-            "A note, then a ledger, then Excel — the same figures copied three times, and three chances to get them wrong. Below, one invoice is posted once. Watch what follows.",
+            "68% proyek ERP gagal memenuhi tujuannya, dan biayanya rata-rata membengkak 189%. ERPindo tidak punya proyek: bagan akun standar Indonesia, PPN, PPh 21 TER, dan e-Faktur sudah terpasang sejak perusahaan Anda dibuat.",
+            "68% of ERP projects miss their objectives, and budgets overrun by 189% on average. ERPindo has no project: the Indonesian chart of accounts, VAT, PPh 21 TER, and e-Faktur are in place the moment your company is created.",
+          )}
+        </p>
+        {/* Sumber dicantumkan. Angka tanpa sumber di halaman jualan adalah
+            angka yang tidak bisa dipakai pembacanya untuk meyakinkan atasannya
+            — dan meyakinkan atasan justru pekerjaan utama halaman ini. */}
+        <p className="mt-2 text-xs text-ink-faint">
+          {L(
+            lang,
+            "Sumber: Panorama Consulting Solutions, ERP Report 2025.",
+            "Source: Panorama Consulting Solutions, ERP Report 2025.",
           )}
         </p>
         <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -142,7 +167,11 @@ function Hero() {
             <span className="num font-semibold text-ink">
               {formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}
             </span>{" "}
-            {L(lang, "/bulan/perusahaan · tanpa kartu kredit", "/month/company · no credit card")}
+            {L(
+              lang,
+              "/bulan/perusahaan · pengguna tak terbatas · tanpa lisensi per orang",
+              "/month/company · unlimited users · no per-seat licence",
+            )}
           </p>
         </div>
       </div>
@@ -415,6 +444,55 @@ function PerUserCalculator() {
   );
 }
 
+/**
+ * "Kenapa proyek ERP gagal" (Fase 37c) — seksi terpenting di halaman ini bagi
+ * pembeli perusahaan.
+ *
+ * Ia menjawab keberatan NOMOR SATU, dan keberatan itu bukan harga. Pembeli
+ * perusahaan hampir selalu punya cerita proyek ERP yang gagal — miliknya
+ * sendiri atau milik kenalannya. Halaman yang tidak menyinggungnya sama sekali
+ * terbaca seperti halaman yang tidak tahu apa yang dibelinya orang.
+ *
+ * Bentuknya sengaja BUKAN grid kartu: dua kolom bersebelahan, sebab di kiri dan
+ * jawabannya di kanan, supaya pasangannya terbaca sebagai pasangan.
+ */
+function KenapaGagal() {
+  const lang = useLang();
+  return (
+    <section className="border-y border-line bg-surface">
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <h2 className="judul max-w-3xl text-[2rem] sm:text-[2.5rem]">
+          {L(
+            lang,
+            "Yang membuat proyek ERP gagal — dan apa yang menggantikannya di sini",
+            "What makes ERP projects fail — and what replaces it here",
+          )}
+        </h2>
+        <ul className="mt-10 divide-y divide-line">
+          {KEGAGALAN_ERP.map((k) => (
+            <li key={k.sebab.id} className="grid gap-2 py-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] md:gap-10">
+              <div>
+                <h3 className="text-base font-semibold text-ink">{pick(k.sebab, lang)}</h3>
+                <p className="num mt-1 text-[12px] uppercase tracking-wide text-brand-ink">
+                  {pick(k.angka, lang)}
+                </p>
+              </div>
+              <p className="text-[15px] leading-relaxed text-ink-soft">{pick(k.jawaban, lang)}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-6 text-xs text-ink-faint">
+          {L(
+            lang,
+            "Persentase dari Panorama Consulting Solutions, ERP Report 2025.",
+            "Percentages from Panorama Consulting Solutions, ERP Report 2025.",
+          )}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function Pricing() {
   const lang = useLang();
   return (
@@ -601,7 +679,7 @@ function Footer() {
           <div className="flex items-center gap-2">
             <BrandWordmark className="h-7" />
           </div>
-          <p className="mt-1 text-xs">{L(lang, "Integrate. Automate. Grow. — ERP untuk UMKM Indonesia.", "Integrate. Automate. Grow. — ERP for Indonesian SMEs.")}</p>
+          <p className="mt-1 text-xs">{L(lang, "Integrate. Automate. Grow. — ERP untuk perusahaan Indonesia.", "Integrate. Automate. Grow. — ERP for Indonesian companies.")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <a href="/fitur" className="hover:text-ink">{L(lang, "Fitur", "Features")}</a>
@@ -673,6 +751,7 @@ export function LandingPage() {
         <TrustBar />
         <Showcase />
         <Comparison />
+        <KenapaGagal />
         <Pricing />
         <Security />
         <Faq />

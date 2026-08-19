@@ -164,7 +164,7 @@ export function InvoicePrintPage() {
       </table>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan ERPindo — ERP untuk UMKM Indonesia
+        Dibuat dengan ERPindo — ERP untuk perusahaan Indonesia
       </footer>
     </div>
   );
@@ -315,7 +315,7 @@ export function QuotationPrintPage() {
       </p>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan ERPindo — ERP untuk UMKM Indonesia
+        Dibuat dengan ERPindo — ERP untuk perusahaan Indonesia
       </footer>
     </div>
   );
@@ -609,7 +609,7 @@ export function Form1721A1PrintPage() {
       </p>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan ERPindo — ERP untuk UMKM Indonesia
+        Dibuat dengan ERPindo — ERP untuk perusahaan Indonesia
       </footer>
     </div>
   );

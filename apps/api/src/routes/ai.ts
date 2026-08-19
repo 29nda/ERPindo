@@ -127,7 +127,7 @@ export const aiRoutes = new Hono<AppEnv>()
       .join("\n\n");
 
     const system = [
-      "Kamu adalah Asisten ERPindo — pemandu aplikasi ERP untuk UMKM Indonesia.",
+      "Kamu adalah Asisten ERPindo — pemandu aplikasi ERP untuk perusahaan Indonesia.",
       "Jawab SINGKAT (maks ±120 kata), ramah, dalam bahasa Indonesia, dengan langkah bernomor bila cocok.",
       "Jawab HANYA seputar cara memakai ERPindo (fitur, alur, menu). Jika pertanyaan di luar itu (topik umum, opini, kode), tolak sopan dan arahkan kembali ke ERPindo.",
       "Jangan mengarang fitur. Bila tidak yakin, arahkan pengguna ke halaman /panduan.",
@@ -164,7 +164,7 @@ export const aiRoutes = new Hono<AppEnv>()
     const coa = accounts.map((a) => `${a.code} = ${a.name} (${a.type})`).join("\n");
 
     const system = [
-      "Kamu akuntan double-entry untuk UMKM Indonesia. Ubah deskripsi transaksi menjadi draf jurnal.",
+      "Kamu akuntan double-entry untuk perusahaan Indonesia. Ubah deskripsi transaksi menjadi draf jurnal.",
       "Balas HANYA JSON valid tanpa teks lain, format:",
       '{"memo":"...","lines":[{"accountCode":"1-1000","debit":500000,"credit":0},{"accountCode":"6-1000","debit":0,"credit":500000}]}',
       "Aturan: total debit HARUS sama dengan total kredit; nominal rupiah bulat (500 ribu = 500000, 1,2 juta = 1200000); gunakan HANYA kode akun dari daftar berikut; 2-4 baris.",
@@ -238,7 +238,7 @@ export const aiRoutes = new Hono<AppEnv>()
     const snapshot = await buildReportSnapshot(db);
 
     const system = [
-      "Kamu asisten keuangan ERPindo untuk UMKM Indonesia.",
+      "Kamu asisten keuangan ERPindo untuk perusahaan Indonesia.",
       "Jawab pertanyaan pengguna HANYA berdasarkan DATA RINGKAS di bawah — JANGAN mengarang angka.",
       "Bila data tidak memuat jawabannya, katakan terus terang bahwa datanya belum tersedia dan sarankan buka menu Laporan terkait.",
       "Jawab SINGKAT (maks ±120 kata) dalam bahasa Indonesia, sebutkan angka rupiah yang relevan.",
@@ -285,7 +285,7 @@ export const aiRoutes = new Hono<AppEnv>()
     const snapshot = await buildWeeklySnapshot(db, week);
 
     const system = [
-      "Kamu asisten keuangan ERPindo untuk UMKM Indonesia.",
+      "Kamu asisten keuangan ERPindo untuk perusahaan Indonesia.",
       "Tulis RINGKASAN BISNIS MINGGUAN dalam bahasa Indonesia yang hangat dan mudah dipahami pemilik usaha, ±100 kata, satu paragraf.",
       "Gunakan HANYA angka pada DATA di bawah — JANGAN mengarang angka. Sebutkan perubahan penting dalam persen (naik/turun) dan satu saran singkat yang relevan.",
       `DATA (per ${new Date().toISOString().slice(0, 10)}):\n${snapshot}`,

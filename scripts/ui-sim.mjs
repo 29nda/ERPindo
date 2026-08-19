@@ -2858,7 +2858,7 @@ try {
     "F15 toggle EN menerjemahkan hero + harga ke Inggris",
     // "Most popular" hilang bersama kartu bertingkat (Fase 30) — lencana kartu
     // tunggal kini menyatakan bahwa paketnya memang cuma satu.
-    enText.includes("twice too many") && enText.includes("One plan for everything") && enText.includes("/month"),
+    enText.includes("without the implementation project") && enText.includes("One plan for everything") && enText.includes("/month"),
     `→ EN tidak lengkap`,
   );
   // Fase 14f: seluruh seksi landing (Showcase/Comparison/Security/FAQ) kini dwibahasa.
@@ -2871,7 +2871,7 @@ try {
   await page.waitForTimeout(300);
   // Fase 35a — judul hero diganti; asersi ikut menyebut bunyi barunya, bukan
   // dilonggarkan menjadi pencocokan sebagian.
-  check("F15 toggle kembali ke ID", (await page.innerText("body")).includes("Itu dua kali kebanyakan"));
+  check("F15 toggle kembali ke ID", (await page.innerText("body")).includes("tanpa proyek implementasi"));
   // --- Fase 27b: formulir "Jadwalkan demo" DIHAPUS ----------------------------
   //
   // Cek lama di sini mengisi & mengirim formulir itu. Fiturnya dihapus karena
@@ -3212,7 +3212,7 @@ try {
     const adaMasukEn =
       masukEn.includes("Welcome back") &&
       masukEn.includes("Sign in to pick up where you left off") &&
-      masukEn.includes("One app for everything your small business runs on.") &&
+      masukEn.includes("One app for everything your company runs on.") &&
       masukEn.includes("Forgot your password?");
     const tanpaMasukId =
       !masukEn.includes("Selamat datang kembali") &&

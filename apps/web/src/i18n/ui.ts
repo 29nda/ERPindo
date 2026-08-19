@@ -2719,8 +2719,8 @@ export const UI = {
   authAtau: { id: "atau", en: "or" },
   authLanjutkanGoogle: { id: "Lanjutkan dengan Google", en: "Continue with Google" },
   authTagline: {
-    id: "Satu aplikasi untuk seluruh operasional UMKM Anda.",
-    en: "One app for everything your small business runs on.",
+    id: "Satu aplikasi untuk seluruh operasional perusahaan Anda.",
+    en: "One app for everything your company runs on.",
   },
   // Fase 24 — trial dihapus. Mendaftar tetap gratis; yang berbayar adalah
   // mulai mencatat data sendiri. Demo publik yang menggantikan masa coba.

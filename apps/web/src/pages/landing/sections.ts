@@ -1,4 +1,5 @@
 import {
+  Building2,
   Boxes,
   CloudDownload,
   Database,
@@ -13,7 +14,6 @@ import {
   ShoppingBag,
   Store,
   Wallet,
-  WifiOff,
   type LucideIcon,
 } from "lucide-react";
 import { FAQ_LANDING } from "@erpindo/shared";
@@ -38,34 +38,34 @@ import type { Dual } from "../../i18n";
 export const TRUST_POINTS: { value: Dual; label: Dual; icon: LucideIcon }[] = [
   {
     icon: Wallet,
-    value: { id: "Satu harga", en: "One price" },
+    value: { id: "Pengguna tak terbatas", en: "Unlimited users" },
     label: {
-      id: "Rp 499.000 per bulan untuk satu perusahaan. Seluruh fitur terbuka dan jumlah karyawan tidak dibatasi.",
-      en: "Rp 499,000 a month for one company. Every feature open, no limit on staff.",
+      id: "Rp 499.000 per bulan per badan usaha. Tambah 10 atau 200 orang, tagihannya tidak bergerak.",
+      en: "Rp 499,000 a month per legal entity. Add 10 people or 200 — the bill does not move.",
     },
   },
   {
     icon: Percent,
-    value: { id: "Pajak Indonesia", en: "Indonesian tax" },
+    value: { id: "Kepatuhan bawaan", en: "Compliance built in" },
     label: {
-      id: "PPN dan PPh 21 dihitung otomatis. Berkas e-Faktur siap diunggah ke Coretax.",
-      en: "VAT and income tax calculated automatically. e-Faktur files ready to upload to Coretax.",
+      id: "PPN, PPh 21 metode TER, dan BPJS terhitung otomatis. XML-nya langsung diimpor ke Coretax DJP.",
+      en: "VAT, PPh 21 (TER method), and BPJS calculated automatically. The XML imports straight into Coretax.",
     },
   },
   {
-    icon: WifiOff,
-    value: { id: "Kasir tetap berjalan", en: "The till keeps working" },
+    icon: Building2,
+    value: { id: "Multi-entitas", en: "Multi-entity" },
     label: {
-      id: "Saat internet mati, penjualan tetap tercatat. Datanya tersimpan sendiri begitu koneksi kembali.",
-      en: "If the internet drops, sales keep recording. They sync themselves once you are back online.",
+      id: "Tiap badan usaha punya basis data sendiri. Laporan konsolidasi disusun lintas perusahaan, termasuk eliminasi antar-perusahaan.",
+      en: "Each legal entity gets its own database. Consolidated reports span companies, intercompany eliminations included.",
     },
   },
   {
     icon: Database,
-    value: { id: "Data milik Anda", en: "Your data is yours" },
+    value: { id: "Tanpa kunci vendor", en: "No vendor lock-in" },
     label: {
-      id: "Data dapat diunduh kapan saja, termasuk setelah Anda berhenti berlangganan.",
-      en: "Download it any time, including after you stop subscribing.",
+      id: "Seluruh tabel dapat diunduh sebagai CSV kapan saja — termasuk setelah langganan berakhir.",
+      en: "Every table downloads as CSV any time — including after the subscription ends.",
     },
   },
 ];
@@ -208,7 +208,7 @@ export const SINGLE_PLAN_MODULES: Dual[] = [
   { id: "Proyek, anggaran & catatan jam", en: "Projects, budgets & time logs" },
   { id: "Produksi, resep & pemeriksaan mutu", en: "Production, recipes & quality checks" },
   { id: "Aset tetap & penyusutan", en: "Fixed assets & depreciation" },
-  { id: "Pajak UMKM & e-Faktur", en: "SME tax & e-Faktur" },
+  { id: "Pajak badan & e-Faktur", en: "Corporate tax & e-Faktur" },
   { id: "Anggaran & pencocokan rekening koran", en: "Budgets & bank statement matching" },
   { id: "Persetujuan bertingkat", en: "Multi-level approvals" },
   { id: "Laporan lengkap + Excel", en: "Full reports + Excel" },
@@ -293,3 +293,49 @@ export const INTEGRATIONS: { icon: LucideIcon; label: Dual }[] = [
 export function formatRupiah(n: number): string {
   return `Rp ${n.toLocaleString("id-ID")}`;
 }
+
+/**
+ * Empat penyebab proyek ERP gagal, dan apa yang menggantikannya di sini
+ * (Fase 37c).
+ *
+ * Ini seksi terpenting di halaman bagi pembeli perusahaan, karena ia menjawab
+ * keberatan NOMOR SATU — bukan harga, melainkan "proyeknya akan gagal seperti
+ * yang dulu". Persentasenya nyata dan bersumber; lihat docs/posisi-produk.md.
+ *
+ * Aturan yang mengikat isi tabel ini: tiap jawaban harus bisa ditunjuk barisnya
+ * di produk. Tidak ada yang boleh berbunyi seperti janji.
+ */
+export const KEGAGALAN_ERP: { sebab: Dual; angka: Dual; jawaban: Dual }[] = [
+  {
+    sebab: { id: "Migrasi data yang berantakan", en: "Botched data migration" },
+    angka: { id: "34% penyebab pembengkakan biaya", en: "34% of budget overruns" },
+    jawaban: {
+      id: "Produk dan kontak diimpor dari CSV dengan pratinjau dan laporan per baris, jadi baris bermasalah terlihat sebelum apa pun tersimpan. Saldo awal menjadi satu jurnal pembuka yang otomatis seimbang.",
+      en: "Products and contacts import from CSV with a preview and per-row report, so bad rows surface before anything is saved. Opening balances become a single opening entry that balances itself.",
+    },
+  },
+  {
+    sebab: { id: "Ruang lingkup yang terus melar", en: "Scope that keeps expanding" },
+    angka: { id: "35% penyebab pembengkakan biaya", en: "35% of budget overruns" },
+    jawaban: {
+      id: "Seluruh modul sudah terbuka sejak hari pertama. Tidak ada yang perlu dinegosiasikan, dibeli menyusul, atau dibuka dengan biaya tambahan.",
+      en: "Every module is unlocked from day one. Nothing needs negotiating, buying later, or unlocking for a fee.",
+    },
+  },
+  {
+    sebab: { id: "Tim implementasi kurang orang", en: "Understaffed implementation team" },
+    angka: { id: "38% penyebab pembengkakan biaya", en: "38% of budget overruns" },
+    jawaban: {
+      id: "Tidak ada tim implementasi yang perlu disiapkan. Bagan akun standar Indonesia, tarif PPN, PPh 21 metode TER, dan BPJS sudah terpasang saat perusahaan dibuat.",
+      en: "There is no implementation team to staff. The Indonesian chart of accounts, VAT rates, PPh 21 TER, and BPJS are in place the moment the company is created.",
+    },
+  },
+  {
+    sebab: { id: "Tim menolak memakainya", en: "The team will not adopt it" },
+    angka: { id: "penyebab kegagalan paling sering dilaporkan", en: "the most reported cause of failure" },
+    jawaban: {
+      id: "Demo publik berisi satu perusahaan dengan data setahun penuh. Tim Anda bisa menelusurinya sebelum satu rupiah pun dikeluarkan, dan sebelum satu orang pun dilatih.",
+      en: "The public demo holds one company with a full year of data. Your team can explore it before a single rupiah is spent, and before anyone is trained.",
+    },
+  },
+];
