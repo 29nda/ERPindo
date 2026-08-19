@@ -75,7 +75,7 @@ export const UI = {
   //
   // Ini kelas kesalahan yang menghasilkan data rusak, bukan sekadar
   // kebingungan — karena itu diperbaiki lebih dulu dari seluruh naskah lain.
-  batalkan: { id: "Batalkan Dokumen", en: "Void" },
+  batalkan: { id: "Batalkan dokumen", en: "Void" },
 
   // Master data
   produk: { id: "Produk", en: "Product" },
@@ -200,11 +200,11 @@ export const UI = {
     en: "Hide technical accounting menus (General Journal, Ledger, Trial Balance, Chart of Accounts). You can still record entries via Record Transaction.",
   },
   profilSaya: { id: "Profil saya", en: "My profile" },
-  simpanNama: { id: "Simpan Nama", en: "Save name" },
+  simpanNama: { id: "Simpan nama", en: "Save name" },
   passwordSaatIni: { id: "Password saat ini", en: "Current password" },
   passwordBaru: { id: "Password baru", en: "New password" },
   minimal8Karakter: { id: "Minimal 8 karakter", en: "At least 8 characters" },
-  gantiPassword: { id: "Ganti Password", en: "Change password" },
+  gantiPassword: { id: "Ganti password", en: "Change password" },
   keamanan2fa: {
     id: "Keamanan — verifikasi dua langkah (2FA)",
     en: "Security — two-step verification (2FA)",
@@ -321,7 +321,7 @@ export const UI = {
   kaliSetahun: { id: "kali", en: "×" },
   rasioTakBisaDihitung: { id: "belum bisa dihitung", en: "not computable yet" },
   // Data & keamanan (Fase 20m)
-  eksporCadangan: { id: "Ekspor & Cadangan", en: "Export & Backup" },
+  eksporCadangan: { id: "Ekspor & cadangan", en: "Export & backup" },
   descEksporCadangan: {
     id: "Data Anda milik Anda — unduh kapan pun, termasuk setelah langganan berakhir.",
     en: "Your data is yours — download it any time, including after your subscription ends.",
@@ -331,7 +331,7 @@ export const UI = {
     id: "Seluruh tabel diekspor sebagai CSV standar + manifest — siap dibuka di Excel atau dipindahkan ke aplikasi lain.",
     en: "Every table is exported as standard CSV plus a manifest — ready for Excel or migration to another app.",
   },
-  unduhSemuaData: { id: "Unduh Semua Data", en: "Download all data" },
+  unduhSemuaData: { id: "Unduh semua data", en: "Download all data" },
   backupDrive: { id: "Backup otomatis ke Google Drive", en: "Automatic backup to Google Drive" },
   descDriveBelumSiap: {
     id: "Integrasi Google Drive belum dikonfigurasi oleh operator (butuh OAuth Client ID/Secret Google Cloud). Fitur unduh di atas tetap berfungsi penuh.",
@@ -509,7 +509,7 @@ export const UI = {
   },
   namaPerusahaanBaru: { id: "Nama perusahaan baru", en: "New company name" },
   contohCabangKedua: { id: "mis. PT Cabang Kedua", en: "e.g. Second Branch Ltd" },
-  tambahPerusahaan: { id: "Tambah Perusahaan", en: "Add company" },
+  tambahPerusahaan: { id: "Tambah perusahaan", en: "Add company" },
   // API & integrasi (Fase 20m)
   apiIntegrasi: { id: "API & Integrasi", en: "API & Integrations" },
   descApiIntegrasiUpsell: {
@@ -559,7 +559,7 @@ export const UI = {
   terakhirKecil: { id: "terakhir:", en: "last:" },
   // Tutup buku
   tutupBuku: { id: "Tutup buku", en: "Close books" },
-  tutupBukuAksi: { id: "Tutup Buku", en: "Close Books" },
+  tutupBukuAksi: { id: "Tutup buku", en: "Close books" },
   konfirmTutupBuku: { id: "Tutup buku sampai", en: "Close books through" },
   urlWebhookContoh: { id: "https://sistem-anda.co.id/webhook", en: "https://your-system.com/webhook" },
   descTutupBuku: {
@@ -578,7 +578,7 @@ export const UI = {
     id: "Jurnal penutup tahunan: pindahkan laba/rugi berjalan sampai tanggal di atas ke akun Laba Ditahan.",
     en: "Annual closing entry: move the running profit/loss up to the date above into Retained Earnings.",
   },
-  postingJurnalPenutup: { id: "Posting Jurnal Penutup", en: "Post closing entry" },
+  postingJurnalPenutup: { id: "Posting jurnal penutup", en: "Post closing entry" },
   konfirmJurnalPenutup: { id: "Posting jurnal penutup per", en: "Post closing entry as of" },
   descKonfirmJurnalPenutup: {
     id: "Semua saldo pendapatan dan beban sampai tanggal itu dinolkan; laba/rugi bersihnya dipindahkan ke Laba Ditahan.",
@@ -838,7 +838,7 @@ export const UI = {
   // di mode Inggris, termasuk TOMBOL BAYAR, tombol terpenting di layar kasir.
   // Penyapu tak melihatnya karena "bayar"/"cetak"/"struk" tak ada di kosakata
   // penandanya, dan `+50rb` dirangkai dari angka (kelas buta Fase 21e).
-  bayarCetakStruk: { id: "Bayar & Cetak Struk", en: "Pay & print receipt" },
+  bayarCetakStruk: { id: "Bayar & cetak struk", en: "Pay & print receipt" },
   lihatRekap: { id: "Lihat rekap", en: "View summary" },
   tutupRekap: { id: "Tutup", en: "Close" },
   /** Singkatan ribuan pada tombol nominal cepat: "+50rb" / "+50k". */
@@ -852,7 +852,7 @@ export const UI = {
   hapusPembayaran: { id: "Hapus pembayaran", en: "Remove payment" },
   keranjang: { id: "Keranjang", en: "Cart" },
   bukaShift: { id: "Buka shift", en: "Open shift" },
-  tutupShift: { id: "Tutup Shift", en: "Close shift" },
+  tutupShift: { id: "Tutup shift", en: "Close shift" },
   kasAwalRp: { id: "Kas awal (Rp)", en: "Opening cash (Rp)" },
   kasFisikLaciRp: { id: "Kas fisik di laci (Rp)", en: "Cash counted in drawer (Rp)" },
   perMetode: { id: "Per metode", en: "By method" },
@@ -881,14 +881,14 @@ export const UI = {
     id: "Pilih struk, isi qty barang yang dikembalikan — uang tunai keluar dari laci shift ini.",
     en: "Pick a receipt and enter the quantity returned — cash leaves this shift's drawer.",
   },
-  prosesRefund: { id: "Proses Refund", en: "Process refund" },
+  prosesRefund: { id: "Proses refund", en: "Process refund" },
   konfirmasiTutup: { id: "Konfirmasi Tutup", en: "Confirm close" },
   tambahSeri: { id: "Tambah seri", en: "Add serial" },
   // CRM — Fase 16h
   lead: { id: "Lead", en: "Lead" },
   leadBaru: { id: "Lead baru", en: "New lead" },
   leadAktif: { id: "Lead aktif", en: "Active leads" },
-  tambahLead: { id: "Tambah Lead", en: "Add lead" },
+  tambahLead: { id: "Tambah lead", en: "Add lead" },
   belumAdaLead: { id: "Belum ada lead", en: "No leads yet" },
   sumber: { id: "Sumber", en: "Source" },
   narahubung: { id: "Narahubung", en: "Contact person" },
@@ -898,8 +898,8 @@ export const UI = {
   menang: { id: "Menang", en: "Won" },
   kalah: { id: "Kalah", en: "Lost" },
   konversi: { id: "Konversi", en: "Convert" },
-  konversiPelanggan: { id: "Konversi ke Pelanggan", en: "Convert to customer" },
-  konversiFaktur: { id: "Konversi ke Faktur", en: "Convert to invoice" },
+  konversiPelanggan: { id: "Konversi ke pelanggan", en: "Convert to customer" },
+  konversiFaktur: { id: "Konversi ke faktur", en: "Convert to invoice" },
   konversiPerSumber: { id: "Konversi per sumber", en: "Conversion by source" },
   aktivitasFollowUp: { id: "Aktivitas follow-up", en: "Follow-up activity" },
   jenisAktivitas: { id: "Jenis aktivitas", en: "Activity type" },
@@ -909,14 +909,14 @@ export const UI = {
   catat: { id: "Catat", en: "Record" },
   tenggatOpsional: { id: "Tenggat (opsional)", en: "Due date (optional)" },
   penawaranBaru: { id: "Penawaran baru", en: "New quotation" },
-  buatPenawaran: { id: "Buat Penawaran", en: "Create quotation" },
+  buatPenawaran: { id: "Buat penawaran", en: "Create quotation" },
   daftarPenawaran: { id: "Daftar penawaran", en: "Quotation list" },
   belumAdaPenawaran: { id: "Belum ada penawaran", en: "No quotations yet" },
   berlakuSampai: { id: "Berlaku sampai", en: "Valid until" },
   diterima: { id: "Diterima", en: "Accepted" },
   ditolak: { id: "Ditolak", en: "Rejected" },
-  tandaiTerkirim: { id: "Tandai Terkirim", en: "Mark as sent" },
-  buatFaktur: { id: "Buat Faktur", en: "Create invoice" },
+  tandaiTerkirim: { id: "Tandai terkirim", en: "Mark as sent" },
+  buatFaktur: { id: "Buat faktur", en: "Create invoice" },
   tanggalFaktur: { id: "Tanggal faktur", en: "Invoice date" },
   gudangStokKeluar: { id: "Gudang (stok keluar)", en: "Warehouse (stock out)" },
   sudahJadiFaktur: {
@@ -992,9 +992,9 @@ export const UI = {
   belumAdaPenggajian: { id: "Belum ada penggajian", en: "No payroll runs yet" },
   ajukan: { id: "Ajukan", en: "Submit" },
   cairkanKasbon: { id: "Cairkan Kasbon", en: "Disburse loan" },
-  jalankanPenggajian: { id: "Jalankan Penggajian", en: "Run payroll" },
-  tambahKaryawan: { id: "Tambah Karyawan", en: "Add employee" },
-  tambahKomponen: { id: "Tambah Komponen", en: "Add component" },
+  jalankanPenggajian: { id: "Jalankan penggajian", en: "Run payroll" },
+  tambahKaryawan: { id: "Tambah karyawan", en: "Add employee" },
+  tambahKomponen: { id: "Tambah komponen", en: "Add component" },
   jalankanPenggajianBulanan: { id: "Jalankan penggajian bulanan", en: "Run monthly payroll" },
   riwayatPenggajian: { id: "Riwayat penggajian", en: "Payroll history" },
   kasbonPinjaman: { id: "Kasbon / pinjaman karyawan", en: "Employee loans" },
@@ -1074,7 +1074,7 @@ export const UI = {
   catatJam: { id: "Catat jam", en: "Log hours" },
   buatFakturKecil: { id: "Buat faktur", en: "Create invoice" },
   terbitkanFaktur: { id: "Terbitkan faktur", en: "Issue invoice" },
-  simpanBaseline: { id: "Simpan + Baseline", en: "Save + baseline" },
+  simpanBaseline: { id: "Simpan + baseline", en: "Save + baseline" },
   estimasiBiayaTk: { id: "Estimasi biaya tenaga kerja", en: "Estimated labour cost" },
   labaSetelahTk: { id: "Laba setelah tenaga kerja", en: "Profit after labour" },
   realisasiBiaya: { id: "Realisasi biaya (jurnal ber-tag)", en: "Actual cost (tagged entries)" },
@@ -1143,8 +1143,8 @@ export const UI = {
   dibayarDariAkun: { id: "Dibayar dari akun", en: "Paid from account" },
   periode: { id: "Periode", en: "Period" },
   tanggalJurnal: { id: "Tanggal jurnal", en: "Entry date" },
-  daftarkanAset: { id: "Daftarkan Aset", en: "Register Asset" },
-  jalankanPenyusutan: { id: "Jalankan Penyusutan", en: "Run Depreciation" },
+  daftarkanAset: { id: "Daftarkan aset", en: "Register asset" },
+  jalankanPenyusutan: { id: "Jalankan penyusutan", en: "Run depreciation" },
   daftarkanAsetBaru: { id: "Daftarkan aset baru", en: "Register a new asset" },
   jalankanPenyusutanBulanan: {
     id: "Jalankan penyusutan bulanan",
@@ -1198,9 +1198,9 @@ export const UI = {
   qtyRetur: { id: "Qty retur", en: "Return qty" },
   dibeli: { id: "dibeli", en: "bought" },
   tambahBarang: { id: "Tambah barang", en: "Add item" },
-  postingFaktur: { id: "Posting Faktur", en: "Post Invoice" },
-  postingRetur: { id: "Posting Retur", en: "Post Return" },
-  terimaPembayaran: { id: "Terima Pembayaran", en: "Receive Payment" },
+  postingFaktur: { id: "Posting faktur", en: "Post invoice" },
+  postingRetur: { id: "Posting retur", en: "Post return" },
+  terimaPembayaran: { id: "Terima pembayaran", en: "Receive payment" },
   bayar: { id: "Bayar", en: "Pay" },
   belumLunas: { id: "belum lunas", en: "unpaid" },
   menampilkan: { id: "Menampilkan", en: "Showing" },
@@ -1388,7 +1388,7 @@ export const UI = {
   tambahBaris: { id: "Tambah baris", en: "Add line" },
   seimbangSingkat: { id: "seimbang", en: "balanced" },
   belumSeimbang: { id: "belum seimbang", en: "not balanced" },
-  postingJurnal: { id: "Posting Jurnal", en: "Post Entry" },
+  postingJurnal: { id: "Posting jurnal", en: "Post entry" },
   contohMemoJurnal: { id: "Setoran modal awal", en: "Initial capital deposit" },
   contohNamaTemplate: { id: "mis. Sewa ruko bulanan", en: "e.g. Monthly shop rent" },
   tidakAdaJurnalCocok: {
@@ -1427,7 +1427,7 @@ export const UI = {
   kreditSingkat: { id: "K", en: "C" },
   // Proyek — pelunasan utang 16j (Fase 16p)
   selesaiStatus: { id: "selesai", en: "completed" },
-  buatProyek: { id: "Buat Proyek", en: "Create Project" },
+  buatProyek: { id: "Buat proyek", en: "Create project" },
   waktuBerjalan: { id: "waktu berjalan", en: "of time elapsed" },
   lewatTenggat: { id: "lewat tenggat", en: "past due" },
   belumAdaTugasBerjadwal: { id: "Belum ada tugas berjadwal.", en: "No scheduled tasks yet." },
@@ -1822,7 +1822,7 @@ export const UI = {
   // dan padanan Inggrisnya ("owner's drawings") justru lebih teknis.
   uangMasuk: { id: "Uang Masuk", en: "Money In" },
   uangKeluar: { id: "Uang Keluar", en: "Money Out" },
-  pindahDana: { id: "Pindah Dana", en: "Move Funds" },
+  pindahDana: { id: "Pindah dana", en: "Move funds" },
   jenisTransaksi: { id: "Jenis transaksi", en: "Transaction type" },
   katListrikAir: { id: "Bayar listrik, air & internet", en: "Electricity, water & internet" },
   katSewaTempat: { id: "Sewa tempat", en: "Rent" },
@@ -2022,7 +2022,7 @@ export const UI = {
   terimaBarang: { id: "Terima barang", en: "Receive goods" },
   // Sengaja BUKAN `batalkan` yang sudah ada: kunci itu berarti "Void"
   // (membatalkan faktur), sedangkan di sini yang dibatalkan adalah PESANAN.
-  batalkanPesanan: { id: "Batalkan Pesanan", en: "Cancel order" },
+  batalkanPesanan: { id: "Batalkan pesanan", en: "Cancel order" },
   grnJudul: { id: "3. Penerimaan barang (GRN)", en: "3. Goods receipt (GRN)" },
   descGrn: {
     id: "Riwayat penerimaan — tiap penerimaan otomatis menjadi faktur pembelian & menambah stok.",
@@ -2087,7 +2087,7 @@ export const UI = {
   hasilPerResep: { id: "Hasil per resep", en: "Output per recipe" },
   hapusKomponen: { id: "Hapus komponen", en: "Remove component" },
   // `tambahKomponen` & `pilihOpsi` sudah ada sejak Fase 16 — dipakai ulang.
-  simpanResep: { id: "Simpan Resep", en: "Save recipe" },
+  simpanResep: { id: "Simpan resep", en: "Save recipe" },
   descJalankanProduksi: {
     id: "Jalankan produksi berdasarkan resep.",
     en: "Run production from a recipe.",
@@ -2097,7 +2097,7 @@ export const UI = {
     en: "Product (must have a recipe)",
   },
   gudangOpsi: { id: "— gudang —", en: "— warehouse —" },
-  buatPerintah: { id: "Buat Perintah", en: "Create order" },
+  buatPerintah: { id: "Buat perintah", en: "Create order" },
   daftarResep: { id: "Daftar resep", en: "Recipe list" },
   belumAdaResep: { id: "Belum ada resep", en: "No recipes yet" },
   descBelumAdaResep: {
@@ -2164,14 +2164,14 @@ export const UI = {
   namaServis: { id: "Nama servis", en: "Service name" },
   contohServisRutin: { id: "mis. Servis rutin", en: "e.g. Routine service" },
   intervalBulan: { id: "Interval (bulan)", en: "Interval (months)" },
-  simpanJadwal: { id: "Simpan Jadwal", en: "Save schedule" },
+  simpanJadwal: { id: "Simpan jadwal", en: "Save schedule" },
   descWorkOrderLuarJadwal: {
     id: "Buat pekerjaan servis di luar jadwal.",
     en: "Create an unscheduled service job.",
   },
   contohGantiOli: { id: "mis. Ganti oli mesin", en: "e.g. Change engine oil" },
   tanggalRencana: { id: "Tanggal rencana", en: "Planned date" },
-  buatWorkOrder: { id: "Buat Work Order", en: "Create work order" },
+  buatWorkOrder: { id: "Buat work order", en: "Create work order" },
   belumAdaJadwal: { id: "Belum ada jadwal", en: "No schedules yet" },
   descBelumAdaJadwal: {
     id: "Buat jadwal servis berkala per aset.",
@@ -2300,7 +2300,7 @@ export const UI = {
   mulaiTagih: { id: "Mulai tagih", en: "Billing starts" },
   cariProdukJasa: { id: "Cari produk/jasa…", en: "Search products/services…" },
   tambahBarisPlus: { id: "+ Tambah baris", en: "+ Add line" },
-  buatKontrak: { id: "Buat Kontrak", en: "Create contract" },
+  buatKontrak: { id: "Buat kontrak", en: "Create contract" },
   daftarKontrak: { id: "Daftar kontrak", en: "Contract list" },
   belumAdaKontrak: { id: "Belum ada kontrak", en: "No contracts yet" },
   descBelumAdaKontrak: {
@@ -2313,7 +2313,7 @@ export const UI = {
   kontrakBerakhir: { id: "berakhir", en: "ended" },
 
   // Helpdesk (Fase 19j).
-  buatTiket: { id: "Buat Tiket", en: "Create ticket" },
+  buatTiket: { id: "Buat tiket", en: "Create ticket" },
   daftarTiket: { id: "Daftar tiket", en: "Ticket list" },
   belumAdaTiket: { id: "Belum ada tiket", en: "No tickets yet" },
   descBelumAdaTiket: {
@@ -2457,7 +2457,7 @@ export const UI = {
     en: "The rate is the value of 1 unit of foreign currency in Rupiah (e.g. 1 USD = Rp 16,200).",
   },
   kursIdr: { id: "Kurs (IDR)", en: "Rate (IDR)" },
-  simpanKurs: { id: "Simpan Kurs", en: "Save rate" },
+  simpanKurs: { id: "Simpan kurs", en: "Save rate" },
   daftarMataUang: { id: "Daftar mata uang", en: "Currency list" },
   kodeTigaHuruf: { id: "Kode (3 huruf)", en: "Code (3 letters)" },
   mataUangDasar: { id: "dasar", en: "base" },
@@ -2763,7 +2763,7 @@ export const UI = {
   authSesiBerakhir: { id: "Sesi Anda berakhir —", en: "Your session has expired —" },
   authMasukLagiGoogle: { id: "masuk lagi dengan Google", en: "sign in with Google again" },
   authNamaPerusahaan: { id: "Nama perusahaan", en: "Company name" },
-  authBuatPerusahaan: { id: "Buat Perusahaan", en: "Create company" },
+  authBuatPerusahaan: { id: "Buat perusahaan", en: "Create company" },
   authBuatAkun: { id: "Buat akun perusahaan", en: "Create your company account" },
   authSudahPunyaAkun: { id: "Sudah punya akun?", en: "Already have an account?" },
   authMasuk: { id: "Masuk", en: "Sign in" },
@@ -2788,7 +2788,7 @@ export const UI = {
     id: "Email Anda berhasil diverifikasi. Selamat menggunakan ERPindo!",
     en: "Your email is verified. Welcome to ERPindo!",
   },
-  authBukaDashboard: { id: "Buka Dashboard", en: "Open dashboard" },
+  authBukaDashboard: { id: "Buka dashboard", en: "Open dashboard" },
   authTautanTidakValid: {
     id: "Tautan verifikasi tidak valid atau sudah kedaluwarsa.",
     en: "That verification link is invalid or has expired.",
@@ -2802,10 +2802,10 @@ export const UI = {
     id: "Bila email terdaftar, tautan reset password sudah dikirim. Periksa kotak masuk Anda.",
     en: "If that email is registered, a password reset link is on its way. Check your inbox.",
   },
-  authKirimTautanReset: { id: "Kirim Tautan Reset", en: "Send reset link" },
+  authKirimTautanReset: { id: "Kirim tautan reset", en: "Send reset link" },
   authAturUlangPassword: { id: "Atur ulang password", en: "Reset your password" },
   authPasswordBaru: { id: "Password baru", en: "New password" },
-  authSimpanPasswordBaru: { id: "Simpan Password Baru", en: "Save new password" },
+  authSimpanPasswordBaru: { id: "Simpan password baru", en: "Save new password" },
   authUndanganTim: { id: "Undangan tim", en: "Team invitation" },
   authDescUndangan: {
     id: "Anda diundang bergabung ke sebuah perusahaan di ERPindo.",
@@ -2818,7 +2818,7 @@ export const UI = {
     id: "dengan email yang diundang terlebih dahulu, lalu buka tautan ini lagi.",
     en: "with the invited email address first, then open this link again.",
   },
-  authTerimaUndangan: { id: "Terima Undangan", en: "Accept invitation" },
+  authTerimaUndangan: { id: "Terima undangan", en: "Accept invitation" },
 
   // — Dashboard admin platform (Fase 19r) —
   // Awalan `ad` konsisten: halaman ini punya banyak kata umum ("Status",
@@ -2959,8 +2959,8 @@ export const UI = {
   adPratinjau: { id: "Pratinjau", en: "Preview" },
   adBelumAdaIsi: { id: "*Belum ada isi.*", en: "*Nothing written yet.*" },
   adBatal: { id: "Batal", en: "Cancel" },
-  adSimpanPerubahan: { id: "Simpan Perubahan", en: "Save changes" },
-  adSimpanDraf: { id: "Simpan Draf", en: "Save draft" },
+  adSimpanPerubahan: { id: "Simpan perubahan", en: "Save changes" },
+  adSimpanDraf: { id: "Simpan draf", en: "Save draft" },
   adSemuaArtikel: { id: "Semua artikel", en: "All articles" },
   adDescDraf: {
     id: "Draf tidak tampil di /blog sampai diterbitkan.",
@@ -3009,7 +3009,7 @@ export const UI = {
     id: "Ceritakan sedetail mungkin — halaman apa, apa yang Anda harapkan, dan apa yang terjadi.",
     en: "Tell us as much as you can — which page, what you expected, and what happened instead.",
   },
-  dkTombolKirim: { id: "Kirim Masukan", en: "Send feedback" },
+  dkTombolKirim: { id: "Kirim masukan", en: "Send feedback" },
   dkMasukanSaya: { id: "Masukan saya", en: "My feedback" },
   dkDescMasukanSaya: {
     id: "Status ditinjau oleh pengelola ERPindo.",

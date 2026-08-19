@@ -167,7 +167,7 @@ export const PAGE_HEADINGS = {
     },
   },
   migrasi: {
-    title: { id: "Migrasi & saldo awal", en: "Migration & opening balances" },
+    title: { id: "Migrasi & Saldo Awal", en: "Migration & Opening Balances" },
     desc: {
       id: "Pindah dari sistem lama? Masukkan saldo awal akun & stok. Sistem menyusun satu jurnal pembuka yang otomatis seimbang — selisih masuk ke Ekuitas Saldo Awal (Laba Ditahan).",
       en: "Moving from an older system? Enter your opening account & stock balances. The system builds a single opening entry that balances automatically — any difference goes to Opening Equity (Retained Earnings).",
@@ -272,7 +272,7 @@ export const PAGE_HEADINGS = {
     },
   },
   pengadaan: {
-    title: { id: "Pengadaan (Procurement)", en: "Procurement" },
+    title: { id: "Pengadaan", en: "Procurement" },
     desc: {
       id: "Alur pengadaan lengkap: permintaan barang → pesanan ke pemasok → penerimaan barang (otomatis jadi faktur pembelian & stok masuk).",
       en: "The full procurement flow: purchase requisition → supplier order → goods receipt (which automatically becomes a purchase invoice and stock in).",

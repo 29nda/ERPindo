@@ -23,8 +23,8 @@ dibalik adalah data yang telanjur rusak karena tombolnya ambigu.
 | Kunci | Indonesia | Inggris | Artinya |
 |---|---|---|---|
 | `batal` | **Batal** | Cancel | Tutup dialog. Tidak ada yang berubah. |
-| `batalkan` | **Batalkan Dokumen** | Void | Buat jurnal pembalik. **Permanen, tercatat di audit.** |
-| `batalkanPesanan` | **Batalkan Pesanan** | Cancel order | Batalkan pesanan yang belum diproses. |
+| `batalkan` | **Batalkan dokumen** | Void | Buat jurnal pembalik. **Permanen, tercatat di audit.** |
+| `batalkanPesanan` | **Batalkan pesanan** | Cancel order | Batalkan pesanan yang belum diproses. |
 
 Sebelumnya ketiganya berbunyi "Batal"/"Batalkan" di sisi Indonesia, sementara
 sisi Inggris membedakannya. Tombol "tidak jadi" berdiri bersebelahan dengan
