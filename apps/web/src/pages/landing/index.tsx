@@ -115,17 +115,32 @@ function Hero() {
             menentukan apakah PERAGAAN ikut terlihat di layar pertama, dan
             peragaan itulah satu-satunya hal di halaman ini yang membuktikan
             klaimnya sendiri. */}
+        {/* Fase 36a — versi pertama judul ini berbunyi "Anda mencatat satu
+            penjualan tiga kali. Itu dua kali kebanyakan."
+            
+            Tiga hal salah sekaligus, dan pemilik menangkapnya langsung:
+            
+            1. "Itu dua kali kebanyakan" adalah idiom Inggris ("twice too many")
+               yang diterjemahkan mentah. Orang Indonesia tidak bicara begitu;
+               pembacanya harus berhenti menghitung maksudnya. Cerdas dalam
+               bahasa Inggris, janggal dalam bahasa Indonesia.
+            2. Nadanya MENUDUH. Kalimat pertama yang dibaca calon pembeli adalah
+               pemberitahuan bahwa cara kerjanya salah. Berani bukan menggurui.
+            3. Sublinenya tiga kalimat, ditutup PERINTAH ("Perhatikan sisanya")
+               untuk melihat sesuatu yang sudah bergerak sendiri di bawahnya.
+            
+            Akarnya satu: naskah itu MENARASIKAN peragaan, alih-alih membiarkan
+            peragaan bicara. Kalau peragaannya bekerja, ia tidak butuh
+            keterangan — ia butuh kalimat yang menyiapkan orang untuk melihat. */}
         <h1 className="judul-hero max-w-3xl text-[2.25rem] sm:text-[3.25rem]">
-          {L(lang, "Anda mencatat satu penjualan", "You record every sale")}{" "}
-          <span className="text-brand-ink">
-            {L(lang, "tiga kali. Itu dua kali kebanyakan.", "three times. That is twice too many.")}
-          </span>
+          {L(lang, "Berhenti menyalin angka yang sama", "Stop copying the same figures")}{" "}
+          <span className="text-brand-ink">{L(lang, "tiga kali.", "three times.")}</span>
         </h1>
-        <p className="mt-5 max-w-[38rem] text-lg leading-[1.65] text-ink-soft">
+        <p className="mt-5 max-w-[36rem] text-lg leading-[1.65] text-ink-soft">
           {L(
             lang,
-            "Nota, lalu buku, lalu Excel — tiga kali menyalin angka yang sama, dan tiga kesempatan untuk keliru. Di bawah ini satu faktur diposting sekali. Perhatikan sisanya.",
-            "A note, then a ledger, then Excel — the same figures copied three times, and three chances to get them wrong. Below, one invoice is posted once. Watch what follows.",
+            "Nota, lalu buku, lalu Excel. Di ERPindo cukup mencatat sekali — stok, pembukuan, dan pajaknya menyusul sendiri.",
+            "A note, then a ledger, then Excel. In ERPindo you record it once — stock, books, and tax follow on their own.",
           )}
         </p>
         <div className="mt-7 flex flex-wrap items-center gap-3">

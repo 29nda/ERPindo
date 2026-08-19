@@ -18,8 +18,11 @@ export const T = {
   ppn: { id: "PPN 11%", en: "VAT 11%" },
   total: { id: "Total", en: "Total" },
   tombolPosting: { id: "Posting", en: "Post" },
-  sekaliCatat: { id: "Satu kali catat", en: "Recorded once" },
-  lalu: { id: "lalu semuanya terisi sendiri", en: "then everything fills itself in" },
+  // Fase 36a — dulu berbunyi "Satu kali catat · lalu semuanya terisi sendiri",
+  // yang mengulang subline hero kata per kata tepat 200px di bawahnya. Label
+  // ini sekarang menamai apa yang dilihat, bukan mengulang yang sudah dibaca.
+  sekaliCatat: { id: "Yang terisi sendiri", en: "What fills itself in" },
+  lalu: { id: "tanpa satu pun input tambahan", en: "with no further input" },
 
   jurnal: { id: "Jurnal", en: "Journal entry" },
   jurnalPiutang: { id: "Piutang Usaha", en: "Accounts receivable" },
