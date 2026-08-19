@@ -93,8 +93,33 @@ blog, prompt Asisten AI, halaman masuk.
 Tiga asersi ui-sim membaca judul hero dan tagline halaman masuk apa adanya, dan
 ikut diperbarui ke bunyi barunya.
 
+## FAQ: dua pertanyaan diganti dengan yang benar-benar ditanyakan perusahaan
+
+FAQ adalah tempat yang **menyetujui** mencari keberatannya. Dua di antaranya
+ditulis untuk pemilik toko:
+
+| Sebelum | Sesudah |
+| --- | --- |
+| "Saya sudah punya data di Excel. Harus mulai dari nol?" | **"Kami sudah memakai sistem lain. Seberapa berat pindahnya?"** |
+| "Bagaimana kalau internet mati saat sedang melayani pembeli?" | **"Bisakah hak akses dibatasi per peran dan per cabang?"** |
+
+Jawaban pertama kini menyebut hal yang ditakutkan perusahaan saat berpindah
+sistem: **tanggal potong yang harus dinegosiasikan**, dan konsultan. Keduanya
+tidak ada di sini — saldo awal menjadi satu jurnal pembuka yang otomatis
+seimbang.
+
+Jawaban kedua menyebut yang memang ditanyakan: peran per modul, pembatasan per
+dimensi (cabang/cost center), audit log berisi pelakunya, dan penguncian akses
+ke daftar IP kantor. Semuanya sudah ada di produk.
+
+Kemampuan luring kasir **tidak dibuang** — ia pindah ke `/fitur` pada modul
+Kasir, tempat pembaca yang memang memerlukannya akan mencarinya. Ia hanya
+berhenti memakai satu dari sembilan slot FAQ halaman depan, yang di halaman
+untuk perusahaan terlalu mahal untuk pertanyaan itu.
+
 ## Yang belum dikerjakan
 
-FAQ masih ditulis untuk pemilik toko ("Saya sudah punya data di Excel"),
-sementara pembeli perusahaan bertanya hal lain: SLA, migrasi dari sistem
-berjalan, hak akses per cabang, audit. Menyusul.
+Seksi kepatuhan Indonesia dan multi-entitas masih memakai naskah lama. Keduanya
+sudah benar isinya, tetapi belum ditulis dengan bahasa pembeli perusahaan.
+Kalkulator biaya juga masih berjudul "Bandingkan dengan sistem yang menagih per
+pengguna" — argumen yang benar, tetapi belum diangkat ke posisi yang pantas.

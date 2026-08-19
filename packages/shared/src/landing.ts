@@ -85,12 +85,12 @@ export const FAQ_LANDING: TanyaJawab[] = [
   },
   {
     q: {
-      id: "Saya sudah punya data di Excel. Harus mulai dari nol?",
-      en: "I already have data in Excel. Do I start over?",
+      id: "Kami sudah memakai sistem lain. Seberapa berat pindahnya?",
+      en: "We already run another system. How hard is the switch?",
     },
     a: {
-      id: "Tidak. Produk dan kontak diimpor dari CSV/Excel dengan pratinjau dan laporan per baris, jadi baris yang bermasalah terlihat sebelum apa pun tersimpan. Saldo awal juga bisa dimasukkan supaya pembukuan tidak dimulai dari kosong.",
-      en: "No. Products and contacts import from CSV/Excel with a preview and a per-row report, so problem rows surface before anything is saved. Opening balances can be entered too, so your books do not start from zero.",
+      id: "Tidak berat, dan tidak perlu konsultan. Produk, kontak, dan saldo awal diimpor dari CSV/Excel dengan pratinjau serta laporan per baris — baris yang bermasalah terlihat sebelum apa pun tersimpan. Saldo awal menjadi satu jurnal pembuka yang otomatis seimbang, jadi pembukuan tidak dimulai dari kosong dan tidak ada tanggal potong yang harus dinegosiasikan.",
+      en: "Not hard, and no consultant needed. Products, contacts, and opening balances import from CSV/Excel with a preview and per-row report — bad rows surface before anything is saved. Opening balances become a single opening entry that balances itself, so your books do not start from zero and there is no cut-over date to negotiate.",
     },
   },
   {
@@ -105,12 +105,12 @@ export const FAQ_LANDING: TanyaJawab[] = [
   },
   {
     q: {
-      id: "Bagaimana kalau internet mati saat sedang melayani pembeli?",
-      en: "What if the internet drops while I am serving a customer?",
+      id: "Bisakah hak akses dibatasi per peran dan per cabang?",
+      en: "Can access be limited by role and by branch?",
     },
     a: {
-      id: "Kasir tetap berjalan. ERPindo adalah PWA yang dapat dipasang di ponsel, tablet, atau komputer dan tetap terbuka saat koneksi putus; transaksinya menyusul begitu koneksi kembali.",
-      en: "The cashier keeps going. ERPindo is a PWA you can install on a phone, tablet, or computer, and it stays open when the line drops; transactions catch up once you are back online.",
+      id: "Bisa. Peran diatur per modul — kasir cukup melihat layar kasir, staf gudang cukup melihat stok — dan hak akses juga bisa dibatasi per dimensi seperti cabang atau cost center. Setiap perubahan penting tercatat di audit log beserta pelakunya, dan akses bisa dikunci ke daftar IP kantor.",
+      en: "Yes. Roles are set per module — a cashier sees only the till, warehouse staff only stock — and access can also be scoped per dimension such as branch or cost centre. Every significant change is recorded in the audit log with who made it, and access can be restricted to your office IP list.",
     },
   },
   {
