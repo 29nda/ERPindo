@@ -5960,7 +5960,10 @@ try {
   );
 
   await new Promise((r) => setTimeout(r, 400));
-  const habisMail = findInLogs(/subject="Langganan .* telah berakhir"/);
+  // Fase 33j — subjek kini diawali "ERPindo — " supaya penerima tahu siapa
+  // pengirimnya sebelum membuka. Asersi ikut menyebut awalan itu, bukan
+  // dilonggarkan menjadi pencocokan sebagian.
+  const habisMail = findInLogs(/subject="ERPindo — langganan .* telah berakhir"/);
   check("email pemberitahuan langganan berakhir terkirim ke Owner", Boolean(habisMail));
 
   // --- Fase 21b: rekap bulanan DIKIRIM, bukan hanya disimpan ----------------

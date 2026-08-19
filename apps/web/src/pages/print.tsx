@@ -464,7 +464,7 @@ export function PayslipPrintPage() {
       </div>
 
       <div className="mt-6 flex items-center justify-between border-t-2 border-slate-900 pt-3">
-        <span className="text-lg font-bold">Gaji dibawa pulang (netto)</span>
+        <span className="text-lg font-bold">Gaji bersih (dibawa pulang)</span>
         <span className="text-lg font-bold tabular-nums">{formatIDR(slip.net)}</span>
       </div>
 
@@ -553,7 +553,7 @@ export function Form1721A1PrintPage() {
 
       <section className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <div className="font-semibold text-ink-muted">Nama pegawai</div>
+          <div className="font-semibold text-ink-muted">Nama karyawan</div>
           <div className="font-medium">{employee.name}</div>
           {employee.position ? <div className="text-ink-muted">{employee.position}</div> : null}
         </div>

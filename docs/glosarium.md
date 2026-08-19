@@ -179,6 +179,20 @@ Alasannya berbeda dari nama akun: keduanya **dibaca mesin**. Menggantinya
 memecah respons API dan smoke sekaligus tanpa satu pun pengguna melihat
 bedanya.
 
+## 5b. Istilah yang sudah seragam — jangan diubah lagi
+
+| Dipakai | Jangan | Catatan |
+|---|---|---|
+| **UMKM** | UKM | 34 kemunculan di naskah vs 0 — `UKM` hanya tersisa di komentar kode, dan itu tidak dilihat pengguna. |
+| **karyawan** | pegawai | Slip gaji dan ringkasan 1721-A1 diterima orang yang sama; dua nama untuk kolom yang sama membuatnya berhenti memastikan itu dirinya. "Pegawai" hanya dipakai bila mengutip formulir DJP kata per kata. |
+| **Gaji bersih (dibawa pulang)** | Gaji dibawa pulang (netto) | Pasangannya "Penghasilan bruto" di baris atasnya — bruto/bersih sejajar, "dibawa pulang" tetap ada sebagai penjelas. |
+
+## 7. Subjek email
+
+Selalu diawali **`ERPindo — `**. Penerima yang membaca "Langganan PT Maju telah
+berakhir" di kotak masuknya tidak punya petunjuk siapa pengirimnya, dan email
+tanpa pengirim yang dikenali adalah email yang tidak dibuka.
+
 ## 6. Rupiah
 
 Satu sumber: `formatRupiah()` di `packages/shared`. Menghasilkan `Rp 499.000`
