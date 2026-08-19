@@ -173,3 +173,50 @@ describe("toast dwibahasa (Fase 33h)", () => {
     expect(isi("Jurnal {0} diposting.")).toBe("Jurnal {0} diposting.");
   });
 });
+
+/**
+ * Fase 33k — janji dwibahasa harus setara, bukan sekadar terisi.
+ *
+ * Uji "kedua bahasa terisi" yang sudah ada (Fase 19q) menangkap `en: ""`.
+ * Yang tidak ditangkapnya: kolom Inggris yang **berisi kalimat Indonesia**,
+ * karena disalin apa adanya saat kunci dibuat lalu tidak pernah ditengok lagi.
+ * Bagi tsc keduanya string; bagi pembaca Inggris, layarnya berganti bahasa.
+ *
+ * Diperiksa dengan kata fungsi — kata yang hampir mustahil muncul dalam kalimat
+ * Inggris yang benar, dan hampir mustahil TIDAK muncul dalam kalimat Indonesia
+ * yang panjang. Nama diri ("Pengadaan", "Kas") sengaja tidak dijadikan penanda:
+ * banyak yang memang dipertahankan di sisi Inggris (PPN, PPh 21, e-Faktur).
+ */
+describe("janji dwibahasa setara (Fase 33k)", () => {
+  const KATA_INDONESIA =
+    /\b(yang|dengan|untuk|dari|pada|adalah|akan|tidak|sudah|belum|bisa|dapat|agar|supaya|karena|sehingga|atau|dan juga|tiap|setiap|lalu|kemudian|Anda|kami)\b/;
+
+  it("kolom en tidak berisi kalimat Indonesia", () => {
+    const tertinggal: string[] = [];
+    for (const key of Object.keys(UI) as (keyof typeof UI)[]) {
+      const en = UI[key].en;
+      // Kalimat pendek jarang memuat kata fungsi; ambang panjang menekan
+      // salah-kenali pada label satu-dua kata.
+      if (en.split(" ").length >= 4 && KATA_INDONESIA.test(en)) {
+        tertinggal.push(`${key}: ${en.slice(0, 60)}`);
+      }
+    }
+    expect(tertinggal, `sisi EN masih Indonesia: ${tertinggal.join(" · ")}`).toEqual([]);
+  });
+
+  it("kolom id dan en tidak identik pada kalimat panjang", () => {
+    // Kalimat panjang yang sama persis di kedua kolom berarti belum
+    // diterjemahkan. Label pendek boleh sama ("Email", "PPN", "Total").
+    const kembar: string[] = [];
+    for (const key of Object.keys(UI) as (keyof typeof UI)[]) {
+      // Contoh isian (`contoh*`) memang identik dan HARUS identik: nama
+      // perusahaan contoh untuk ERP Indonesia tetap "Toko Berkah / PT Sumber
+      // Rezeki" di kedua bahasa. Menerjemahkannya justru mengarang data yang
+      // tidak akan pernah dilihat pengguna Indonesia mana pun.
+      if (key.startsWith("contoh")) continue;
+      const { id, en } = UI[key];
+      if (id === en && id.split(" ").length >= 5) kembar.push(`${key}: ${id.slice(0, 60)}`);
+    }
+    expect(kembar, `id === en pada kalimat panjang: ${kembar.join(" · ")}`).toEqual([]);
+  });
+});
