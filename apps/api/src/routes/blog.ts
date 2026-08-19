@@ -87,7 +87,7 @@ ${opts.head ?? ""}
   <nav><a href="/blog">Blog</a><a href="/panduan">Panduan</a><a class="cta" href="/daftar">Daftar</a></nav>
 </div></header>
 <main><div class="wrap">${opts.body}</div></main>
-<footer><div class="wrap">ERPindo — ERP untuk UMKM Indonesia. <a href="/">Lihat demo berisi data nyata</a> — tanpa mendaftar.</div></footer>
+<footer><div class="wrap">ERPindo — ERP untuk perusahaan Indonesia. <a href="/">Lihat demo berisi data nyata</a> — tanpa mendaftar.</div></footer>
 </body>
 </html>`;
 }
@@ -112,11 +112,11 @@ export const blogRoutes = new Hono<AppEnv>()
       )
       .join("\n");
     const html = page({
-      title: "Blog ERPindo — Tips pembukuan, pajak & operasional UMKM",
-      description: "Artikel praktis seputar pembukuan, pajak, stok, gaji, dan operasional UMKM Indonesia dari tim ERPindo.",
+      title: "Blog ERPindo — Tips pembukuan, pajak & operasional perusahaan",
+      description: "Artikel praktis seputar pembukuan, pajak, stok, gaji, dan operasional perusahaan Indonesia dari tim ERPindo.",
       canonical: `${base}/blog`,
       body: `<h1>Blog ERPindo</h1>
-<p class="meta">Tips praktis pembukuan, pajak, dan operasional untuk UMKM Indonesia.</p>
+<p class="meta">Tips praktis pembukuan, pajak, dan operasional untuk perusahaan Indonesia.</p>
 ${results.length === 0 ? "<p>Belum ada artikel — nantikan segera.</p>" : cards}`,
     });
     return c.html(html, 200, { "Cache-Control": CACHE });
