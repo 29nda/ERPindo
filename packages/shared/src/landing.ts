@@ -69,7 +69,7 @@ export const FAQ_LANDING: TanyaJawab[] = [
       en: "Is my data really mine?",
     },
     a: {
-      id: "Ya, dan itu bisa diperiksa. Tiap perusahaan punya database sendiri yang terpisah — bukan satu tabel besar berisi semua pelanggan. Seluruh isinya bisa diunduh kapan saja sebagai ZIP berisi CSV per tabel, termasuk setelah langganan berakhir.",
+      id: "Ya, dan itu dapat diperiksa. Tiap perusahaan memiliki basis data sendiri yang terpisah — bukan satu tabel besar berisi seluruh pelanggan. Isinya dapat diunduh kapan saja sebagai ZIP berisi CSV per tabel, termasuk setelah langganan berakhir.",
       en: "Yes, and you can verify it. Each company gets its own separate database — not one large table holding every customer. You can download the whole thing at any time as a ZIP of per-table CSVs, including after your subscription ends.",
     },
   },
@@ -99,7 +99,7 @@ export const FAQ_LANDING: TanyaJawab[] = [
       en: "Can one account manage several companies?",
     },
     a: {
-      id: "Bisa. Tiap badan usaha berdiri sendiri dengan databasenya masing-masing, lalu Laba Rugi dan Neraca konsolidasi disusun lintas perusahaan — termasuk eliminasi transaksi antar-perusahaan.",
+      id: "Bisa. Tiap badan usaha berdiri sendiri dengan basis datanya masing-masing, lalu Laba Rugi dan Neraca konsolidasi disusun lintas perusahaan — termasuk eliminasi transaksi antar-perusahaan.",
       en: "Yes. Each entity stands on its own with its own database, then consolidated P&L and Balance Sheet are assembled across companies — including elimination of inter-company transactions.",
     },
   },
@@ -109,7 +109,7 @@ export const FAQ_LANDING: TanyaJawab[] = [
       en: "What if the internet drops while I am serving a customer?",
     },
     a: {
-      id: "Kasir tetap jalan. ERPindo adalah PWA yang bisa dipasang di HP, tablet, atau komputer dan tetap terbuka saat koneksi putus; transaksinya menyusul begitu koneksi kembali.",
+      id: "Kasir tetap berjalan. ERPindo adalah PWA yang dapat dipasang di ponsel, tablet, atau komputer dan tetap terbuka saat koneksi putus; transaksinya menyusul begitu koneksi kembali.",
       en: "The cashier keeps going. ERPindo is a PWA you can install on a phone, tablet, or computer, and it stays open when the line drops; transactions catch up once you are back online.",
     },
   },
@@ -119,7 +119,7 @@ export const FAQ_LANDING: TanyaJawab[] = [
       en: "How do I pay?",
     },
     a: {
-      id: "Online lewat Xendit — QRIS, transfer bank, kartu, atau e-wallet. Akun aktif otomatis begitu pembayaran terkonfirmasi. Untuk grup usaha atau yang butuh pendampingan implementasi, jadwalkan demo dan tim kami menghubungi Anda.",
+      id: "Secara daring lewat Xendit — QRIS, transfer bank, kartu, atau dompet elektronik. Akun aktif otomatis begitu pembayaran terkonfirmasi. Untuk grup usaha atau yang membutuhkan pendampingan implementasi, jadwalkan demo dan tim kami akan menghubungi Anda.",
       en: "Online through Xendit — QRIS, bank transfer, card, or e-wallet. Your account activates automatically once payment clears. For business groups or anyone wanting implementation help, schedule a demo and our team will reach out.",
     },
   },

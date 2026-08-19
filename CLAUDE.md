@@ -34,9 +34,11 @@ node scripts/sapu-warna.mjs
 # Penjaga tautan dokumen (Fase 31e) — Markdown tidak dikompilasi, jadi tautan
 # mati tidak pernah memunculkan galat sampai pemilik mengekliknya.
 node scripts/periksa-tautan-dokumen.mjs
-# Penyapu istilah (Fase 33k) — memaksa keputusan di `docs/glosarium.md`:
-# ejaan "utang", merek "ERPindo", "Rp 499.000" berspasi, "karyawan" bukan
-# "pegawai". Ada karena keputusan yang hanya hidup di dokumen akan dilanggar
+# Penyapu istilah (Fase 33k, diperluas 34a) — memaksa keputusan di
+# `docs/glosarium.md`: ejaan "utang", merek "ERPindo", "Rp 499.000" berspasi,
+# "karyawan" bukan "pegawai", ragam baku (bukan "cuma"/"gampang"/"telat"), dan
+# verba deskriptif yang memakai awalannya ("tetap berjalan", bukan "tetap
+# jalan"). Ada karena keputusan yang hanya hidup di dokumen akan dilanggar
 # oleh orang yang tidak membaca dokumen itu — dan tsc/eslint/smoke tidak bisa
 # melihatnya, karena string apa pun tetap sah.
 node scripts/sapu-istilah.mjs

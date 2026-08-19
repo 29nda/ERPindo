@@ -40,7 +40,7 @@ export const GUIDE_KNOWLEDGE: GuideKnowledge[] = [
     title: "Kasir (POS)",
     keywords: ["kasir", "pos", "shift", "struk", "tunai", "kembalian", "offline", "laci"],
     summary:
-      "Kasir: buka shift (gudang + kas awal) → jual (cari produk, qty, diskon per item, uang tunai, kembalian otomatis, struk berlogo) → tutup shift (kas fisik; selisih otomatis dijurnal). Tiap penjualan POS = faktur lunas: jurnal pendapatan+HPP dan stok keluar otomatis. PWA tetap jalan offline.",
+      "Kasir: buka shift (gudang + kas awal) → jual (cari produk, qty, diskon per item, uang tunai, kembalian otomatis, struk berlogo) → tutup shift (kas fisik; selisih otomatis dijurnal). Tiap penjualan POS = faktur lunas: jurnal pendapatan+HPP dan stok keluar otomatis. PWA tetap berjalan saat luring.",
   },
   {
     slug: "penjualan",

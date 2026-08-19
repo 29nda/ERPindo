@@ -40,7 +40,7 @@ export const TRUST_POINTS: { value: Dual; label: Dual; icon: LucideIcon }[] = [
     icon: Wallet,
     value: { id: "Satu harga", en: "One price" },
     label: {
-      id: "Rp 499.000 sebulan untuk satu perusahaan. Semua fitur terbuka, jumlah karyawan tidak dibatasi.",
+      id: "Rp 499.000 per bulan untuk satu perusahaan. Seluruh fitur terbuka dan jumlah karyawan tidak dibatasi.",
       en: "Rp 499,000 a month for one company. Every feature open, no limit on staff.",
     },
   },
@@ -48,15 +48,15 @@ export const TRUST_POINTS: { value: Dual; label: Dual; icon: LucideIcon }[] = [
     icon: Percent,
     value: { id: "Pajak Indonesia", en: "Indonesian tax" },
     label: {
-      id: "PPN dan PPh 21 dihitung otomatis. File e-Faktur siap diunggah ke Coretax.",
+      id: "PPN dan PPh 21 dihitung otomatis. Berkas e-Faktur siap diunggah ke Coretax.",
       en: "VAT and income tax calculated automatically. e-Faktur files ready to upload to Coretax.",
     },
   },
   {
     icon: WifiOff,
-    value: { id: "Kasir tetap jalan", en: "The till keeps working" },
+    value: { id: "Kasir tetap berjalan", en: "The till keeps working" },
     label: {
-      id: "Internet mati, penjualan tetap tercatat. Tersimpan sendiri begitu koneksi kembali.",
+      id: "Saat internet mati, penjualan tetap tercatat. Datanya tersimpan sendiri begitu koneksi kembali.",
       en: "If the internet drops, sales keep recording. They sync themselves once you are back online.",
     },
   },
@@ -64,7 +64,7 @@ export const TRUST_POINTS: { value: Dual; label: Dual; icon: LucideIcon }[] = [
     icon: Database,
     value: { id: "Data milik Anda", en: "Your data is yours" },
     label: {
-      id: "Bisa diunduh kapan saja, termasuk kalau Anda berhenti berlangganan.",
+      id: "Data dapat diunduh kapan saja, termasuk setelah Anda berhenti berlangganan.",
       en: "Download it any time, including after you stop subscribing.",
     },
   },
@@ -145,33 +145,33 @@ export const SHOWCASE: ShowcaseItem[] = [
 export const COMPARISON: { topic: Dual; manual: Dual; erpindo: Dual }[] = [
   {
     topic: { id: "Mencatat penjualan", en: "Recording a sale" },
-    manual: { id: "Tulis nota, salin ke buku, hitung ulang di Excel", en: "Write a note, copy it into a book, recompute in Excel" },
-    erpindo: { id: "Catat sekali. Stok dan tagihan ikut terisi sendiri.", en: "Record once. Stock and receivables fill themselves in." },
+    manual: { id: "Menulis nota, menyalinnya ke buku, lalu menghitung ulang di Excel", en: "Write a note, copy it into a book, recompute in Excel" },
+    erpindo: { id: "Cukup mencatat sekali; stok dan tagihan ikut terisi sendiri.", en: "Record once. Stock and receivables fill themselves in." },
   },
   {
     topic: { id: "Menghitung PPN", en: "Working out VAT" },
-    manual: { id: "Rekap manual tiap masa pajak, gampang selisih", en: "Manual recap each tax period, easy to get wrong" },
-    erpindo: { id: "PPN terhitung di setiap faktur. Filenya siap diunggah ke Coretax.", en: "VAT is computed on every invoice. The file is ready to upload to Coretax." },
+    manual: { id: "Merekap manual tiap masa pajak, dan mudah selisih", en: "Manual recap each tax period, easy to get wrong" },
+    erpindo: { id: "PPN terhitung di setiap faktur, dan berkasnya siap diunggah ke Coretax.", en: "VAT is computed on every invoice. The file is ready to upload to Coretax." },
   },
   {
     topic: { id: "Menggaji karyawan", en: "Paying staff" },
-    manual: { id: "Hitung PPh 21 satu per satu di kalkulator", en: "Compute income tax one employee at a time on a calculator" },
-    erpindo: { id: "Sekali klik: PPh 21, BPJS, dan slip gaji langsung jadi.", en: "One click: income tax, social security, and payslips are done." },
+    manual: { id: "Menghitung PPh 21 satu per satu di kalkulator", en: "Compute income tax one employee at a time on a calculator" },
+    erpindo: { id: "Sekali klik, PPh 21 dan BPJS terhitung serta slip gajinya langsung terbentuk.", en: "One click: income tax, social security, and payslips are done." },
   },
   {
     topic: { id: "Menjaga stok", en: "Keeping stock straight" },
-    manual: { id: "Sering selisih, modal barang cuma ditebak", en: "Often mismatched, cost of goods is guesswork" },
-    erpindo: { id: "Modal barang terhitung otomatis. Barang mendekati kedaluwarsa keluar lebih dulu.", en: "Cost of goods is calculated automatically. Stock nearest to expiry goes out first." },
+    manual: { id: "Sering selisih, dan modal barang hanya ditebak", en: "Often mismatched, cost of goods is guesswork" },
+    erpindo: { id: "Modal barang terhitung otomatis, dan barang yang mendekati kedaluwarsa keluar lebih dulu.", en: "Cost of goods is calculated automatically. Stock nearest to expiry goes out first." },
   },
   {
     topic: { id: "Melihat untung rugi", en: "Seeing profit and loss" },
-    manual: { id: "Disusun berhari-hari di akhir bulan", en: "Assembled over days at month end" },
+    manual: { id: "Menyusunnya butuh berhari-hari di akhir bulan", en: "Assembled over days at month end" },
     erpindo: { id: "Laporannya siap kapan pun Anda buka.", en: "The report is ready whenever you open it." },
   },
   {
     topic: { id: "Menagih pelanggan", en: "Chasing payment" },
-    manual: { id: "Baru sadar telat saat kas menipis", en: "You notice only when cash runs low" },
-    erpindo: { id: "Tagihan yang lewat jatuh tempo muncul sendiri di halaman depan.", en: "Overdue invoices surface on your home screen by themselves." },
+    manual: { id: "Baru menyadari keterlambatannya saat kas menipis", en: "You notice only when cash runs low" },
+    erpindo: { id: "Tagihan yang telah jatuh tempo muncul sendiri di halaman depan.", en: "Overdue invoices surface on your home screen by themselves." },
   },
 ];
 
@@ -227,7 +227,7 @@ export const SECURITY_POINTS: { title: Dual; desc: Dual; icon: LucideIcon }[] = 
     icon: Database,
     title: { id: "Data tiap perusahaan disimpan terpisah", en: "Each company is stored separately" },
     desc: {
-      id: "Perusahaan Anda punya penyimpanan sendiri. Tidak dicampur dengan pengguna lain.",
+      id: "Perusahaan Anda memiliki penyimpanan sendiri. Datanya tidak dicampur dengan data pengguna lain.",
       en: "Your company gets its own storage. It is never mixed with other users.",
     },
   },
@@ -235,7 +235,7 @@ export const SECURITY_POINTS: { title: Dual; desc: Dual; icon: LucideIcon }[] = 
     icon: ScrollText,
     title: { id: "Catatan keuangan tidak bisa dihapus", en: "Financial records cannot be deleted" },
     desc: {
-      id: "Kalau ada yang salah, koreksinya dicatat sebagai transaksi baru. Jejaknya tetap utuh — ini yang dicari saat pemeriksaan pajak.",
+      id: "Jika ada yang salah, koreksinya dicatat sebagai transaksi baru. Jejaknya tetap utuh, dan inilah yang ditelusuri saat pemeriksaan pajak.",
       en: "If something is wrong, the fix is recorded as a new entry. The trail stays intact — exactly what a tax audit looks for.",
     },
   },
@@ -243,23 +243,23 @@ export const SECURITY_POINTS: { title: Dual; desc: Dual; icon: LucideIcon }[] = 
     icon: KeyRound,
     title: { id: "Masuk dengan dua langkah", en: "Two-step sign-in" },
     desc: {
-      id: "Selain password, akun bisa dikunci dengan kode dari HP Anda.",
+      id: "Selain kata sandi, akun dapat dikunci dengan kode dari ponsel Anda.",
       en: "Beyond a password, your account can be locked with a code from your phone.",
     },
   },
   {
     icon: Lock,
-    title: { id: "Atur siapa boleh melihat apa", en: "Decide who sees what" },
+    title: { id: "Atur siapa yang boleh melihat apa", en: "Decide who sees what" },
     desc: {
-      id: "Kasir cukup melihat kasir, staf gudang cukup melihat stok. Setiap perubahan penting tercatat siapa pelakunya.",
+      id: "Kasir cukup melihat layar kasir, sedangkan staf gudang cukup melihat stok. Setiap perubahan penting tercatat beserta pelakunya.",
       en: "Cashiers see the till, warehouse staff see stock. Every important change records who made it.",
     },
   },
   {
     icon: CloudDownload,
-    title: { id: "Data bisa dibawa pulang", en: "You can take your data with you" },
+    title: { id: "Data dapat dibawa pergi", en: "You can take your data with you" },
     desc: {
-      id: "Unduh semuanya kapan saja dalam bentuk file Excel, termasuk setelah berhenti berlangganan.",
+      id: "Unduh seluruhnya kapan saja dalam bentuk berkas Excel, termasuk setelah berhenti berlangganan.",
       en: "Download everything any time as spreadsheet files, including after you stop subscribing.",
     },
   },

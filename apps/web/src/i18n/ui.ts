@@ -1300,7 +1300,7 @@ export const UI = {
     en: "The Main Warehouse was created automatically.",
   },
   lacakLotKedaluwarsa: {
-    id: "Lacak lot & tanggal kedaluwarsa (F&B/farmasi) — wajib isi tgl exp saat pembelian, keluar otomatis FEFO",
+    id: "Lacak lot & tanggal kedaluwarsa (F&B/farmasi). Tanggal kedaluwarsa wajib diisi saat pembelian, dan barang keluar otomatis secara FEFO.",
     en: "Track lots & expiry dates (F&B/pharma) — the exp date is required on purchase, issued automatically by FEFO",
   },
   jasaTanpaStok: {
@@ -2245,7 +2245,7 @@ export const UI = {
   toastAlurSelesai: { id: "Disetujui — alur selesai.", en: "Approved — flow complete." },
   toastDitolakTitik: { id: "Ditolak.", en: "Rejected." },
   toastLangkahDisetujui: {
-    id: "Langkah disetujui, lanjut ke approver berikutnya.",
+    id: "Langkah ini disetujui dan alurnya berlanjut ke penyetuju berikutnya.",
     en: "Step approved, moving on to the next approver.",
   },
   toastDiajukanPrefix: { id: "Diajukan", en: "Submitted" },
@@ -3350,7 +3350,7 @@ export const UI = {
   pkDefisitAwal: { id: "Kas diperkirakan MINUS dalam", en: "Cash is projected to go NEGATIVE within" },
   pkDefisitAkhir: { id: "hari ke depan — siapkan dana atau percepat penagihan.", en: "days — arrange funds or chase collections." },
   pkTerlambatSuffix: {
-    id: "tagihan sudah lewat jatuh tempo dan tetap dihitung masuk. Proyeksi ini akan meleset kalau tagihan tersebut tidak tertagih.",
+    id: "tagihan sudah lewat jatuh tempo dan tetap dihitung masuk. Proyeksi ini akan meleset jika tagihan tersebut tidak tertagih.",
     en: "invoices are already overdue and are still counted as incoming. This projection will be wrong if they are never collected.",
   },
   pkAsumsi: {
@@ -3478,7 +3478,7 @@ export const UI = {
   toastAnggaranDisimpan: { id: "Anggaran {0} disimpan.", en: "Budget {0} saved." },
   toastPengajuanMenunggu: { id: "Pengajuan {0} menunggu persetujuan Owner ({1}).", en: "Submission {0} is waiting for the owner's approval ({1})." },
   toastDokumenDiposting: { id: "{0} {1} diposting ({2}).", en: "{0} {1} posted ({2})." },
-  toastDokumenDibatalkan: { id: "{0} dibatalkan — jurnal pembalik {1} diposting, stok dikembalikan.", en: "{0} voided — reversing entry {1} posted, stock returned." },
+  toastDokumenDibatalkan: { id: "{0} dibatalkan — jurnal pembalik {1} diposting dan stoknya dikembalikan.", en: "{0} voided — reversing entry {1} posted, stock returned." },
   toastPembayaranDihapus: { id: "Pembayaran {0} dihapus — jurnal pembalik {1} diposting.", en: "Payment {0} deleted — reversing entry {1} posted." },
   toastReturDiposting: { id: "Retur {0} diposting ({1}{2}, jurnal {3}).", en: "Return {0} posted ({1}{2}, entry {3})." },
   toastPenawaranDibuat: { id: "Penawaran {0} dibuat ({1}).", en: "Quotation {0} created ({1})." },

@@ -183,7 +183,7 @@ export const PAGE_HEADINGS = {
   penggajian: {
     title: { id: "Penggajian", en: "Payroll" },
     desc: {
-      id: "Kelola karyawan dan jalankan penggajian bulanan — PPh 21 (TER) & BPJS dihitung otomatis, jurnal beban gaji dibuat sendiri.",
+      id: "Kelola karyawan dan jalankan penggajian bulanan — PPh 21 (TER) & BPJS dihitung otomatis, dan jurnal beban gajinya dibuat sendiri.",
       en: "Manage employees and run monthly payroll — PPh 21 (TER) & BPJS are calculated automatically, and the payroll expense journal is created for you.",
     },
   },
