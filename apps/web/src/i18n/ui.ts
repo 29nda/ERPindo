@@ -117,7 +117,7 @@ export const UI = {
   tanpaPpn: { id: "Tanpa PPN", en: "No VAT" },
   pembayaran: { id: "Pembayaran", en: "Payments" },
   pembayaranDokumen: { id: "Pembayaran dokumen ini", en: "Payments for this document" },
-  belumAdaPembayaran: { id: "Belum ada pembayaran tercatat.", en: "No payments recorded yet." },
+  belumAdaPembayaran: { id: "Belum ada pembayaran tercatat. Terima pembayaran untuk mengurangi sisa tagihannya.", en: "No payments recorded yet. Receive a payment to reduce the outstanding balance." },
   sudahDibayar: { id: "Sudah dibayar", en: "Paid" },
   sudahDiretur: { id: "Sudah diretur", en: "Returned" },
   retur: { id: "Retur", en: "Return" },
@@ -249,7 +249,7 @@ export const UI = {
   modeSederhana: { id: "Mode Sederhana", en: "Simple mode" },
   nonaktifkan2fa: { id: "Nonaktifkan 2FA", en: "Disable 2FA" },
   aktifkan2fa: { id: "Aktifkan 2FA", en: "Enable 2FA" },
-  konfirmasiAktifkan: { id: "Konfirmasi & Aktifkan", en: "Confirm & enable" },
+  konfirmasiAktifkan: { id: "Konfirmasi & aktifkan", en: "Confirm & enable" },
   // Tim & peran (Fase 20m)
   persetujuanPembelian: { id: "Persetujuan pembelian", en: "Purchase approval" },
   descPersetujuanPembelian: {
@@ -303,7 +303,7 @@ export const UI = {
     id: "Tautan undangan (bagikan bila email belum terkirim):",
     en: "Invitation link (share it if the email has not arrived):",
   },
-  contohLimaJuta: { id: "mis. 5000000", en: "e.g. 5000000" },
+  contohLimaJuta: { id: "mis. 5.000.000", en: "e.g. 5,000,000" },
   ambangRp: { id: "Ambang (Rp)", en: "Threshold (Rp)" },
   peranKolom: { id: "Peran", en: "Role" },
   // Rasio keuangan (Fase 21b)
@@ -496,7 +496,7 @@ export const UI = {
     en: "Only an Owner/Admin can change these settings.",
   },
   logoKop: { id: "Logo kop faktur & struk", en: "Invoice & receipt header logo" },
-  belumAdaLogo: { id: "Belum ada logo.", en: "No logo yet." },
+  belumAdaLogo: { id: "Belum ada logo. Unggah logo agar ikut tercetak di faktur, struk, dan slip gaji.", en: "No logo yet. Upload one so it appears on invoices, receipts, and payslips." },
   gantiLogo: { id: "Ganti logo", en: "Replace logo" },
   descLogo: {
     id: "PNG/JPEG/WebP/SVG — otomatis dikecilkan; tampil di kop faktur cetak & struk POS.",
@@ -543,7 +543,7 @@ export const UI = {
     en: "Copy this key now — it is shown only once:",
   },
   sudahSayaSalin: { id: "Sudah saya salin", en: "I have copied it" },
-  belumAdaApiKey: { id: "Belum ada API key aktif.", en: "No active API keys yet." },
+  belumAdaApiKey: { id: "Belum ada API key aktif. Buat key bila ingin menghubungkan sistem lain ke data Anda.", en: "No active API keys. Create one if you want to connect another system to your data." },
   bacaTulisKecil: { id: "baca & tulis", en: "read & write" },
   bacaKecil: { id: "baca", en: "read" },
   dipakaiPada: { id: "dipakai", en: "used" },
@@ -555,7 +555,7 @@ export const UI = {
     id: "Secret HMAC (untuk verifikasi tanda tangan) — simpan sekarang:",
     en: "HMAC secret (for signature verification) — save it now:",
   },
-  belumAdaWebhook: { id: "Belum ada webhook.", en: "No webhooks yet." },
+  belumAdaWebhook: { id: "Belum ada webhook. Tambahkan webhook agar sistem lain diberi tahu saat ada transaksi baru.", en: "No webhooks yet. Add one so other systems are notified when a transaction is created." },
   terakhirKecil: { id: "terakhir:", en: "last:" },
   // Tutup buku
   tutupBuku: { id: "Tutup buku", en: "Close books" },
@@ -567,7 +567,7 @@ export const UI = {
     en: "All transactions dated on or before this date will be locked — they cannot be added to, changed, or reversed.",
   },
   pembukuanTerkunciSampai: { id: "Pembukuan saat ini terkunci sampai", en: "Books are currently locked through" },
-  belumAdaPeriodeDitutup: { id: "Belum ada periode yang ditutup.", en: "No period has been closed yet." },
+  belumAdaPeriodeDitutup: { id: "Belum ada periode yang ditutup. Tutup buku mengunci angka periode agar laporannya tidak berubah lagi.", en: "No periods closed yet. Closing the books locks a period so its reports stop changing." },
   kunciSampaiTanggal: { id: "Kunci sampai tanggal", en: "Lock through date" },
   descKunciPermanen: {
     id: "Semua transaksi bertanggal pada atau sebelum tanggal ini akan terkunci permanen — jurnal, faktur, dan pembayaran tak bisa lagi diubah.",
@@ -723,8 +723,8 @@ export const UI = {
   hanyaPerluPesan: { id: "Hanya yang perlu dipesan", en: "Only those needing an order" },
   waktuTungguHari: { id: "Waktu tunggu pemasok (hari)", en: "Supplier lead time (days)" },
   belumAdaRiwayatJual: {
-    id: "Belum ada penjualan pada periode ini — tidak ada yang bisa diramalkan.",
-    en: "No sales in this period — there is nothing to forecast yet.",
+    id: "Belum ada penjualan pada periode ini, jadi belum ada yang bisa diramalkan. Peramalan butuh riwayat minimal satu bulan.",
+    en: "No sales in this period, so there is nothing to forecast yet. Forecasting needs at least one month of history.",
   },
   hintKeyakinanRendah: {
     id: "Baris berkeyakinan rendah dihitung dari penjualan yang terlalu jarang; perlakukan sebagai perkiraan kasar.",
@@ -764,12 +764,12 @@ export const UI = {
   belumAdaPenjualan: { id: "Belum ada penjualan", en: "No sales yet" },
   tidakAda: { id: "Tidak ada.", en: "None." },
   tidakAdaFakturPpn: {
-    id: "Tidak ada faktur ber-PPN pada periode ini.",
-    en: "No VAT invoices in this period.",
+    id: "Tidak ada faktur ber-PPN pada periode ini. Coba masa pajak lain, atau pastikan faktur sudah diposting.",
+    en: "No VAT invoices in this period. Try another tax period, or check that the invoices are posted.",
   },
   tidakAdaFakturRentang: {
-    id: "Tidak ada faktur pada rentang tanggal ini.",
-    en: "No invoices in this date range.",
+    id: "Tidak ada faktur pada rentang tanggal ini. Lebarkan rentangnya untuk melihat yang lebih lama.",
+    en: "No invoices in this date range. Widen the range to see older ones.",
   },
   // Keuangan / jurnal — Fase 16f
   akun: { id: "Akun", en: "Account" },
@@ -862,8 +862,8 @@ export const UI = {
   cariNomorStruk: { id: "Cari nomor struk…", en: "Search receipt no.…" },
   cariProdukSku: { id: "Cari produk / SKU…", en: "Search product / SKU…" },
   klikProdukTambah: { id: "Klik produk untuk menambahkan.", en: "Click a product to add it." },
-  belumAdaPenjualanPos: { id: "Belum ada penjualan POS hari ini.", en: "No POS sales today." },
-  belumAdaStrukPos: { id: "Belum ada struk POS.", en: "No POS receipts yet." },
+  belumAdaPenjualanPos: { id: "Belum ada penjualan POS hari ini. Bukalah shift kasir untuk mulai berjualan.", en: "No POS sales today yet. Open a cashier shift to start selling." },
+  belumAdaStrukPos: { id: "Belum ada struk POS. Struk tersimpan di sini setelah transaksi kasir selesai.", en: "No POS receipts yet. Receipts are stored here once a cashier sale completes." },
   kasirHanyaAdmin: {
     id: "Halaman kasir hanya untuk Owner/Admin.",
     en: "The cashier page is for Owner/Admin only.",
@@ -882,7 +882,7 @@ export const UI = {
     en: "Pick a receipt and enter the quantity returned — cash leaves this shift's drawer.",
   },
   prosesRefund: { id: "Proses refund", en: "Process refund" },
-  konfirmasiTutup: { id: "Konfirmasi Tutup", en: "Confirm close" },
+  konfirmasiTutup: { id: "Konfirmasi tutup", en: "Confirm close" },
   tambahSeri: { id: "Tambah seri", en: "Add serial" },
   // CRM — Fase 16h
   lead: { id: "Lead", en: "Lead" },
@@ -941,8 +941,8 @@ export const UI = {
     en: "Doesn't affect stock or your books yet — it only commits when converted to an invoice.",
   },
   descBelumAdaPenawaran: {
-    id: "Penawaran yang Anda buat akan muncul di sini beserta statusnya.",
-    en: "Quotations you create will appear here with their status.",
+    id: "Buat penawaran untuk calon pembeli; sekali klik ia bisa menjadi faktur.",
+    en: "Create a quotation for a prospect — one click turns it into an invoice.",
   },
   buatPermintaanPembelian: { id: "Buat permintaan pembelian", en: "Create purchase request" },
   // Penggajian / HR — Fase 16i
@@ -981,13 +981,13 @@ export const UI = {
   izin: { id: "Izin", en: "Excused" },
   mulai: { id: "Mulai", en: "Start" },
   selesai: { id: "Selesai", en: "End" },
-  belumAdaDepartemen: { id: "Belum ada departemen.", en: "No departments yet." },
-  belumAdaKasbon: { id: "Belum ada kasbon.", en: "No employee loans yet." },
+  belumAdaDepartemen: { id: "Belum ada departemen. Tambahkan departemen agar karyawan bisa dikelompokkan di laporan.", en: "No departments yet. Add one so employees can be grouped in reports." },
+  belumAdaKasbon: { id: "Belum ada kasbon. Kasbon yang dicatat akan dipotong otomatis dari gaji karyawan.", en: "No advances yet. Recorded advances are deducted automatically from payroll." },
   belumAdaKomponen: {
-    id: "Belum ada komponen untuk periode ini.",
-    en: "No components for this period.",
+    id: "Belum ada komponen untuk periode ini. Komponen gaji terisi begitu penggajian periode ini dijalankan.",
+    en: "No components for this period yet. They appear once payroll is run for it.",
   },
-  belumAdaCuti: { id: "Belum ada pengajuan cuti/izin.", en: "No leave requests yet." },
+  belumAdaCuti: { id: "Belum ada pengajuan cuti/izin. Pengajuan karyawan muncul di sini untuk disetujui.", en: "No leave requests yet. Employee requests appear here for approval." },
   belumAdaKaryawan: { id: "Belum ada karyawan", en: "No employees yet" },
   belumAdaPenggajian: { id: "Belum ada penggajian", en: "No payroll runs yet" },
   ajukan: { id: "Ajukan", en: "Submit" },
@@ -1087,16 +1087,16 @@ export const UI = {
     en: "Budget — planned vs actual cost",
   },
   timesheetJamKerja: { id: "Timesheet — jam kerja", en: "Timesheet — hours worked" },
-  belumAdaRab: { id: "Belum ada RAB.", en: "No budget lines yet." },
-  belumAdaTermin: { id: "Belum ada termin.", en: "No milestones yet." },
-  belumAdaJam: { id: "Belum ada catatan jam.", en: "No hours logged yet." },
+  belumAdaRab: { id: "Belum ada RAB. Susun rencana anggaran biaya untuk membandingkannya dengan realisasi.", en: "No budget yet. Draft one to compare it against actual spending." },
+  belumAdaTermin: { id: "Belum ada termin. Bagi nilai proyek menjadi termin agar bisa ditagih bertahap.", en: "No milestones yet. Split the project value into milestones so it can be billed in stages." },
+  belumAdaJam: { id: "Belum ada catatan jam. Catat jam kerja agar biaya tenaga kerja masuk ke laba-rugi proyek.", en: "No hours logged yet. Log hours so labour cost lands in the project's profit and loss." },
   belumAdaTugasTenggat: {
     id: "Tidak ada tugas terbuka dengan tenggat.",
     en: "No open tasks with a deadline.",
   },
   belumAdaTransaksiProyek: {
-    id: "Belum ada transaksi ditandai ke proyek ini.",
-    en: "No transactions tagged to this project yet.",
+    id: "Belum ada transaksi ditandai ke proyek ini. Pilih proyek saat membuat faktur atau mencatat beban.",
+    en: "No transactions tagged to this project yet. Pick the project when invoicing or recording an expense.",
   },
   tetapkanPelangganTermin: {
     id: "Tetapkan pelanggan pada proyek untuk menagih termin.",
@@ -1321,12 +1321,12 @@ export const UI = {
     id: "1 satuan besar = … satuan dasar",
     en: "1 bulk unit = … base units",
   },
-  tidakAdaProdukCocok: { id: "Tidak ada produk yang cocok", en: "No matching products" },
-  belumAdaProduk: { id: "Belum ada produk", en: "No products yet" },
-  tidakAdaKontakCocok: { id: "Tidak ada kontak yang cocok", en: "No matching contacts" },
-  belumAdaKontak: { id: "Belum ada kontak", en: "No contacts yet" },
-  tidakAdaGudangCocok: { id: "Tidak ada gudang yang cocok", en: "No matching warehouses" },
-  belumAdaGudang: { id: "Belum ada gudang", en: "No warehouses yet" },
+  tidakAdaProdukCocok: { id: "Tidak ada produk yang cocok. Coba kata kunci lebih pendek, atau kosongkan pencarian.", en: "No matching products. Try a shorter keyword, or clear the search." },
+  belumAdaProduk: { id: "Belum ada produk. Tambahkan produk agar stok, faktur, dan kasir bisa dipakai.", en: "No products yet. Add one so inventory, invoices, and the cashier can be used." },
+  tidakAdaKontakCocok: { id: "Tidak ada kontak yang cocok. Coba kata kunci lebih pendek, atau kosongkan pencarian.", en: "No matching contacts. Try a shorter keyword, or clear the search." },
+  belumAdaKontak: { id: "Belum ada kontak. Tambahkan pelanggan atau pemasok agar bisa dipilih saat membuat faktur.", en: "No contacts yet. Add a customer or supplier so they can be picked when invoicing." },
+  tidakAdaGudangCocok: { id: "Tidak ada gudang yang cocok. Coba kata kunci lebih pendek, atau kosongkan pencarian.", en: "No matching warehouses. Try a shorter keyword, or clear the search." },
+  belumAdaGudang: { id: "Belum ada gudang. Tambahkan minimal satu gudang sebelum mencatat stok masuk.", en: "No warehouses yet. Add at least one before recording stock in." },
   cobaKataKunciLain: { id: "Coba kata kunci lain.", en: "Try another keyword." },
   descBelumAdaProduk: {
     id: "Tambahkan produk pertama Anda lewat form di atas, atau impor sekaligus dari CSV.",
@@ -1392,10 +1392,10 @@ export const UI = {
   contohMemoJurnal: { id: "Setoran modal awal", en: "Initial capital deposit" },
   contohNamaTemplate: { id: "mis. Sewa ruko bulanan", en: "e.g. Monthly shop rent" },
   tidakAdaJurnalCocok: {
-    id: "Tidak ada jurnal yang cocok dengan pencarian.",
-    en: "No entries match the search.",
+    id: "Tidak ada jurnal yang cocok. Coba kata kunci lain, atau lebarkan rentang tanggalnya.",
+    en: "No entries match. Try another keyword, or widen the date range.",
   },
-  belumAdaJurnal: { id: "Belum ada jurnal.", en: "No entries yet." },
+  belumAdaJurnal: { id: "Belum ada jurnal. Jurnal terbentuk sendiri dari faktur, pembelian, dan kasir — atau catat manual di sini.", en: "No entries yet. Entries are created automatically by invoices, purchases, and the cashier — or record one manually here." },
   dibalikLabel: { id: "DIBALIK", en: "REVERSED" },
   pembalikLabel: { id: "PEMBALIK", en: "REVERSING" },
   periodeTerkunciBalik: {
@@ -1430,7 +1430,7 @@ export const UI = {
   buatProyek: { id: "Buat proyek", en: "Create project" },
   waktuBerjalan: { id: "waktu berjalan", en: "of time elapsed" },
   lewatTenggat: { id: "lewat tenggat", en: "past due" },
-  belumAdaTugasBerjadwal: { id: "Belum ada tugas berjadwal.", en: "No scheduled tasks yet." },
+  belumAdaTugasBerjadwal: { id: "Belum ada tugas berjadwal. Jadwalkan laporan agar dikirim ke email Anda sendiri.", en: "No scheduled tasks yet. Schedule a report so it is emailed to you automatically." },
   petunjukJadwalTugas: {
     id: "Klik “Jadwal” pada tugas di bawah untuk menetapkan tanggal mulai–selesai.",
     en: "Click “Schedule” on a task below to set its start and end dates.",
@@ -1752,7 +1752,7 @@ export const UI = {
     id: "Riwayat keluar-masuk beserta saldo berjalan — sama dengan buku besar akun ini.",
     en: "In and out history with a running balance — the same as this account's ledger.",
   },
-  belumAdaMutasi: { id: "Belum ada mutasi pada akun ini.", en: "No transactions on this account yet." },
+  belumAdaMutasi: { id: "Belum ada mutasi pada akun ini. Mutasi muncul begitu ada jurnal yang menyentuh akun ini.", en: "No transactions on this account yet. They appear once an entry touches this account." },
   masuk: { id: "Masuk", en: "In" },
   keluar: { id: "Keluar", en: "Out" },
   rekonsiliasiKoran: { id: "Rekonsiliasi rekening koran", en: "Bank statement reconciliation" },
@@ -1807,8 +1807,8 @@ export const UI = {
   csvJumlahTakValid: { id: "jumlah tidak valid", en: "invalid amount" },
   tanpaKeterangan: { id: "(tanpa keterangan)", en: "(no description)" },
   csvTakTerbaca: {
-    id: "Tidak ada baris mutasi yang bisa dibaca.",
-    en: "No statement rows could be read.",
+    id: "Tidak ada baris mutasi yang bisa dibaca. Pastikan berkasnya CSV rekening koran, bukan PDF atau Excel.",
+    en: "No statement rows could be read. Make sure the file is a bank statement CSV, not a PDF or Excel file.",
   },
   mutasiDiimporSuffix: { id: "mutasi diimpor", en: "rows imported" },
   langsungCocokSuffix: {
@@ -1837,7 +1837,7 @@ export const UI = {
     en: "Receivable settlement (outside invoices)",
   },
   jumlahRupiah: { id: "Jumlah (Rp)", en: "Amount (Rp)" },
-  contohNominal: { id: "mis. 500000", en: "e.g. 500000" },
+  contohNominal: { id: "mis. 500.000", en: "e.g. 500,000" },
   dariDompet: { id: "Dari dompet", en: "From wallet" },
   dompetKasBank: { id: "Dompet (kas/bank)", en: "Wallet (cash/bank)" },
   keDompet: { id: "Ke dompet", en: "To wallet" },
@@ -1906,14 +1906,14 @@ export const UI = {
   omzetMasa: { id: "Omzet masa", en: "Revenue for" },
   masaSudahDicatat: { id: "Masa ini sudah dicatat.", en: "This period is already recorded." },
   belumAdaOmzetMasa: {
-    id: "Belum ada omzet pada masa ini.",
-    en: "No revenue in this period yet.",
+    id: "Belum ada omzet pada masa ini. Angkanya terisi sendiri begitu ada faktur penjualan diposting.",
+    en: "No revenue in this period yet. It fills in on its own once a sales invoice is posted.",
   },
   riwayatSetoranPphFinal: {
     id: "Riwayat setoran PPh Final",
     en: "PPh Final payment history",
   },
-  belumAdaSetoran: { id: "Belum ada setoran tercatat.", en: "No payments recorded yet." },
+  belumAdaSetoran: { id: "Belum ada setoran tercatat. Catat setoran pajak agar utangnya berkurang.", en: "No payments recorded yet. Record a tax payment so the liability is reduced." },
   masaKolom: { id: "Masa", en: "Period" },
   tarif: { id: "Tarif", en: "Rate" },
   tglSetor: { id: "Tgl setor", en: "Paid on" },
@@ -1924,11 +1924,11 @@ export const UI = {
     en: "Withhold PPh 23 on services/rent/royalties/etc. from a counterparty. Creates a PPh 23 payable to remit.",
   },
   pilihRekanan: { id: "— pilih rekanan —", en: "— pick a counterparty —" },
-  contohNominalBesar: { id: "mis. 10000000", en: "e.g. 10000000" },
+  contohNominalBesar: { id: "mis. 10.000.000", en: "e.g. 10,000,000" },
   akunSumber: { id: "Akun sumber", en: "Source account" },
   hutangUsahaAtauKas: { id: "— utang usaha / kas —", en: "— trade payable / cash —" },
   buatBuktiPotong: { id: "Buat bukti potong", en: "Create slip" },
-  belumAdaBuktiPotong: { id: "Belum ada bukti potong.", en: "No withholding slips yet." },
+  belumAdaBuktiPotong: { id: "Belum ada bukti potong. Buat bukti potong saat memotong PPh 23 dari rekanan.", en: "No withholding slips yet. Create one when you withhold PPh 23 from a counterparty." },
   // `nomor` sudah ada sejak Fase 16 dengan isi sama — tidak ditambah ulang.
   belumSetor: { id: "Belum setor", en: "Not yet remitted" },
   kasBankSingkat: { id: "kas/bank", en: "cash/bank" },
@@ -1960,8 +1960,8 @@ export const UI = {
   },
   pajakMasukanB: { id: "B. Pajak Masukan (pembelian)", en: "B. Input VAT (purchases)" },
   tidakAdaTransaksiPpn: {
-    id: "Tidak ada transaksi ber-PPN pada masa ini.",
-    en: "No VAT transactions in this period.",
+    id: "Tidak ada transaksi ber-PPN pada masa ini. Faktur dengan tarif 0% memang tidak masuk ke sini.",
+    en: "No VAT transactions in this period. Invoices at 0% do not appear here.",
   },
   lawanTransaksi: { id: "Lawan Transaksi", en: "Counterparty" },
   // Pesan toast. Program 16b–16k sengaja mengecualikan toast, tetapi sejak 19c
@@ -1998,7 +1998,7 @@ export const UI = {
     en: "Requisition note (optional)",
   },
   barisAksi: { id: "Baris", en: "Line" },
-  belumAdaPermintaan: { id: "Belum ada permintaan pembelian.", en: "No purchase requisitions yet." },
+  belumAdaPermintaan: { id: "Belum ada permintaan pembelian. Ajukan permintaan; setelah disetujui ia menjadi pesanan ke pemasok.", en: "No purchase requisitions yet. Raise one — once approved it becomes a supplier order." },
   poJudul: { id: "2. Pesanan pembelian (PO)", en: "2. Purchase order (PO)" },
   descPo: {
     id: "Buat pesanan ke pemasok — pilih pemasok, gudang tujuan, harga per barang. Bisa menarik dari permintaan yang disetujui.",
@@ -2028,7 +2028,7 @@ export const UI = {
     id: "Riwayat penerimaan — tiap penerimaan otomatis menjadi faktur pembelian & menambah stok.",
     en: "Receipt history — each receipt automatically becomes a purchase invoice and adds stock.",
   },
-  belumAdaPenerimaan: { id: "Belum ada penerimaan barang.", en: "No goods receipts yet." },
+  belumAdaPenerimaan: { id: "Belum ada penerimaan barang. Penerimaan otomatis menjadi faktur pembelian dan stok masuk.", en: "No goods receipts yet. A receipt automatically becomes a purchase invoice and stock in." },
   toastPermintaanPrefix: { id: "Permintaan", en: "Requisition" },
   toastDiajukan: { id: "diajukan.", en: "submitted." },
   toastPermintaanDisetujui: { id: "Permintaan disetujui.", en: "Requisition approved." },
@@ -2112,15 +2112,15 @@ export const UI = {
   },
   belumAdaProduksi: { id: "Belum ada produksi", en: "No production yet" },
   descBelumAdaProduksi: {
-    id: "Perintah produksi akan muncul di sini.",
-    en: "Production orders will appear here.",
+    id: "Buat perintah produksi dari resep yang ada — bahannya berkurang dan hasilnya masuk stok otomatis.",
+    en: "Create a production order from an existing recipe — materials are consumed and output enters stock automatically.",
   },
   biayaTotal: { id: "Biaya total", en: "Total cost" },
   descWorkCenter: {
     id: "Stasiun/tahap produksi dengan tarif per jam, dipakai untuk routing.",
     en: "Production stations/stages with an hourly rate, used for routing.",
   },
-  belumAdaWorkCenter: { id: "Belum ada work center.", en: "No work centers yet." },
+  belumAdaWorkCenter: { id: "Belum ada work center. Tambahkan stasiun kerja sebelum menyusun tahapan routing.", en: "No work centers yet. Add a workstation before defining routing stages." },
   routingProduksi: {
     id: "Routing produksi (biaya standar vs aktual)",
     en: "Production routing (standard vs actual cost)",
@@ -2136,7 +2136,7 @@ export const UI = {
   namaTahap: { id: "Nama tahap", en: "Stage name" },
   biayaStandar: { id: "Biaya standar", en: "Standard cost" },
   tambahTahap: { id: "Tambah tahap", en: "Add stage" },
-  belumAdaRouting: { id: "Belum ada tahapan routing.", en: "No routing stages yet." },
+  belumAdaRouting: { id: "Belum ada tahapan routing. Susun urutan tahapan agar biaya produksi terhitung per stasiun.", en: "No routing stages yet. Define the sequence so production cost is tracked per station." },
   // Status QC — konstanta tingkat modul, dipetakan ke kunci lewat `satisfies`.
   qcNone: { id: "—", en: "—" },
   qcPending: { id: "menunggu QC", en: "awaiting QC" },
@@ -2182,8 +2182,8 @@ export const UI = {
   totalBiayaServis: { id: "Total biaya servis tercatat:", en: "Total recorded service cost:" },
   belumAdaWorkOrder: { id: "Belum ada work order", en: "No work orders yet" },
   descBelumAdaWorkOrder: {
-    id: "Work order servis akan muncul di sini.",
-    en: "Service work orders will appear here.",
+    id: "Buat work order untuk mencatat servis, atau pasang jadwal berkala agar terbit sendiri.",
+    en: "Create a work order to record a service, or set a recurring schedule so they are raised automatically.",
   },
   asetPekerjaan: { id: "Aset / Pekerjaan", en: "Asset / Job" },
   akunPembayarOpsi: { id: "— akun pembayar —", en: "— paying account —" },
@@ -2235,7 +2235,7 @@ export const UI = {
     id: "Semua pengajuan + jejak langkah per approver.",
     en: "All submissions plus the step trail per approver.",
   },
-  belumAdaPengajuan: { id: "Belum ada pengajuan.", en: "No submissions yet." },
+  belumAdaPengajuan: { id: "Belum ada pengajuan. Dokumen yang melewati ambang persetujuan masuk ke antrean ini.", en: "No submissions yet. Documents above the approval threshold land in this queue." },
   otomatisDisetujui: {
     id: "Otomatis disetujui (tanpa aturan).",
     en: "Auto-approved (no rule matched).",
@@ -2317,8 +2317,8 @@ export const UI = {
   daftarTiket: { id: "Daftar tiket", en: "Ticket list" },
   belumAdaTiket: { id: "Belum ada tiket", en: "No tickets yet" },
   descBelumAdaTiket: {
-    id: "Tiket dukungan akan muncul di sini.",
-    en: "Support tickets will appear here.",
+    id: "Buat tiket saat pelanggan melapor, agar keluhannya tidak tercecer di chat.",
+    en: "Create a ticket when a customer reports an issue, so it does not get lost in chat.",
   },
   ditugaskanKeSuffix: { id: "· ditugaskan ke", en: "· assigned to" },
   pilihTiketDetail: {
@@ -2327,7 +2327,7 @@ export const UI = {
   },
   ditugaskanKe: { id: "Ditugaskan ke", en: "Assigned to" },
   belumDitugaskanOpsi: { id: "— belum ditugaskan —", en: "— unassigned —" },
-  belumAdaBalasan: { id: "Belum ada balasan.", en: "No replies yet." },
+  belumAdaBalasan: { id: "Belum ada balasan. Balasan tim dukungan muncul di sini.", en: "No replies yet. Replies from the support team appear here." },
   catatanInternalKecil: { id: "catatan internal", en: "internal note" },
   balasanSuffix: { id: "balasan", en: "replies" },
   toastKontrakDibuat: { id: "Kontrak dibuat.", en: "Contract created." },
@@ -2361,8 +2361,8 @@ export const UI = {
   daftarCatatanPada: { id: "Daftar catatan pada", en: "Records for" },
   terbaruDiAtas: { id: "(terbaru di atas).", en: "(newest first)." },
   belumAdaCatatanBulanIni: {
-    id: "Belum ada catatan kehadiran pada bulan ini.",
-    en: "No attendance records this month.",
+    id: "Belum ada catatan kehadiran pada bulan ini. Catat kehadiran harian, atau impor dari mesin absensi.",
+    en: "No attendance records this month. Record daily attendance, or import from your attendance device.",
   },
   hapusKehadiran: { id: "Hapus kehadiran", en: "Delete attendance" },
   konfirmHapusKehadiran: { id: "Hapus catatan kehadiran?", en: "Delete this attendance record?" },
@@ -2388,7 +2388,7 @@ export const UI = {
     id: "Unit biaya opsional yang bisa ditandai per baris jurnal (mis. per cabang / divisi).",
     en: "Optional cost units that can be tagged per journal line (e.g. per branch / division).",
   },
-  belumAdaCostCenter: { id: "Belum ada cost center.", en: "No cost centers yet." },
+  belumAdaCostCenter: { id: "Belum ada cost center. Tambahkan cost center untuk melihat laba-rugi per unit atau cabang.", en: "No cost centers yet. Add one to see profit and loss per unit or branch." },
   takLagiBisaDipilih: {
     id: "tak lagi bisa dipilih. Jurnal lama tetap tertandai.",
     en: "can no longer be selected. Existing journals keep their tag.",
@@ -2399,8 +2399,8 @@ export const UI = {
     en: "Income and expenses grouped per cost center over the selected date range.",
   },
   belumAdaTransaksiPeriode: {
-    id: "Belum ada transaksi pendapatan/beban pada periode ini.",
-    en: "No income or expense transactions in this period.",
+    id: "Belum ada transaksi pendapatan/beban pada periode ini. Coba periode lain, atau catat transaksi lebih dulu.",
+    en: "No income or expense transactions in this period. Try another period, or record a transaction first.",
   },
   labaRugiKolom: { id: "Laba/Rugi", en: "Profit/Loss" },
   rekonsiliasiV2: {
@@ -2966,7 +2966,7 @@ export const UI = {
     id: "Draf tidak tampil di /blog sampai diterbitkan.",
     en: "Drafts do not appear on /blog until they are published.",
   },
-  adBelumAdaArtikel: { id: "Belum ada artikel.", en: "No articles yet." },
+  adBelumAdaArtikel: { id: "Belum ada artikel. Tulis artikel agar muncul di blog publik.", en: "No articles yet. Write one so it appears on the public blog." },
   adTayang: { id: "TAYANG", en: "LIVE" },
   adDraf: { id: "DRAF", en: "DRAFT" },
   adLihat: { id: "Lihat", en: "View" },
@@ -3099,8 +3099,8 @@ export const UI = {
   pphBelumDisetor: { id: "Belum disetor", en: "Not yet deposited" },
   pphSudahDisetor: { id: "Disetor", en: "Deposited" },
   pphBelumAdaData: {
-    id: "Belum ada PPh yang tercatat pada masa ini.",
-    en: "No withholding tax recorded for this period yet.",
+    id: "Belum ada PPh yang tercatat pada masa ini. Bukti potong yang Anda buat akan muncul di sini.",
+    en: "No withholding tax recorded for this period yet. Slips you create will appear here.",
   },
 
   // — Revaluasi aset (Fase 20e) —
@@ -3138,7 +3138,7 @@ export const UI = {
   // — Komponen bersama & Asisten AI (Fase 19s). Awalan `cp` (komponen). —
   cpKetikCari: { id: "Ketik untuk mencari…", en: "Type to search…" },
   cpMencari: { id: "Mencari…", en: "Searching…" },
-  cpTakAdaHasil: { id: "Tidak ada hasil.", en: "No results." },
+  cpTakAdaHasil: { id: "Tidak ada hasil. Coba kata yang lebih pendek.", en: "No results. Try a shorter word." },
   cpYaLanjutkan: { id: "Ya, lanjutkan", en: "Yes, continue" },
   cpBatal: { id: "Batal", en: "Cancel" },
   cpAsisten: { id: "Asisten ERPindo", en: "ERPindo Assistant" },
@@ -3227,8 +3227,8 @@ export const UI = {
   },
   pdCariPanduanAria: { id: "Cari panduan", en: "Search the guide" },
   pdTakAdaCocok: {
-    id: "Tidak ada panduan yang cocok dengan pencarian.",
-    en: "No guide matches that search.",
+    id: "Tidak ada panduan yang cocok. Coba satu kata saja, misalnya \"faktur\" atau \"stok\".",
+    en: "No guide matches that. Try a single word, such as \"invoice\" or \"stock\".",
   },
   pdTakDitemukan: { id: "Panduan tidak ditemukan.", en: "Guide not found." },
   pdKembaliKeDaftar: { id: "← Kembali ke daftar panduan", en: "← Back to the guide list" },
@@ -3400,7 +3400,7 @@ export const UI = {
   kpLapor: { id: "Lapor", en: "File" },
   kpDigeser: { id: "digeser dari akhir pekan", en: "moved off the weekend" },
   kpTerlambat: { id: "Terlambat", en: "Late by" },
-  kpKosong: { id: "Tidak ada tenggat dalam jendela ini.", en: "No deadlines in this window." },
+  kpKosong: { id: "Tidak ada tenggat dalam jendela ini. Lebarkan jendelanya untuk melihat tenggat yang lebih jauh.", en: "No deadlines in this window. Widen it to see deadlines further out." },
   kpCatatanLibur: {
     id: "Hari libur nasional & cuti bersama belum diperhitungkan — daftarnya terbit tiap tahun dan berubah. Tenggat sebenarnya karena itu bisa lebih lambat dari yang tertera, tidak pernah lebih awal.",
     en: "National and collective holidays are not accounted for — the list is issued yearly and changes. The real deadline may therefore be later than shown, never earlier.",
