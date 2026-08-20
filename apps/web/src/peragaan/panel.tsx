@@ -23,6 +23,12 @@ import type { Nada, Panel, Sasaran } from "./tipe";
  *    mendapat naskah utuh tanpa menunggu animasi.
  * 3. **Nol warna literal.** Status memakai token `ok`/`awas`/`galat` yang
  *    ditambahkan ke `styles.css` pada fase yang sama.
+ * 4. **Tidak ada `uppercase`.** `text-transform` ikut mengubah nilai
+ *    `innerText`, sehingga judul panel terbaca huruf besar semua oleh asersi
+ *    ui-sim dan asersinya gagal atas teks yang sebenarnya benar. Pelajaran ini
+ *    sudah tertulis di `ui.tsx` untuk `Thead` sejak Fase 18b — dan berulang
+ *    persis di sini pada Fase 38b, yang membuktikan ia memang layak ditulis
+ *    dua kali.
  */
 
 /** Angka gaya Indonesia — pemisah ribuan titik (glosarium §6). */
@@ -85,7 +91,7 @@ function Bungkus({
       style={{ transform: menyala ? "none" : "translateY(6px)" }}
     >
       {judul ? (
-        <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+        <p className="mb-2.5 text-[11px] font-semibold tracking-wide text-ink-faint">
           {pick(judul, lang)}
         </p>
       ) : null}
@@ -126,7 +132,7 @@ function Formulir({
           const sorot = bingkai.sorotan?.panel === panel.id && bingkai.sorotan.medan === m.id;
           return (
             <div key={m.id}>
-              <dt className="text-[10px] uppercase tracking-wide text-ink-faint">
+              <dt className="text-[10px] tracking-wide text-ink-faint">
                 {pick(m.label, lang)}
               </dt>
               <dd
@@ -249,10 +255,15 @@ function Jurnal({
           neraca.seimbang ? "text-ok-ink" : "text-galat-ink",
         )}
       >
+        {/* Berbunyi "Debit = Kredit", bukan "Seimbang". Yang pertama menyatakan
+            FAKTA yang bisa diperiksa pembaca terhadap angka di sebelahnya;
+            yang kedua hanya vonis yang harus dipercaya. Untuk halaman yang
+            seluruh sudut jualannya bertumpu pada "angkanya bisa Anda periksa",
+            perbedaan itu bukan gaya bahasa. */}
         {pick(
           neraca.seimbang
-            ? { id: "Seimbang", en: "Balanced" }
-            : { id: "Tidak seimbang", en: "Out of balance" },
+            ? { id: "Debit = Kredit", en: "Debits = credits" }
+            : { id: "Debit \u2260 Kredit", en: "Debits \u2260 credits" },
           lang,
         )}{" "}
         · <span className="num">{angka(neraca.debit)}</span>
@@ -342,7 +353,7 @@ function Papan({
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${panel.kolom.length}, minmax(0, 1fr))` }}>
         {panel.kolom.map((k, i) => (
           <div key={i}>
-            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
+            <p className="mb-1.5 text-[10px] font-semibold tracking-wide text-ink-faint">
               {pick(k.judul, lang)}
             </p>
             <div className="space-y-1.5">

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { BrandWordmark, Button } from "../../components/ui";
 import { PublicHeader, TAUTAN_BERANDA } from "../../components/publik";
+import { Peragaan, PERAGAAN } from "../../peragaan";
 import { pick, useLang, type Lang } from "../../i18n";
 import { KEGAGALAN_ERP,
   COMPARISON,
@@ -15,7 +16,6 @@ import { KEGAGALAN_ERP,
   SINGLE_PLAN_MODULES,
   TRUST_POINTS,
 } from "./sections";
-import { PertunjukanHero } from "./pertunjukan";
 
 /**
  * Landing page marketing — halaman konversi utama. Konten di sections.ts;
@@ -186,7 +186,7 @@ function Hero() {
           Jadi diperagakan — dan angkanya dibuat benar-benar seimbang, karena
           pembeli yang paham pembukuan akan memeriksanya. */}
       <div className="mx-auto mt-10 max-w-6xl px-4 sm:mt-14 sm:px-6">
-        <PertunjukanHero />
+        <Peragaan naskah={PERAGAAN["faktur-berantai"]} tinggi="tinggi" />
       </div>
     </section>
   );
@@ -220,9 +220,18 @@ function Showcase() {
   const item = SHOWCASE.find((s) => s.id === active) ?? SHOWCASE[0]!;
   return (
     <section className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
-      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Ini tampilan aslinya. Bukan gambar rekaan.", "This is the actual screen. Not a mockup.")}</h2>
+      {/* Fase 38b — judul lama berbunyi "Ini tampilan aslinya. Bukan gambar
+          rekaan." dan sublinenya "difoto langsung dari aplikasinya". Keduanya
+          menjadi tidak benar begitu tangkapan layar diganti peragaan, dan
+          naskah yang tidak benar di halaman yang menjual kejujuran adalah
+          harga yang tidak sepadan.
+          
+          Yang menggantikannya bukan klaim yang lebih lunak, melainkan klaim
+          yang LEBIH kuat — dan kali ini bisa diperiksa pembacanya sendiri di
+          layar yang sama. */}
+      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Jangan percaya. Periksa angkanya.", "Do not take our word for it. Check the figures.")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
-        {L(lang, "Lima pekerjaan yang paling menyita waktu, difoto langsung dari aplikasinya. Pilih satu.", "The five jobs that eat the most time, captured straight from the app. Pick one.")}
+        {L(lang, "Lima pekerjaan yang paling menyita waktu, diperagakan langkah demi langkah. Jurnalnya double-entry sungguhan, dan debitnya sama dengan kredit. Pilih satu.", "The five jobs that consume the most time, demonstrated step by step. The journals are genuine double-entry, and the debits equal the credits. Pick one.")}
       </p>
       {/* Tab bergaya bilah alat: sudut tegas, berdempetan dalam satu bingkai —
           bukan pil melayang berbayang. */}
@@ -242,18 +251,14 @@ function Showcase() {
         ))}
       </div>
       <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1.4fr_1fr]">
-        <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
-          <img
-            key={item.image}
-            src={item.image}
-            alt={`${L(lang, "Tampilan", "View of")} ${pick(item.title, lang)} — ${pick(item.benefits[0]!, lang)}`}
-            width={1100}
-            height={688}
-            loading="lazy"
-            decoding="async"
-            className="w-full"
-          />
-        </div>
+        {/* Fase 38b — tangkapan layar diganti PERAGAAN.
+        
+            Gambar `.webp` di sini menjanjikan "ini tampilan aslinya" dan
+            meminta pengunjung mempercayainya. Peragaan tidak meminta apa pun:
+            ia memainkan alurnya, angkanya benar, dan jurnalnya seimbang di
+            depan mata. Ia juga tidak bisa basi — isinya dirakit dari primitif
+            UI yang sama dengan aplikasinya. */}
+        <Peragaan key={item.peragaan} naskah={PERAGAAN[item.peragaan]} tinggi="tinggi" />
         <div className="rounded-card border border-line bg-surface p-6 shadow-card">
           <h3 className="text-lg font-semibold">{pick(item.title, lang)}</h3>
           <ul className="mt-3 divide-y divide-line">

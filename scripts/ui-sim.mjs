@@ -2831,6 +2831,50 @@ try {
     `→ peragaan=${adaPeragaan} seimbang=${angkaSeimbang}`,
   );
 
+  // --- F49 Peragaan (Fase 38b) ---------------------------------------------
+  //
+  // Tangkapan layar produk diganti peragaan beranimasi. Empat asersi di bawah
+  // menjaga sifat yang membuat penggantian itu layak — dan tiap satunya ada
+  // karena kegagalannya akan SENYAP.
+
+  // Beranda kini memikul buktinya lewat peragaan, bukan berkas gambar. Bila
+  // salah satu hilang, halaman kehilangan pembuktiannya tanpa galat apa pun.
+  const jumlahPeragaan = await page.locator("[data-peragaan]").count();
+  check(
+    "F49a beranda memuat peragaan hero + lima peragaan showcase",
+    jumlahPeragaan >= 2,
+    `→ ${jumlahPeragaan} peragaan`,
+  );
+
+  // Nol gambar produk. Ini yang membuat 3,9 MB bisa dihapus, dan yang menjaga
+  // agar tangkapan layar tidak menyelinap kembali satu per satu.
+  const gambarLanding = await page.locator("main img, section img").count();
+  check("F49a beranda tidak memuat satu pun berkas gambar produk", gambarLanding === 0, `→ ${gambarLanding} <img>`);
+
+  // Peragaan adalah gambar yang bergerak, bukan antarmuka. Kontrol palsu yang
+  // bisa ditekan Tab tetapi tidak melakukan apa pun adalah jebakan bagi
+  // pengguna papan tik — dan tombol "Posting" di dalamnya terlihat persis
+  // seperti tombol sungguhan.
+  const fokusDalamPeragaan = await page
+    .locator('[data-peragaan] :is(a, button, input, select, textarea, [tabindex]:not([tabindex="-1"]))')
+    .count();
+  check(
+    "F49e peragaan tidak memuat satu pun elemen yang bisa difokus",
+    fokusDalamPeragaan === 0,
+    `→ ${fokusDalamPeragaan} elemen fokus`,
+  );
+
+  // Seluruh isi ada di DOM sejak bingkai pertama; animasi hanya menyingkapnya.
+  // Diperiksa dengan membaca teks peragaan showcase yang BELUM digulir ke
+  // layar — bila isinya baru ditulis saat animasinya berjalan, pembaca layar
+  // dan perayap tidak akan pernah mendapatkannya.
+  const narasiTersedia = peragaan.includes("Jurnal double-entry terbentuk sendiri");
+  check(
+    "F49b narasi langkah terbaca tanpa menunggu animasi selesai",
+    narasiTersedia,
+    `→ narasi ${narasiTersedia ? "ada" : "belum ada"}`,
+  );
+
   // F29 — Fase 18f: halaman /fitur (penjelasan mendalam per modul).
   // Diperiksa dari SISI PENGUNJUNG: benar-benar bisa dicapai lewat tautan di
   // landing (bukan hanya lewat URL yang diketik), memuat modul-modul kunci,
@@ -2862,9 +2906,15 @@ try {
     `→ EN tidak lengkap`,
   );
   // Fase 14f: seluruh seksi landing (Showcase/Comparison/Security/FAQ) kini dwibahasa.
+  //
+  // Fase 38b — penanda seksi Showcase berubah dari "Not a mockup" menjadi
+  // "Do not take our word for it". Subjek asersinya TIDAK berubah (seksi
+  // Showcase ikut berbahasa Inggris); yang berubah hanya kalimat yang
+  // dicarinya, karena judul lama ("Ini tampilan aslinya. Bukan gambar rekaan.")
+  // menjadi tidak benar begitu tangkapan layar diganti peragaan.
   check(
     "F15 landing 100% dwibahasa: seksi Showcase/Comparison/FAQ ikut ke Inggris",
-    enText.includes("Not a mockup") && enText.includes("Still using") && enText.includes("Frequently asked questions"),
+    enText.includes("Do not take our word for it") && enText.includes("Still using") && enText.includes("Frequently asked questions"),
     `→ seksi landing belum sepenuhnya EN`,
   );
   await page.getByRole("button", { name: "ID", exact: true }).first().click();

@@ -1,4 +1,10 @@
-import { FAKTUR_BERANTAI } from "./naskah/beranda";
+import {
+  FAKTUR_BERANTAI,
+  GAJI_SEKALI_JALAN,
+  KASIR_SHIFT,
+  LAPORAN_TERSUSUN,
+  STOK_TEPERCAYA,
+} from "./naskah/beranda";
 import type { Naskah } from "./tipe";
 
 /**
@@ -15,6 +21,10 @@ import type { Naskah } from "./tipe";
  */
 export const PERAGAAN = {
   "faktur-berantai": FAKTUR_BERANTAI,
+  "kasir-shift": KASIR_SHIFT,
+  "laporan-tersusun": LAPORAN_TERSUSUN,
+  "gaji-sekali-jalan": GAJI_SEKALI_JALAN,
+  "stok-tepercaya": STOK_TEPERCAYA,
 } as const satisfies Record<string, Naskah>;
 
 export type PeragaanId = keyof typeof PERAGAAN;
