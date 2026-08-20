@@ -40,18 +40,25 @@ export function L(lang: Lang, id: string, en: string): string {
 export type TautanPublik = [href: string, label: { id: string; en: string }];
 
 /**
- * Tautan bilah atas. Diberikan per halaman karena jangkarnya berbeda: di
- * halaman depan `#harga` menggulir, di halaman lain ia harus `/#harga`.
+ * Tautan bilah atas dan kaki halaman — SATU daftar (Fase 38c).
+ *
+ * Sebelumnya dua: `TAUTAN_BERANDA` memakai jangkar telanjang (`#harga`) dan
+ * `TAUTAN_HALAMAN_LAIN` memakai jangkar berjalur (`/#harga`), dengan alasan
+ * yang masuk akal — `#harga` di `/fitur` akan menunjuk `/fitur#harga`, yang
+ * tidak ada.
+ *
+ * Tetapi alasan itu hanya menuntut bentuk BERJALUR, bukan dua daftar. Dari
+ * `/`, tautan `/#harga` adalah navigasi fragmen sedokumen: peramban
+ * membandingkan seluruh bagian sebelum `#`, mendapatinya sama, dan menggulir
+ * tanpa memuat ulang. Jadi bentuk berjalur benar di kedua tempat, dan daftar
+ * keduanya bisa menyatu.
+ *
+ * "Beranda" ikut dibuang: pada halaman selain beranda, wordmark di sebelah
+ * kirinya sudah menjadi tautan ke `/`; pada beranda, pengunjung memang sudah
+ * di sana. Ia satu-satunya baris yang membedakan kedua daftar itu selain
+ * bentuk jangkarnya.
  */
-export const TAUTAN_BERANDA: TautanPublik[] = [
-  ["/fitur", { id: "Fitur", en: "Features" }],
-  ["#harga", { id: "Harga", en: "Pricing" }],
-  ["/panduan", { id: "Panduan", en: "Guide" }],
-  ["#faq", { id: "FAQ", en: "FAQ" }],
-];
-
-export const TAUTAN_HALAMAN_LAIN: TautanPublik[] = [
-  ["/", { id: "Beranda", en: "Home" }],
+export const TAUTAN_PUBLIK: TautanPublik[] = [
   ["/fitur", { id: "Fitur", en: "Features" }],
   ["/#harga", { id: "Harga", en: "Pricing" }],
   ["/panduan", { id: "Panduan", en: "Guide" }],
@@ -59,19 +66,36 @@ export const TAUTAN_HALAMAN_LAIN: TautanPublik[] = [
 ];
 
 export function PublicHeader({
-  tautan = TAUTAN_HALAMAN_LAIN,
+  tautan = TAUTAN_PUBLIK,
   /** Halaman depan: wordmark bukan tautan, karena sudah di sana. */
   beranda = false,
+  /**
+   * Keterangan di samping wordmark, mis. "/ Panduan" (Fase 38c).
+   *
+   * Ada supaya `/panduan` tidak perlu header keempat. `GuideHeader` yang
+   * digantikannya punya empat cacat sekaligus, dan tiga di antaranya bukan
+   * soal gaya: tombol "Masuk"/"Daftar"-nya ditulis harfiah dalam bahasa
+   * Indonesia sehingga tidak pernah ikut berbahasa Inggris, tidak ada pemilih
+   * bahasa, tidak ada satu pun tautan nav, dan warnanya literal
+   * (`bg-slate-50/80 dark:bg-slate-950/80`).
+   */
+  sub,
 }: {
   tautan?: TautanPublik[];
   beranda?: boolean;
+  sub?: { id: string; en: string };
 }) {
   const { dark, toggle } = useDarkMode();
   const [menuOpen, setMenuOpen] = useState(false);
   const lang = useLang();
   const judulTema = L(lang, "Ganti tema terang/gelap", "Toggle light/dark theme");
 
-  const merek = <BrandWordmark className="h-7" />;
+  const merek = (
+    <span className="flex items-baseline gap-1.5">
+      <BrandWordmark className="h-7" />
+      {sub ? <span className="text-sm font-normal text-ink-muted">/ {sub[lang]}</span> : null}
+    </span>
+  );
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur">
@@ -149,6 +173,73 @@ export function PublicHeader({
         </nav>
       ) : null}
     </header>
+  );
+}
+
+/**
+ * Footer publik — Fase 38c.
+ *
+ * ## Kenapa berkas ini akhirnya memuatnya juga
+ *
+ * `Footer()` ditulis TIGA kali: `pages/landing/index.tsx:673`,
+ * `pages/fitur.tsx:184`, dan sekali lagi sebagai HTML di
+ * `apps/api/src/routes/blog.ts:90`. Persis pola yang sudah diselesaikan untuk
+ * header pada Fase 31c — dan perbedaannya, seperti dulu, seluruhnya tak
+ * disengaja:
+ *
+ * | | landing | /fitur |
+ * | --- | --- | --- |
+ * | Tagline | ada | **hilang** |
+ * | Tautan Blog | ada | **hilang** |
+ * | Tautan FAQ | ada | **hilang** |
+ * | Tautan Daftar | ada | **hilang** |
+ * | Baris hak cipta | ada | **hilang** |
+ * | Warna | `text-slate-400` | token |
+ *
+ * Empat di antaranya cacat nyata: pengunjung `/fitur` — halaman yang justru
+ * dibaca orang yang sedang menilai produk — tidak punya jalan ke blog, ke FAQ,
+ * maupun ke pendaftaran dari kaki halaman.
+ *
+ * Menyatukannya juga menutup kelasnya: enam halaman publik baru yang menyusul
+ * di 38d akan menjadi footer keempat sampai kesembilan bila ini dibiarkan.
+ */
+export function PublicFooter() {
+  const lang = useLang();
+  return (
+    <footer className="mt-auto border-t border-line">
+      <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 py-7 text-[13px] text-ink-muted sm:flex-row sm:items-start sm:px-6">
+        <div>
+          <BrandWordmark className="h-7" />
+          <p className="mt-1.5 max-w-xs text-xs leading-relaxed">
+            {L(
+              lang,
+              "ERP untuk perusahaan Indonesia. Tanpa proyek implementasi, tanpa lisensi per pengguna.",
+              "ERP for Indonesian companies. No implementation project, no per-seat licence.",
+            )}
+          </p>
+        </div>
+        <nav className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          {TAUTAN_PUBLIK.map(([href, label]) => (
+            <a key={href} href={href} className="hover:text-ink">
+              {label[lang]}
+            </a>
+          ))}
+          {/* Blog dilayani Worker (SEO), jadi navigasinya keras — bukan rute SPA. */}
+          <a href="/blog" className="hover:text-ink">
+            Blog
+          </a>
+          <Link to="/masuk" className="hover:text-ink">
+            {L(lang, "Masuk", "Sign in")}
+          </Link>
+          <Link to="/daftar" className="hover:text-ink">
+            {L(lang, "Daftar", "Sign up")}
+          </Link>
+        </nav>
+      </div>
+      <div className="mx-auto max-w-6xl px-4 pb-6 text-xs text-ink-faint sm:px-6">
+        © {new Date().getFullYear()} ERPindo
+      </div>
+    </footer>
   );
 }
 

@@ -3,8 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { Check, Eye, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
-import { BrandWordmark, Button } from "../../components/ui";
-import { PublicHeader, TAUTAN_BERANDA } from "../../components/publik";
+import { Button } from "../../components/ui";
+import { PublicFooter, PublicHeader, PublicShell } from "../../components/publik";
 import { Peragaan, PERAGAAN } from "../../peragaan";
 import { pick, useLang, type Lang } from "../../i18n";
 import { KEGAGALAN_ERP,
@@ -93,7 +93,7 @@ function Hero() {
       {/* Kisi tipis menggantikan "orb" gradien buram khas landing SaaS. Gaya
           alat: garis, bukan kabut. Digambar dengan gradien CSS (tanpa aset). */}
       <div
-        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.035] dark:opacity-[0.07]"
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.05]"
         style={{
           backgroundImage:
             "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
@@ -336,7 +336,7 @@ function Comparison() {
                     <X className="mt-0.5 size-3.5 shrink-0 text-red-400" aria-hidden /> {pick(row.manual, lang)}
                   </span>
                 </td>
-                <td className="bg-brand-50/60 px-3 py-2 text-ink max-md:mt-2 max-md:block max-md:rounded-control max-md:px-3 max-md:py-2 dark:bg-brand-950/40">
+                <td className="bg-brand-surface px-3 py-2 text-ink max-md:mt-2 max-md:block max-md:rounded-control max-md:px-3 max-md:py-2">
                   <span className="flex items-start gap-2">
                     <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-500" aria-hidden /> {pick(row.erpindo, lang)}
                   </span>
@@ -414,13 +414,13 @@ function PerUserCalculator() {
       </label>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <div className="rounded border border-line bg-surface p-3">
-          <div className="text-[11px] text-slate-400">{L(lang, `Sistem per-pengguna (± ${formatRupiah(ASSUMED_PER_USER_PRICE)}/user)`, `Per-user system (± ${formatRupiah(ASSUMED_PER_USER_PRICE)}/user)`)}</div>
-          <div className="num mt-1 text-xl font-bold text-slate-500 line-through">{formatRupiah(perUser)}</div>
-          <div className="text-[11px] text-slate-400">{L(lang, "per bulan", "per month")}</div>
+          <div className="text-[11px] text-ink-faint">{L(lang, `Sistem per-pengguna (± ${formatRupiah(ASSUMED_PER_USER_PRICE)}/user)`, `Per-user system (± ${formatRupiah(ASSUMED_PER_USER_PRICE)}/user)`)}</div>
+          <div className="num mt-1 text-xl font-bold text-ink-muted line-through">{formatRupiah(perUser)}</div>
+          <div className="text-[11px] text-ink-faint">{L(lang, "per bulan", "per month")}</div>
         </div>
-        <div className="rounded border border-brand-500 bg-brand-50/60 p-3 dark:bg-brand-950/40">
-          <div className="text-[11px] text-brand-700 dark:text-brand-300">{L(lang, "Dengan ERPindo", "With ERPindo")}</div>
-          <div className="num mt-1 text-xl font-bold text-brand-700 dark:text-brand-300">{formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}</div>
+        <div className="rounded border border-brand-500 bg-brand-surface p-3">
+          <div className="text-[11px] text-brand-ink">{L(lang, "Dengan ERPindo", "With ERPindo")}</div>
+          <div className="num mt-1 text-xl font-bold text-brand-ink">{formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}</div>
           <div className="text-[11px] text-ink-muted">{L(lang, "satu harga, berapa pun jumlah tim", "one price, whatever your team size")}</div>
         </div>
       </div>
@@ -432,7 +432,7 @@ function PerUserCalculator() {
         {hemat > 0 ? (
           <>
             <span className="text-ink-soft">{L(lang, "Hemat sekitar ", "Save about ")}</span>
-            <span className="num font-bold text-emerald-600 dark:text-emerald-400">{formatRupiah(hemat)}</span>
+            <span className="num font-bold text-ok-ink">{formatRupiah(hemat)}</span>
             <span className="text-ink-soft">{L(lang, ` per bulan untuk ${users} pengguna.`, ` per month for ${users} users.`)}</span>
           </>
         ) : (
@@ -544,14 +544,14 @@ function Pricing() {
             </p>
             <div className="mt-3 flex items-end gap-1">
               <span className="num text-3xl font-bold">{formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}</span>
-              <span className="pb-1 text-[13px] font-normal text-slate-400">
+              <span className="pb-1 text-[13px] font-normal text-ink-faint">
                 {L(lang, "/bulan/perusahaan", "/month/company")}
               </span>
             </div>
             <ul className="mt-4 flex-1 divide-y divide-line text-[13px]">
               {PAKET_FITUR.map((f) => (
                 <li key={f.id} className="flex items-start gap-2 py-1.5">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden /> {f[lang]}
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden /> {f[lang]}
                 </li>
               ))}
             </ul>
@@ -606,7 +606,7 @@ function Security() {
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         {SECURITY_POINTS.map((s) => (
           <div key={s.title.id} className="flex items-start gap-3.5 rounded-card border border-line bg-surface p-5 shadow-card">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-ok-surface text-ok-ink">
               <s.icon className="size-5" aria-hidden />
             </span>
             <div>
@@ -631,7 +631,7 @@ function Faq() {
           <details key={item.q.id} className="group px-5 py-4">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-[15px] font-medium">
               {pick(item.q, lang)}
-              <Plus className="ml-4 size-4 shrink-0 text-slate-400 transition-transform group-open:rotate-45" aria-hidden />
+              <Plus className="ml-4 size-4 shrink-0 text-ink-faint transition-transform group-open:rotate-45" aria-hidden />
             </summary>
             <p className="mt-3 text-sm leading-relaxed text-ink-soft">{pick(item.a, lang)}</p>
           </details>
@@ -675,33 +675,6 @@ function CtaBand() {
   );
 }
 
-function Footer() {
-  const lang = useLang();
-  return (
-    <footer className="border-t border-line">
-      <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-4 py-6 text-[13px] text-ink-muted sm:flex-row sm:items-center sm:px-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <BrandWordmark className="h-7" />
-          </div>
-          <p className="mt-1 text-xs">{L(lang, "Integrate. Automate. Grow. — ERP untuk perusahaan Indonesia.", "Integrate. Automate. Grow. — ERP for Indonesian companies.")}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <a href="/fitur" className="hover:text-ink">{L(lang, "Fitur", "Features")}</a>
-          <a href="#harga" className="hover:text-ink">{L(lang, "Harga", "Pricing")}</a>
-          <a href="/panduan" className="hover:text-ink">{L(lang, "Panduan", "Guide")}</a>
-          {/* Blog dilayani server-side (SEO) — navigasi keras, bukan rute SPA. */}
-          <a href="/blog" className="hover:text-ink">Blog</a>
-          <a href="#faq" className="hover:text-ink">FAQ</a>
-          <Link to="/masuk" className="hover:text-ink">{L(lang, "Masuk", "Sign in")}</Link>
-          <Link to="/daftar" className="hover:text-ink">{L(lang, "Daftar", "Sign up")}</Link>
-        </div>
-      </div>
-      <div className="mx-auto max-w-6xl px-4 pb-5 text-xs text-slate-400 sm:px-6">© {new Date().getFullYear()} ERPindo</div>
-    </footer>
-  );
-}
-
 /**
  * Kompatibilitas & kepatuhan (Fase 14e) — bukti sosial faktual (bukan testimoni
  * karangan): alat & standar yang benar-benar didukung produk.
@@ -728,7 +701,7 @@ function StickyMobileCta() {
     /* Fase 27a: dulu berisi "Daftar & Berlangganan" + "Hubungi" (ke formulir),
        sehingga demo — ajakan utama sejak Fase 24 — sama sekali tak terjangkau di
        layar kecil, dan "Hubungi" tidak memberi tahu apa yang akan terjadi. */
-    <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-line bg-white/95 p-2 backdrop-blur sm:hidden dark:bg-slate-900/95">
+    <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-line bg-surface/95 p-2 backdrop-blur sm:hidden">
       <span className="flex-1 [&>span]:w-full [&_button]:w-full">
         <DemoButton size="md" />
       </span>
@@ -741,8 +714,8 @@ function StickyMobileCta() {
 
 export function LandingPage() {
   return (
-    <div className="flex min-h-full flex-col bg-surface-sunken text-ink">
-      <PublicHeader tautan={TAUTAN_BERANDA} beranda />
+    <PublicShell>
+      <PublicHeader beranda />
       {/* pb ekstra di mobile agar CTA lengket tak menutup konten akhir */}
       <main className="flex-1 pb-20 sm:pb-0">
         {/* Fase 32c — 12 bagian diringkas menjadi 8.
@@ -762,8 +735,8 @@ export function LandingPage() {
         <Faq />
         <CtaBand />
       </main>
-      <Footer />
+      <PublicFooter />
       <StickyMobileCta />
-    </div>
+    </PublicShell>
   );
 }

@@ -2892,6 +2892,44 @@ try {
     `→ modul hilang: ${hilang.join(", ") || "tidak ada"}`,
   );
   check("F29 halaman /fitur bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
+  // --- F50 Kerangka publik disatukan (Fase 38c) -----------------------------
+  //
+  // Footer ditulis TIGA kali (landing, /fitur, blog SSR) dan perbedaannya
+  // seluruhnya tak disengaja — pengunjung /fitur tidak punya jalan ke blog, ke
+  // FAQ, maupun ke pendaftaran dari kaki halaman. Persis pola yang sudah
+  // diselesaikan untuk header pada Fase 31c.
+  //
+  // Diperiksa di /fitur, bukan di beranda: beranda selalu punya footer
+  // terlengkap justru karena ia yang disalin. Yang perlu dijaga adalah halaman
+  // SALINANNYA.
+  const kakiFitur = await page.innerText("footer");
+  const tautanKaki = ["Blog", "Panduan", "Masuk", "Daftar"];
+  const kakiHilang = tautanKaki.filter((t) => !kakiFitur.includes(t));
+  check(
+    "F50 kaki halaman /fitur memuat tautan yang sama dengan beranda",
+    kakiHilang.length === 0,
+    `→ hilang: ${kakiHilang.join(", ") || "tidak ada"}`,
+  );
+
+  // GuideHeader punya tombol "Masuk"/"Daftar" yang ditulis harfiah dalam bahasa
+  // Indonesia — satu-satunya header publik yang tidak pernah ikut berbahasa
+  // Inggris, dan tidak ada yang menyadarinya selama tujuh belas fase.
+  await gotoRoute("/panduan", 700);
+  const kepalaPanduan = await page.locator("header").first().innerText();
+  check(
+    "F50 /panduan memakai header publik bersama, bukan header keempat",
+    kepalaPanduan.includes("Panduan") && (await page.locator("header [data-wordmark]").count()) === 1,
+    `→ ${kepalaPanduan.slice(0, 60)}`,
+  );
+  const pemilihBahasaPanduan = await page.getByRole("button", { name: "EN", exact: true }).count();
+  check(
+    "F50 /panduan punya pemilih bahasa (dulu satu-satunya halaman publik tanpa itu)",
+    pemilihBahasaPanduan >= 1,
+    `→ ${pemilihBahasaPanduan} tombol`,
+  );
+  check("F50 /panduan punya kaki halaman", (await page.locator("footer").count()) >= 1);
+
   await gotoRoute("/", 700);
 
   // Multibahasa (Fase 13d): toggle EN → hero & harga berbahasa Inggris, lalu kembali ID.

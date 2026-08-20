@@ -84,7 +84,12 @@
      sudah dilakukan `ink`/`surface`/`line` sejak Fase 31a. */
   --erp-brand-ink: #a8492a;
   --erp-brand-line: #d9a385;
+  /* Permukaan bertona merek (Fase 38c) — untuk chip ikon dan kotak sorot.
+     Tanpa ini, `bg-brand-50` dipakai telanjang dan tetap nyaris putih di tema
+     gelap, sehingga tiap pemakainya harus mengingat pasangan `dark:` sendiri. */
+  --erp-brand-surface: #fbf4f0;
   --erp-accent-ink: #ea580c;
+  --erp-accent-surface: #fff7ed;
 
   /* Peran STATUS (Fase 38a) — alasannya sama persis dengan `brand-ink` di atas,
      dan akibatnya lebih besar.
@@ -133,7 +138,9 @@
      bertahan di atas permukaan gelap. */
   --erp-brand-ink: #c87d57;
   --erp-brand-line: #8b3a22;
+  --erp-brand-surface: #2f1310;
   --erp-accent-ink: #fb923c;
+  --erp-accent-surface: #2b1a0d;
 
   /* Sisi gelap: tinta dinaikkan supaya terbaca di atas permukaan gelap,
      permukaan status diturunkan supaya tidak menyala seperti lampu. */
@@ -154,7 +161,9 @@
   /* Peran permukaan & teks — inilah yang dipakai halaman. */
   --color-brand-ink: var(--erp-brand-ink);
   --color-brand-line: var(--erp-brand-line);
+  --color-brand-surface: var(--erp-brand-surface);
   --color-accent-ink: var(--erp-accent-ink);
+  --color-accent-surface: var(--erp-accent-surface);
   --color-surface: var(--erp-surface);
   --color-surface-raised: var(--erp-surface-raised);
   --color-surface-sunken: var(--erp-surface-sunken);
