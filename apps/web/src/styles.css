@@ -85,6 +85,30 @@
   --erp-brand-ink: #a8492a;
   --erp-brand-line: #d9a385;
   --erp-accent-ink: #ea580c;
+
+  /* Peran STATUS (Fase 38a) — alasannya sama persis dengan `brand-ink` di atas,
+     dan akibatnya lebih besar.
+
+     Sampai sekarang setiap status ditulis sebagai pasangan literal:
+     `text-emerald-700 dark:text-emerald-300`, `bg-red-50 dark:bg-red-950`.
+     Benar hasilnya, tetapi tiap pemakaian menambah satu utang `dark:` — dan
+     `Alert`, `Badge`, serta spanduk shell sendiri menyumbang ratusan di
+     antaranya. Selama pasangan itu masih satu-satunya cara menyebut "berhasil"
+     dan "gagal", angka `dark:` TIDAK MUNGKIN mencapai nol, berapa pun halaman
+     yang dirapikan.
+
+     Tiga peran × tiga tingkat menyelesaikannya di satu tempat. */
+  --erp-ok-ink: #2f6b46;
+  --erp-ok-line: #a8cdb5;
+  --erp-ok-surface: #eaf3ec;
+
+  --erp-awas-ink: #8a5a12;
+  --erp-awas-line: #e0c188;
+  --erp-awas-surface: #f8f0dd;
+
+  --erp-galat-ink: #a03328;
+  --erp-galat-line: #e0a79f;
+  --erp-galat-surface: #f9eae7;
 }
 
 /* Nilai mentah — GELAP. Masih didukung penuh; bukan bawaan (keputusan 18a,
@@ -110,6 +134,20 @@
   --erp-brand-ink: #c87d57;
   --erp-brand-line: #8b3a22;
   --erp-accent-ink: #fb923c;
+
+  /* Sisi gelap: tinta dinaikkan supaya terbaca di atas permukaan gelap,
+     permukaan status diturunkan supaya tidak menyala seperti lampu. */
+  --erp-ok-ink: #7fc9a0;
+  --erp-ok-line: #2c5a41;
+  --erp-ok-surface: #1c2b23;
+
+  --erp-awas-ink: #e0b063;
+  --erp-awas-line: #6b4a17;
+  --erp-awas-surface: #2c2519;
+
+  --erp-galat-ink: #e59386;
+  --erp-galat-line: #7a2c23;
+  --erp-galat-surface: #2e1d1a;
 }
 
 @theme inline {
@@ -136,6 +174,17 @@
 
   --color-line: var(--erp-line);
   --color-line-strong: var(--erp-line-strong);
+
+  /* Status — dipakai sebagai `text-ok-ink`, `bg-awas-surface`, `border-galat-line`. */
+  --color-ok-ink: var(--erp-ok-ink);
+  --color-ok-line: var(--erp-ok-line);
+  --color-ok-surface: var(--erp-ok-surface);
+  --color-awas-ink: var(--erp-awas-ink);
+  --color-awas-line: var(--erp-awas-line);
+  --color-awas-surface: var(--erp-awas-surface);
+  --color-galat-ink: var(--erp-galat-ink);
+  --color-galat-line: var(--erp-galat-line);
+  --color-galat-surface: var(--erp-galat-surface);
 }
 
 @theme {
@@ -316,4 +365,54 @@ body {
   font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 1.02;
+}
+
+/* ---------------------------------------------------------------------------
+   Peragaan (Fase 38a) — gerak untuk kerangka peragaan.
+
+   Tiga animasi ini menggantikan hal yang biasanya dikerjakan berkas video atau
+   GIF: kursor yang bergerak, riak klik, dan kursor ketik yang berkedip. Semua
+   digambar CSS, jadi ia ikut tema, tidak meminta jaringan, dan tidak punya
+   satu pun piksel yang bisa basi.
+
+   Seluruhnya dimatikan oleh `prefers-reduced-motion` di tingkat komponen —
+   mesin peragaan tidak membuat timer sama sekali dalam mode itu — tetapi
+   `@media` di bawah tetap dipasang sebagai jaring pengaman untuk hal yang
+   digerakkan CSS murni.
+--------------------------------------------------------------------------- */
+@keyframes riak-klik {
+  from {
+    transform: scale(0.55);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+@keyframes kedip-caret {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@utility riak {
+  animation: riak-klik 420ms ease-out forwards;
+}
+
+@utility caret {
+  animation: kedip-caret 1s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .riak,
+  .caret {
+    animation: none;
+  }
 }

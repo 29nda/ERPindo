@@ -87,6 +87,10 @@ smoke (`apps/api/scripts/smoke.mjs`) dan, bila menyentuh UI, cek ui-sim.
   sebelumnya tidak pernah terasa; rinciannya di `docs/riwayat.md` §6.
 - Jangan menaruh tombol/tautan baru di dalam `aside nav` shell aplikasi tanpa
   memeriksa ui-sim: sebelas asersi menghitung `aside nav a:visible`.
+- Direktori BARU yang memuat naskah tayang wajib ditambahkan ke `BERKAS` di
+  `scripts/sapu-istilah.mjs` pada commit yang sama (Fase 38a). Gerbang yang
+  tidak menyapu tempat naskah baru ditulis adalah gerbang yang perlahan
+  berhenti berarti.
 - Naskah yang dilihat pengguna tunduk pada `docs/glosarium.md`, dan itu
   **dipaksa** oleh `scripts/sapu-istilah.mjs`. Pengecualiannya (kunci kamus,
   nilai enum kontrak API, kunci `localStorage`, nama berkas unduhan) sudah

@@ -81,10 +81,23 @@ const ATURAN = [
   },
 ];
 
-/** Berkas yang naskahnya dilihat pengguna. */
+/**
+ * Berkas yang naskahnya dilihat pengguna.
+ *
+ * Fase 38a — `apps/web/src/peragaan/**` ditambahkan bersamaan dengan direktori
+ * itu sendiri. Naskah peragaan adalah naskah tayang: ia dibaca pengunjung di
+ * halaman depan, `/fitur`, dan panduan. Tanpa baris ini, 57 naskah berisi
+ * kalimat jualan akan lolos dari gerbang glosarium tanpa siapa pun menyadari —
+ * dan gerbang yang tidak menyapu tempat naskah baru ditulis adalah gerbang
+ * yang perlahan berhenti berarti.
+ *
+ * Aturannya, dicatat di CLAUDE.md: direktori baru yang memuat naskah tayang
+ * WAJIB ditambahkan ke daftar ini pada commit yang sama.
+ */
 const BERKAS = [
   "apps/web/src/i18n/*.ts",
   "apps/web/src/pages/**/*.{ts,tsx}",
+  "apps/web/src/peragaan/**/*.{ts,tsx}",
   "apps/web/src/components/**/*.tsx",
   "packages/shared/src/*.ts",
   "apps/api/src/routes/*.ts",
