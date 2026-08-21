@@ -9,7 +9,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isi, useLang } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
-import { Contact, Download, Package, Search, Upload, Warehouse } from "lucide-react";
+import { Contact, Download, Package, Plus, Search, Upload, Warehouse } from "lucide-react";
+import { Halaman, Lembar } from "../components/kerangka";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { api, downloadCsv, formatIDR, parseCsv } from "../api/client";
 import { useDebounced } from "./commerce";
@@ -539,20 +540,43 @@ export function ProductsPage() {
     }
   }
 
+  const [tambahBuka, setTambahBuka] = useState(false);
   const busy = create.isPending || update.isPending;
-  return (
-    <div className="space-y-6">
-      <PageHeading k="produk" />
 
+  // Fase 38j — formulir produk pindah ke Lembar. Ia melayani DUA hal sekaligus:
+  // pembuatan (dibuka aksi utama) dan penyuntingan (dibuka tombol ubah pada
+  // baris). Keduanya memang formulir yang sama, dan menyatukannya di satu
+  // tempat menghilangkan kebingungan lama: dulu mengeklik "ubah" pada baris
+  // paling bawah menggulirkan halaman jauh ke atas tanpa penjelasan.
+  const lembarBuka = Boolean(editing) || tambahBuka;
+  const tutupLembar = () => {
+    setEditing(null);
+    setTambahBuka(false);
+  };
+
+  return (
+    <Halaman
+      k="produk"
+      ikon={Package}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setTambahBuka(true)}>
+            <Plus className="size-4" aria-hidden /> {u("tambahProduk")}
+          </Button>
+        ) : null
+      }
+    >
       {isAdmin && (query.data?.total ?? 0) === 0 ? <IndustryTemplateCard /> : null}
 
       {isAdmin ? (
-        <Card>
-          <CardHeader
-            title={editing ? `${u("ubahProduk")} — ${editing.sku}` : u("tambahProduk")}
-            description={editing ? u("descUbahProduk") : u("descTambahProduk")}
-          />
-          <CardBody className="space-y-4">
+        <Lembar
+          terbuka={lembarBuka}
+          tutup={tutupLembar}
+          lebar="lebar"
+          judul={editing ? `${u("ubahProduk")} — ${editing.sku}` : u("tambahProduk")}
+          deskripsi={editing ? u("descUbahProduk") : u("descTambahProduk")}
+        >
+          <div className="space-y-4">
             {editing ? null : (
               <ImportCsvButton
                 entity="products"
@@ -720,8 +744,8 @@ export function ProductsPage() {
               </label>
             </form>
             {editing && editing.track_serial === 1 ? <SerialManager product={editing} /> : null}
-          </CardBody>
-        </Card>
+          </div>
+        </Lembar>
       ) : null}
 
       <Card>
@@ -840,7 +864,7 @@ export function ProductsPage() {
         onConfirm={() => toArchive && archive.mutate(toArchive.id)}
         onCancel={() => setToArchive(null)}
       />
-    </div>
+    </Halaman>
   );
 }
 
@@ -868,6 +892,7 @@ const CONTACT_TYPE_LABELS: Record<ContactType, UiKey> = {
 
 export function ContactsPage() {
   const u = useUi();
+  const [tambahBuka, setTambahBuka] = useState(false);
   const {
     isAdmin,
     query,
@@ -918,16 +943,29 @@ export function ContactsPage() {
 
   const busy = create.isPending || update.isPending;
   return (
-    <div className="space-y-6">
-      <PageHeading k="kontak" />
-
+    <Halaman
+      k="kontak"
+      ikon={Contact}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setTambahBuka(true)}>
+            <Plus className="size-4" aria-hidden /> {u("tambahKontak")}
+          </Button>
+        ) : null
+      }
+    >
       {isAdmin ? (
-        <Card>
-          <CardHeader
-            title={editing ? `${u("ubahKontak")} — ${editing.name}` : u("tambahKontak")}
-            description={editing ? u("descUbahKontak") : u("descTambahKontak")}
-          />
-          <CardBody className="space-y-4">
+        <Lembar
+          terbuka={Boolean(editing) || tambahBuka}
+          tutup={() => {
+            setEditing(null);
+            setTambahBuka(false);
+          }}
+          lebar="lebar"
+          judul={editing ? `${u("ubahKontak")} — ${editing.name}` : u("tambahKontak")}
+          deskripsi={editing ? u("descUbahKontak") : u("descTambahKontak")}
+        >
+          <div className="space-y-4">
             {editing ? null : (
               <ImportCsvButton
                 entity="contacts"
@@ -1058,8 +1096,8 @@ export function ContactsPage() {
                 </>
               ) : null}
             </form>
-          </CardBody>
-        </Card>
+          </div>
+        </Lembar>
       ) : null}
 
       <Card>
@@ -1146,7 +1184,7 @@ export function ContactsPage() {
         onConfirm={() => toArchive && archive.mutate(toArchive.id)}
         onCancel={() => setToArchive(null)}
       />
-    </div>
+    </Halaman>
   );
 }
 

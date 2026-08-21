@@ -422,10 +422,16 @@ try {
   // Fase 16m — pelunasan utang 16b. Rute diverifikasi ke main.tsx:
   // /app/master/produk dan /app/master/kontak. Judul kartu form + label
   // kotak centang selalu tampil untuk admin, jadi asersinya tak bergantung data.
+  //
+  // Fase 38j — formulir produk pindah ke Lembar, jadi label di DALAMNYA hanya
+  // ada setelah lembarnya dibuka. Subjek asersi tidak berubah: ia tetap
+  // menguji bahwa naskah formulir produk ikut berbahasa Inggris.
+  await bukaLembar(page, "Add product");
+  const produkFormEn = await page.innerText("body");
   const adaAddProduct =
-    produkEn.includes("Add product") && produkEn.includes("Track serial numbers");
+    produkFormEn.includes("Add product") && produkFormEn.includes("Track serial numbers");
   const tanpaProdukSisaId =
-    !produkEn.includes("Tambah produk") && !produkEn.includes("Lacak nomor seri");
+    !produkFormEn.includes("Tambah produk") && !produkFormEn.includes("Lacak nomor seri");
   check(
     "F0o sisa teks halaman Produk ikut EN: judul form + label lacak seri, tanpa teks Indonesia",
     adaAddProduct && tanpaProdukSisaId,
@@ -818,7 +824,12 @@ try {
   // Fase 16o — pelunasan utang 16f. Rute diverifikasi ke main.tsx:
   // /app/keuangan/jurnal. Form jurnal manual selalu tampil untuk admin, jadi
   // penanda positifnya tak bergantung ada/tidaknya jurnal tersimpan.
+  //
+  // Fase 38k — form itu kini berada di dalam Lembar, jadi tombolnya baru ada
+  // setelah lembarnya dibuka. Subjek asersi tidak berubah: ia tetap menguji
+  // naskah form jurnal manual ikut berbahasa Inggris.
   await gotoRoute("/app/keuangan/jurnal", 900);
+  await bukaLembar(page, "New manual entry");
   const jrSisaEn = await page.innerText("body");
   const adaJurnalSisaEn = jrSisaEn.includes("Post entry") && jrSisaEn.includes("Add line");
   const tanpaJurnalSisaId =
@@ -1386,6 +1397,8 @@ try {
   // F1 — Master Data: buat produk via form.
   resetErrors();
   await gotoRoute("/app/master/produk");
+  // Fase 38j — formulir produk pindah ke Lembar; halaman membuka dengan daftar.
+  await bukaLembar(page, "Tambah produk");
   await page.fill("#p-sku", `UISIM-${stamp}`);
   await page.fill("#p-name", "Produk Uji Simulasi");
   await page.fill("#p-sell", "125000");
@@ -1400,6 +1413,7 @@ try {
   // F2 — Master Data: buat kontak pelanggan via form.
   resetErrors();
   await gotoRoute("/app/master/kontak");
+  await bukaLembar(page, "Tambah kontak");
   await page.fill("#k-name", "Pelanggan Uji Simulasi");
   const contactForm = page.locator("form", { has: page.locator("#k-name") });
   const contactPost = postDone("/contacts");
@@ -1424,6 +1438,9 @@ try {
   // F4 — Jurnal Umum manual 2 baris seimbang → Neraca Saldo tetap seimbang.
   resetErrors();
   await gotoRoute("/app/keuangan/jurnal");
+  // Fase 38k — jurnal manual pindah ke Lembar; halaman Jurnal Umum membuka
+  // dengan jurnalnya, dan memposting manual adalah pengecualian.
+  await bukaLembar(page, "Jurnal manual baru");
   await page.fill("#jr-memo", "Jurnal uji simulasi UI");
   await page.getByLabel("Akun baris 1").selectOption({ index: 1 });
   await page.getByLabel("Debit baris 1").fill("250000");
@@ -2218,6 +2235,10 @@ try {
   );
 
   await gotoRoute("/app/master/kontak", 1100);
+  // Fase 38j — kolom kustom dirender di dalam formulir kontak, yang kini
+  // berada di Lembar. Yang diuji tetap sama: definisi kolom benar-benar
+  // muncul sebagai medan, bukan hanya sebagai baris di daftar definisi.
+  await bukaLembar(page, "Tambah kontak");
   const cfKontakAda = await page.locator('[data-testid="field-kustom-kontak"]').count();
   check(
     "F2c kolom kustom benar-benar muncul di form Kontak, bukan hanya di daftar definisi",
@@ -2436,6 +2457,7 @@ try {
   // Pelanggan baru yang bergrup — dibuat lewat layar Kontak supaya jalur
   // penyimpanan `priceGroupId` dari form ikut teruji, bukan cuma API-nya.
   await gotoRoute("/app/master/kontak", 1100);
+  await bukaLembar(page, "Tambah kontak");
   await page.locator("#k-name").fill("Toko Grosir UI");
   await page.locator("#k-price-group").selectOption({ label: "Grosir UI" });
   await page.getByRole("button", { name: "Tambah", exact: true }).first().click();
