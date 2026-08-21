@@ -57,6 +57,7 @@ const BERKAS = [
   "apps/web/src/pages/landing/fiturDetail.ts",
   "apps/web/src/peragaan/naskah/beranda.ts",
   "apps/web/src/peragaan/naskah/fitur.ts",
+  "apps/web/src/peragaan/naskah/panduan.ts",
 ];
 
 /**

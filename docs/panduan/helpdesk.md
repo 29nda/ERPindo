@@ -10,4 +10,11 @@ Tiket dukungan pelanggan dengan prioritas, penugasan ke anggota tim, balasan unt
 2. Balas ke pelanggan atau tulis catatan internal (tidak terlihat pelanggan); tugaskan ke anggota tim.
 3. Tandai selesai — waktu penyelesaian tercatat.
 
-![Daftar tiket helpdesk](../../apps/web/public/panduan/helpdesk-1.webp)
+**Keluhan pelanggan yang tidak hilang di kotak masuk**
+
+Tiket terhubung ke pelanggan dan fakturnya, sehingga yang menangani melihat riwayat transaksinya tanpa bertanya ke bagian lain.
+
+1. Keluhan masuk sebagai tiket.
+2. Faktur dan surat jalannya terbuka bersamaan.
+3. Retur dibuat dari tiketnya.
+4. Jurnal terbalik dan stok kembali, tanpa dokumen yang dibuat dua kali.

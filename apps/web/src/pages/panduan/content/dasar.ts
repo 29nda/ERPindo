@@ -15,12 +15,17 @@ export const DASAR: GuideModule[] = [
           "Sistem otomatis membuatkan database khusus untuk perusahaan Anda + bagan akun standar Indonesia (22 akun).",
           "Verifikasi email lewat tautan yang dikirim — lalu Anda langsung berada di Dashboard.",
         ],
-        tips: ["Uji coba 30 hari mencakup SEMUA fitur, tanpa kartu kredit."],
+        // Fase 38f — dulu berbunyi "Uji coba 30 hari mencakup SEMUA fitur,
+        // tanpa kartu kredit." Masa coba DIHAPUS pada Fase 24a, dan cek smoke
+        // sejak itu menjaga beranda, blok SEO, dan blog agar tidak
+        // menjanjikannya. Panduan tidak pernah ikut disapu, jadi janji itu
+        // bertahan di sini selama empat belas fase — di halaman yang justru
+        // dibaca orang yang sudah serius memakai produknya.
+        tips: ["Seluruh modul terbuka sejak hari pertama; tidak ada kemampuan yang menyusul setelah menaikkan paket."],
       },
       {
         heading: "Ikuti checklist \"Mulai cepat\"",
-        image: "/panduan/mulai-1.webp",
-        imageAlt: "Dashboard dengan checklist mulai cepat dan grafik penjualan",
+        peragaan: "dasbor-harian",
         body: [
           "Dashboard tenant baru menampilkan checklist berprogres: lengkapi profil perusahaan (alamat & NPWP), tambah produk, tambah kontak, posting faktur pertama, dan undang tim. Checklist hilang sendiri saat semuanya selesai.",
         ],
@@ -42,8 +47,7 @@ export const DASAR: GuideModule[] = [
     sections: [
       {
         heading: "Profil perusahaan & logo",
-        image: "/panduan/pengaturan-1.webp",
-        imageAlt: "Halaman pengaturan perusahaan",
+        peragaan: "peran-audit",
         steps: [
           "Isi nama tampilan, alamat, dan NPWP (dipakai di kop faktur & ekspor e-Faktur/Coretax).",
           "Unggah logo — otomatis dikecilkan dan tampil di cetakan faktur serta struk kasir.",
@@ -74,8 +78,7 @@ export const DASAR: GuideModule[] = [
     sections: [
       {
         heading: "Menambah & mengubah produk",
-        image: "/panduan/produk-1.webp",
-        imageAlt: "Daftar produk dengan form tambah",
+        peragaan: "produk-induk",
         steps: [
           "Isi SKU (kode unik), nama, satuan, harga jual & beli, lalu Simpan.",
           "Centang \"Jasa\" untuk item tanpa stok (mis. ongkos kirim, jasa servis).",
@@ -101,8 +104,7 @@ export const DASAR: GuideModule[] = [
     sections: [
       {
         heading: "Menambah kontak",
-        image: "/panduan/kontak-1.webp",
-        imageAlt: "Daftar kontak pelanggan dan pemasok",
+        peragaan: "kontak-induk",
         steps: [
           "Pilih tipe: Pelanggan, Pemasok, atau Keduanya.",
           "Isi NPWP untuk pelanggan ber-PPN — dipakai otomatis di ekspor e-Faktur & XML Coretax.",

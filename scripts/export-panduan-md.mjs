@@ -35,6 +35,19 @@ execFileSync(
 const { GUIDE_CATEGORIES } = await import(pathToFileURL(tmpOut).href);
 rmSync(tmpOut, { force: true });
 
+// Fase 38f — registri peragaan dibundel terpisah. Ia berisi narasi tiap
+// peragaan, yang kini menggantikan tautan gambar di Markdown. Dibundel dari
+// `peragaan/daftar.ts`, bukan `peragaan/index.ts`, karena yang terakhir
+// mengekspor komponen React dan akan menarik React ke dalam bundel ini.
+const tmpPeragaan = path.join(tmpdir(), `peragaan-daftar-${Date.now()}.mjs`);
+execFileSync(
+  path.join(ROOT, "node_modules/.pnpm/node_modules/esbuild/bin/esbuild"),
+  ["apps/web/src/peragaan/daftar.ts", "--bundle", "--format=esm", `--outfile=${tmpPeragaan}`],
+  { cwd: ROOT, stdio: "inherit" },
+);
+const { PERAGAAN } = await import(pathToFileURL(tmpPeragaan).href);
+rmSync(tmpPeragaan, { force: true });
+
 rmSync(OUT_DIR, { recursive: true, force: true });
 mkdirSync(OUT_DIR, { recursive: true });
 
@@ -59,8 +72,21 @@ for (const cat of GUIDE_CATEGORIES) {
         s.steps.forEach((st, i) => lines.push(`${i + 1}. ${st}`));
         lines.push("");
       }
-      if (s.image) {
-        lines.push(`![${s.imageAlt ?? s.heading}](../../apps/web/public${s.image})`, "");
+      // Fase 38f — tangkapan layar diganti peragaan, dan Markdown tidak bisa
+      // memainkan animasi. Yang dipancarkan adalah NARASINYA: daftar langkah
+      // bernomor yang sama persis dengan yang dilihat pembaca di halaman web.
+      //
+      // Ini bukan penurunan mutu dibandingkan tautan gambar yang lama. Tautan
+      // itu menunjuk `../../apps/web/public/panduan/*.webp` — jalur yang benar
+      // hanya bila dokumennya dibaca dari dalam repo, dan rusak di mana pun
+      // Markdown-nya ditayangkan. Teks selalu terbaca.
+      if (s.peragaan) {
+        const naskah = PERAGAAN[s.peragaan];
+        if (naskah) {
+          lines.push(`**${naskah.judul.id}**`, "", naskah.ringkas.id, "");
+          naskah.langkah.forEach((l, i) => lines.push(`${i + 1}. ${l.narasi.id}`));
+          lines.push("");
+        }
       }
       if (s.tips?.length) {
         for (const t of s.tips) lines.push(`> 💡 ${t}`);

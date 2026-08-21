@@ -32,6 +32,7 @@ import {
 import { useState } from "react";
 import { Button } from "../../components/ui";
 import { PublicFooter, PublicHeader, PublicShell } from "../../components/publik";
+import { Peragaan, PERAGAAN } from "../../peragaan";
 import { pick, useLang } from "../../i18n";
 import { GUIDE_CATEGORIES, GUIDE_MODULES, guideBySlug, type GuideModule } from "./content";
 
@@ -95,9 +96,17 @@ export function GuideSections({ mod }: { mod: GuideModule }) {
               ))}
             </ol>
           ) : null}
-          {s.image ? (
-            <div className="mt-5 overflow-hidden rounded-2xl border border-line shadow-card">
-              <img src={s.image} alt={s.imageAlt ?? s.heading} width={1280} height={800} loading="lazy" decoding="async" className="w-full" />
+          {/* Fase 38f — tangkapan layar diganti peragaan.
+          
+              Dua perlakuan membedakannya dari peragaan halaman jualan, dan
+              keduanya karena pekerjaan pembacanya berbeda: `sekaliJalan`
+              menghentikannya di keadaan akhir (pembaca panduan sedang
+              mencocokkan layarnya sendiri, dan gerak berulang mengganggu),
+              dan `langkahTampak` menampilkan daftar langkah bernomor di layar
+              alih-alih menyembunyikannya bagi mata. */}
+          {s.peragaan ? (
+            <div className="mt-5 max-w-3xl">
+              <Peragaan naskah={PERAGAAN[s.peragaan]} tinggi="sedang" sekaliJalan langkahTampak />
             </div>
           ) : null}
           {s.tips?.length ? (

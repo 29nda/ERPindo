@@ -2855,11 +2855,18 @@ try {
   // bisa ditekan Tab tetapi tidak melakukan apa pun adalah jebakan bagi
   // pengguna papan tik — dan tombol "Posting" di dalamnya terlihat persis
   // seperti tombol sungguhan.
+  // Fase 38f — selektornya dipersempit ke `[data-bingkai]`, yaitu permukaan
+  // PERAGA-nya saja. Yang dilarang adalah kontrol PALSU: tombol yang terlihat
+  // seperti tombol sungguhan, bisa ditekan Tab, dan tidak melakukan apa pun.
+  //
+  // Tombol "Putar ulang" di kaki peragaan panduan bukan kontrol palsu — ia
+  // benar-benar memutar ulang. Melarangnya berarti memakai asersi ini untuk
+  // hal yang bukan maksudnya.
   const fokusDalamPeragaan = await page
-    .locator('[data-peragaan] :is(a, button, input, select, textarea, [tabindex]:not([tabindex="-1"]))')
+    .locator('[data-bingkai] :is(a, button, input, select, textarea, [tabindex]:not([tabindex="-1"]))')
     .count();
   check(
-    "F49e peragaan tidak memuat satu pun elemen yang bisa difokus",
+    "F49e bingkai peraga tidak memuat satu pun kontrol palsu yang bisa difokus",
     fokusDalamPeragaan === 0,
     `→ ${fokusDalamPeragaan} elemen fokus`,
   );
@@ -2965,6 +2972,34 @@ try {
     `→ ${pemilihBahasaPanduan} tombol`,
   );
   check("F50 /panduan punya kaki halaman", (await page.locator("footer").count()) >= 1);
+
+  // --- F49d Peragaan di panduan (Fase 38f) ---------------------------------
+  //
+  // Panduan mendapat perlakuan yang BERBEDA dari halaman jualan, dan
+  // perbedaannya diuji — karena ia yang membuat penggantian tangkapan layar di
+  // sini bisa dipertanggungjawabkan.
+  await gotoRoute("/panduan/pos", 900);
+  const peragaanPanduan = await page.locator("[data-peragaan]").count();
+  check("F49d halaman panduan modul memuat peragaan", peragaanPanduan >= 1, `→ ${peragaanPanduan}`);
+  const gambarPanduan = await page.locator("main img").count();
+  check("F49d panduan tidak memuat satu pun tangkapan layar", gambarPanduan === 0, `→ ${gambarPanduan} <img>`);
+
+  // Daftar langkah TERLIHAT di panduan, bukan tersembunyi bagi mata seperti di
+  // halaman jualan. Pembaca panduan memakai langkahnya sebagai instruksi.
+  const langkahTampak = await page.locator("[data-peragaan] figcaption ol li").first().isVisible();
+  check("F49d langkah peragaan panduan terlihat di layar, bukan hanya bagi pembaca layar", langkahTampak);
+
+  // Peragaan panduan berhenti di keadaan akhir dan menawarkan tombol ulang.
+  // Tombol itu kontrol SUNGGUHAN — satu-satunya di seluruh peragaan — dan
+  // sengaja berada di luar bingkai peraga supaya F49e tetap berlaku.
+  await page.waitForTimeout(9000);
+  const tombolUlang = await page.getByRole("button", { name: /Putar ulang/i }).count();
+  check(
+    "F49d peragaan panduan berhenti dan menawarkan tombol ulang",
+    tombolUlang >= 1,
+    `→ ${tombolUlang} tombol`,
+  );
+  check("F49d halaman panduan bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
   // --- F51 Enam halaman publik (Fase 38d) ----------------------------------
   //

@@ -1,3 +1,4 @@
+import { RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { BrandWordmark, cx } from "../components/ui";
 import { pick, useLang } from "../i18n";
@@ -40,18 +41,21 @@ export function Peragaan({
   naskah,
   tinggi = "sedang",
   langkahTampak = false,
+  sekaliJalan,
   className,
 }: {
   naskah: Naskah;
   tinggi?: keyof typeof TINGGI;
   /** Tampilkan daftar langkah bernomor di layar — dipakai halaman panduan. */
   langkahTampak?: boolean;
+  /** Berhenti di keadaan akhir dan tawarkan tombol ulang — lihat `pemutar.ts`. */
+  sekaliJalan?: boolean;
   className?: string;
 }) {
   const lang = useLang();
   const kurangi = useKurangiGerak();
   const bingkaiRef = useRef<HTMLDivElement | null>(null);
-  const bingkai = usePemutar(naskah, bingkaiRef);
+  const bingkai = usePemutar(naskah, bingkaiRef, { sekaliJalan });
   const [posKursor, setPosKursor] = useState<{ x: number; y: number } | null>(null);
 
   // Posisi kursor diukur dari panel sasaran yang sesungguhnya, bukan
@@ -77,6 +81,7 @@ export function Peragaan({
     <figure data-peragaan={naskah.id} className={cx("not-prose", className)}>
       <div
         ref={bingkaiRef}
+        data-bingkai=""
         className={cx(
           "relative overflow-hidden rounded-card border border-line bg-surface shadow-card",
           TINGGI[tinggi],
@@ -135,6 +140,22 @@ export function Peragaan({
           <p className="mt-2 text-[13px] font-medium text-brand-ink">
             {pick(langkahKini.narasi, lang)}
           </p>
+        ) : null}
+
+        {/* Tombol ulang — kontrol SUNGGUHAN, dan satu-satunya di seluruh
+            peragaan. Ia berada di luar `[data-bingkai]` dengan sengaja:
+            asersi ui-sim melarang elemen yang bisa difokus di dalam bingkai
+            peraga (kontrol palsu yang bisa ditekan Tab tetapi tidak melakukan
+            apa pun adalah jebakan), dan tombol ini bukan kontrol palsu. */}
+        {sekaliJalan && bingkai.selesai ? (
+          <button
+            type="button"
+            onClick={bingkai.ulangi}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-control border border-line px-2.5 py-1 text-[13px] font-medium text-ink-soft transition-colors hover:bg-surface-muted hover:text-ink focus-visible:fokus"
+          >
+            <RotateCcw className="size-3.5" aria-hidden />
+            {pick({ id: "Putar ulang", en: "Play again" }, lang)}
+          </button>
         ) : null}
 
         <ol
