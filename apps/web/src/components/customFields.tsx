@@ -46,7 +46,7 @@ export function CustomFieldInputs({
           <div key={d.id}>
             <Label htmlFor={id}>
               {d.label}
-              {d.required ? <span className="text-rose-600 dark:text-rose-400"> *</span> : null}
+              {d.required ? <span className="text-galat-ink"> *</span> : null}
             </Label>
             {d.type === "pilihan" ? (
               <Select id={id} value={v} onChange={(e) => onChange(d.fieldKey, e.target.value)}>

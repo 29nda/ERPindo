@@ -370,7 +370,7 @@ function KanbanBoard({ leads, isAdmin }: { leads: ApiLead[]; isAdmin: boolean })
               }}
               className={`w-52 shrink-0 rounded-xl border p-2 transition-colors ${
                 dragOver === stage
-                  ? "border-brand-400 bg-brand-50 dark:border-brand-500/50 dark:bg-brand-500/10"
+                  ? "border-brand-line bg-brand-surface"
                   : "border-line bg-surface-sunken"
               }`}
             >
@@ -386,7 +386,7 @@ function KanbanBoard({ leads, isAdmin }: { leads: ApiLead[]; isAdmin: boolean })
                     key={lead.id}
                     draggable={isAdmin}
                     onDragStart={(e) => e.dataTransfer.setData("text/lead-id", lead.id)}
-                    className={`rounded-lg border border-line bg-white p-2 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-800 ${
+                    className={`rounded-lg border border-line bg-surface p-2 text-sm shadow-sm ${
                       isAdmin ? "cursor-grab active:cursor-grabbing" : ""
                     }`}
                   >
@@ -1033,7 +1033,7 @@ function QuoteRow({ quote, isAdmin }: { quote: ApiQuotation; isAdmin: boolean })
           href={`/cetak/penawaran?tenant=${tenant.tenantId}&id=${quote.id}`}
           target="_blank"
           rel="noreferrer"
-          className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
+          className="text-sm font-medium text-brand-ink hover:underline"
         >
           {u("cetak")}
         </a>
@@ -1098,7 +1098,7 @@ function QuoteRow({ quote, isAdmin }: { quote: ApiQuotation; isAdmin: boolean })
       ) : null}
 
       {quote.status === "converted" ? (
-        <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+        <p className="mt-2 text-xs text-ok-ink">
           {u("sudahJadiFaktur")}
         </p>
       ) : null}

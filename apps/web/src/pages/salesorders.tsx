@@ -253,7 +253,7 @@ function NewOrderCard({ tenantId, products, customers, warehouses }: { tenantId:
               <Input aria-label={u("hargaSatuan")} type="number" min={0} placeholder={u("hargaSatuan")} className="w-32" value={line.unitPrice} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, unitPrice: e.target.value, hargaDisentuh: true } : l)))} />
               <Input aria-label={u("diskonPersen")} type="number" min={0} max={100} placeholder="0%" className="w-16" value={line.discountPct} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, discountPct: e.target.value } : l)))} />
               {lines.length > 1 ? (
-                <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-red-600" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
+                <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-galat-ink" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
                   <Trash2 className="size-4" aria-hidden />
                 </button>
               ) : null}
@@ -323,7 +323,7 @@ function OrderRow({ order, isAdmin, cashAccounts, companyName }: { order: ApiSal
         {order.lines.map((l) => `${l.productName} ×${l.qty}`).join(" · ")}
       </div>
       {isAdmin ? (
-        <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t pt-2.5 dark:border-slate-700">
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-line pt-2.5">
           {order.status === "open" ? (
             <>
               <Button className="h-8" onClick={() => deliver.mutate()} disabled={deliver.isPending}>

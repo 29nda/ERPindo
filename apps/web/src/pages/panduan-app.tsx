@@ -59,12 +59,12 @@ export function PanduanAppIndexPage() {
                     key={m.slug}
                     to="/app/panduan/$modul"
                     params={{ modul: m.slug }}
-                    className="group rounded-2xl border border-line bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg dark:hover:border-brand-700"
+                    className="group rounded-2xl border border-line bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-brand-line hover:shadow-lg"
                   >
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700 dark:bg-brand-900/60 dark:text-brand-300">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-brand-surface text-brand-ink">
                       <Icon className="size-5" aria-hidden />
                     </span>
-                    <h3 className="mt-3 font-semibold group-hover:text-brand-700 dark:group-hover:text-brand-300">
+                    <h3 className="mt-3 font-semibold group-hover:text-brand-ink">
                       {m.title}
                     </h3>
                     <p className="mt-1 line-clamp-2 text-sm text-ink-soft">
@@ -101,7 +101,7 @@ export function PanduanAppModulePage() {
         <p className="text-ink-soft">{u("pdTakDitemukan")}</p>
         <Link
           to="/app/panduan"
-          className="mt-4 inline-block text-brand-600 hover:underline dark:text-brand-400"
+          className="mt-4 inline-block text-brand-ink hover:underline"
         >
           {u("pdKembaliKeDaftar")}
         </Link>

@@ -251,7 +251,7 @@ export function ManufacturingPage() {
                     {comps.length > 1 ? (
                       <button
                         onClick={() => setComps((cs) => cs.filter((_, j) => j !== i))}
-                        className="text-ink-muted hover:text-red-500"
+                        className="text-ink-muted hover:text-galat-ink"
                         aria-label={u("hapusKomponen")}
                       >
                         <Trash2 className="size-4" aria-hidden />
@@ -796,7 +796,7 @@ function RoutingCard({ orders, isAdmin }: { orders: ApiProductionOrder[]; isAdmi
                     </Td>
                     <Td
                       label={u("mfVarian")}
-                      className={`num ${(routingQuery.data?.variance ?? 0) > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}
+                      className={`num ${(routingQuery.data?.variance ?? 0) > 0 ? "text-galat-ink" : "text-ok-ink"}`}
                       colSpan={isAdmin ? 2 : 1}
                     >
                       {(routingQuery.data?.variance ?? 0) >= 0 ? "+" : ""}

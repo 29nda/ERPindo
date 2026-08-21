@@ -70,7 +70,7 @@ export function ApprovalsPage() {
             type="button"
             onClick={() => setTab(t.key)}
             className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
-              tab === t.key ? "border-brand-500 text-brand-600 dark:text-brand-300" : "border-transparent text-ink-muted hover:text-slate-700"
+              tab === t.key ? "border-brand-500 text-brand-ink" : "border-transparent text-ink-muted hover:text-ink-soft"
             }`}
           >
             {t.label}
@@ -96,11 +96,11 @@ function StepTrail({ flow }: { flow: ApiApprovalFlow }) {
           key={s.id}
           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
             s.status === "approved"
-              ? "border-emerald-300 text-emerald-700 dark:border-emerald-500/40 dark:text-emerald-300"
+              ? "border-ok-line text-ok-ink"
               : s.status === "rejected"
-                ? "border-red-300 text-red-700 dark:border-red-500/40 dark:text-red-300"
+                ? "border-galat-line text-galat-ink"
                 : s.stepOrder === flow.currentStep && flow.status === "pending"
-                  ? "border-amber-300 text-amber-700 dark:border-amber-500/40 dark:text-amber-300"
+                  ? "border-awas-line text-awas-ink"
                   : "border-line text-ink-muted"
           }`}
         >
@@ -153,7 +153,7 @@ function QueueTab() {
                 </div>
                 <StepTrail flow={f} />
                 {canDecide ? (
-                  <div className="mt-2 flex gap-2 border-t pt-2 dark:border-slate-700">
+                  <div className="mt-2 flex gap-2 border-t border-line pt-2">
                     <Button className="h-8" onClick={() => decide.mutate({ id: f.id, decision: "approve" })} disabled={decide.isPending}>
                       <CheckCircle2 className="size-4" aria-hidden /> Setujui
                     </Button>
@@ -232,7 +232,7 @@ function SubmitTab() {
               {matchedRule.approverRoles.map((r) => APPROVAL_ROLE_LABELS[r]).join(" → ")}
             </span>
           ) : (
-            <span className="text-emerald-600 dark:text-emerald-400">{u("takAdaAturanCocok")}</span>
+            <span className="text-ok-ink">{u("takAdaAturanCocok")}</span>
           )}
         </div>
         <div className="flex justify-end">
@@ -273,7 +273,7 @@ function HistoryTab() {
                   <Badge tone={STATUS_TONE[f.status]}>{APPROVAL_STATUS_LABELS[f.status]}</Badge>
                   <span className="ml-auto font-semibold tabular-nums">{formatIDR(f.amount)}</span>
                 </div>
-                {f.steps.length > 0 ? <StepTrail flow={f} /> : <div className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">{u("otomatisDisetujui")}</div>}
+                {f.steps.length > 0 ? <StepTrail flow={f} /> : <div className="mt-1 text-xs text-ok-ink">{u("otomatisDisetujui")}</div>}
               </div>
             ))}
           </div>
@@ -360,7 +360,7 @@ function RulesTab() {
                   type="button"
                   onClick={() => toggleRole(r)}
                   className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium ${
-                    form.approverRoles.includes(r) ? "border-brand-400 bg-brand-50 text-brand-700 dark:bg-brand-950/40 dark:text-brand-200" : "border-line text-ink-muted"
+                    form.approverRoles.includes(r) ? "border-brand-400 bg-brand-surface text-brand-ink" : "border-line text-ink-muted"
                   }`}
                 >
                   {APPROVAL_ROLE_LABELS[r]}
@@ -391,7 +391,7 @@ function RulesTab() {
                   <Button variant="ghost" className="h-8" onClick={() => toggleActive.mutate({ id: r.id, active: !r.active })} disabled={toggleActive.isPending}>
                     {r.active ? "Nonaktifkan" : "Aktifkan"}
                   </Button>
-                  <button type="button" aria-label={u("hapusAturan")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-red-600" onClick={() => remove.mutate(r.id)}>
+                  <button type="button" aria-label={u("hapusAturan")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-galat-ink" onClick={() => remove.mutate(r.id)}>
                     <Trash2 className="size-4" aria-hidden />
                   </button>
                 </span>

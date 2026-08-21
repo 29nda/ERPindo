@@ -124,7 +124,7 @@ function ImportCsvButton({
         {u("unduhTemplate")}
       </Button>
       {result && result.errors.length > 0 ? (
-        <div className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+        <div className="w-full rounded-lg border border-awas-line bg-awas-surface px-3 py-2 text-xs text-awas-ink">
           {result.errors.slice(0, 8).map((er) => (
             <div key={er.row}>
               {u("barisKe")} {er.row}: {er.message}
@@ -316,7 +316,7 @@ function RowActions({ onEdit, onArchive }: { onEdit: () => void; onArchive: () =
       </Button>
       <Button
         variant="ghost"
-        className="h-8 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+        className="h-8 text-galat-ink hover:bg-galat-surface"
         onClick={onArchive}
       >
         {u("arsipkan")}

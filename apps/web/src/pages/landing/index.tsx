@@ -81,7 +81,7 @@ function DemoButton({ size = "lg", variant = "primary" }: { size?: "md" | "lg"; 
       >
         <Eye className="size-4" aria-hidden /> {busy ? L(lang, "Menyiapkan demo…", "Preparing demo…") : L(lang, "Lihat Demo", "View Demo")}
       </Button>
-      {error ? <span className="mt-1 text-xs text-red-500">{error}</span> : null}
+      {error ? <span className="mt-1 text-xs text-galat-ink">{error}</span> : null}
     </span>
   );
 }

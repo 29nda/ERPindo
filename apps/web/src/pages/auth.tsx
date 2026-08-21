@@ -83,9 +83,9 @@ function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: R
           slab hitam di sebelah form putih terbaca seperti dua halaman berbeda
           yang ditempel — dan chip putih di balik logo jadi menonjol lagi.
           Diganti bidang bernuansa merek yang lembut. */}
-      <aside className="relative hidden w-[42%] flex-col justify-between overflow-hidden border-r border-line bg-brand-50 p-10 text-ink lg:flex dark:bg-slate-900">
+      <aside className="relative hidden w-[42%] flex-col justify-between overflow-hidden border-r border-line bg-brand-surface p-10 text-ink lg:flex">
         <div
-          className="pointer-events-none absolute inset-0 text-brand-600 opacity-[0.10] dark:text-slate-100 dark:opacity-[0.07]"
+          className="pointer-events-none absolute inset-0 text-brand-ink opacity-[0.08]"
           style={{
             backgroundImage:
               "linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px)",
@@ -98,10 +98,10 @@ function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: R
         </Link>
         <div className="relative">
           <h2 className="max-w-md text-2xl font-semibold leading-snug">{u("authTagline")}</h2>
-          <ul className="mt-6 divide-y divide-brand-200/70 border-y border-brand-200/70 dark:divide-white/10 dark:border-white/10">
+          <ul className="mt-6 divide-y divide-line border-y border-line">
             {AUTH_BENEFITS.map((b) => (
               <li key={b} className="flex items-start gap-2.5 py-3 text-sm leading-relaxed text-ink-soft">
-                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-600 dark:text-brand-400" aria-hidden />
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand-ink" aria-hidden />
                 {u(b)}
               </li>
             ))}
@@ -225,7 +225,7 @@ export function RegisterPage() {
       subtitle={
         <>
           {u("authSudahPunyaAkun")}{" "}
-          <Link to="/masuk" className="font-medium text-brand-700 hover:underline dark:text-brand-400">
+          <Link to="/masuk" className="font-medium text-brand-ink hover:underline">
             {u("authMasuk")}
           </Link>
         </>
@@ -298,7 +298,7 @@ export function LoginPage() {
       subtitle={
         <>
           {u("authDescMasuk")}{" "}
-          <Link to="/daftar" className="font-medium text-brand-700 hover:underline dark:text-brand-400">
+          <Link to="/daftar" className="font-medium text-brand-ink hover:underline">
             {u("authDaftarGratis")}
           </Link>
         </>

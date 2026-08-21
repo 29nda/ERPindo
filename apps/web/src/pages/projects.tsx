@@ -278,7 +278,7 @@ function ProjectRow({ project, isAdmin }: { project: ApiProject; isAdmin: boolea
           {u("pendapatan")} <span className="tabular-nums">{formatIDR(project.revenue)}</span> ·{" "}
           {u("biaya")} <span className="tabular-nums">{formatIDR(project.cost)}</span> · {u("laba")}{" "}
           <strong
-            className={`tabular-nums ${project.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
+            className={`tabular-nums ${project.profit >= 0 ? "text-ok-ink" : "text-galat-ink"}`}
           >
             {formatIDR(project.profit)}
           </strong>
@@ -538,7 +538,7 @@ function GanttChart({
                 <div className="relative h-5 rounded bg-surface-muted">
                   {t.baselineStart && t.baselineEnd ? (
                     <div
-                      className="absolute top-3.5 h-1 rounded bg-slate-300 dark:bg-slate-600"
+                      className="absolute top-3.5 h-1 rounded bg-line-strong"
                       style={{
                         left: `${pos(t.baselineStart)}%`,
                         width: `${Math.max(pos(t.baselineEnd) - pos(t.baselineStart), 1)}%`,
@@ -566,18 +566,18 @@ function GanttChart({
                 <>
                   <input
                     type="date"
-                    className="rounded border border-line-strong px-1.5 py-0.5 dark:bg-slate-900"
+                    className="rounded border border-line-strong bg-surface px-1.5 py-0.5"
                     value={edit.start}
                     onChange={(e) => setEdit({ ...edit, start: e.target.value })}
                   />
                   <input
                     type="date"
-                    className="rounded border border-line-strong px-1.5 py-0.5 dark:bg-slate-900"
+                    className="rounded border border-line-strong bg-surface px-1.5 py-0.5"
                     value={edit.end}
                     onChange={(e) => setEdit({ ...edit, end: e.target.value })}
                   />
                   <select
-                    className="rounded border border-line-strong px-1.5 py-0.5 dark:bg-slate-900"
+                    className="rounded border border-line-strong bg-surface px-1.5 py-0.5"
                     value={edit.predecessorId}
                     onChange={(e) => setEdit({ ...edit, predecessorId: e.target.value })}
                   >
@@ -626,7 +626,7 @@ function GanttChart({
                 </>
               ) : (
                 <button
-                  className="text-brand-600 hover:underline dark:text-brand-300"
+                  className="text-brand-ink hover:underline"
                   onClick={() =>
                     setEdit({
                       id: t.id,
@@ -782,7 +782,7 @@ function TaskBoard({
                       }
                     : undefined
                 }
-                className={`flex-1 rounded-lg border p-2 ${dragOver === col.key ? "border-brand-400 bg-brand-50 dark:bg-brand-950/30" : "border-line"}`}
+                className={`flex-1 rounded-lg border p-2 ${dragOver === col.key ? "border-brand-400 bg-brand-surface" : "border-line"}`}
               >
                 <div className="mb-2 flex items-center justify-between text-xs font-medium text-ink-muted">
                   <span>{u(col.labelKey)}</span>
@@ -798,7 +798,7 @@ function TaskBoard({
                         onDragStart={
                           isAdmin ? (e) => e.dataTransfer.setData("text/task-id", t.id) : undefined
                         }
-                        className={`rounded-md border bg-white p-2 text-sm dark:bg-slate-900 ${overdue ? "border-red-300 dark:border-red-500/40" : "border-line"} ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
+                        className={`rounded-md border border-line bg-surface p-2 text-sm ${overdue ? "border-galat-line" : "border-line"} ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <span className="min-w-0">{t.name}</span>
@@ -812,7 +812,7 @@ function TaskBoard({
                             {t.assigneeName ?? u("belumDitugaskan")}
                           </span>
                           {t.dueDate ? (
-                            <span className={overdue ? "font-medium text-red-500" : ""}>
+                            <span className={overdue ? "font-medium text-galat-ink" : ""}>
                               tenggat {t.dueDate}
                             </span>
                           ) : null}
@@ -927,7 +927,7 @@ function WorkloadPanel({ detail }: { detail: ApiProjectDetail }) {
                   <span className="min-w-0 flex-1 truncate">{t.name}</span>
                   <span className="text-xs text-ink-muted">{t.assigneeName ?? "—"}</span>
                   <span
-                    className={`text-xs ${overdue ? "font-semibold text-red-500" : "text-ink-muted"}`}
+                    className={`text-xs ${overdue ? "font-semibold text-galat-ink" : "text-ink-muted"}`}
                   >
                     {overdue ? "terlambat " : ""}
                     {t.dueDate}
@@ -1081,7 +1081,7 @@ function MilestonesSection({
                 ) : null}
               </div>
               {!hasContact && isAdmin && m.status === "planned" ? (
-                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                <p className="mt-1 text-xs text-awas-ink">
                   {u("tetapkanPelangganTermin")}
                 </p>
               ) : null}
@@ -1225,7 +1225,7 @@ function BudgetSection({
               {isAdmin ? (
                 <button
                   onClick={() => del.mutate(b.id)}
-                  className="text-xs text-red-600 hover:underline dark:text-red-400"
+                  className="text-xs text-galat-ink hover:underline"
                 >
                   hapus
                 </button>
@@ -1250,7 +1250,7 @@ function BudgetSection({
                   />
                 </div>
                 <p
-                  className={`mt-1 text-xs ${realisasiPct > 100 ? "text-red-600 dark:text-red-400" : "text-ink-muted"}`}
+                  className={`mt-1 text-xs ${realisasiPct > 100 ? "text-galat-ink" : "text-ink-muted"}`}
                 >
                   {u("realisasi")} {realisasiPct}% {u("dariAnggaran")}
                   {realisasiPct > 100 ? ` ${u("melebihiRab")}` : ""}
@@ -1383,7 +1383,7 @@ function TimesheetSection({
               {isAdmin ? (
                 <button
                   onClick={() => del.mutate(t.id)}
-                  className="ml-auto text-xs text-red-600 hover:underline dark:text-red-400"
+                  className="ml-auto text-xs text-galat-ink hover:underline"
                 >
                   hapus
                 </button>
@@ -1398,7 +1398,7 @@ function TimesheetSection({
             <div className="mt-1 flex items-center justify-between">
               <span>{u("labaSetelahTk")}</span>
               <strong
-                className={`tabular-nums ${profitAfterLabor >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
+                className={`tabular-nums ${profitAfterLabor >= 0 ? "text-ok-ink" : "text-galat-ink"}`}
               >
                 {formatIDR(profitAfterLabor)}
               </strong>

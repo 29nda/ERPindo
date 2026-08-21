@@ -42,7 +42,7 @@ export function MulaiPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <div className="mb-6 flex items-center gap-2 text-brand-600 dark:text-brand-400">
+      <div className="mb-6 flex items-center gap-2 text-brand-ink">
         <Rocket className="size-5" aria-hidden />
         <h1 className="text-2xl font-semibold text-ink">Selamat datang! Ayo siapkan cepat.</h1>
       </div>
@@ -54,9 +54,9 @@ export function MulaiPage() {
             <span
               className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                 i < step
-                  ? "bg-brand-600 text-white dark:bg-brand-400 dark:text-slate-900"
+                  ? "bg-brand-solid text-brand-teks"
                   : i === step
-                    ? "bg-brand-100 text-brand-700 ring-2 ring-brand-500 dark:bg-brand-900/60 dark:text-brand-300"
+                    ? "bg-brand-surface text-brand-ink ring-2 ring-brand-500"
                     : "bg-surface-muted text-ink-muted"
               }`}
             >
@@ -143,17 +143,17 @@ function PengalamanStep({ onDone }: { onDone: () => void }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           onClick={() => pick(true)}
-          className="rounded-2xl border border-line p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
+          className="rounded-2xl border border-line p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand-line hover:shadow-md"
         >
-          <Sparkles className="size-6 text-brand-600 dark:text-brand-400" aria-hidden />
+          <Sparkles className="size-6 text-brand-ink" aria-hidden />
           <h3 className="mt-2 font-semibold">{u("sayaPemula")}</h3>
           <p className="mt-1 text-sm text-ink-soft">{u("descModeSederhana")}</p>
         </button>
         <button
           onClick={() => pick(false)}
-          className="rounded-2xl border border-line p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700"
+          className="rounded-2xl border border-line p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand-line hover:shadow-md"
         >
-          <GraduationCap className="size-6 text-brand-600 dark:text-brand-400" aria-hidden />
+          <GraduationCap className="size-6 text-brand-ink" aria-hidden />
           <h3 className="mt-2 font-semibold">{u("sayaSudahPaham")}</h3>
           <p className="mt-1 text-sm text-ink-soft">{u("descModeLengkap")}</p>
         </button>
@@ -233,13 +233,13 @@ function KontakStep({ tenantId, onDone, onSkip, toast }: { tenantId: string; onD
         <div className="flex gap-2">
           <button
             onClick={() => setType("customer")}
-            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${type === "customer" ? "border-brand-500 bg-brand-50 font-semibold text-brand-700 dark:bg-brand-950 dark:text-brand-300" : "border-line-strong"}`}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${type === "customer" ? "border-brand-500 bg-brand-surface font-semibold text-brand-ink" : "border-line-strong"}`}
           >
             {u("pelanggan")}
           </button>
           <button
             onClick={() => setType("supplier")}
-            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${type === "supplier" ? "border-brand-500 bg-brand-50 font-semibold text-brand-700 dark:bg-brand-950 dark:text-brand-300" : "border-line-strong"}`}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm ${type === "supplier" ? "border-brand-500 bg-brand-surface font-semibold text-brand-ink" : "border-line-strong"}`}
           >
             {u("pemasok")}
           </button>

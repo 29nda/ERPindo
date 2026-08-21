@@ -499,7 +499,7 @@ function AssetRow({
       </div>
 
       {revalOpen && asset.status === "active" ? (
-        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg bg-brand-50 p-3 dark:bg-brand-950/30">
+        <div className="mt-3 flex flex-wrap items-end gap-3 rounded-lg bg-brand-surface p-3">
           <div>
             <Label htmlFor={`r-date-${asset.id}`}>{u("tanggalRevaluasi")}</Label>
             <Input

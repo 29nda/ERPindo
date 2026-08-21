@@ -669,7 +669,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
                       </p>
                     ) : null}
                     {tracked ? (
-                      <div className="grid grid-cols-2 gap-2 rounded-lg bg-amber-50 p-2 sm:grid-cols-[10rem_11rem_1fr] sm:items-center dark:bg-amber-950/40">
+                      <div className="grid grid-cols-2 gap-2 rounded-lg bg-awas-surface p-2 sm:grid-cols-[10rem_11rem_1fr] sm:items-center">
                         <Input
                           aria-label={`${u("nomorLotBaris")} ${i + 1}`}
                           placeholder={u("noLotOpsional")}
@@ -682,7 +682,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
                           value={line.expiryDate}
                           onChange={(e) => setLine(i, { expiryDate: e.target.value })}
                         />
-                        <span className="text-xs text-amber-700 dark:text-amber-300">
+                        <span className="text-xs text-awas-ink">
                           {u("hintFefo")}
                         </span>
                       </div>
@@ -698,7 +698,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
                           {line.picks.length > 0 ? u("ambilSatuGudang") : u("ambilBeberapaGudang")}
                         </Button>
                         {line.picks.length > 0 ? (
-                          <div className="space-y-2 rounded-lg bg-sky-50 p-2 dark:bg-sky-950/40">
+                          <div className="space-y-2 rounded-lg bg-surface-muted p-2">
                             {line.picks.map((p, j) => (
                               <div
                                 key={j}
@@ -764,8 +764,8 @@ export function CommercePage({ mode }: { mode: Mode }) {
                                 data-testid={`picking-sum-${i}`}
                                 className={
                                   pickingTimpang(line)
-                                    ? "text-xs text-rose-700 dark:text-rose-300"
-                                    : "text-xs text-sky-700 dark:text-sky-300"
+                                    ? "text-xs text-galat-ink"
+                                    : "text-xs text-ink-soft"
                                 }
                               >
                                 {totalPicked(line)} / {Number(line.qty) || 0} ·{" "}
@@ -1172,7 +1172,7 @@ function DocRow({
               </Button>
               <Button
                 variant="secondary"
-                className="h-8 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                className="h-8 text-galat-ink hover:bg-galat-surface"
                 onClick={() => setVoidOpen(true)}
               >
                 {u("batalkan")}
@@ -1221,7 +1221,7 @@ function DocRow({
                   </span>
                 ) : isAdmin ? (
                   <button
-                    className="text-xs font-medium text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                    className="text-xs font-medium text-galat-ink underline-offset-2 hover:underline"
                     onClick={() => setVoidPaymentId(p.id)}
                   >
                     {u("hapus")}
@@ -1239,7 +1239,7 @@ function DocRow({
             <span>
               {l.productName} × {l.qty}
               {l.discountPct > 0 ? (
-                <span className="text-emerald-600 dark:text-emerald-400"> (−{l.discountPct}%)</span>
+                <span className="text-ok-ink"> (−{l.discountPct}%)</span>
               ) : null}
             </span>
             <span className="tabular-nums">{formatIDR(l.amount)}</span>

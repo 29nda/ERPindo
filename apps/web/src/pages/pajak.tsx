@@ -83,7 +83,7 @@ export function PajakPage() {
             onClick={() => setTab(t.key)}
             className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
               tab === t.key
-                ? "border-brand-600 text-brand-700 dark:text-brand-300"
+                ? "border-brand-600 text-brand-ink"
                 : "border-transparent text-ink-muted hover:text-ink-soft"
             }`}
           >
@@ -206,13 +206,13 @@ function PphFinalSection({ isAdmin }: { isAdmin: boolean }) {
                   </span>
                   <span>
                     PPh Final ({preview.data.rate}%):{" "}
-                    <strong className="tabular-nums text-brand-700 dark:text-brand-300">
+                    <strong className="tabular-nums text-brand-ink">
                       {formatIDR(preview.data.amount)}
                     </strong>
                   </span>
                 </div>
                 {preview.data.alreadyRecorded ? (
-                  <p className="mt-2 text-amber-600 dark:text-amber-400">{u("masaSudahDicatat")}</p>
+                  <p className="mt-2 text-awas-ink">{u("masaSudahDicatat")}</p>
                 ) : null}
                 {preview.data.amount <= 0 ? (
                   <p className="mt-2 text-ink-muted">{u("belumAdaOmzetMasa")}</p>
@@ -666,7 +666,7 @@ function SptPpnSection() {
                   </p>
                 </div>
                 <div
-                  className={`rounded-xl p-4 ${data.net >= 0 ? "bg-amber-50 dark:bg-amber-500/10" : "bg-emerald-50 dark:bg-emerald-500/10"}`}
+                  className={`rounded-xl p-4 ${data.net >= 0 ? "bg-awas-surface" : "bg-ok-surface"}`}
                 >
                   <p className="text-xs text-ink-muted">{netLabel}</p>
                   <p className="mt-1 text-lg font-semibold tabular-nums">
@@ -836,7 +836,7 @@ function PphUnifikasiSection() {
                   key={label}
                   className={`rounded-xl p-3 ring-1 ring-inset ${
                     i === 3
-                      ? "bg-brand-50 ring-brand-200 dark:bg-brand-950/40 dark:ring-brand-900"
+                      ? "bg-brand-surface ring-brand-line"
                       : "bg-surface-sunken ring-line"
                   }`}
                 >

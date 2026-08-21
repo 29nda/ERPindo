@@ -111,7 +111,7 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
           {newKey ? (
             <Alert tone="success">
               <div className="text-sm font-medium">{u("salinKunciSekarang")}</div>
-              <code className="mt-1 block break-all rounded bg-white/70 px-2 py-1 text-xs dark:bg-slate-900/60">{newKey}</code>
+              <code className="mt-1 block break-all rounded bg-surface-sunken px-2 py-1 text-xs">{newKey}</code>
               <button className="mt-1 text-xs underline" onClick={() => setNewKey(null)}>{u("sudahSayaSalin")}</button>
             </Alert>
           ) : null}
@@ -169,7 +169,7 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
           {newSecret ? (
             <Alert tone="success">
               <div className="text-sm font-medium">{u("secretHmac")}</div>
-              <code className="mt-1 block break-all rounded bg-white/70 px-2 py-1 text-xs dark:bg-slate-900/60">{newSecret}</code>
+              <code className="mt-1 block break-all rounded bg-surface-sunken px-2 py-1 text-xs">{newSecret}</code>
               <button className="mt-1 text-xs underline" onClick={() => setNewSecret(null)}>{u("sudahSayaSalin")}</button>
             </Alert>
           ) : null}

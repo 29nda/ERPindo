@@ -86,7 +86,7 @@ export function DukunganPage() {
               <textarea
                 id="fb-message"
                 rows={4}
-                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
                 placeholder={u("dkPlaceholderPesan")}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -141,7 +141,7 @@ export function DukunganPage() {
                     {f.message}
                   </p>
                   {f.adminNote ? (
-                    <p className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-brand-900 dark:bg-brand-950/50 dark:text-brand-100">
+                    <p className="mt-2 rounded-lg bg-brand-surface px-3 py-2 text-brand-ink">
                       <strong>{u("dkBalasanPengelola")}</strong> {f.adminNote}
                     </p>
                   ) : null}

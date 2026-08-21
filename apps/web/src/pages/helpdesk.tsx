@@ -364,7 +364,7 @@ export function HelpdeskPage() {
                         key={r.id}
                         className={`rounded-lg p-3 text-sm ${
                           r.internal
-                            ? "border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
+                            ? "border border-awas-line bg-awas-surface"
                             : "bg-surface-sunken"
                         }`}
                       >

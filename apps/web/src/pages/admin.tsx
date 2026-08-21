@@ -185,7 +185,7 @@ function OverviewTab() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <div className="text-sm text-ink-muted">{u("adMrr")}</div>
-              <div className="num mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              <div className="num mt-1 text-2xl font-bold text-ok-ink">
                 Rp {b.mrr.toLocaleString("id-ID")}
               </div>
               <div className="text-xs text-ink-muted">
@@ -202,7 +202,7 @@ function OverviewTab() {
             <div>
               <div className="text-sm text-ink-muted">{u("adChurn30")}</div>
               <div
-                className={`mt-1 text-2xl font-bold tabular-nums ${b.churn30Hari > 0 ? "text-amber-600 dark:text-amber-400" : ""}`}
+                className={`mt-1 text-2xl font-bold tabular-nums ${b.churn30Hari > 0 ? "text-awas-ink" : ""}`}
               >
                 {b.churn30Hari}
               </div>
@@ -776,7 +776,7 @@ function BlogTab() {
               </Label>
               <button
                 type="button"
-                className="text-xs font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-400"
+                className="text-xs font-medium text-brand-ink underline-offset-2 hover:underline"
                 onClick={() => setPreview((p) => !p)}
               >
                 {preview ? u("adTulis") : u("adPratinjau")}
@@ -852,13 +852,13 @@ function BlogTab() {
                         href={`/blog/${p.slug}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-400"
+                        className="text-xs font-medium text-brand-ink underline-offset-2 hover:underline"
                       >
                         {u("adLihat")}
                       </a>
                     ) : null}
                     <button
-                      className="text-xs font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-400"
+                      className="text-xs font-medium text-brand-ink underline-offset-2 hover:underline"
                       onClick={() => {
                         setEditing(p);
                         setForm({
@@ -874,13 +874,13 @@ function BlogTab() {
                       {u("adUbah")}
                     </button>
                     <button
-                      className="text-xs font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-400"
+                      className="text-xs font-medium text-brand-ink underline-offset-2 hover:underline"
                       onClick={() => publish.mutate({ id: p.id, published: !p.publishedAt })}
                     >
                       {p.publishedAt ? u("adTarik") : u("adTerbitkan")}
                     </button>
                     <button
-                      className="text-xs font-medium text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                      className="text-xs font-medium text-galat-ink underline-offset-2 hover:underline"
                       onClick={() => setDeleting(p)}
                     >
                       {u("adHapus")}

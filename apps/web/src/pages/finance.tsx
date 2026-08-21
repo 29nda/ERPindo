@@ -722,7 +722,7 @@ export function JournalPage() {
                     !e.reversesEntryNo &&
                     e.status === "posted" ? (
                       <button
-                        className="ml-auto text-xs font-medium text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                        className="ml-auto text-xs font-medium text-galat-ink underline-offset-2 hover:underline"
                         onClick={() => setReverseTarget({ id: e.id, entryNo: e.entryNo })}
                       >
                         {u("balik")}
@@ -1085,7 +1085,7 @@ function TemplatesCard({
                 </Button>
                 <Button
                   variant="ghost"
-                  className="h-8 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                  className="h-8 text-galat-ink hover:bg-galat-surface"
                   onClick={() => remove.mutate(t.id)}
                 >
                   {u("hapus")}

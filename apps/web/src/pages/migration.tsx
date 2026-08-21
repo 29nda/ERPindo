@@ -156,7 +156,7 @@ export function MigrationPage() {
               />
               <button
                 type="button"
-                className="mt-1 text-xs text-brand-600 hover:underline dark:text-brand-400"
+                className="mt-1 text-xs text-brand-ink hover:underline"
                 onClick={() => setAccountsCsv(ACCOUNTS_SAMPLE)}
               >
                 Isi contoh
@@ -174,7 +174,7 @@ export function MigrationPage() {
               />
               <button
                 type="button"
-                className="mt-1 text-xs text-brand-600 hover:underline dark:text-brand-400"
+                className="mt-1 text-xs text-brand-ink hover:underline"
                 onClick={() => setStockCsv(STOCK_SAMPLE)}
               >
                 Isi contoh

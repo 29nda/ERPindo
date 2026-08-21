@@ -142,7 +142,7 @@ export function RolesCard({ tenantId }: { tenantId: string }) {
                 </div>
                 <div className="flex gap-2">
                   <Button variant="secondary" className="h-8" onClick={() => startEdit(r)}>{u("ubah")}</Button>
-                  <Button variant="ghost" className="h-8 text-red-600 dark:text-red-400" onClick={() => setToDelete(r)}>{u("hapus")}</Button>
+                  <Button variant="ghost" className="h-8 text-galat-ink" onClick={() => setToDelete(r)}>{u("hapus")}</Button>
                 </div>
               </div>
             ))}
@@ -329,7 +329,7 @@ export function MembersCard({ tenantId }: { tenantId: string }) {
                         {canManage ? (
                           <button
                             onClick={() => setRemoving({ userId: m.userId, name: m.name })}
-                            className="text-xs text-red-600 hover:underline dark:text-red-400"
+                            className="text-xs text-galat-ink hover:underline"
                           >
                             Keluarkan
                           </button>

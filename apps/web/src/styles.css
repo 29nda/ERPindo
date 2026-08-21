@@ -88,6 +88,15 @@
      Tanpa ini, `bg-brand-50` dipakai telanjang dan tetap nyaris putih di tema
      gelap, sehingga tiap pemakainya harus mengingat pasangan `dark:` sendiri. */
   --erp-brand-surface: #fbf4f0;
+  /* Merek PEKAT — latar tombol utama (Fase 38i). Ada karena halaman menulis
+     `bg-brand-600 dark:bg-brand-500`: ramp merek tidak bertukar mengikuti tema,
+     jadi sisi gelap perlu satu tingkat lebih terang agar tombolnya tetap
+     terpisah dari permukaan gelap. Tanpa token ini, tiap tombol harus
+     mengingat pasangannya sendiri. */
+  --erp-brand-solid: #a8492a;
+  /* Teks DI ATAS `brand-solid`. Putih di tema terang, gelap di tema gelap —
+     karena sisi gelap `brand-solid` satu tingkat lebih terang. */
+  --erp-brand-teks: #fffefb;
   --erp-accent-ink: #ea580c;
   --erp-accent-surface: #fff7ed;
 
@@ -139,6 +148,8 @@
   --erp-brand-ink: #c87d57;
   --erp-brand-line: #8b3a22;
   --erp-brand-surface: #2f1310;
+  --erp-brand-solid: #b9603a;
+  --erp-brand-teks: #171512;
   --erp-accent-ink: #fb923c;
   --erp-accent-surface: #2b1a0d;
 
@@ -162,6 +173,8 @@
   --color-brand-ink: var(--erp-brand-ink);
   --color-brand-line: var(--erp-brand-line);
   --color-brand-surface: var(--erp-brand-surface);
+  --color-brand-solid: var(--erp-brand-solid);
+  --color-brand-teks: var(--erp-brand-teks);
   --color-accent-ink: var(--erp-accent-ink);
   --color-accent-surface: var(--erp-accent-surface);
   --color-surface: var(--erp-surface);
@@ -427,4 +440,53 @@ body {
   .caret {
     animation: none;
   }
+}
+
+
+/* ---------------------------------------------------------------------------
+   Tema cetak (Fase 38i).
+
+   Halaman `/cetak/*` menggambar di atas `bg-white` tetap — karena kertas
+   memang putih — tetapi tintanya memakai token yang ikut tema. Akibatnya,
+   pengguna yang memasang tema gelap lalu mencetak faktur mendapat teks KREM
+   TERANG di atas kertas putih: nyaris kosong.
+
+   Cacat ini sudah ada sejak token semantik masuk pada Fase 31a dan tidak
+   pernah dilaporkan — kemungkinan besar karena yang mencetak dan yang memakai
+   tema gelap jarang orang yang sama, dan yang mengalaminya menyimpulkan
+   printernya bermasalah.
+
+   Kelas ini memaksa nilai TERANG di dalam lingkupnya, apa pun tema aplikasi.
+   Diletakkan pada wadah halaman cetak, bukan di `@media print`, supaya
+   pratinjau di layar memperlihatkan persis yang akan keluar dari printer.
+--------------------------------------------------------------------------- */
+.tema-cetak {
+  --erp-surface: #fffefb;
+  --erp-surface-raised: #fffefb;
+  --erp-surface-sunken: #f5f2ea;
+  --erp-surface-muted: #ece7db;
+  --erp-surface-active: #ded7c7;
+  --erp-ink: #1f1d19;
+  --erp-ink-soft: #55504a;
+  --erp-ink-muted: #6e675e;
+  --erp-ink-faint: #9a9289;
+  --erp-ink-invert: #fffefb;
+  --erp-line: #e3ddd0;
+  --erp-line-strong: #cec5b3;
+  --erp-brand-ink: #a8492a;
+  --erp-brand-line: #d9a385;
+  --erp-brand-surface: #fbf4f0;
+  --erp-brand-solid: #a8492a;
+  --erp-brand-teks: #fffefb;
+  --erp-accent-ink: #ea580c;
+  --erp-accent-surface: #fff7ed;
+  --erp-ok-ink: #2f6b46;
+  --erp-ok-line: #a8cdb5;
+  --erp-ok-surface: #eaf3ec;
+  --erp-awas-ink: #8a5a12;
+  --erp-awas-line: #e0c188;
+  --erp-awas-surface: #f8f0dd;
+  --erp-galat-ink: #a03328;
+  --erp-galat-line: #e0a79f;
+  --erp-galat-surface: #f9eae7;
 }

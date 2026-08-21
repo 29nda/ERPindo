@@ -97,8 +97,8 @@ function StockCard({
                       label={u("masukKeluar")}
                       className={
                         r.qty >= 0
-                          ? "text-emerald-700 dark:text-emerald-400"
-                          : "text-red-700 dark:text-red-400"
+                          ? "text-ok-ink"
+                          : "text-galat-ink"
                       }
                     >
                       {r.qty >= 0 ? `+${r.qty}` : r.qty}
@@ -671,7 +671,7 @@ export function StockPage() {
                 min={0}
                 value={threshold}
                 onChange={(e) => setThreshold(e.target.value)}
-                className="w-16 rounded border border-line-strong px-2 py-0.5 text-sm dark:bg-slate-900"
+                className="w-16 rounded border border-line-strong bg-surface px-2 py-0.5 text-sm"
                 aria-label={u("ambangStokMenipis")}
               />
               )

@@ -334,7 +334,7 @@ export function PayrollPage() {
                         {isAdmin ? (
                           <button
                             onClick={() => toggleActive.mutate(e)}
-                            className="ml-2 text-xs text-brand-700 hover:underline dark:text-brand-400"
+                            className="ml-2 text-xs text-brand-ink hover:underline"
                           >
                             {e.isActive ? "nonaktifkan" : "aktifkan"}
                           </button>
@@ -345,7 +345,7 @@ export function PayrollPage() {
                           href={`/cetak/1721a1?tenant=${tenant.tenantId}&employee=${e.id}&year=${new Date().getFullYear()}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs text-brand-700 hover:underline dark:text-brand-400"
+                          className="text-xs text-brand-ink hover:underline"
                         >
                           {u("cetak")}
                         </a>
@@ -586,7 +586,7 @@ function DepartmentsCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boo
                   {isAdmin ? (
                     <button
                       onClick={() => archive.mutate(d.id)}
-                      className="text-xs text-red-600 hover:underline dark:text-red-400"
+                      className="text-xs text-galat-ink hover:underline"
                     >
                       {u("arsipkan")}
                     </button>
@@ -800,7 +800,7 @@ function AdjustmentsCard({
                   <Td
                     numeric
                     label={u("nominal")}
-                    className={a.amount < 0 ? "text-red-600 dark:text-red-400" : ""}
+                    className={a.amount < 0 ? "text-galat-ink" : ""}
                   >
                     {formatIDR(a.amount)}
                   </Td>
@@ -812,7 +812,7 @@ function AdjustmentsCard({
                         <Badge tone="amber">menunggu run</Badge>
                         <button
                           onClick={() => remove.mutate(a.id)}
-                          className="ml-2 text-xs text-red-600 hover:underline dark:text-red-400"
+                          className="ml-2 text-xs text-galat-ink hover:underline"
                         >
                           hapus
                         </button>
@@ -1281,7 +1281,7 @@ function RunRow({
         {canVoid && !isVoided ? (
           <Button
             variant="ghost"
-            className="h-8 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+            className="h-8 text-galat-ink hover:bg-galat-surface"
             onClick={() => setVoidOpen(true)}
           >
             {u("batalkan")}
@@ -1353,7 +1353,7 @@ function RunRow({
                       href={`/cetak/slip-gaji?tenant=${tenantId}&run=${run.id}&employee=${p.employeeId}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs text-brand-700 hover:underline dark:text-brand-400"
+                      className="text-xs text-brand-ink hover:underline"
                     >
                       {u("cetak")}
                     </a>
