@@ -7,6 +7,7 @@ import {
   type ProjectTaskPriority,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Halaman, Lembar } from "../components/kerangka";
 import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import {
@@ -30,7 +31,6 @@ import {
   EmptyState,
   Input,
   Label,
-  PageHeading,
   Select,
   Spinner,
   Table,
@@ -100,6 +100,7 @@ export function ProjectsPage() {
   );
 
   const [form, setForm] = useState({ code: "", name: "", contactId: "", budget: "" });
+  const [lembarBuka, setLembarBuka] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const create = useMutation({
@@ -114,23 +115,50 @@ export function ProjectsPage() {
       toast("success", u("toastProyekDibuat"));
       setForm({ code: "", name: "", contactId: "", budget: "" });
       setError(null);
+      setLembarBuka(false);
       queryClient.invalidateQueries({ queryKey: ["projects", tenant.tenantId] });
     },
     onError: (err) => setError((err as Error).message),
   });
 
+  // Fase 38i — formulir pembuatan pindah ke Lembar; halaman membuka dengan data.
   const projects = projectsQuery.data?.projects ?? [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <PageHeading k="proyek" />
-      </div>
-
-      {isAdmin ? (
-        <Card>
-          <CardHeader title={u("proyekBaru")} description={u("descProyekBaru")} />
-          <CardBody className="space-y-4">
+    <Halaman
+      k="proyek"
+      ikon={FolderKanban}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <Plus className="size-4" aria-hidden /> {u("proyekBaru")}
+          </Button>
+        ) : null
+      }
+    >
+      <Lembar
+        terbuka={lembarBuka}
+        tutup={() => setLembarBuka(false)}
+        judul={u("proyekBaru")}
+        deskripsi={u("descProyekBaru")}
+        aksi={
+          <>
+            <Button variant="secondary" onClick={() => setLembarBuka(false)}>
+              {u("batal")}
+            </Button>
+            <Button
+              onClick={() => create.mutate()}
+              disabled={
+                create.isPending || form.code.trim().length < 1 || form.name.trim().length < 2
+              }
+            >
+              {create.isPending ? <Spinner /> : <Plus className="size-4" aria-hidden />}{" "}
+              {u("buatProyek")}
+            </Button>
+          </>
+        }
+      >
+          <div className="space-y-4">
             {error ? <Alert tone="error">{error}</Alert> : null}
             <div className="grid gap-3 sm:grid-cols-4">
               <div>
@@ -176,20 +204,8 @@ export function ProjectsPage() {
                 </Select>
               </div>
             </div>
-            <div className="flex justify-end">
-              <Button
-                onClick={() => create.mutate()}
-                disabled={
-                  create.isPending || form.code.trim().length < 1 || form.name.trim().length < 2
-                }
-              >
-                {create.isPending ? <Spinner /> : <Plus className="size-4" aria-hidden />}{" "}
-                {u("buatProyek")}
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-      ) : null}
+          </div>
+      </Lembar>
 
       <Card>
         <CardHeader title={u("daftarProyek")} />
@@ -211,7 +227,7 @@ export function ProjectsPage() {
           )}
         </CardBody>
       </Card>
-    </div>
+    </Halaman>
   );
 }
 

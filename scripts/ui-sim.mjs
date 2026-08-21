@@ -799,11 +799,17 @@ try {
   // Fase 16p — pelunasan utang 16j. Rute diverifikasi ke main.tsx: /app/proyek.
   // Tombol buat proyek selalu tampil untuk admin; lencana status hanya muncul
   // bila ada proyek, jadi asersinya hanya menuntut tombolnya.
+  //
+  // Fase 38i — penandanya berpindah dari "Create project" ke "New project".
+  // Subjek asersi TIDAK berubah (halaman Proyek ikut berbahasa Inggris); yang
+  // berubah adalah tombol mana yang tampil di halaman, karena formulir
+  // pembuatan beserta tombol "Buat proyek"-nya kini berada di dalam Lembar dan
+  // baru terpasang saat dibuka. Yang tampil di halaman adalah aksi utamanya.
   await gotoRoute("/app/proyek", 800);
   const prjSisaEn = await page.innerText("body");
-  const adaProyekSisaEn = prjSisaEn.includes("Create project");
+  const adaProyekSisaEn = prjSisaEn.includes("New project");
   const tanpaProyekSisaId =
-    !prjSisaEn.includes("Buat proyek") && !prjSisaEn.includes("Seret kartu untuk memindahkan");
+    !prjSisaEn.includes("Proyek baru") && !prjSisaEn.includes("Seret kartu untuk memindahkan");
   check(
     "F0t sisa teks Proyek ikut EN: tombol buat proyek, tanpa teks Indonesia",
     adaProyekSisaEn && tanpaProyekSisaId,
@@ -1732,6 +1738,9 @@ try {
   // F8 — CRM: tambah lead → muncul di papan funnel.
   resetErrors();
   await gotoRoute("/app/crm/leads");
+  // Fase 38i — formulir lead pindah ke Lembar; halaman kini membuka dengan
+  // papan kanban, bukan formulir kosong.
+  await bukaLembar(page, "Lead baru");
   await page.fill("#lead-name", "Lead Uji Simulasi");
   const leadPost = postDone("/leads");
   await page.getByRole("button", { name: "Tambah Lead" }).click();
@@ -2405,6 +2414,7 @@ try {
   // meninggalkan jejak apa pun bila salah.
   resetErrors();
   await gotoRoute("/app/master/grup-harga", 1000);
+  await bukaLembar(page, "Grup baru");
   await page.locator("#gh-nama").fill("Grosir UI");
   await page.getByRole("button", { name: "Tambah grup" }).click();
   await page.waitForTimeout(900);

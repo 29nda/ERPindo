@@ -9,7 +9,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
-import { ArrowRight, Check, FileText, Send, UserPlus, Users, X } from "lucide-react";
+import { Halaman, Lembar } from "../components/kerangka";
+import { ArrowRight, Check, FileText, Send, Target, UserPlus, Users, X } from "lucide-react";
 import { useState } from "react";
 import { api, formatIDR } from "../api/client";
 import {
@@ -169,6 +170,8 @@ export function LeadsPage() {
     estValue: "",
   });
   const [error, setError] = useState<string | null>(null);
+  // Fase 38i — formulir lead pindah ke Lembar; halaman membuka dengan papan kanban.
+  const [lembarBuka, setLembarBuka] = useState(false);
 
   const create = useMutation({
     mutationFn: () =>
@@ -183,6 +186,7 @@ export function LeadsPage() {
     onSuccess: () => {
       toast("success", u("leadDitambahkan"));
       setForm({ name: "", contactPerson: "", phone: "", email: "", source: "", estValue: "" });
+      setLembarBuka(false);
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["leads", tenant.tenantId] });
     },
@@ -197,11 +201,17 @@ export function LeadsPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <PageHeading k="crmPipeline" />
-      </div>
-
+    <Halaman
+      k="crmPipeline"
+      ikon={Target}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <UserPlus className="size-4" aria-hidden /> {u("leadBaru")}
+          </Button>
+        ) : null
+      }
+    >
       {/* Papan kanban funnel — seret kartu antar kolom untuk memindah tahap. */}
       <KanbanBoard leads={leads} isAdmin={isAdmin} />
 
@@ -224,12 +234,29 @@ export function LeadsPage() {
 
       {tenant.role === "owner" ? <KartuFormLead tenantId={tenant.tenantId} /> : null}
 
-      {isAdmin ? (
-        <Card>
-          <CardHeader title={u("leadBaru")} description={u("descLeadAktif")} />
-          <CardBody className="space-y-4">
+      <Lembar
+        terbuka={lembarBuka}
+        tutup={() => setLembarBuka(false)}
+        judul={u("leadBaru")}
+        deskripsi={u("descLeadAktif")}
+        aksi={
+          <>
+            <Button variant="secondary" onClick={() => setLembarBuka(false)}>
+              {u("batal")}
+            </Button>
+            <Button
+              onClick={() => create.mutate()}
+              disabled={create.isPending || form.name.trim().length < 2}
+            >
+              {create.isPending ? <Spinner /> : <UserPlus className="size-4" aria-hidden />}{" "}
+              {u("tambahLead")}
+            </Button>
+          </>
+        }
+      >
+          <div className="space-y-4">
             {error ? <Alert tone="error">{error}</Alert> : null}
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="lead-name">{u("namaProspek")}</Label>
                 <Input
@@ -283,18 +310,8 @@ export function LeadsPage() {
                 />
               </div>
             </div>
-            <div className="flex justify-end">
-              <Button
-                onClick={() => create.mutate()}
-                disabled={create.isPending || form.name.trim().length < 2}
-              >
-                {create.isPending ? <Spinner /> : <UserPlus className="size-4" aria-hidden />}{" "}
-                {u("tambahLead")}
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-      ) : null}
+          </div>
+      </Lembar>
 
       <Card>
         <CardHeader title={u("leadAktif")} description={`${openLeads.length} ${u("leadTerbukaSuffix")}`} />
@@ -318,7 +335,7 @@ export function LeadsPage() {
       </Card>
 
       <SourceReportCard tenantId={tenant.tenantId} />
-    </div>
+    </Halaman>
   );
 }
 
