@@ -951,6 +951,10 @@ export const UI = {
   cairkanKasbon: { id: "Cairkan Kasbon", en: "Disburse loan" },
   jalankanPenggajian: { id: "Jalankan penggajian", en: "Run payroll" },
   tambahKaryawan: { id: "Tambah karyawan", en: "Add employee" },
+  descTambahKaryawan: {
+    id: "Gaji pokok dan tunjangan dipakai menghitung PPh 21 dan BPJS pada penggajian berikutnya.",
+    en: "Base salary and allowances feed the PPh 21 and BPJS calculation on the next payroll run.",
+  },
   tambahKomponen: { id: "Tambah komponen", en: "Add component" },
   jalankanPenggajianBulanan: { id: "Jalankan penggajian bulanan", en: "Run monthly payroll" },
   riwayatPenggajian: { id: "Riwayat penggajian", en: "Payroll history" },

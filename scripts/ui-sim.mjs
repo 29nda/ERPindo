@@ -493,6 +493,10 @@ try {
     `→ form=${adaAddContact} tanpaID=${tanpaKontakId}`,
   );
   await gotoRoute("/app/penjualan", 800);
+  // Fase 38t: editor faktur pindah ke Lembar, jadi isinya baru ada di DOM
+  // setelah lembarnya dibuka. Nama tombolnya ikut bahasa aktif — di blok ini
+  // antarmuka sedang berbahasa Inggris.
+  await bukaLembar(page, "Sales invoice — new");
   const jualEn = await page.innerText("body");
   // Judul kartu daftar & label kontak = teks terlihat; harga satuan hanya ada
   // sebagai PLACEHOLDER (atribut) sehingga tak terbaca innerText — dicek lewat
@@ -1724,6 +1728,7 @@ try {
   // supaya penolakan dari skema tak pernah sampai ke pengguna.
   resetErrors();
   await gotoRoute("/app/penjualan", 1000);
+  await bukaLembar(page, "Faktur penjualan baru");
   // Pelanggan wajib dipilih — tanpa itu tombol posting mati karena alasan lain
   // dan pemeriksaan di bawah kehilangan artinya.
   await page.getByPlaceholder("Cari pelanggan…").first().fill("a");
@@ -1919,11 +1924,16 @@ try {
   // F10 — HR: tambah karyawan via form.
   resetErrors();
   await gotoRoute("/app/hr/penggajian", 1000);
+  // Fase 38t: formulir karyawan keluar dari kartu daftar, masuk ke Lembar.
+  await bukaLembar(page, "Tambah karyawan");
   await page.fill("#emp-name", "Karyawan Uji Simulasi");
   await page.fill("#emp-pos", "Staf QA");
   await page.fill("#emp-salary", "5000000");
   const empPost = postDone("/employees");
-  await page.getByRole("button", { name: "Tambah Karyawan" }).click();
+  // Dilingkupi ke dalam Lembar: sejak Fase 38t ADA DUA tombol bernama sama —
+  // pemicu di kepala kartu, dan tombol simpan di kaki lembar. Tanpa lingkup ini
+  // Playwright menolak dengan strict mode violation, bukan memilih salah satu.
+  await page.locator("[data-lembar]").getByRole("button", { name: "Tambah karyawan" }).click();
   await empPost;
   await page.locator("td", { hasText: "Karyawan Uji Simulasi" }).first().waitFor();
   check("F10 HR: karyawan baru → 201 → tampil di daftar", true);
@@ -2400,7 +2410,18 @@ try {
   await page.waitForTimeout(700);
 
   await gotoRoute("/app/hr/penggajian", 900);
-  check("F19 Penggajian bertab: default tab Karyawan (form #emp-name)", (await page.locator("#emp-name").count()) === 1);
+  // Subjeknya TIDAK berubah: tab Karyawan tetap yang tampil lebih dulu. Yang
+  // berubah hanya buktinya — dulu ditandai medan #emp-name yang selalu
+  // terpasang; sejak Fase 38t medan itu hidup di dalam Lembar, jadi yang
+  // ditunjuk adalah tombol yang membukanya.
+  check(
+    "F19 Penggajian bertab: default tab Karyawan (aksi 'Tambah karyawan')",
+    (await page.getByRole("button", { name: "Tambah karyawan" }).count()) === 1,
+  );
+  await bukaLembar(page, "Tambah karyawan");
+  check("F19 Lembar karyawan memuat medan #emp-name", (await page.locator("#emp-name").count()) === 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
   await page.getByRole("tab", { name: "Kasbon" }).click();
   await page.waitForTimeout(400);
   check("F19 tab Kasbon menampilkan kartu pinjaman karyawan", (await page.innerText("body")).includes("Kasbon / pinjaman karyawan"));
@@ -2516,6 +2537,7 @@ try {
   await page.waitForTimeout(1200);
 
   await gotoRoute("/app/penjualan", 1100);
+  await bukaLembar(page, "Faktur penjualan baru");
   await page.getByPlaceholder("Cari pelanggan…").first().fill("Toko Grosir UI");
   await page.waitForTimeout(800);
   await page.locator("div.absolute.z-30 button").first().click();
@@ -2642,6 +2664,8 @@ try {
 
   // Penawaran (CRM): pilih pelanggan bergrup → lencana + harga grup.
   await gotoRoute("/app/crm/penawaran", 1500);
+  // Fase 38t: editor penawaran keluar dari halaman, masuk ke Lembar.
+  await bukaLembar(page, "Penawaran baru");
   await page.locator("#q-contact").waitFor({ timeout: 15_000 });
   const hargaGrupTiba4 = pageGet("/price-groups/");
   await page.selectOption("#q-contact", { label: "Toko Grosir UI" });

@@ -23,7 +23,6 @@ import {
   EmptyState,
   Input,
   Label,
-  PageHeading,
   Select,
   Spinner,
   Table,
@@ -747,6 +746,7 @@ export function QuotationsPage() {
   const [taxRate, setTaxRate] = useState<0 | 11 | 12>(11);
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
   const [error, setError] = useState<string | null>(null);
+  const [lembarBuka, setLembarBuka] = useState(false);
 
   const products = (productsQuery.data?.items ?? []) as ProductRow[];
   const contacts = ((contactsQuery.data?.items ?? []) as ContactRow[]).filter((k) =>
@@ -773,6 +773,7 @@ export function QuotationsPage() {
       setLines([emptyLine()]);
       setContactId("");
       setError(null);
+      setLembarBuka(false);
       queryClient.invalidateQueries({ queryKey: ["quotations", tenant.tenantId] });
     },
     onError: (err) => setError((err as Error).message),
@@ -818,17 +819,42 @@ export function QuotationsPage() {
   const taxAmount = Math.round((subtotal * taxRate) / 100);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <PageHeading k="crmPenawaran" />
-      </div>
-
+    <Halaman
+      k="crmPenawaran"
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <FileText className="size-4" aria-hidden /> {u("penawaranBaru")}
+          </Button>
+        ) : null
+      }
+    >
+      {/*
+        Fase 38t — editor penawaran pindah ke Lembar.
+        Ia ditunda di 38k karena bukan formulir sederhana: satu kepala, baris
+        barang yang bisa ditambah, dan rekap total yang ikut berubah. Menggeser
+        pembungkusnya saja akan meninggalkan halaman setengah jadi, jadi yang
+        dikerjakan di sini penataan ulang — bukan penggeseran.
+      */}
       {isAdmin ? (
-        <Card>
-          <CardHeader title={u("penawaranBaru")} description={u("descPenawaranBaru")} />
-          <CardBody className="space-y-4">
+        <Lembar
+          terbuka={lembarBuka}
+          tutup={() => setLembarBuka(false)}
+          lebar="lebar"
+          judul={u("penawaranBaru")}
+          deskripsi={u("descPenawaranBaru")}
+          aksi={
+            <Button
+              onClick={() => create.mutate()}
+              disabled={create.isPending || !contactId || subtotal === 0}
+            >
+              {create.isPending ? <Spinner /> : null} {u("buatPenawaran")}
+            </Button>
+          }
+        >
+          <div className="space-y-4">
             {error ? <Alert tone="error">{error}</Alert> : null}
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="q-contact">{u("pelanggan")}</Label>
                 <Select
@@ -852,6 +878,18 @@ export function QuotationsPage() {
                 ) : null}
               </div>
               <div>
+                <Label htmlFor="q-tax">PPN</Label>
+                <Select
+                  id="q-tax"
+                  value={String(taxRate)}
+                  onChange={(e) => setTaxRate(Number(e.target.value) as 0 | 11 | 12)}
+                >
+                  <option value="0">{u("tanpaPpn")}</option>
+                  <option value="11">PPN 11%</option>
+                  <option value="12">PPN 12%</option>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="q-date">{u("tanggal")}</Label>
                 <Input
                   id="q-date"
@@ -869,25 +907,17 @@ export function QuotationsPage() {
                   onChange={(e) => setValidUntil(e.target.value)}
                 />
               </div>
-              <div>
-                <Label htmlFor="q-tax">PPN</Label>
-                <Select
-                  id="q-tax"
-                  value={String(taxRate)}
-                  onChange={(e) => setTaxRate(Number(e.target.value) as 0 | 11 | 12)}
-                >
-                  <option value="0">{u("tanpaPpn")}</option>
-                  <option value="11">PPN 11%</option>
-                  <option value="12">PPN 12%</option>
-                </Select>
-              </div>
             </div>
 
             <div className="space-y-2">
               {lines.map((line, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_6rem_10rem_10rem_2.5rem] sm:items-center"
+                  /* `[&>*]:min-w-0` — lihat catatan di finance.tsx: lebar auto
+                     sebuah <select> adalah selebar opsi terpanjangnya, jadi trek
+                     `1fr` menolak menyusut dan barisnya mendorong lembarnya
+                     menggulir ke samping. */
+                  className="grid grid-cols-2 gap-2 [&>*]:min-w-0 sm:grid-cols-[1fr_5rem_8rem_8rem_2.5rem] sm:items-center"
                 >
                   <Select
                     aria-label={`${u("produkBaris")} ${i + 1}`}
@@ -933,7 +963,7 @@ export function QuotationsPage() {
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
               <Button
                 type="button"
                 variant="secondary"
@@ -951,15 +981,9 @@ export function QuotationsPage() {
                 ) : null}{" "}
                 · Total <strong className="tabular-nums">{formatIDR(subtotal + taxAmount)}</strong>
               </div>
-              <Button
-                onClick={() => create.mutate()}
-                disabled={create.isPending || !contactId || subtotal === 0}
-              >
-                {create.isPending ? <Spinner /> : null} {u("buatPenawaran")}
-              </Button>
             </div>
-          </CardBody>
-        </Card>
+          </div>
+        </Lembar>
       ) : null}
 
       <Card>
@@ -982,7 +1006,7 @@ export function QuotationsPage() {
           )}
         </CardBody>
       </Card>
-    </div>
+    </Halaman>
   );
 }
 
