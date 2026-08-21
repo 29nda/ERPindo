@@ -753,27 +753,6 @@ export function useDarkMode() {
 
 // --- Wordmark ERPindo (Fase 10a) ------------------------------------------------------
 
-/** Wordmark merek: gambar logo ASLI dari pemilik (public/brand/logo-erpindo.png),
- *  dipakai apa adanya. Chip putih membuat logo tetap terbaca di tema gelap /
- *  latar gradien. Atur ukuran lewat className tinggi (mis. "h-8"). */
-/**
- * Wordmark merek (Fase 19a — chip putih dihapus).
- *
- * Sebelumnya logo dibungkus chip `bg-white` karena berkas PNG-nya **RGB tanpa
- * kanal alfa**: latar putihnya ikut terbakar di dalam gambar, sehingga chip itu
- * bukan hiasan melainkan penyamar kotak putih yang memang akan muncul. Di tema
- * gelap ia terlihat seperti tambalan, dan di tema terang masih samar terlihat
- * di atas panel `brand-50` halaman masuk.
- *
- * Kini dipakai dua varian ber-alfa hasil `scripts/brand-alfa.mjs` — varian
- * gelap mencerahkan tulisan abu-gelap ("indo" + tagline) sambil mempertahankan
- * biru merek, karena tulisan itu praktis tak terbaca di latar gelap.
- *
- * Keduanya dirender bertumpuk dan ditukar lewat `dark:` alih-alih memilih di
- * JavaScript: penukaran murni CSS ikut berlaku pada muat pertama, sebelum React
- * hidrasi, sehingga tidak ada kedipan logo salah tema (alasan yang sama dengan
- * anti-FOUC `theme-init.js`).
- */
 /**
  * Wordmark ERPindo — digambar, bukan gambar (Fase 32a).
  *

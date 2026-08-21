@@ -222,11 +222,14 @@
   --color-brand-900: #57261a;
   --color-brand-950: #2f1310;
 
-  /* Segitiga cyan di logo — dipakai hemat, hanya sebagai penanda hidup
-     (indikator daring, sorotan grafik). Bukan warna aksi. */
-  --color-spark-400: #22c4ff;
-  --color-spark-500: #00a8e8;
-  --color-spark-600: #0086bd;
+  /* Fase 38g — ramp `spark-*` DIBUANG.
+
+     Ia diturunkan dari "segitiga cyan di logo", dan logo itu sendiri sudah
+     tidak ada sejak wordmark menjadi teks pada Fase 32a. Ramp-nya bertahan
+     enam fase lebih lama daripada hal yang menjadi alasannya, dengan NOL
+     pemakai di seluruh `apps/web/src`. Kosakata warna yang tidak dipakai
+     bukan sekadar bobot mati: ia tawaran yang akan diambil orang berikutnya
+     tanpa tahu asalnya sudah dicabut. */
 
   /* -------------------------------------------------------------------------
      Netral: ramp `slate-*` dipetakan ulang ke netral bercorak biru yang sama

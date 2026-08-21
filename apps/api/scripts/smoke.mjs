@@ -7167,6 +7167,36 @@ try {
   // Halaman hukum menyatakan dirinya draf. Diuji karena kebalikannya —
   // dokumen yang tampak final padahal masih memuat penampung identitas — akan
   // beredar ke bagian hukum calon pelanggan tanpa ada yang menyadarinya.
+  // --- Merek murni teks (Fase 38g) --------------------------------------------
+  //
+  // Halaman yang disajikan Worker adalah satu-satunya tempat logo raster masih
+  // tayang setelah wordmark menjadi teks pada Fase 32a. Cek ini menjaga agar ia
+  // tidak kembali — dan agar rujukan berkas yang TIDAK ADA (seperti
+  // `/logo.svg` di /api-docs, yang disembunyikan `onerror` selama belasan fase)
+  // tidak bisa lolos lagi tanpa berbunyi.
+  for (const jalur of ["/blog", "/api-docs"]) {
+    const html = await (await fetch(`${BASE}${jalur}`)).text();
+    check(
+      `38g ${jalur} memakai wordmark teks, bukan berkas logo`,
+      html.includes("data-wordmark") && !/\/brand\/|logo\.svg/.test(html),
+      `→ wordmark=${html.includes("data-wordmark")}`,
+    );
+    check(
+      `38g ${jalur} memakai palet krem yang sama dengan aplikasinya`,
+      html.includes("#f5f2ea") && !html.includes("#2563eb"),
+      `→ palet lama masih ada`,
+    );
+  }
+
+  // /api-docs sempat menjual "paket Enterprise" yang dibubarkan Fase 30 —
+  // bertentangan langsung dengan /harga yang menyatakan seluruh modul terbuka.
+  const docsHtml = await (await fetch(`${BASE}/api-docs`)).text();
+  check(
+    "38g /api-docs tidak menjual paket bertingkat yang sudah dibubarkan",
+    !/\b(Enterprise|Starter)\b/.test(docsHtml),
+    `→ nama paket lama masih disebut`,
+  );
+
   const syaratHtml = await (await fetch(`${BASE}/syarat`)).text();
   check(
     "38d /syarat menyatakan dirinya draf selama penampung identitas masih ada",
