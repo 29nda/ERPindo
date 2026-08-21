@@ -60,7 +60,7 @@ teks** oleh skrip — tidak ada gambar buatan tangan di mana pun.
 | Hasil build | 9,7 MB | **3,4 MB** |
 | Yang diunduh untuk dipasang sebagai aplikasi | 5.837 KB | **2.719 KB** |
 
-### 6. Tiga hal yang ditemukan di jalan, dan tidak ada yang pernah melaporkannya
+### 6. Lima hal yang ditemukan di jalan, dan tidak ada yang pernah melaporkannya
 
 - **Panduan menjanjikan uji coba 30 hari** yang sudah dihapus empat belas fase
   sebelumnya — di halaman yang justru dibaca orang yang sudah serius memakai
@@ -70,9 +70,48 @@ teks** oleh skrip — tidak ada gambar buatan tangan di mana pun.
 - **Mencetak faktur dalam tema gelap menghasilkan halaman nyaris kosong** —
   teks krem terang di atas kertas putih. Dugaan saya, yang mengalaminya
   menyimpulkan printernya bermasalah.
+- **Dua kartu pengaturan masih menawarkan "Tingkatkan ke Enterprise"** pada
+  jalur galatnya. Yang membuatnya lebih buruk daripada sekadar naskah basi:
+  galat itu sebenarnya berarti *peran Anda tidak cukup*, atau *alamat IP Anda
+  tidak termasuk yang diizinkan*. Seorang Pemilik yang baru saja salah mengetik
+  daftar IP-nya sendiri akan membaca tawaran paket — jawaban yang salah, pada
+  saat yang paling buruk, tentang masalah yang sama sekali berbeda.
+- **Formulir produk pecah di dalam panel barunya**: kotak "Nama" tergencet
+  menjadi selebar satu huruf dan tombol simpan terpotong di tepi kanan.
 
-Ketiganya diperbaiki, dan ketiganya kini dijaga uji otomatis supaya tidak bisa
+Kelimanya diperbaiki, dan kelimanya kini dijaga uji otomatis supaya tidak bisa
 kembali.
+
+### 7. Cacat kelima itu ditemukan oleh mata, bukan oleh mesin
+
+Ini layak diceritakan tersendiri, karena ia menyangkut cara kerja seluruh
+gerbang di repo ini.
+
+Saat formulir produk pecah, **semua pemeriksaan otomatis hijau**. Bukan karena
+ada yang bocor: pemeriksaannya menguji apakah kotak isian **bisa diisi**, dan
+kotak selebar satu huruf tetap bisa diisi. Tidak ada satu pun yang menguji
+apakah ia **bisa dibaca**.
+
+Ia ketahuan karena Anda meminta melihat hasilnya, dan gambarnya benar-benar
+diambil dari aplikasi yang berjalan. Yang dilakukan berikutnya bukan sekadar
+membetulkan formulirnya, melainkan memasang penjaga di dalam pembuka panel
+itu sendiri — sehingga **setiap panel yang ditulis nanti ikut terjaga tanpa
+siapa pun perlu ingat menambahkannya**. Penjaganya juga dibuktikan bisa gagal
+lebih dulu: kesalahan lama dipasang kembali sebentar, dan gerbangnya menolak.
+
+Sebuah pemeriksaan yang belum pernah terlihat gagal belum diketahui berguna.
+
+### 8. Formulir terakhir ikut pindah
+
+Tiga formulir sengaja ditunda pada gelombang pertama karena bukan formulir
+sederhana: editor faktur (dengan pengambilan dari beberapa gudang, satuan
+besar, lot & kedaluwarsa, dan valuta asing), editor penawaran, dan formulir
+karyawan. Ketiganya kini selesai — ditata ulang, bukan sekadar dipindahkan.
+
+Pada halaman Penggajian, tujuh kotak isian yang dulu terpasang permanen
+mendorong daftar karyawan turun hampir satu layar penuh. Membaca daftar itu
+kejadian harian; menambah karyawan kejadian sesekali — dan tata letak lamanya
+menomorsatukan yang jarang.
 
 ## Di mana kita sekarang?
 
@@ -377,9 +416,9 @@ kembali.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.129 skenario ujian end-to-end + 597 unit test + 356 cek simulasi UI browser nyata**, totalnya **2.082 pemeriksaan**. Di atas itu ada dua gerbang lagi yang juga wajib lulus: pemeriksa tipe data dan pemeriksa standar kode (wajib sejak Fase 12a). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.157 skenario ujian end-to-end + 917 unit test + 424 cek simulasi UI browser nyata**, totalnya **2.498 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
-*Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 17 Agustus 2026, bukan disalin dari catatan.*
+*Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 21 Agustus 2026, bukan disalin dari catatan.*
 
 ## Apakah sudah bisa diakses di internet?
 
