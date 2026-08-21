@@ -329,6 +329,9 @@ Pekerjaan kode sudah selesai, dan infrastruktur Cloudflare (7 database + penyimp
 2. **Workers Paid + D1 dinamis** → menembus batas 6 perusahaan ($5/bulan).
 3. **Token analitik** → menyalakan monitor kuota di dasbor (±5 menit, gratis).
 
+4. **Aktifkan kotak surat `halo@erpindo.id`** → halaman `/kontak` sudah memasang alamat ini sebagai satu-satunya jalur menghubungi Anda sebelum berlangganan. Sampai kotak surat itu dibuat di penyedia domain, surel yang dikirim pengunjung hilang tanpa jejak (±10 menit).
+5. **Ganti penampung identitas di `/syarat` dan `/privasi`** → kedua halaman memuat `[NAMA BADAN USAHA]` dan `[ALAMAT LENGKAP]`, dan selama itu ada keduanya menampilkan spanduk "draf menunggu tinjauan". Halaman hukum sebaiknya juga dibaca penasihat hukum sebelum dipakai sebagai dasar perjanjian.
+
 Langkah rincinya, beserta cara memverifikasi tiap langkah berhasil: **[docs/langkah-pemilik.md](./langkah-pemilik.md)**.
 
 Halaman depan sengaja **tidak menyebut angka bulan demo** sama sekali, jadi tidak ada janji yang meleset selama Anda belum sempat mengerjakan nomor 1.

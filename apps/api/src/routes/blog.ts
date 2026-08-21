@@ -175,6 +175,14 @@ ${renderMarkdown(post.body_md)}
     const urls = [
       `<url><loc>${base}/</loc></url>`,
       `<url><loc>${base}/fitur</loc></url>`,
+      // Fase 38d — enam halaman publik baru. Sitemap adalah tempat ketiga yang
+      // harus ikut diperbarui bersama rute SEO dan `run_worker_first`.
+      `<url><loc>${base}/harga</loc></url>`,
+      `<url><loc>${base}/keamanan</loc></url>`,
+      `<url><loc>${base}/tentang</loc></url>`,
+      `<url><loc>${base}/kontak</loc></url>`,
+      `<url><loc>${base}/syarat</loc></url>`,
+      `<url><loc>${base}/privasi</loc></url>`,
       `<url><loc>${base}/panduan</loc></url>`,
       `<url><loc>${base}/blog</loc></url>`,
       ...results.map(

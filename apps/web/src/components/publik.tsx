@@ -60,9 +60,24 @@ export type TautanPublik = [href: string, label: { id: string; en: string }];
  */
 export const TAUTAN_PUBLIK: TautanPublik[] = [
   ["/fitur", { id: "Fitur", en: "Features" }],
-  ["/#harga", { id: "Harga", en: "Pricing" }],
+  // Fase 38d — `/harga` kini halaman sungguhan, bukan jangkar ke seksi beranda.
+  // Seksi di beranda TETAP ada beserta `id="harga"`-nya: ia yang membuat harga
+  // terbaca sebelum pengunjung memutuskan menggulir, dan asersi F30b menjaganya.
+  ["/harga", { id: "Harga", en: "Pricing" }],
+  ["/keamanan", { id: "Keamanan", en: "Security" }],
   ["/panduan", { id: "Panduan", en: "Guide" }],
   ["/#faq", { id: "FAQ", en: "FAQ" }],
+];
+
+/**
+ * Tautan kaki halaman yang tidak muat di bilah atas — halaman yang dicari
+ * ketika sudah dibutuhkan, bukan ketika sedang menilai.
+ */
+export const TAUTAN_KAKI: TautanPublik[] = [
+  ["/tentang", { id: "Tentang", en: "About" }],
+  ["/kontak", { id: "Kontak", en: "Contact" }],
+  ["/syarat", { id: "Syarat Layanan", en: "Terms of Service" }],
+  ["/privasi", { id: "Kebijakan Privasi", en: "Privacy Policy" }],
 ];
 
 export function PublicHeader({
@@ -218,23 +233,32 @@ export function PublicFooter() {
             )}
           </p>
         </div>
-        <nav className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          {TAUTAN_PUBLIK.map(([href, label]) => (
-            <a key={href} href={href} className="hover:text-ink">
-              {label[lang]}
+        <div className="flex flex-col gap-2">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {TAUTAN_PUBLIK.map(([href, label]) => (
+              <a key={href} href={href} className="hover:text-ink">
+                {label[lang]}
+              </a>
+            ))}
+            {/* Blog dilayani Worker (SEO), jadi navigasinya keras — bukan rute SPA. */}
+            <a href="/blog" className="hover:text-ink">
+              Blog
             </a>
-          ))}
-          {/* Blog dilayani Worker (SEO), jadi navigasinya keras — bukan rute SPA. */}
-          <a href="/blog" className="hover:text-ink">
-            Blog
-          </a>
-          <Link to="/masuk" className="hover:text-ink">
-            {L(lang, "Masuk", "Sign in")}
-          </Link>
-          <Link to="/daftar" className="hover:text-ink">
-            {L(lang, "Daftar", "Sign up")}
-          </Link>
-        </nav>
+            <Link to="/masuk" className="hover:text-ink">
+              {L(lang, "Masuk", "Sign in")}
+            </Link>
+            <Link to="/daftar" className="hover:text-ink">
+              {L(lang, "Daftar", "Sign up")}
+            </Link>
+          </nav>
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-ink-faint">
+            {TAUTAN_KAKI.map(([href, label]) => (
+              <a key={href} href={href} className="hover:text-ink">
+                {label[lang]}
+              </a>
+            ))}
+          </nav>
+        </div>
       </div>
       <div className="mx-auto max-w-6xl px-4 pb-6 text-xs text-ink-faint sm:px-6">
         © {new Date().getFullYear()} ERPindo

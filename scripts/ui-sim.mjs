@@ -2930,6 +2930,73 @@ try {
   );
   check("F50 /panduan punya kaki halaman", (await page.locator("footer").count()) >= 1);
 
+  // --- F51 Enam halaman publik (Fase 38d) ----------------------------------
+  //
+  // Diperiksa dari SISI PENGUNJUNG, mengikuti alasan F29: rute yang ada tetapi
+  // tak tertaut dari mana pun sama saja tidak ada. Karena itu `/harga` dicapai
+  // lewat klik pada bilah atas, bukan lewat URL yang diketik.
+  await gotoRoute("/", 700);
+  await page.locator('header a[href="/harga"]').first().click();
+  await page.waitForURL("**/harga", { timeout: 15_000 });
+  await page.waitForTimeout(700);
+  const hargaText = (await page.innerText("body")).replace(/\u00A0/g, " ");
+  check(
+    "F51 /harga terjangkau dari bilah atas dan memuat harga bulanan",
+    hargaText.includes("Rp 499.000"),
+    `→ harga tidak ditemukan`,
+  );
+  // 36 × 499.000 = 17.964.000. Diuji karena inilah angka yang diminta bagian
+  // pengadaan, dan satu-satunya angka di situs yang dihitung dari perkalian —
+  // jadi ia akan salah diam-diam bila harga bulanannya berubah tanpa halaman
+  // ini ikut dihitung ulang.
+  check(
+    "F51 /harga menyebut biaya kepemilikan tiga tahun yang benar",
+    hargaText.includes("17.964.000"),
+    `→ biaya 3 tahun tidak ditemukan`,
+  );
+
+  await gotoRoute("/keamanan", 700);
+  const amanText = await page.innerText("body");
+  // Seksi "yang belum ada" adalah yang membuat halaman keamanan layak
+  // dipercaya. Halaman keamanan yang hanya memuat hal baik terbaca sebagai
+  // brosur — dan brosur tidak diteruskan manajer TI ke bagian pengadaan.
+  check(
+    "F51 /keamanan menyebut sertifikasi yang BELUM dimiliki, bukan hanya yang baik",
+    amanText.includes("ISO 27001") && amanText.includes("SOC 2"),
+    `→ seksi kejujuran tidak ditemukan`,
+  );
+
+  await gotoRoute("/kontak", 700);
+  const kontakText = await page.innerText("body");
+  check(
+    "F51 /kontak memuat alamat surel yang bisa diklik",
+    (await page.locator('a[href^="mailto:"]').count()) >= 1 && kontakText.includes("@erpindo.id"),
+    `→ mailto tidak ditemukan`,
+  );
+
+  // Kedua halaman hukum WAJIB menyatakan dirinya draf selama penampung
+  // identitas penyelenggara masih ada. Dokumen yang tampak final padahal masih
+  // berpenampung akan beredar ke bagian hukum calon pelanggan.
+  for (const jalur of ["/syarat", "/privasi"]) {
+    await gotoRoute(jalur, 600);
+    const teks = await page.innerText("body");
+    const berpenampung = teks.includes("[NAMA BADAN USAHA]");
+    check(
+      `F51 ${jalur} menyatakan dirinya draf selagi penampung identitas ada`,
+      !berpenampung || teks.includes("Draf menunggu tinjauan"),
+      `→ penampung=${berpenampung}`,
+    );
+  }
+
+  await gotoRoute("/tentang", 600);
+  check(
+    "F51 /tentang menyebut sumber angka yang dikutipnya",
+    (await page.innerText("body")).includes("Panorama Consulting"),
+    `→ sumber tidak dicantumkan`,
+  );
+
+  check("F51 enam halaman publik bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/", 700);
 
   // Multibahasa (Fase 13d): toggle EN → hero & harga berbahasa Inggris, lalu kembali ID.

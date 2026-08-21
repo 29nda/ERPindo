@@ -7135,6 +7135,45 @@ try {
   const petaXml = await peta.text();
   check("SEO /fitur terdaftar di sitemap.xml", petaXml.includes("/fitur</loc>"), `→ ${peta.status}`);
 
+  // --- Enam halaman publik Fase 38d -------------------------------------------
+  //
+  // Ketiga hal yang sama harus benar sekaligus untuk tiap halaman, dan
+  // kegagalan salah satunya TIDAK terlihat di peramban: halaman yang lupa
+  // didaftarkan di `run_worker_first` tetap tampil sempurna bagi pengunjung —
+  // Worker hanya tak pernah dipanggil, jadi perayap menerima SPA kosong.
+  //
+  // Itulah sebabnya cek ini di smoke, bukan di ui-sim: yang diuji adalah
+  // perilaku Worker, dan ui-sim justru buta terhadapnya karena ia menjalankan
+  // JavaScript.
+  for (const [jalur, penanda] of [
+    ["/harga", "Harga ERPindo"],
+    ["/keamanan", "Keamanan ERPindo"],
+    ["/tentang", "Tentang ERPindo"],
+    ["/kontak", "Kontak ERPindo"],
+    ["/syarat", "Syarat Layanan ERPindo"],
+    ["/privasi", "Kebijakan Privasi ERPindo"],
+  ]) {
+    const res = await fetch(`${BASE}${jalur}`);
+    const html = await res.text();
+    const canonical = new RegExp(`rel="canonical" href="[^"]*${jalur}"`).test(html);
+    check(
+      `38d ${jalur}: Worker menyajikan canonical + noscript berisi ringkasannya`,
+      res.status === 200 && canonical && html.includes("<noscript>") && html.includes(penanda),
+      `→ status=${res.status} canonical=${canonical} penanda=${html.includes(penanda)}`,
+    );
+    check(`38d ${jalur} terdaftar di sitemap.xml`, petaXml.includes(`${jalur}</loc>`));
+  }
+
+  // Halaman hukum menyatakan dirinya draf. Diuji karena kebalikannya —
+  // dokumen yang tampak final padahal masih memuat penampung identitas — akan
+  // beredar ke bagian hukum calon pelanggan tanpa ada yang menyadarinya.
+  const syaratHtml = await (await fetch(`${BASE}/syarat`)).text();
+  check(
+    "38d /syarat menyatakan dirinya draf selama penampung identitas masih ada",
+    !syaratHtml.includes("[NAMA BADAN USAHA]") || syaratHtml.includes("Draf menunggu tinjauan"),
+    `→ penampung tanpa spanduk draf`,
+  );
+
   // --- Logout -----------------------------------------------------------------
   console.log("15. Logout");
   const out = await owner("POST", "/api/auth/logout");
