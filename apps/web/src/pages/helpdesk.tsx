@@ -8,7 +8,6 @@ import {
   type TicketStatus,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useHeading } from "../i18n/pageHeadings";
 import { LifeBuoy, Plus } from "lucide-react";
 import { useState } from "react";
 import { api } from "../api/client";
@@ -26,6 +25,7 @@ import {
   Spinner,
   useToast,
 } from "../components/ui";
+import { DaftarDetail, Halaman, Lembar } from "../components/kerangka";
 import { useUi } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -59,7 +59,6 @@ function ticketAge(t: ApiTicket): { label: string; tone: "green" | "amber" | "re
 
 export function HelpdeskPage() {
   const u = useUi();
-  const h = useHeading("helpdesk");
   const { tenant } = useWorkspace();
   const isAdmin = tenant.role !== "viewer";
   const toast = useToast();
@@ -105,6 +104,10 @@ export function HelpdeskPage() {
     priority: "medium" as TicketPriority,
   });
   const [formError, setFormError] = useState<string | null>(null);
+  // Fase 38h — formulir pembuatan pindah dari atas daftar ke dalam Lembar.
+  // Hal pertama yang dilihat pengguna saat membuka halaman kini datanya,
+  // bukan formulir kosong.
+  const [lembarBuka, setLembarBuka] = useState(false);
 
   const createTicket = useMutation({
     mutationFn: () =>
@@ -118,6 +121,7 @@ export function HelpdeskPage() {
       toast("success", u("toastTiketDibuat"));
       setForm({ contactId: "", subject: "", description: "", priority: "medium" });
       setFormError(null);
+      setLembarBuka(false);
       invalidate();
     },
     onError: (err) => setFormError((err as Error).message),
@@ -150,17 +154,37 @@ export function HelpdeskPage() {
   const detail = detailQuery.data;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <LifeBuoy className="size-6 text-brand-600" aria-hidden />
-        <h1 className="judul text-[1.75rem]">{h.title}</h1>
-      </div>
-      <p className="text-sm text-ink-muted">{h.desc}</p>
-
-      {isAdmin ? (
-        <Card>
-          <CardHeader title={u("hdTiketBaru")} />
-          <CardBody className="space-y-4">
+    <Halaman
+      k="helpdesk"
+      ikon={LifeBuoy}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <Plus className="size-4" aria-hidden /> {u("hdTiketBaru")}
+          </Button>
+        ) : null
+      }
+    >
+      <Lembar
+        terbuka={lembarBuka}
+        tutup={() => setLembarBuka(false)}
+        judul={u("hdTiketBaru")}
+        aksi={
+          <>
+            <Button variant="secondary" onClick={() => setLembarBuka(false)}>
+              {u("batal")}
+            </Button>
+            <Button
+              onClick={() => createTicket.mutate()}
+              disabled={createTicket.isPending || !form.contactId || form.subject.trim().length < 3}
+            >
+              {createTicket.isPending ? <Spinner /> : <Plus className="size-4" aria-hidden />}{" "}
+              {u("buatTiket")}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
               <div>
                 <Label htmlFor="tk-contact">{u("pelanggan")}</Label>
@@ -196,37 +220,28 @@ export function HelpdeskPage() {
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
             </div>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="sm:w-44">
-                <Label htmlFor="tk-priority">Prioritas</Label>
-                <Select
-                  id="tk-priority"
-                  value={form.priority}
-                  onChange={(e) => setForm({ ...form, priority: e.target.value as TicketPriority })}
-                >
-                  {TICKET_PRIORITIES.map((p) => (
-                    <option key={p} value={p}>
-                      {TICKET_PRIORITY_LABELS[p]}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <Button
-                onClick={() => createTicket.mutate()}
-                disabled={
-                  createTicket.isPending || !form.contactId || form.subject.trim().length < 3
-                }
+            <div className="sm:w-44">
+              <Label htmlFor="tk-priority">Prioritas</Label>
+              <Select
+                id="tk-priority"
+                value={form.priority}
+                onChange={(e) => setForm({ ...form, priority: e.target.value as TicketPriority })}
               >
-                {createTicket.isPending ? <Spinner /> : <Plus className="size-4" aria-hidden />}{" "}
-                {u("buatTiket")}
-              </Button>
+                {TICKET_PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {TICKET_PRIORITY_LABELS[p]}
+                  </option>
+                ))}
+              </Select>
             </div>
             {formError ? <Alert tone="error">{formError}</Alert> : null}
-          </CardBody>
-        </Card>
-      ) : null}
+        </div>
+      </Lembar>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <DaftarDetail
+        adaPilihan={Boolean(selectedId)}
+        kembali={() => setSelectedId(null)}
+        daftar={
         <Card>
           <CardHeader title={u("daftarTiket")} />
           <CardBody>
@@ -246,8 +261,8 @@ export function HelpdeskPage() {
                     onClick={() => setSelectedId(t.id)}
                     className={`w-full rounded-lg border p-3 text-left transition-colors ${
                       selectedId === t.id
-                        ? "border-brand-400 bg-brand-50/60 dark:border-brand-700 dark:bg-brand-950/40"
-                        : "border-line hover:border-slate-300"
+                        ? "border-brand-line bg-brand-surface"
+                        : "border-line hover:border-line-strong"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -275,7 +290,8 @@ export function HelpdeskPage() {
             )}
           </CardBody>
         </Card>
-
+        }
+        detail={
         <Card>
           <CardHeader title={detail ? `${detail.ticketNo} — ${detail.subject}` : "Detail tiket"} />
           <CardBody>
@@ -394,7 +410,8 @@ export function HelpdeskPage() {
             )}
           </CardBody>
         </Card>
-      </div>
-    </div>
+        }
+      />
+    </Halaman>
   );
 }

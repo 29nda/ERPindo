@@ -112,6 +112,25 @@ async function waitReady(timeoutMs = 120_000) {
   throw new Error("wrangler dev tidak siap.");
 }
 
+/**
+ * Buka Lembar (panel geser) lewat aksi utama halaman, lalu tunggu ia terpasang.
+ *
+ * Ada karena Fase 38h memindahkan formulir pembuatan dari ATAS DAFTAR ke dalam
+ * `<Lembar>`. Sebelumnya formulir selalu terpasang, jadi asersi bisa langsung
+ * `page.fill("#tk-subject", …)`. Kini medannya belum ada di DOM sampai
+ * lembarnya dibuka.
+ *
+ * Satu penolong, ±25 pemanggil — bukan dua puluh lima suntingan bespoke yang
+ * masing-masing bisa salah dengan caranya sendiri.
+ */
+async function bukaLembar(page, namaTombol) {
+  await page.getByRole("button", { name: namaTombol }).first().click();
+  await page.locator("[data-lembar]").waitFor({ state: "visible", timeout: 10_000 });
+  // Animasi masuk singkat; menunggu satu bingkai membuat `fill` berikutnya
+  // tidak mengenai elemen yang masih bergerak.
+  await page.waitForTimeout(180);
+}
+
 function run(cmd, args, env) {
   return new Promise((resolve, reject) => {
     const p = spawn(cmd, args, { cwd: ROOT, stdio: "inherit", env: { ...process.env, ...env } });
@@ -1766,6 +1785,9 @@ try {
   // F9 — Helpdesk: buat tiket bertaut kontak.
   resetErrors();
   await gotoRoute("/app/helpdesk");
+  // Fase 38h — formulir tiket kini berada di dalam Lembar, dibuka aksi utama
+  // halaman. Halaman membuka dengan DATA, bukan dengan formulir kosong.
+  await bukaLembar(page, "Tiket baru");
   await page.selectOption("#tk-contact", { index: 1 });
   await page.fill("#tk-subject", "Tiket Uji Simulasi");
   await page.fill("#tk-desc", "Dibuat oleh simulasi UI otomatis.");
@@ -1775,6 +1797,53 @@ try {
   await page.getByText("Tiket Uji Simulasi").first().waitFor();
   check("F9 helpdesk: tiket baru → 201 → tampil di daftar", true);
   check("F9 helpdesk bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
+  // --- F52 Primitif halaman modul (Fase 38h) --------------------------------
+  //
+  // Diuji pada halaman pilot. Ketiganya mengikat PERAN lewat atribut `data-*`,
+  // bukan markup — sehingga tata letaknya boleh berubah lagi tanpa memecahkan
+  // asersi ini.
+  check(
+    "F52 halaman modul memakai kerangka baku",
+    (await page.locator("[data-halaman]").count()) === 1,
+    `→ ${await page.locator("[data-halaman]").count()} kerangka`,
+  );
+
+  // Perubahan alur kerja yang menjadi alasan seluruh sub-fase ini: yang pertama
+  // terlihat saat halaman dibuka adalah DATA, bukan formulir kosong.
+  check(
+    "F52 halaman terbuka dengan data, bukan formulir pembuatan",
+    (await page.locator("[data-lembar]").count()) === 0,
+    `→ lembar terbuka saat halaman dimuat`,
+  );
+
+  await bukaLembar(page, "Tiket baru");
+  check("F52 Lembar terbuka lewat aksi utama halaman", (await page.locator("[data-lembar]").count()) === 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  check(
+    "F52 Lembar tertutup dengan Escape",
+    (await page.locator("[data-lembar]").count()) === 0,
+    `→ masih terbuka`,
+  );
+
+  // Daftar & detail di layar kecil: SALAH SATU, bukan keduanya bertumpuk.
+  // Sebelumnya keduanya menumpuk, sehingga setelah memilih satu baris pengguna
+  // harus menggulir jauh ke bawah tanpa ada yang memberi tahu.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(300);
+  const daftarTerlihat = await page.locator("[data-daftar]").isVisible();
+  await page.locator("[data-daftar] button").first().click();
+  await page.waitForTimeout(500);
+  const detailTerlihat = await page.locator("[data-detail]").isVisible();
+  const daftarTersembunyi = !(await page.locator("[data-daftar]").isVisible());
+  check(
+    "F52 layar 390px: daftar & detail bergantian, tidak bertumpuk",
+    daftarTerlihat && detailTerlihat && daftarTersembunyi,
+    `→ daftarAwal=${daftarTerlihat} detail=${detailTerlihat} daftarSembunyi=${daftarTersembunyi}`,
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForTimeout(200);
 
   // F10 — HR: tambah karyawan via form.
   resetErrors();
