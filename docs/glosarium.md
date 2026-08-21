@@ -231,8 +231,65 @@ naskah penjualan dan keamanan: `dapat`.
 
 ## 6. Rupiah
 
-Satu sumber: `formatRupiah()` di `packages/shared`. Menghasilkan `Rp 499.000`
-— dengan spasi, pemisah ribuan titik.
+Satu sumber: `formatRupiah()` di `packages/shared/src/text.ts`. Menghasilkan
+`Rp 499.000` — dengan spasi BIASA, pemisah ribuan titik.
+
+> **Fase 38p:** pernyataan "satu sumber" di atas sempat **tidak benar** selama
+> beberapa fase. Fungsinya hidup di `pages/landing/sections.ts`, dan di
+> sebelahnya ada fungsi kedua — `formatIDR()` di `api/client.ts` dengan 30
+> pemakai — yang memakai `Intl` dan karena itu menyisipkan **spasi tak-putus**
+> setelah "Rp". Selisih satu karakter tak terlihat itu memaksa asersi ui-sim
+> menormalkan teksnya sebelum mencocokkan. Keduanya kini satu fungsi di
+> `packages/shared`; `formatIDR` dipertahankan sebagai nama lama yang
+> meneruskan ke sana.
 
 Jangan menulis `Rp499.000` atau `Rp 499000` langsung di naskah. Placeholder
 angka juga memakai pemisah ribuan: `mis. 5.000.000`, bukan `mis. 5000000`.
+
+## 8. Register perusahaan (Fase 38p)
+
+Pembacanya profesional yang sudah menjalankan perusahaan. Aturan di bawah
+adalah konsekuensi dari itu, bukan selera.
+
+### 8a. Sebutan pembaca
+
+| Jangan | Pakai |
+| --- | --- |
+| UMKM (sebagai posisi produk) | perusahaan, badan usaha, bisnis yang sedang tumbuh |
+| pemilik usaha, pemilik toko | manajer keuangan, direktur, tim keuangan |
+| usaha Anda | perusahaan Anda |
+
+"UMKM" tetap dipakai pada **nama resmi** yang memang berbunyi begitu — "PPh
+Final UMKM 0,5% (PP 55/2022)" — dan hanya di situ.
+
+### 8b. Tidak menggurui
+
+Pembaca tidak perlu diberi tahu bahwa cara kerjanya salah, dan tidak perlu
+diyakinkan bahwa pembukuan itu penting. Yang dilarang:
+
+- **"Anda harus…"**, **"jangan lupa…"**, **"perlu diingat…"** — ia menempatkan
+  penulis di atas pembaca.
+- **"tenang saja"**, **"gampang kok"** — meremehkan pekerjaan yang justru
+  sedang dinilai pembaca.
+- **"seperti diketahui"** — bila memang diketahui, tidak perlu ditulis.
+
+Yang menggantikannya: menyatakan apa yang produk lakukan, lalu berhenti.
+
+### 8c. Klaim wajib bisa ditunjuk barisnya
+
+Aturan keras dari `docs/posisi-produk.md` §3, kini **dipaksa** oleh kelas
+`klaim-tanpa-bukti` di `scripts/sapu-gaya.mjs` dengan ambang **nol**.
+
+Yang dilarang adalah kata sifat yang tidak punya cara untuk salah: *terbaik*,
+*canggih*, *revolusioner*, *paling lengkap*, *seamless*, *world-class*.
+
+Yang **tidak** dilarang: klaim faktual yang bisa diperiksa — "termurah",
+"pengguna tak terbatas", "68% proyek ERP gagal". Klaim faktual boleh salah, dan
+itu justru yang membuatnya klaim.
+
+### 8d. Nada saat menyebut pesaing
+
+Nama pesaing **tidak disebut**. Harga vendor berubah tanpa pemberitahuan, dan
+angka basi tentang pihak lain merugikan yang menuliskannya. Yang dipakai:
+rentang kategori beserta sumbernya, dan kalkulator yang menghitung dari angka
+yang dimasukkan pengunjung sendiri.

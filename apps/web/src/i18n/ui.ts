@@ -291,7 +291,6 @@ export const UI = {
     id: "Undang rekan kerja, atur peran, atau keluarkan anggota. Pemilik dapat mengubah peran.",
     en: "Invite colleagues, set roles, or remove members. The owner can change roles.",
   },
-  andaSendiri: { id: "(Anda)", en: "(you)" },
   konfirmKeluarkanAnggota: { id: "Keluarkan anggota?", en: "Remove this member?" },
   descKeluarkanAnggota: {
     id: "akan kehilangan akses ke perusahaan ini. Tindakan ini bisa diulang dengan mengundang kembali.",
@@ -410,7 +409,6 @@ export const UI = {
   },
   paketLabel: { id: "Paket:", en: "Plan:" },
   bacaSajaBerakhir: { id: "baca-saja — langganan berakhir", en: "read-only — subscription ended" },
-  hariTersisa: { id: "hari", en: "days left" },
   sampaiDengan: { id: "s/d", en: "through" },
   aksesPenuhPelangganAwal: { id: "akses penuh (pelanggan awal)", en: "full access (early customer)" },
   modeUjiPembayaran: { id: "mode uji pembayaran", en: "payment test mode" },
@@ -452,18 +450,7 @@ export const UI = {
     id: "Ada kuota yang melewati 70%. Siapkan peningkatan ke Workers Paid sebelum batasnya tercapai.",
     en: "A quota has passed 70%. Prepare the upgrade to Workers Paid before the limit is reached.",
   },
-  fiturStarter: { id: "Akuntansi, penjualan, POS, stok, pajak", en: "Accounting, sales, POS, stock, tax" },
-  fiturBusiness: {
-    id: "+ HR, proyek, manufaktur, pengadaan, CRM",
-    en: "+ HR, projects, manufacturing, procurement, CRM",
-  },
-  fiturEnterprise: {
-    id: "+ multi-entitas, konsolidasi, API, keamanan",
-    en: "+ multi-entity, consolidation, API, security",
-  },
   aiPerHari: { id: "AI", en: "AI" },
-  entitasSatuan: { id: "entitas", en: "entities" },
-  populer: { id: "Populer", en: "Popular" },
   mengalihkanEllipsis: { id: "Mengalihkan…", en: "Redirecting…" },
   pilihPaket: { id: "Pilih paket", en: "Choose plan" },
   paketAnda: { id: "Paket Anda", en: "Your plan" },
@@ -660,22 +647,6 @@ export const UI = {
   modulProduk: { id: "Produk", en: "Products" },
   modulFaktur: { id: "Faktur penjualan", en: "Sales invoices" },
   // Ganti paket dengan prorata (Fase 20k)
-  naikPaket: { id: "Naik paket", en: "Upgrade plan" },
-  turunPaket: { id: "Turun paket", en: "Downgrade plan" },
-  gantiPaket: { id: "Ganti paket", en: "Change plan" },
-  hitungProrataMemuat: { id: "Menghitung…", en: "Calculating…" },
-  prorataBayarSekarang: { id: "Dibayar sekarang", en: "Payable now" },
-  prorataSisaHari: { id: "sisa hari pada periode ini", en: "days left in this period" },
-  prorataNaikInfo: {
-    id: "Paket baru berlaku seketika. Yang ditagih hanya selisih harga untuk sisa hari periode ini — bukan satu bulan penuh.",
-    en: "The new plan takes effect immediately. You are only billed the price difference for the days left in this period — not a full month.",
-  },
-  prorataTurunInfo: {
-    id: "Paket turun mulai berlaku di akhir periode yang sudah Anda bayar. Tidak ada tagihan dan tidak ada pengembalian dana — sisa periode ini tetap Anda pakai.",
-    en: "The lower plan takes effect at the end of the period you already paid for. There is no charge and no refund — you keep using the rest of this period.",
-  },
-  paketTurunTerjadwal: { id: "turun ke", en: "downgrading to" },
-  padaTanggal: { id: "pada", en: "on" },
   // Pemindai barcode kamera (Fase 20i)
   pindaiBarcode: { id: "Pindai barcode", en: "Scan barcode" },
   tutupPemindai: { id: "Tutup pemindai", en: "Close scanner" },
@@ -842,7 +813,6 @@ export const UI = {
   tahan: { id: "Tahan", en: "Hold" },
   panggil: { id: "Panggil", en: "Recall" },
   transaksiDitahan: { id: "Transaksi ditahan", en: "Held transactions" },
-  namaTahan: { id: "Nama tahan", en: "Hold name" },
   namaTahanOpsional: { id: "Nama tahan (opsional)", en: "Hold name (optional)" },
   hapusTahan: { id: "Hapus tahan", en: "Remove hold" },
   hapusPembayaran: { id: "Hapus pembayaran", en: "Remove payment" },
@@ -1737,7 +1707,6 @@ export const UI = {
   mulaiDariSini: { id: "Mulai dari sini", en: "Start here" },
   descAlurHarian: { id: "Alur kerja harian yang umum.", en: "Common day-to-day workflows." },
   menuPenjualan: { id: "Penjualan", en: "Sales" },
-  menuPembelian: { id: "Pembelian", en: "Purchases" },
 
   // Kas & Bank + rekonsiliasi rekening koran (Fase 19c).
   // Istilah perbankan Indonesia yang memang nama baku ("rekening koran")
@@ -2415,7 +2384,6 @@ export const UI = {
     en: "Only an Owner/Admin can change the budget.",
   },
   labaRugiKecil: { id: "Laba/rugi", en: "Profit/loss" },
-  belumAdaAkun: { id: "Belum ada akun", en: "No accounts" },
   selisihKolom: { id: "Selisih", en: "Variance" },
   arsipkanCostCenter: { id: "Arsipkan cost center?", en: "Archive this cost center?" },
   hariSuffixTol: { id: "hari", en: "days" },
@@ -2752,7 +2720,6 @@ export const UI = {
   },
   authDaftarGratis: { id: "Daftar gratis", en: "Sign up free" },
   // Fase 27a: paket yang dipilih di halaman harga ikut terbawa ke sini.
-  authPaketDipilih: { id: "Paket pilihan Anda:", en: "Your selected plan:" },
   authKodeTotp: { id: "Kode authenticator (2FA)", en: "Authenticator code (2FA)" },
   authPlaceholder6Digit: { id: "6 digit", en: "6 digits" },
   authLupaPassword: { id: "Lupa password?", en: "Forgot your password?" },
@@ -3103,7 +3070,6 @@ export const UI = {
     en: "Intercompany mark removed.",
   },
   dieliminasi: { id: "Dieliminasi", en: "Eliminated" },
-  totalDieliminasi: { id: "Dikeluarkan dari total (antar-perusahaan)", en: "Excluded from totals (intercompany)" },
   akunSistem: { id: "sistem", en: "system" },
 
   // — Komponen bersama & Asisten AI (Fase 19s). Awalan `cp` (komponen). —
@@ -3242,7 +3208,6 @@ export const UI = {
   hdTiketBaru: { id: "Tiket baru", en: "New ticket" },
   hdPhBalasan: { id: "Tulis balasan…", en: "Write a reply…" },
   dsKirimPengingatWa: { id: "Kirim pengingat via WhatsApp", en: "Send a reminder via WhatsApp" },
-  ftGantiTema: { id: "Ganti tema terang/gelap", en: "Switch between light and dark" },
   pjBuktiPotongPph23: { id: "Bukti potong PPh 23", en: "PPh 23 withholding slips" },
   pjRekanan: { id: "Rekanan", en: "Counterparty" },
   cpTutupTur: { id: "Tutup tur", en: "Close the tour" },
@@ -3397,8 +3362,6 @@ export const UI = {
   ghProduk: { id: "Produk", en: "Product" },
   ghHargaDasar: { id: "Harga dasar", en: "Base price" },
   ghHargaKhusus: { id: "Harga khusus", en: "Special price" },
-  ghPerSatuanDasar: { id: "per satuan dasar", en: "per base unit" },
-  ghTambahHarga: { id: "Tambah harga khusus", en: "Add special price" },
   ghSimpanHarga: { id: "Simpan harga", en: "Save price" },
   ghHapusHarga: { id: "Kembalikan ke harga dasar", en: "Revert to base price" },
   ghBelumAdaHarga: {

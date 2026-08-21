@@ -17,6 +17,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { FAQ_LANDING } from "@erpindo/shared";
+// Fase 38p — `formatRupiah` pindah ke `@erpindo/shared` (glosarium §6 memang
+// sudah menyatakannya di sana; sampai fase ini pernyataan itu tidak benar).
+export { formatRupiah } from "@erpindo/shared";
 import type { PeragaanId } from "../../peragaan";
 import type { Dual } from "../../i18n";
 
@@ -299,9 +302,6 @@ export const INTEGRATIONS: { icon: LucideIcon; label: Dual }[] = [
   { icon: ShoppingBag, label: { id: "Impor Shopee · Tokopedia · TikTok Shop", en: "Import Shopee · Tokopedia · TikTok Shop" } },
 ];
 
-export function formatRupiah(n: number): string {
-  return `Rp ${n.toLocaleString("id-ID")}`;
-}
 
 /**
  * Empat penyebab proyek ERP gagal, dan apa yang menggantikannya di sini

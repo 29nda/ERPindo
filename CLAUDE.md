@@ -1,6 +1,6 @@
 # CLAUDE.md — Panduan agen untuk repo ERPindo
 
-ERP SaaS multi-tenant untuk UKM Indonesia. **Seluruh isi repo berbahasa Indonesia**:
+ERP SaaS multi-tenant untuk perusahaan Indonesia. **Seluruh isi repo berbahasa Indonesia**:
 UI, komentar kode, dokumen, log, dan pesan commit.
 
 ## Tata letak monorepo (pnpm workspaces, Node >= 22)

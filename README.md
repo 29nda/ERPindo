@@ -1,6 +1,6 @@
 # erpindo
 
-**ERP modern multi-tenant (SaaS) untuk UMKM & perusahaan menengah Indonesia** — ringan, berjalan di semua perangkat (web/PWA, mobile, desktop), dan dibangun sepenuhnya di atas **GitHub + Cloudflare**.
+**ERP modern multi-tenant (SaaS) untuk perusahaan Indonesia** — ringan, berjalan di semua perangkat (web/PWA, mobile, desktop), dan dibangun sepenuhnya di atas **GitHub + Cloudflare**.
 
 ## Visi
 
@@ -16,11 +16,17 @@ Menyediakan ERP terjangkau berbahasa Indonesia yang mencakup Keuangan & Akuntans
 | [docs/06-tutorial-peluncuran.md](docs/06-tutorial-peluncuran.md) | **Urutan kerja pemilik** menuju peluncuran: pasang kunci → uji bayar → pelanggan pertama → rutinitas |
 | [docs/07-peta-repo-untuk-pemilik.md](docs/07-peta-repo-untuk-pemilik.md) | Isi repo dalam bahasa non-teknis + tabel "mau ubah X → berkasnya ini" |
 | [docs/08-referensi-teknis-repo.md](docs/08-referensi-teknis-repo.md) | Referensi teknis: siklus permintaan, dua bidang database, cron, degradasi anggun, gerbang mutu |
+| [docs/posisi-produk.md](docs/posisi-produk.md) | **Siapa pembelinya, apa yang ditakutkannya, bukti mana yang menjawabnya.** Naskah halaman depan tunduk pada dokumen ini |
+| [docs/glosarium.md](docs/glosarium.md) | **Keputusan istilah yang mengikat**, dipaksa `scripts/sapu-istilah.mjs` |
+| [docs/keamanan.md](docs/keamanan.md) | Praktik keamanan yang benar-benar diterapkan — ditulis jujur, tanpa klaim sertifikasi |
+| [docs/riwayat.md](docs/riwayat.md) | Keputusan yang masih mengikat dari fase-fase yang sudah selesai, beserta alasannya |
+| [docs/03-roadmap-lanjutan.md](docs/03-roadmap-lanjutan.md) | Daftar pekerjaan lanjutan beserta status centangnya |
+| [docs/STATUS.md](docs/STATUS.md) | Keadaan produk hari ini, ditujukan ke pemilik (non-teknis) |
 
 ## Ringkasan Teknologi
 
 - **Backend:** Hono di Cloudflare Workers · **Database:** Cloudflare D1 (satu database per tenant) + Drizzle ORM
-- **Frontend:** React + Vite · Tailwind CSS + shadcn/ui · PWA (installable & offline-capable)
+- **Frontend:** React + Vite · Tailwind CSS 4 (token semantik, tanpa pustaka komponen pihak ketiga) · PWA (installable & offline-capable)
 - **Infrastruktur:** GitHub (kode + CI/CD) & Cloudflare (Workers, D1, R2, KV, Queues) — tanpa AWS/GCP/Azure
 
 ## Status

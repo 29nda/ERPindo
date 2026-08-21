@@ -1,6 +1,6 @@
-# Riwayat keputusan ERPindo (Fase 0–30)
+# Riwayat keputusan ERPindo (Fase 0–37)
 
-Ringkasan dari **258 log fase (18.972 baris)** yang digantikannya. Yang disimpan
+Ringkasan dari **280 log fase (21.560 baris)** yang digantikannya. Yang disimpan
 di sini hanya keputusan yang **masih mengikat hari ini** — beserta alasannya,
 karena keputusan tanpa alasan akan dibongkar orang berikutnya.
 
@@ -146,3 +146,78 @@ menulis warna literal. Karena itu keduanya murah — dan karena itu pula
 kerangkanya tidak pernah benar-benar berubah. **Perombakan desain yang hanya
 menyentuh berkas token bukan perombakan.** Fase 31a memperbaikinya dengan token
 semantik + ratchet `sapu-warna.mjs`.
+
+---
+
+# Fase 31–37 — dipadatkan pada Fase 38q
+
+Dua puluh dua log (2.588 baris) diringkas menjadi bagian di bawah. Yang
+disimpan hanya keputusan yang **masih mengikat**.
+
+## 7. Token semantik, dan kenapa angkanya baru mencapai nol enam fase kemudian
+
+Fase 31a menambahkan lapis token semantik (`surface`, `ink`, `line`) dan
+menurunkan warna literal dari 1.724 `slate-*` / 1.084 `dark:` ke ratusan. Lalu
+berhenti di sana selama tujuh fase.
+
+Sebabnya bukan kemalasan melainkan **kosakata yang belum lengkap**: selama
+"berhasil" hanya bisa disebut sebagai `text-emerald-700 dark:text-emerald-300`,
+angka `dark:` tidak mungkin mencapai nol berapa pun halaman yang dirapikan.
+Yang menyelesaikannya adalah lima token yang ditambahkan pada Fase 38:
+`ok`/`awas`/`galat`, `brand-surface`, `accent-surface`, `brand-solid`, dan
+`brand-teks`.
+
+**Pelajaran yang mengikat:** bila sebuah kelas literal terus kembali, yang
+kurang biasanya bukan disiplin melainkan nama untuk hal yang sedang disebutnya.
+
+## 8. Palet krem & tipografi editorial (Fase 32a)
+
+Netral krem hangat menggantikan netral biru; aksen tanah liat menggantikan biru
+logo. Serif (Source Serif) hanya lewat utilitas `judul`/`judul-hero` — tabel,
+angka, dan label tetap sans/mono, karena serif di sana merembet ke seluruh
+layar kerja.
+
+Wordmark berhenti menjadi raster dan mulai digambar sebagai teks. Konsekuensi
+yang baru terasa penuh di Fase 38g: begitu wordmark adalah teks, seluruh berkas
+logo menjadi bobot mati — dan 2,7 MB di antaranya masih ikut ter-deploy.
+
+## 9. Glosarium dan penyapu naskah (Fase 33–34)
+
+`docs/glosarium.md` menetapkan istilah yang mengikat, dan
+`scripts/sapu-istilah.mjs` **memaksanya** dengan nol toleransi. Alasannya
+dicatat terus terang: keputusan yang hanya hidup di dokumen akan dilanggar oleh
+orang yang tidak membaca dokumen itu — dan tsc/eslint/smoke tidak bisa
+melihatnya, karena string apa pun tetap sah.
+
+Fase 34a menemukan bahwa yang salah ternyata **ragam bahasanya**, bukan
+ejaannya: naskah memakai ragam percakapan (cuma, gampang, telat) di produk yang
+dijual ke perusahaan.
+
+## 10. Halaman depan berhenti menjelaskan (Fase 35)
+
+Pemilik menilai halaman depan membosankan. Dua fase sebelumnya memperbaiki
+KALIMATNYA dan keduanya tidak menjawab keluhan itu — karena keluhannya bukan
+tentang kalimat.
+
+Yang menjawabnya: satu klaim yang bisa **diperagakan** ("catat sekali, sisanya
+otomatis") benar-benar diperagakan, dengan jurnal double-entry yang seimbang.
+Ini menjadi cikal bakal kerangka peragaan Fase 38.
+
+**Pelajaran yang mengikat:** bila pemilik menyebut sesuatu membosankan,
+periksa dulu apakah yang membosankan adalah bentuknya, bukan kata-katanya.
+
+## 11. Posisi produk: perusahaan, bukan UMKM (Fase 36–37)
+
+`docs/posisi-produk.md` menetapkan pembelinya. Dua pembeli membaca halaman yang
+sama — yang menilai ("apakah ini benar-benar bekerja?") dan yang menyetujui
+("berapa totalnya, apa risikonya?") — dan halaman yang hanya melayani salah
+satunya berhenti di tangan yang lain.
+
+Ketakutan pertama pembeli perusahaan **bukan harga**, melainkan "proyeknya akan
+gagal seperti yang dulu": 68% proyek ERP gagal memenuhi tujuannya, biaya
+membengkak rata-rata 189%. ERPindo berhak memakai sudut itu karena ia memang
+tidak punya proyek implementasi.
+
+**Aturan keras yang masih berlaku:** tidak ada klaim di halaman depan yang
+tidak bisa ditunjuk barisnya di produk. Sejak Fase 38d ia dipaksa kelas
+`klaim-tanpa-bukti` di `sapu-gaya.mjs`, ambang nol.

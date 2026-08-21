@@ -158,6 +158,7 @@ import type {
   ApiPriceGroupItem,
   PriceGroupInput,
 } from "@erpindo/shared";
+import { formatRupiah } from "@erpindo/shared";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -1537,11 +1538,21 @@ export function downloadXlsx(filename: string, sheets: XlsxSheet[]): void {
   URL.revokeObjectURL(url);
 }
 
-/** Format rupiah tanpa desimal: 1500000 → "Rp 1.500.000" */
+/**
+ * Format rupiah tanpa desimal: 1500000 → "Rp 1.500.000".
+ *
+ * Fase 38p — kini meneruskan ke `formatRupiah()` di `@erpindo/shared`. Nama
+ * lamanya dipertahankan karena ada 30 pemakai, dan mengganti namanya adalah
+ * churn tanpa nilai; yang penting keluarannya kini SATU bentuk.
+ *
+ * Yang berubah: `Intl` dengan `style: "currency"` menyisipkan **spasi
+ * tak-putus** setelah "Rp", sementara naskah dan glosarium memakai spasi biasa.
+ * Selisih satu karakter tak terlihat itu memaksa asersi ui-sim menormalkan
+ * teksnya sebelum mencocokkan, dan membuat `sapu-istilah` melihat dua bentuk
+ * berbeda sebagai hal yang sama.
+ */
 export function formatIDR(value: number): string {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(
-    value,
-  );
+  return formatRupiah(value);
 }
 
 const DATE_FMT = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" });

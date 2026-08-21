@@ -34,6 +34,7 @@ const AMBANG = {
   "empty-state-buntu": 9,
   "angka-tanpa-pemisah": 0,
   "klaim-tanpa-bukti": 0,
+  merendahkan: 0,
 };
 
 /**
@@ -121,6 +122,20 @@ const KLAIM_HAMPA =
 const KLAIM_HAMPA_EN =
   /\b(best[- ]in[- ]class|cutting[- ]edge|state[- ]of[- ]the[- ]art|revolutionary|world[- ]class|seamless(ly)?|effortless(ly)?|game[- ]chang)/i;
 
+/**
+ * Kalimat yang menempatkan penulis di atas pembaca (glosarium §8b).
+ *
+ * Pembaca naskah ini profesional yang sudah menjalankan perusahaan; ia tidak
+ * perlu diberi tahu bahwa cara kerjanya salah, dan tidak perlu diyakinkan
+ * bahwa pembukuan itu penting.
+ *
+ * "Anda dapat" dan "Anda bisa" TIDAK dilarang — keduanya menyatakan kemampuan,
+ * bukan kewajiban. Yang dilarang adalah bentuk yang memerintah atau
+ * meremehkan.
+ */
+const MERENDAHKAN =
+  /\b(Anda harus|jangan lupa|perlu diingat|seperti diketahui|tenang saja|jangan khawatir|tidak perlu takut)\b/i;
+
 const temuan = [];
 const catat = (kelas, e, teks) => temuan.push({ kelas, kunci: e.kunci, teks });
 
@@ -131,6 +146,8 @@ for (const e of SEMUA) {
   if (e.kamus && AWALAN_KOSONG.test(e.id) && !ADA_LANGKAH.test(e.id) && !KABAR_BAIK.test(e.id) && !POTONGAN(e.id)) {
     catat("empty-state-buntu", e, e.id);
   }
+
+  if (MERENDAHKAN.test(e.id)) catat("merendahkan", e, e.id);
 
   // Fase 38d — menegakkan aturan yang SUDAH tertulis tetapi tidak dijaga apa pun.
   //

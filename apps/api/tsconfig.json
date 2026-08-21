@@ -4,8 +4,18 @@
     "types": ["@cloudflare/workers-types"]
   },
   "include": ["src", "test"],
-  // Dua uji ini membaca berkas sumber via node:fs — butuh tipe Node yang
-  // bentrok dengan @cloudflare/workers-types. Keduanya TETAP dijalankan penuh
+  // Uji-uji ini membaca berkas sumber via node:fs — butuh tipe Node yang
+  // bentrok dengan @cloudflare/workers-types. Semuanya TETAP dijalankan penuh
   // oleh vitest; yang dilewati hanya pemeriksaan tipenya.
-  "exclude": ["test/rbac-guard.test.ts", "test/pesan-galat.test.ts"]
+  //
+  // `token-publik.test.ts` ditambahkan pada Fase 38q setelah `pnpm typecheck`
+  // menemukannya merah. Ia dibuat di Fase 38g dan divalidasi dengan vitest
+  // saja; typecheck penuh tidak dijalankan ulang sesudah berkas itu ada, dan
+  // log 38g karena itu menyatakan typecheck hijau padahal tidak. Koreksinya
+  // dicatat di log 38q.
+  "exclude": [
+    "test/rbac-guard.test.ts",
+    "test/pesan-galat.test.ts",
+    "test/token-publik.test.ts"
+  ]
 }

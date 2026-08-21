@@ -192,6 +192,44 @@ export const PLAN_LIMITS: Record<
  */
 export const GRACE_DAYS = 3;
 
+const HARI_MS = 86_400_000;
+
+/**
+ * Kapan tenant benar-benar menjadi baca-saja, dihitung dari tanggal habisnya.
+ *
+ * ## Kenapa rumusnya di sini, bukan di dua tempat (Fase 38q)
+ *
+ * Sampai fase ini `GRACE_DAYS` dibagi lewat berkas ini, tetapi **rumus yang
+ * memakainya digandakan**: `apps/web/src/lib/tenggang.ts` dan
+ * `apps/api/src/lib/dunning.ts` masing-masing menghitungnya sendiri. Komentar
+ * di berkas web menjelaskan alasannya — "web tidak bisa mengimpor dari
+ * apps/api" — dan alasan itu benar.
+ *
+ * Tetapi ia hanya menuntut rumusnya berada di tempat KETIGA yang bisa diimpor
+ * keduanya, dan tempat itu adalah berkas ini. Keduanya sudah mengimpor
+ * `GRACE_DAYS` dari sini; yang kurang hanya rumus empat barisnya.
+ *
+ * Yang membuatnya layak dibereskan: kedua salinan menghitung batas yang sama
+ * dengan cara yang sedikit berbeda (satu lewat `Date.parse` atas ISO string,
+ * satu lewat aritmetika milidetik langsung). Selama keduanya benar, tidak ada
+ * yang menyadarinya; begitu salah satu diperbaiki, yang lain diam-diam
+ * berbeda.
+ */
+export function batasBacaSaja(habisPada: string): string {
+  return new Date(Date.parse(habisPada) + GRACE_DAYS * HARI_MS).toISOString();
+}
+
+/** Sedang dalam masa tenggang: jatuh tempo lewat, belum baca-saja. */
+export function dalamTenggang(habisPada: string, nowMs: number = Date.now()): boolean {
+  const mulai = Date.parse(habisPada);
+  return nowMs >= mulai && nowMs < mulai + GRACE_DAYS * HARI_MS;
+}
+
+/** Sisa hari tenggang (0 bila sudah lewat). */
+export function sisaTenggang(habisPada: string, nowMs: number = Date.now()): number {
+  return Math.max(Math.ceil((Date.parse(habisPada) + GRACE_DAYS * HARI_MS - nowMs) / HARI_MS), 0);
+}
+
 export const PLAN_LABELS: Record<Plan, string> = {
   lengkap: PLAN_LIMITS.lengkap.label,
 };

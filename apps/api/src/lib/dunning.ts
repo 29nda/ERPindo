@@ -42,21 +42,11 @@ export function tautanPengaturan(appUrl: string | undefined, cadangan: string): 
   return appUrl ? `\n\n${appUrl.replace(/\/$/, "")}/app/pengaturan` : `\n\n${cadangan}`;
 }
 
-/** Kapan tenant benar-benar jadi baca-saja, dihitung dari tanggal habisnya. */
-export function batasBacaSaja(habisPada: string): string {
-  return new Date(Date.parse(habisPada) + GRACE_DAYS * HARI_MS).toISOString();
-}
-
-/** Sisa hari tenggang (0 bila sudah lewat). Dipakai spanduk aplikasi. */
-export function sisaTenggang(habisPada: string, nowMs: number = Date.now()): number {
-  return Math.max(Math.ceil((Date.parse(batasBacaSaja(habisPada)) - nowMs) / HARI_MS), 0);
-}
-
-/** Sedang dalam masa tenggang: sudah lewat jatuh tempo, belum baca-saja. */
-export function dalamTenggang(habisPada: string, nowMs: number = Date.now()): boolean {
-  const t = Date.parse(habisPada);
-  return nowMs >= t && nowMs < Date.parse(batasBacaSaja(habisPada));
-}
+// Fase 38q — `batasBacaSaja`, `sisaTenggang`, dan `dalamTenggang` pindah ke
+// `@erpindo/shared`. Ketiganya digandakan di sisi web dengan rumus yang sedikit
+// berbeda; selama keduanya benar tidak ada yang menyadarinya, dan begitu salah
+// satu diperbaiki yang lain diam-diam berbeda.
+export { batasBacaSaja, dalamTenggang, sisaTenggang } from "@erpindo/shared";
 
 /**
  * Jendela satu hari yang berakhir tepat H-`hari`.

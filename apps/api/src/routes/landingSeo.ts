@@ -52,7 +52,7 @@ function jsonLd(base: string): string {
       name: "ERPindo",
       url: base,
       logo: `${base}/pwa-512.png`,
-      description: "ERP multi-tenant untuk usaha Indonesia — akuntansi, POS, stok, HR/payroll, dan pajak dalam satu aplikasi.",
+      description: "ERP multi-tenant untuk perusahaan Indonesia — akuntansi, POS, stok, penggajian, dan pajak dalam satu aplikasi, tanpa proyek implementasi.",
     },
     {
       "@context": "https://schema.org",
@@ -83,9 +83,9 @@ function jsonLd(base: string): string {
 function noscriptBlock(base: string): string {
   const faqHtml = FAQ.map(([q, a]) => `<h3>${q}</h3><p>${a}</p>`).join("");
   return `<noscript><div>
-<h1>ERPindo — ERP untuk usaha Indonesia</h1>
+<h1>ERPindo — ERP untuk perusahaan Indonesia</h1>
 <p>Akuntansi double-entry, kasir POS, stok, penggajian (PPh 21 TER), dan pajak (PPN, e-Faktur/Coretax) dalam satu aplikasi. Pengguna tak terbatas. Telusuri demo publik berisi data nyata lintas seluruh modul tanpa mendaftar.</p>
-<p>Satu paket, satu harga: Rp${PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")} per perusahaan per bulan — seluruh modul terbuka, pengguna tak terbatas.</p>
+<p>Satu paket, satu harga: Rp \${PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")} per perusahaan per bulan — seluruh modul terbuka, pengguna tak terbatas.</p>
 <p><a href="${base}/daftar">Daftar &amp; berlangganan</a> · <a href="${base}/masuk">Masuk</a> · <a href="${base}/panduan">Panduan</a> · <a href="${base}/blog">Blog</a></p>
 ${faqHtml}
 </div></noscript>`;
