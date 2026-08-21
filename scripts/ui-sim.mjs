@@ -2893,6 +2893,42 @@ try {
   );
   check("F29 halaman /fitur bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
+  // --- F49 lanjutan: peragaan di /fitur (Fase 38e) --------------------------
+  //
+  // Dua puluh dua modul, dua puluh dua peragaan, nol berkas gambar. Ini
+  // halaman dengan peragaan terbanyak di seluruh situs, jadi ia yang paling
+  // mungkin memperlihatkan cacat kinerja maupun cacat tata letak lebih dulu.
+  const peragaanFitur = await page.locator("[data-peragaan]").count();
+  check(
+    "F49a /fitur memuat satu peragaan untuk tiap modul bergambar",
+    peragaanFitur >= 20,
+    `→ ${peragaanFitur} peragaan`,
+  );
+  const gambarFitur = await page.locator("main img").count();
+  check("F49a /fitur tidak memuat satu pun berkas gambar produk", gambarFitur === 0, `→ ${gambarFitur} <img>`);
+
+  // Antrean global membatasi pemutar aktif menjadi dua, berapa pun yang
+  // terlihat. Diuji dengan menggulir ke tengah halaman — tempat paling banyak
+  // peragaan berada di dalam layar sekaligus.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
+  await page.waitForTimeout(1200);
+  const berjalan = await page.locator('[data-peragaan] [data-kursor]').count();
+  check(
+    "F49c /fitur tidak menjalankan lebih dari dua peragaan sekaligus",
+    berjalan <= 2,
+    `→ ${berjalan} kursor aktif`,
+  );
+
+  // Narasi tiap peragaan ada di DOM sejak awal, jadi perayap dan pembaca layar
+  // mendapat isi halaman ini tanpa menunggu satu animasi pun selesai.
+  const teksNarasiFitur = await page.innerText("body");
+  check(
+    "F49b narasi peragaan /fitur terbaca tanpa menunggu animasi",
+    teksNarasiFitur.includes("Jurnal pembalik terbentuk") || teksNarasiFitur.includes("jurnal pembalik"),
+    `→ narasi tidak ditemukan`,
+  );
+  await page.evaluate(() => window.scrollTo(0, 0));
+
   // --- F50 Kerangka publik disatukan (Fase 38c) -----------------------------
   //
   // Footer ditulis TIGA kali (landing, /fitur, blog SSR) dan perbedaannya

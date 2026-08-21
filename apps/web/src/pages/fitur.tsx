@@ -3,6 +3,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { Button } from "../components/ui";
 import { pick, useLang } from "../i18n";
 import { L, PublicFooter, PublicHeader, PublicShell } from "../components/publik";
+import { Peragaan, PERAGAAN } from "../peragaan";
 import { MODUL_DETAIL } from "./landing/fiturDetail";
 import { INTEGRATIONS } from "./landing/sections";
 
@@ -66,7 +67,7 @@ export function FiturPage() {
             className={`scroll-mt-20 ${i % 2 === 1 ? "bg-surface" : ""}`}
           >
             <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-24 lg:py-32">
-              <div className={`grid items-start gap-10 ${m.gambar ? "lg:grid-cols-2" : ""}`}>
+              <div className={`grid items-start gap-10 ${m.peragaan ? "lg:grid-cols-2" : ""}`}>
                 <div>
                   <span className="flex size-11 items-center justify-center rounded-xl bg-brand-surface text-brand-ink">
                     <m.icon className="size-5" aria-hidden />
@@ -102,22 +103,14 @@ export function FiturPage() {
                   </p>
                 </div>
 
-                {/* Modul tanpa tangkapan layar sengaja dirender TANPA gambar
-                    (Fase 24c). Meminjam tangkapan layar modul lain akan
-                    menampilkan layar yang bukan miliknya — memberi kesan keliru
-                    tentang apa yang akan dilihat pembeli. */}
-                {m.gambar ? (
-                <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card lg:sticky lg:top-24">
-                  <img
-                    src={m.gambar}
-                    alt={`${L(lang, "Tampilan", "View of")} ${pick(m.nama, lang)} — ${pick(m.hasil, lang)}`}
-                    width={1280}
-                    height={800}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full"
-                  />
-                </div>
+                {/* Modul tanpa peragaan sengaja dirender TANPA apa pun
+                    (Fase 24c, dipertahankan di 38e). Meminjam peragaan modul
+                    lain akan menampilkan layar yang bukan miliknya — memberi
+                    kesan keliru tentang apa yang akan dilihat pembeli. */}
+                {m.peragaan ? (
+                  <div className="lg:sticky lg:top-24">
+                    <Peragaan naskah={PERAGAAN[m.peragaan]} tinggi="sedang" />
+                  </div>
                 ) : null}
               </div>
             </div>
