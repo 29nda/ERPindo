@@ -33,8 +33,10 @@ function now(): string {
  * (seperti requireTenantRole) tanpa cookie/sesi. `minScope`:
  * - "read"  → key read/write boleh.
  * - "write" → hanya key write.
- * Menegakkan pula paket Enterprise (modul apiAccess) — key yang dibuat saat
- * Enterprise berhenti berlaku bila tenant turun paket (kecuali legacy).
+ * Dulu menegakkan pula paket Enterprise (modul apiAccess): key yang dibuat saat
+ * berlangganan Enterprise berhenti berlaku bila tenant turun tingkat. Penegakan
+ * itu dicabut di Fase 30 bersama paketnya; kalimat ini dibetulkan di Fase 38u
+ * agar tidak terbaca sebagai perilaku yang masih berlaku.
  */
 export function requireApiKey(minScope: ApiScope): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
@@ -96,7 +98,8 @@ export function requireApiKey(minScope: ApiScope): MiddlewareHandler<AppEnv> {
 
 // ===========================================================================
 // Pengelolaan API key + webhook (Owner, dashboard) — /api/tenants/:tenantId/…
-// Digerbangi enforcePlanByPath (segmen api-keys/webhooks → apiAccess).
+// Dulu digerbangi enforcePlanByPath (segmen api-keys/webhooks → apiAccess);
+// gerbang itu tidak ada lagi sejak Fase 30. Yang tersisa: requireTenantRole.
 // ===========================================================================
 
 export const publicApiAdminRoutes = new Hono<AppEnv>()

@@ -422,9 +422,14 @@ export function friendlyAuditDetail(raw: string | null, lang: "id" | "en" = "id"
 }
 
 // ---------------------------------------------------------------------------
-// Keamanan enterprise (Fase 13g): 2FA wajib + pembatasan IP + ekspor audit CSV.
-// Hanya paket Enterprise (server menolak 403 plan-upgrade-required di bawahnya —
-// UI menampilkan kartu upsell alih-alih error).
+// Keamanan lanjutan (Fase 13g): 2FA wajib + pembatasan IP + ekspor audit CSV.
+//
+// Dulu terkunci paket Enterprise, dan kartu ini menampilkan ajakan menaikkan
+// paket saat server membalas 403. Fase 30 membubarkan paketnya; respons
+// `plan-upgrade-required` sudah tidak ada di seluruh API. Yang masih bisa
+// membalas 403 kini hanya RBAC dan pembatasan IP — jadi pesannya diganti
+// (Fase 38u) menjadi hal yang benar-benar terjadi. Ajakan lama bertentangan
+// langsung dengan halaman /harga yang menyatakan seluruh modul terbuka.
 // ---------------------------------------------------------------------------
 
 export function TenantSecurityCard({ tenantId }: { tenantId: string }) {
@@ -462,18 +467,16 @@ export function TenantSecurityCard({ tenantId }: { tenantId: string }) {
     onError: (err) => toast("error", (err as Error).message),
   });
 
-  // Paket di bawah Enterprise → server balas 403 plan-upgrade-required.
+  // 403 di sini berarti peran atau alamat IP, bukan paket (lihat catatan di atas).
   const err = query.error as ApiRequestError | undefined;
   if (err && err.status === 403) {
     return (
       <Card>
-        <CardHeader title={u("keamananLanjutan")} description={u("descKeamananUpsellSingkat")} />
+        <CardHeader title={u("keamananLanjutan")} description={u("descKeamananLanjutan")} />
         <CardBody>
-          <Alert tone="info">
-            <div className="font-medium">{u("tersediaEnterprise")}</div>
-            <p className="mt-1 text-sm">
-              {u("descKeamananUpsell")}{u("tingkatkanEnterprise")}
-            </p>
+          <Alert tone="warning">
+            <div className="font-medium">{u("aksesPengaturanDitolak")}</div>
+            <p className="mt-1 text-sm">{u("descAksesPengaturanDitolak")}</p>
           </Alert>
         </CardBody>
       </Card>

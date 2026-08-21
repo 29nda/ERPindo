@@ -57,19 +57,20 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
     onError: (err) => toast("error", (err as Error).message),
   });
 
+  // API publik dulu terkunci paket Enterprise, dan 403 di sini berarti "naikkan
+  // paket". Fase 30 membubarkan paketnya dan mencabut penegakannya; yang tersisa
+  // sebagai sumber 403 adalah peran non-Owner dan pembatasan IP. Pesannya
+  // diganti (Fase 38u) supaya Owner yang salah mengetik CIDR membaca sebabnya
+  // yang sebenarnya, bukan tawaran paket yang sudah tidak dijual.
   const err = keys.error as ApiRequestError | undefined;
   if (err && err.status === 403) {
     return (
       <Card>
-        <CardHeader title={u("apiIntegrasi")} description={u("descApiIntegrasiUpsell")} />
+        <CardHeader title={u("apiIntegrasi")} description={u("descApiIntegrasi")} />
         <CardBody>
-          <Alert tone="info">
-            <div className="font-medium">{u("tersediaEnterprise")}</div>
-            <p className="mt-1 text-sm">
-              {u("descApiUpsell")}{" "}
-              <a className="underline" href="/api-docs" target="_blank" rel="noreferrer">{u("dokumentasiApi")}</a>
-              {u("tingkatkanEnterprise")}
-            </p>
+          <Alert tone="warning">
+            <div className="font-medium">{u("aksesPengaturanDitolak")}</div>
+            <p className="mt-1 text-sm">{u("descAksesPengaturanDitolak")}</p>
           </Alert>
         </CardBody>
       </Card>

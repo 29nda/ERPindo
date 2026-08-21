@@ -25,7 +25,12 @@ import { requireAuth, requireTenantRole } from "../middleware/auth";
 // dinyatakan tetap aktif oleh Cloudflare.
 const AI_MODELS = ["@cf/zai-org/glm-4.7-flash", "@cf/meta/llama-3.1-8b-instruct-fast"];
 
-/** Kuota AI harian per paket (Fase 13a) — Starter 25, Business 100, Enterprise 250, Trial 100. */
+/**
+ * Kuota AI harian per perusahaan (Fase 13a, disatukan Fase 30).
+ *
+ * Dulu bertingkat: Starter 25, Business 100, Enterprise 250, Trial 100. Sejak
+ * paketnya dibubarkan hanya ada satu angka; alasannya dicatat di PLAN_LIMITS.
+ */
 function aiDailyLimit(plan: Plan): number {
   return PLAN_LIMITS[plan].aiDailyLimit;
 }

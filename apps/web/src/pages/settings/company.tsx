@@ -106,8 +106,10 @@ export function DocNumberingCard({ tenantId }: { tenantId: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// API publik & webhook (Fase 13h) — modul apiAccess (paket Enterprise). Kelola
-// API key (Bearer) + webhook langganan peristiwa. 403 → kartu upsell.
+// API publik & webhook (Fase 13h). Kelola API key (Bearer) + webhook langganan
+// peristiwa. Dulu modul apiAccess milik paket Enterprise, dan 403 berarti
+// "naikkan paket"; sejak Fase 30 paketnya tidak ada dan 403 berarti peran atau
+// pembatasan IP — kartunya diperbaiki di Fase 38u.
 // ---------------------------------------------------------------------------
 
 // Status tagihan datang dari server sebagai kode; label diterjemahkan di sisi

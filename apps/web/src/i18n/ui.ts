@@ -351,15 +351,20 @@ export const UI = {
   mencadangkanEllipsis: { id: "Mencadangkan…", en: "Backing up…" },
   cadangkanSekarang: { id: "Cadangkan sekarang", en: "Back up now" },
   putuskanSambungan: { id: "Putuskan sambungan", en: "Disconnect" },
+  // 403 pada kartu pengaturan (Fase 38u). Satu pasang kunci dipakai kartu
+  // Keamanan lanjutan dan kartu API & integrasi sekaligus: sebabnya sama, dan
+  // dua naskah berbeda untuk sebab yang sama hanya akan menyimpang seiring
+  // waktu. Kalimatnya UTUH, bukan potongan yang dirakit di tempat pemakaian —
+  // pelajaran dari `descApiUpsell` + `tingkatkanEnterprise` yang digantinya.
+  aksesPengaturanDitolak: {
+    id: "Pengaturan ini tidak bisa dibuka dari sini",
+    en: "These settings cannot be opened from here",
+  },
+  descAksesPengaturanDitolak: {
+    id: "Hanya Pemilik perusahaan yang boleh membukanya. Bila pembatasan IP sedang aktif, alamat IP Anda saat ini juga harus termasuk yang diizinkan.",
+    en: "Only the company Owner may open them. If IP restriction is active, your current IP address must also be on the allowed list.",
+  },
   keamananLanjutan: { id: "Keamanan lanjutan", en: "Advanced security" },
-  descKeamananUpsellSingkat: {
-    id: "Kontrol keamanan tingkat perusahaan.",
-    en: "Enterprise-grade security controls.",
-  },
-  descKeamananUpsell: {
-    id: "Wajibkan verifikasi 2 langkah (2FA) untuk semua anggota, batasi akses ke rentang IP kantor, dan ekspor audit log.",
-    en: "Require two-step verification (2FA) for every member, limit access to your office IP ranges, and export the audit log.",
-  },
   descKeamananLanjutan: {
     id: "Wajibkan 2FA, batasi akses per IP, dan ekspor audit log — kontrol keamanan tingkat perusahaan.",
     en: "Require 2FA, limit access per IP, and export the audit log — enterprise-grade security controls.",
@@ -499,20 +504,6 @@ export const UI = {
   tambahPerusahaan: { id: "Tambah perusahaan", en: "Add company" },
   // API & integrasi (Fase 20m)
   apiIntegrasi: { id: "API & Integrasi", en: "API & Integrations" },
-  descApiIntegrasiUpsell: {
-    id: "API publik & webhook untuk menghubungkan sistem lain.",
-    en: "Public API & webhooks for connecting other systems.",
-  },
-  tersediaEnterprise: { id: "Tersedia di paket Enterprise", en: "Available on the Enterprise plan" },
-  descApiUpsell: {
-    id: "Buat API key (Bearer) untuk membaca & menulis data lewat API terkurasi, dan terima webhook saat faktur atau pembayaran terjadi. Lihat",
-    en: "Create a Bearer API key to read & write data through a curated API, and receive webhooks when invoices or payments happen. See",
-  },
-  dokumentasiApi: { id: "dokumentasi API", en: "the API documentation" },
-  tingkatkanEnterprise: {
-    id: ". Tingkatkan ke Enterprise untuk mengaktifkannya.",
-    en: ". Upgrade to Enterprise to enable it.",
-  },
   descApiIntegrasi: {
     id: "Hubungkan toko online / sistem lain lewat API publik & webhook.",
     en: "Connect your online store / other systems through the public API & webhooks.",
