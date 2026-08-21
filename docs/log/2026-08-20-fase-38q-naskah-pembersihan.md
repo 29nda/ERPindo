@@ -106,7 +106,8 @@ sudah tidak ada.
 
 ## Dokumen
 
-- `docs/04-rencana-monetisasi-tier.md` **dihapus** (71 baris). Nol tautan masuk,
+- Dokumen `04-rencana-monetisasi-tier.md` di folder dokumen **dihapus**
+  (71 baris). Nol tautan masuk,
   dan isinya menyajikan empat tingkat harga sebagai "keputusan harga (pemilik)"
   — padahal dibubarkan Fase 30 dan bertentangan langsung dengan
   `packages/shared/src/core.ts:136`.

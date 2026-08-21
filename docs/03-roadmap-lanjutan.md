@@ -535,3 +535,26 @@ pemilik dikerjakan begitu prasyaratnya tersedia.
 >
 > **Tiga di antaranya kini mendesak dan berurutan** — daftar langkahnya beserta
 > cara memverifikasi tiap langkah: **[docs/langkah-pemilik.md](./langkah-pemilik.md)**.
+
+---
+
+## Perombakan situs — Fase 38 (selesai 21 Agustus 2026)
+
+| Butir | Status |
+| --- | --- |
+| Kerangka peragaan menggantikan seluruh tangkapan layar produk | ✅ **Fase 38a–38f** — 28 naskah, 57 gambar dihapus |
+| Kerangka publik disatukan (3 footer + header keempat → satu) | ✅ **Fase 38c** |
+| Halaman publik untuk pembeli perusahaan (`/harga`, `/keamanan`, `/tentang`, `/kontak`, `/syarat`, `/privasi`) | ✅ **Fase 38d** |
+| Merek murni teks; seluruh berkas logo dihapus | ✅ **Fase 38g** — ikon dirender dari teks |
+| Primitif halaman modul + formulir pindah dari atas daftar ke Lembar | ✅ **Fase 38h, 38j, 38k** — 9 halaman |
+| Utang warna literal mencapai nol | ✅ **Fase 38i** — `sapu-warna` berambang 0/0 |
+| Register naskah untuk pembaca perusahaan + penjaganya | ✅ **Fase 38p–38q** — glosarium §8, kelas `merendahkan` & `klaim-tanpa-bukti` |
+| Pembersihan repo: aset, dokumen mati, kunci kamus mati, kode duplikat | ✅ **Fase 38q** — aset 7,1 MB → 172 KB |
+
+### Yang sengaja belum dikerjakan
+
+| Butir | Alasan |
+| --- | --- |
+| Formulir `commerce.tsx` dan `crm.tsx` (Penawaran) dipindah ke Lembar | Keduanya editor dokumen berbaris banyak, bukan formulir sederhana — lebih baik ditata ulang sebagai halamannya sendiri daripada digeser mekanis |
+| Formulir karyawan di `payroll.tsx` | Berbagi kartu dengan daftar karyawan di dalam satu tab; memisahkannya menuntut penataan ulang tabnya |
+| Ajakan "Tingkatkan ke Enterprise" di `settings/data.tsx` dan `settings/integrations.tsx` | Sisa paket bertingkat Fase 30 pada jalur galat 403; ditemukan di Fase 38g dan dicatat, belum dibereskan |

@@ -3,7 +3,76 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 19 Agustus 2026
+**Terakhir diperbarui:** 21 Agustus 2026
+
+## Yang baru saja selesai — Fase 38: perombakan total situs
+
+Ini perombakan desain **ketiga** di repo ini. Dua yang sebelumnya (Fase 17a dan
+18a) hanya mengganti nilai warna di satu berkas sementara 50 halaman menulis
+warnanya sendiri — itu sebabnya keduanya tidak pernah terasa berubah. Yang ini
+mengubah hal yang berbeda.
+
+### 1. Tidak ada lagi tangkapan layar produk. Sama sekali.
+
+Situs ini punya 57 gambar produk seberat 3,9 MB. Semuanya dihapus, diganti
+**peragaan** — alur kerja yang benar-benar berjalan di depan mata pengunjung,
+dirakit dari komponen yang sama dengan aplikasinya.
+
+Bedanya bukan kecantikan. Tangkapan layar adalah klaim yang harus dipercaya;
+peragaan bisa diperiksa. Jurnal yang diperagakan adalah double-entry sungguhan,
+dan **keseimbangannya diuji mesin** — angka karangan akan menggagalkan build.
+
+Peragaan juga tidak bisa basi: begitu tampilan aplikasi berubah, ia ikut
+berubah sendiri.
+
+### 2. Halaman modul membuka dengan data, bukan formulir kosong
+
+Sembilan halaman dulu menaruh formulir pembuatan yang selalu terbuka **di atas**
+daftarnya. Hal pertama yang Anda lihat saat membuka halaman Produk adalah
+formulir produk kosong — bukan produk Anda.
+
+Ini sebab terbesar aplikasi terbaca seperti aplikasi lama, dan lebih besar
+daripada warna mana pun. Sekarang formulirnya muncul sebagai panel yang digeser
+masuk saat Anda menekan tombol di pojok kanan atas — tempat yang sama di setiap
+halaman.
+
+### 3. Enam halaman baru yang bisa Anda kirimkan
+
+`/harga`, `/keamanan`, `/tentang`, `/kontak`, `/syarat`, `/privasi`.
+
+Sebelumnya harga hanyalah bagian dari beranda, dan tidak ada satu pun halaman
+yang bisa diteruskan ke bagian pengadaan atau bagian hukum calon pelanggan.
+Halaman `/keamanan` menyebut juga apa yang **belum** ada (ERPindo belum
+bersertifikat ISO 27001 maupun SOC 2) — halaman keamanan yang hanya memuat hal
+baik terbaca sebagai brosur.
+
+### 4. Merek sepenuhnya teks
+
+Tidak ada berkas logo tersisa. Favicon, ikon aplikasi, dan gambar pratinjau
+tautan tetap ada karena peramban mewajibkannya, tetapi isinya **dirender dari
+teks** oleh skrip — tidak ada gambar buatan tangan di mana pun.
+
+### 5. Situsnya jauh lebih ringan
+
+| | Sebelum | Sesudah |
+| --- | --- | --- |
+| Berkas aset | 7,1 MB | **172 KB** |
+| Hasil build | 9,7 MB | **3,4 MB** |
+| Yang diunduh untuk dipasang sebagai aplikasi | 5.837 KB | **2.719 KB** |
+
+### 6. Tiga hal yang ditemukan di jalan, dan tidak ada yang pernah melaporkannya
+
+- **Panduan menjanjikan uji coba 30 hari** yang sudah dihapus empat belas fase
+  sebelumnya — di halaman yang justru dibaca orang yang sudah serius memakai
+  produknya.
+- **Halaman `/api-docs` menjual "paket Enterprise"** yang sudah dibubarkan,
+  bertentangan langsung dengan halaman harga yang baru.
+- **Mencetak faktur dalam tema gelap menghasilkan halaman nyaris kosong** —
+  teks krem terang di atas kertas putih. Dugaan saya, yang mengalaminya
+  menyimpulkan printernya bermasalah.
+
+Ketiganya diperbaiki, dan ketiganya kini dijaga uji otomatis supaya tidak bisa
+kembali.
 
 ## Di mana kita sekarang?
 
