@@ -161,8 +161,26 @@ async function lembarTidakMeluber(page, namaTombol) {
       el.scrollWidth - el.clientWidth > 2
         ? { tag: el.tagName.toLowerCase(), kelas: el.className.toString().slice(0, 90), lebih: el.scrollWidth - el.clientWidth }
         : null;
+    // Kendali formulir DILEWATI, dan ini bukan pelonggaran — ini koreksi.
+    //
+    // `scrollWidth` sebuah <select> adalah lebar OPSI TERPANJANGNYA, bukan
+    // lebar tata letaknya. Peramban memotong sendiri teks opsi yang tidak muat
+    // dan tidak pernah mendorong apa pun ke samping karenanya, jadi angka itu
+    // bukan gejala cacat. Hal yang sama berlaku untuk <input> dan <textarea>
+    // yang isinya lebih panjang daripada kotaknya.
+    //
+    // Ketahuan lewat CI, bukan lewat mesin ini: runner GitHub memakai font
+    // pengganti yang lebih lebar, sehingga pemilih akun di jurnal manual
+    // berbahasa Inggris melewati ambang 19 piksel di sana sementara di sini
+    // tidak. Aturan yang hasilnya bergantung pada font yang kebetulan
+    // terpasang bukan aturan — ia lotre yang merah di tempat lain.
+    //
+    // Daya tangkapnya utuh: cacat yang melahirkan penjaga ini terdeteksi pada
+    // `div.space-y-4` (77px), sebuah WADAH — dan wadah tetap diperiksa.
+    const KENDALI = ["select", "input", "textarea", "button"];
     const semua = [l, ...l.querySelectorAll("*")];
     for (const el of semua) {
+      if (KENDALI.includes(el.tagName.toLowerCase())) continue;
       const t = cari(el);
       // `overflow-x: auto` yang DISENGAJA (tabel lebar, sumur kode) bukan cacat.
       if (t && !["auto", "scroll"].includes(getComputedStyle(el).overflowX)) return t;

@@ -106,3 +106,68 @@ Tetapi itu berarti kemampuan menangkap gambar tidak tersimpan di repo, dan
 tinjauan visual berikutnya akan mulai dari nol lagi. Itu pertukaran yang
 disengaja, bukan kelalaian: yang tersimpan adalah **penjaganya**, dan penjaga
 lebih berguna daripada skrip yang harus dijalankan orang.
+
+---
+
+## Koreksi (Fase 38s-1) — penjaganya sendiri punya cacat, dan CI yang menemukannya
+
+Penjaga `lembarTidakMeluber` yang dipasang di atas **merah di CI** sementara
+hijau di mesin pengembangan:
+
+```
+✗ Lembar "New manual entry" tidak menggulir ke samping
+  select.h-9 w-full rounded-control border border-line-strong … lebih 19px
+```
+
+Yang meluber adalah **`<select>` itu sendiri**, bukan wadahnya. Dan itu bukan
+cacat tata letak: `scrollWidth` sebuah `<select>` adalah lebar **opsi
+terpanjangnya**, bukan lebar tata letaknya. Peramban memotong sendiri teks opsi
+yang tidak muat, dan tidak pernah mendorong apa pun ke samping karenanya.
+
+Kenapa hanya merah di CI: runner GitHub memakai font pengganti yang lebih lebar,
+sehingga pemilih akun pada jurnal manual **berbahasa Inggris** melewati ambang
+19 piksel di sana sementara di sini tidak. Aturan yang hasilnya bergantung pada
+font yang kebetulan terpasang bukan aturan — ia lotre yang merah di tempat lain.
+
+Perbaikannya: `select`, `input`, `textarea`, dan `button` dilewati. Ini
+**koreksi, bukan pelonggaran** — ambangnya tidak dinaikkan, dan tidak ada
+pengecualian per-berkas.
+
+### Daya tangkapnya diperiksa ulang, bukan diandaikan
+
+Menyimpulkan "wadah tetap diperiksa, jadi pasti masih menangkap" persis jenis
+penalaran yang meloloskan cacat aslinya. Predikatnya karena itu diuji langsung
+terhadap DOM sintetis — tanpa wrangler, tanpa seed, tiga kasus:
+
+```
+✓ KENA  → KENA   wadah meluber (kisi 7 trek di dalam lembar 768px)
+         terdeteksi: div. lebih 172px
+✓ LOLOS → LOLOS  <select> meluber (positif palsu CI)
+✓ LOLOS → LOLOS  lembar sehat
+```
+
+Skripnya sekali-pakai dan tinggal di scratchpad, sejalan dengan alasan yang
+sudah dicatat di bagian "Catatan kejujuran" di atas.
+
+### Pelajarannya, dan ia bukan pelajaran kecil
+
+Fase 38s menemukan cacat karena **mata melihat apa yang mesin tidak ukur**.
+Sub-fase ini menemukan cacat berikutnya karena **CI menjalankan mesin yang
+berbeda dari mesin ini**. Keduanya kelas yang sama: sebuah gerbang hanya sejauh
+lingkungan yang pernah menjalankannya.
+
+Ambang berbasis piksel yang mengukur **konten** — bukan tata letak — akan selalu
+bergantung pada font. Penjaga berikutnya yang mengukur piksel wajib menanyakan
+lebih dulu: apakah yang diukur ini sama di mesin mana pun?
+
+## Validasi (sesudah koreksi)
+
+| Gerbang | Angka |
+| --- | --- |
+| `node scripts/ui-sim.mjs` | 424/424 lokal · hijau di CI |
+| `pnpm lint` | bersih |
+| `sapu-istilah` | 7 aturan / 0 pelanggaran |
+| `periksa-tautan-dokumen` | 78 tautan di 57 berkas |
+
+Jumlah cek **tidak turun**: 424 sebelum dan sesudah koreksi. Yang berubah hanya
+apa yang dihitung sebagai pelanggaran oleh salah satu di antaranya.
