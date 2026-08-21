@@ -532,7 +532,15 @@ export function JournalPage() {
               {lines.map((line, i) => (
                 <div
                   key={i}
-                  className={`grid grid-cols-2 gap-2 ${costCenters.length > 0 ? "sm:grid-cols-[1fr_1fr_9rem_7rem_7rem_2.5rem]" : "sm:grid-cols-[1fr_1fr_8rem_8rem_2.5rem]"}`}
+                  /*
+                    `[&>*]:min-w-0` (Fase 38s) — tanpa ini baris jurnal meluber
+                    keluar Lembar. Butir kisi berlaku `min-width: auto`, dan
+                    lebar auto sebuah <select> adalah selebar OPSI TERPANJANGNYA
+                    — di sini nama akun beserta kodenya. Jadi trek `1fr` yang
+                    seharusnya menyusut justru menolak menyusut, dan barisnya
+                    mendorong lembarnya menggulir ke samping.
+                  */
+                  className={`grid grid-cols-2 gap-2 [&>*]:min-w-0 ${costCenters.length > 0 ? "sm:grid-cols-[1fr_1fr_9rem_7rem_7rem_2.5rem]" : "sm:grid-cols-[1fr_1fr_8rem_8rem_2.5rem]"}`}
                 >
                   <Select
                     aria-label={`${u("akunBaris")} ${i + 1}`}

@@ -1,10 +1,32 @@
 /**
- * Daftar rute untuk audit visual (screenshots.mjs set "audit") dan simulasi
- * UI penuh (ui-sim.mjs). Satu sumber kebenaran: rute baru cukup ditambah di
- * sini agar tercakup keduanya. Format: [path, nama-berkas].
+ * Daftar rute untuk audit visual dan simulasi UI penuh (`ui-sim.mjs`).
+ * Satu sumber kebenaran: rute baru cukup ditambah di sini. Format:
+ * `[path, nama-berkas]`.
+ *
+ * Fase 38s — dua koreksi.
+ *
+ * 1. Komentar ini dulu menyebut `screenshots.mjs`, yang dihapus pada Fase 38f
+ *    bersama 57 gambar produk yang menjadi satu-satunya alasan keberadaannya.
+ *
+ * 2. **Tujuh rute publik tidak pernah ditambahkan ke sini** meski berkas ini
+ *    menyatakan dirinya sumber tunggal: `/fitur` sejak Fase 18f, dan keenam
+ *    halaman Fase 38d. Akibatnya audit visual dan sapuan rute melewatkan
+ *    seluruh sisi publik selain beranda — termasuk dua halaman hukum yang
+ *    justru paling perlu diperiksa sebelum tayang.
+ *
+ *    Ini kelas kegagalan yang sama dengan `sapu-istilah` yang tidak menyapu
+ *    direktori naskah baru: daftar yang mengaku lengkap, tetapi tidak ada
+ *    yang memaksanya tetap lengkap.
  */
 export const AUDIT_ROUTES = [
   ["/", "landing"],
+  ["/fitur", "fitur"],
+  ["/harga", "harga"],
+  ["/keamanan", "keamanan"],
+  ["/tentang", "tentang"],
+  ["/kontak", "kontak"],
+  ["/syarat", "syarat"],
+  ["/privasi", "privasi"],
   ["/masuk", "masuk"],
   ["/daftar", "daftar"],
   ["/panduan", "panduan-indeks"],

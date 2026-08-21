@@ -129,6 +129,51 @@ async function bukaLembar(page, namaTombol) {
   // Animasi masuk singkat; menunggu satu bingkai membuat `fill` berikutnya
   // tidak mengenai elemen yang masih bergerak.
   await page.waitForTimeout(180);
+  await lembarTidakMeluber(page, namaTombol);
+}
+
+/**
+ * Lembar tidak boleh menggulir ke samping (Fase 38s).
+ *
+ * Ditemukan lewat tangkapan layar, bukan lewat gerbang: formulir produk masih
+ * memakai kisi selebar halaman penuh (`sm:grid-cols-[8rem_1fr_5rem_9rem_9rem_
+ * 8rem_auto]`, ±46rem) padahal Lembar hanya selebar `max-w-3xl` (48rem dikurangi
+ * padding). Medan "Nama" tergencet menjadi selebar satu huruf dan tombol simpan
+ * terpotong di tepi kanan.
+ *
+ * Seluruh gerbang hijau saat itu, dan itulah masalahnya: asersi yang ada
+ * menguji medan BISA DIISI, dan medan selebar satu huruf tetap bisa diisi.
+ * Tidak ada satu pun yang menguji medan BISA DIBACA.
+ *
+ * Karena itu penjaganya dipasang di dalam `bukaLembar()` sendiri, bukan sebagai
+ * asersi terpisah di satu halaman: setiap pemanggil yang sudah ada ikut
+ * terjaga, dan setiap Lembar yang ditulis nanti terjaga tanpa siapa pun perlu
+ * ingat menambahkannya. Kisi lebar berikutnya akan menabrak gerbang pada hari
+ * ia ditulis, bukan pada hari seseorang membuka lembarnya.
+ */
+async function lembarTidakMeluber(page, namaTombol) {
+  const luber = await page.evaluate(() => {
+    const l = document.querySelector("[data-lembar]");
+    if (!l) return null;
+    // 2 px toleransi: pembulatan sub-piksel pada border kadang menghasilkan
+    // selisih 1 px yang tidak pernah terlihat mata.
+    const cari = (el) =>
+      el.scrollWidth - el.clientWidth > 2
+        ? { tag: el.tagName.toLowerCase(), kelas: el.className.toString().slice(0, 90), lebih: el.scrollWidth - el.clientWidth }
+        : null;
+    const semua = [l, ...l.querySelectorAll("*")];
+    for (const el of semua) {
+      const t = cari(el);
+      // `overflow-x: auto` yang DISENGAJA (tabel lebar, sumur kode) bukan cacat.
+      if (t && !["auto", "scroll"].includes(getComputedStyle(el).overflowX)) return t;
+    }
+    return null;
+  });
+  check(
+    `Lembar "${namaTombol}" tidak menggulir ke samping`,
+    luber === null,
+    luber ? `${luber.tag}.${luber.kelas} lebih ${luber.lebih}px` : "",
+  );
 }
 
 function run(cmd, args, env) {

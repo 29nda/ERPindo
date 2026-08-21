@@ -597,7 +597,7 @@ export function ProductsPage() {
             <form
               key={editing?.id ?? "new"}
               onSubmit={onSubmit}
-              className="grid gap-3 sm:grid-cols-[8rem_1fr_5rem_9rem_9rem_8rem_auto] sm:items-end"
+              className="grid gap-3 sm:grid-cols-2"
               noValidate
             >
               <div>
@@ -612,6 +612,15 @@ export function ProductsPage() {
                 <FieldError messages={issues.sku} />
               </div>
               <div>
+                <Label htmlFor="p-unit">{u("satuan")}</Label>
+                <Input
+                  id="p-unit"
+                  name="unit"
+                  placeholder="pcs"
+                  defaultValue={editing?.unit ?? "pcs"}
+                />
+              </div>
+              <div className="sm:col-span-2">
                 <Label htmlFor="p-name">{u("nama")}</Label>
                 <Input
                   id="p-name"
@@ -621,15 +630,6 @@ export function ProductsPage() {
                   required
                 />
                 <FieldError messages={issues.name} />
-              </div>
-              <div>
-                <Label htmlFor="p-unit">{u("satuan")}</Label>
-                <Input
-                  id="p-unit"
-                  name="unit"
-                  placeholder="pcs"
-                  defaultValue={editing?.unit ?? "pcs"}
-                />
               </div>
               <div>
                 <Label htmlFor="p-sell">{u("hargaJualRp")}</Label>
@@ -664,43 +664,7 @@ export function ProductsPage() {
                   defaultValue={editing?.min_stock || ""}
                 />
               </div>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={busy}>
-                  {busy ? <Spinner /> : null} {editing ? u("simpan") : u("tambah")}
-                </Button>
-                {editing ? (
-                  <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
-                    {u("batal")}
-                  </Button>
-                ) : null}
-              </div>
-              <div className="sm:col-span-7">
-                <CustomFieldInputs
-                  defs={kustom.defs}
-                  values={kustom.values}
-                  onChange={kustom.setValue}
-                  idPrefix="produk"
-                />
-              </div>
-              <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-3">
-                <input
-                  type="checkbox"
-                  name="trackExpiry"
-                  className="h-4 w-4 rounded border-line-strong"
-                  defaultChecked={editing ? editing.track_expiry === 1 : false}
-                />
-                {u("lacakLotKedaluwarsa")}
-              </label>
-              <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-3">
-                <input
-                  type="checkbox"
-                  name="isService"
-                  className="h-4 w-4 rounded border-line-strong"
-                  defaultChecked={editing ? editing.is_service === 1 : false}
-                />
-                {u("jasaTanpaStok")}
-              </label>
-              <div className="sm:col-span-3">
+              <div>
                 <Label htmlFor="p-barcode">{u("barcodeLabel")}</Label>
                 <Input
                   id="p-barcode"
@@ -710,7 +674,7 @@ export function ProductsPage() {
                 />
                 <FieldError messages={issues.barcode} />
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <Label htmlFor="p-uom2">{u("satuanBesar")}</Label>
                 <Input
                   id="p-uom2"
@@ -719,7 +683,7 @@ export function ProductsPage() {
                   defaultValue={editing?.uom_secondary ?? ""}
                 />
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <Label htmlFor="p-uomf">{u("satuanBesarSamaDengan")}</Label>
                 <Input
                   id="p-uomf"
@@ -733,15 +697,57 @@ export function ProductsPage() {
                 />
                 <FieldError messages={issues.uomFactor} />
               </div>
-              <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-3">
+              <div className="sm:col-span-2">
+                <CustomFieldInputs
+                  defs={kustom.defs}
+                  values={kustom.values}
+                  onChange={kustom.setValue}
+                  idPrefix="produk"
+                />
+              </div>
+              <label className="flex items-start gap-2 text-sm text-ink-soft sm:col-span-2">
+                <input
+                  type="checkbox"
+                  name="trackExpiry"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong"
+                  defaultChecked={editing ? editing.track_expiry === 1 : false}
+                />
+                {u("lacakLotKedaluwarsa")}
+              </label>
+              <label className="flex items-start gap-2 text-sm text-ink-soft sm:col-span-2">
+                <input
+                  type="checkbox"
+                  name="isService"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong"
+                  defaultChecked={editing ? editing.is_service === 1 : false}
+                />
+                {u("jasaTanpaStok")}
+              </label>
+              <label className="flex items-start gap-2 text-sm text-ink-soft sm:col-span-2">
                 <input
                   type="checkbox"
                   name="trackSerial"
-                  className="h-4 w-4 rounded border-line-strong"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong"
                   defaultChecked={editing ? editing.track_serial === 1 : false}
                 />
                 {u("lacakNomorSeri")}
               </label>
+              {/*
+                Aksi utama duduk di DASAR formulir, bukan di tengahnya.
+                Sebelum Fase 38h formulir ini berbaris mendatar di atas daftar,
+                jadi tombolnya jatuh di kolom terakhir — di dalam Lembar yang
+                menggulir tegak, posisi itu menaruh "Simpan" di tengah medan.
+              */}
+              <div className="flex gap-2 border-t border-line pt-3 sm:col-span-2">
+                <Button type="submit" disabled={busy}>
+                  {busy ? <Spinner /> : null} {editing ? u("simpan") : u("tambah")}
+                </Button>
+                {editing ? (
+                  <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
+                    {u("batal")}
+                  </Button>
+                ) : null}
+              </div>
             </form>
             {editing && editing.track_serial === 1 ? <SerialManager product={editing} /> : null}
           </div>
@@ -995,7 +1001,7 @@ export function ContactsPage() {
             <form
               key={editing?.id ?? "new"}
               onSubmit={onSubmit}
-              className="grid gap-3 sm:grid-cols-[11rem_1fr_1fr_1fr_auto] sm:items-end"
+              className="grid gap-3 sm:grid-cols-2"
               noValidate
             >
               <div>
@@ -1006,7 +1012,25 @@ export function ContactsPage() {
                   <option value="both">{u("keduanya")}</option>
                 </Select>
               </div>
+              {/* Fase 23a: grup harga pelanggan. Ditaruh di form utama, bukan di
+                  blok "hanya saat mengubah", karena grup paling sering ditetapkan
+                  justru saat pelanggan grosir pertama kali didaftarkan. */}
               <div>
+                <Label htmlFor="k-price-group">{u("ghGrup")}</Label>
+                <Select
+                  id="k-price-group"
+                  name="priceGroupId"
+                  defaultValue={editing?.price_group_id ?? ""}
+                >
+                  <option value="">{u("ghTanpaGrup")}</option>
+                  {priceGroups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
                 <Label htmlFor="k-name">{u("nama")}</Label>
                 <Input
                   id="k-name"
@@ -1037,45 +1061,9 @@ export function ContactsPage() {
                   defaultValue={editing?.phone ?? ""}
                 />
               </div>
-              {/* Fase 23a: grup harga pelanggan. Ditaruh di form utama, bukan di
-                  blok "hanya saat mengubah", karena grup paling sering ditetapkan
-                  justru saat pelanggan grosir pertama kali didaftarkan. */}
-              <div>
-                <Label htmlFor="k-price-group">{u("ghGrup")}</Label>
-                <Select
-                  id="k-price-group"
-                  name="priceGroupId"
-                  defaultValue={editing?.price_group_id ?? ""}
-                >
-                  <option value="">{u("ghTanpaGrup")}</option>
-                  {priceGroups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={busy}>
-                  {busy ? <Spinner /> : null} {editing ? u("simpan") : u("tambah")}
-                </Button>
-                {editing ? (
-                  <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
-                    {u("batal")}
-                  </Button>
-                ) : null}
-              </div>
-              <div className="sm:col-span-5">
-                <CustomFieldInputs
-                  defs={kustom.defs}
-                  values={kustom.values}
-                  onChange={kustom.setValue}
-                  idPrefix="kontak"
-                />
-              </div>
               {editing ? (
                 <>
-                  <div className="sm:col-span-2">
+                  <div>
                     <Label htmlFor="k-address">{u("alamat")}</Label>
                     <Input
                       id="k-address"
@@ -1095,6 +1083,24 @@ export function ContactsPage() {
                   </div>
                 </>
               ) : null}
+              <div className="sm:col-span-2">
+                <CustomFieldInputs
+                  defs={kustom.defs}
+                  values={kustom.values}
+                  onChange={kustom.setValue}
+                  idPrefix="kontak"
+                />
+              </div>
+              <div className="flex gap-2 border-t border-line pt-3 sm:col-span-2">
+                <Button type="submit" disabled={busy}>
+                  {busy ? <Spinner /> : null} {editing ? u("simpan") : u("tambah")}
+                </Button>
+                {editing ? (
+                  <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
+                    {u("batal")}
+                  </Button>
+                ) : null}
+              </div>
             </form>
           </div>
         </Lembar>
