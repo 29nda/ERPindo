@@ -410,7 +410,7 @@ function NotificationBell({ tenantId }: { tenantId: string }) {
     open_ticket: "bg-sky-500",
     pending_approval: "bg-brand-500",
     crm_followup_due: "bg-violet-500",
-    crm_stale_lead: "bg-slate-400",
+    crm_stale_lead: "bg-ink-faint",
   };
 
   return (
@@ -446,7 +446,7 @@ function NotificationBell({ tenantId }: { tenantId: string }) {
                   onClick={() => setOpen(false)}
                   className="flex gap-3 border-b border-line px-4 py-3 text-sm hover:bg-surface-sunken"
                 >
-                  <span className={`mt-1.5 size-2 shrink-0 rounded-full ${toneByType[n.type] ?? "bg-slate-400"}`} aria-hidden />
+                  <span className={`mt-1.5 size-2 shrink-0 rounded-full ${toneByType[n.type] ?? "bg-ink-faint"}`} aria-hidden />
                   <span>
                     <span className="block font-medium text-ink">{n.title}</span>
                     <span className="block text-xs text-ink-muted">{n.detail}</span>
@@ -600,11 +600,11 @@ export function AppShell() {
       activeOptions={{ exact: item.exact }}
       activeProps={{
         className:
-          "bg-brand-50 font-medium text-brand-700 ring-1 ring-inset ring-brand-200/70 dark:bg-brand-500/15 dark:text-brand-100 dark:ring-brand-400/20",
+          "bg-brand-surface font-medium text-brand-ink ring-1 ring-inset ring-brand-line",
       }}
       inactiveProps={{
         className:
-          "text-ink-soft hover:bg-slate-100 hover:text-ink dark:hover:bg-white/5",
+          "text-ink-soft hover:bg-surface-muted hover:text-ink",
       }}
       className="flex items-center gap-2 rounded px-2.5 py-1.5 text-[13px] transition-colors"
       onClick={() => setMenuOpen(false)}
@@ -626,7 +626,7 @@ export function AppShell() {
           }}
           placeholder={lang === "en" ? "Search menu…" : "Cari menu…"}
           aria-label={u("shCariMenuAria")}
-          className="h-8 w-full rounded border border-line bg-transparent pl-8 pr-2 text-[13px] text-ink outline-none placeholder:text-slate-400 focus:border-brand-400 dark:focus:border-brand-500"
+          className="h-8 w-full rounded border border-line bg-transparent pl-8 pr-2 text-[13px] text-ink outline-none placeholder:text-ink-faint focus:border-brand-line"
         />
       </div>
       {navGroups.map((group) => {
@@ -655,7 +655,7 @@ export function AppShell() {
       ) : null}
       <Link
         to="/app/panduan"
-        className="mt-3 flex items-center gap-2 rounded px-2.5 py-1.5 text-[13px] text-ink-soft transition-colors hover:bg-slate-100 hover:text-ink dark:hover:bg-white/5"
+        className="mt-3 flex items-center gap-2 rounded px-2.5 py-1.5 text-[13px] text-ink-soft transition-colors hover:bg-surface-muted hover:text-ink"
       >
         <CircleHelp className="size-4 shrink-0" aria-hidden />
         {lang === "en" ? "Guide" : "Panduan"}
@@ -668,11 +668,11 @@ export function AppShell() {
 
   const workspacePicker =
     me.memberships.length > 1 ? (
-      <div className="mt-2 flex items-center gap-1.5 rounded bg-surface-muted px-2 py-1 dark:bg-white/5">
+      <div className="mt-2 flex items-center gap-1.5 rounded bg-surface-muted px-2 py-1">
         <Building2 className="size-4 shrink-0 text-ink-muted" aria-hidden />
         <select
           aria-label={u("shPilihPerusahaan")}
-          className="w-full bg-transparent text-[13px] text-ink outline-none [&>option]:text-slate-900"
+          className="w-full bg-transparent text-[13px] text-ink outline-none [&>option]:text-ink"
           value={tenant.tenantId}
           onChange={(e) => {
             localStorage.setItem("erpindo-tenant", e.target.value);
@@ -805,7 +805,7 @@ export function AppShell() {
                   sebelas asersi ui-sim menghitung `aside nav a/button`. */}
               <button
                 onClick={() => setPaletOpen(true)}
-                className="hidden items-center gap-2 rounded border border-line-strong px-2 py-1 text-xs text-ink-muted transition-colors hover:border-slate-400 hover:text-ink md:flex dark:hover:border-slate-600"
+                className="hidden items-center gap-2 rounded border border-line-strong px-2 py-1 text-xs text-ink-muted transition-colors hover:border-line-strong hover:text-ink md:flex"
                 aria-label={lang === "en" ? "Open command palette" : "Buka palet perintah"}
                 title={lang === "en" ? "Jump to a page (Ctrl+K)" : "Lompat ke halaman (Ctrl+K)"}
               >
@@ -834,14 +834,14 @@ export function AppShell() {
 
           {/* Menu mobile — off-canvas drawer geser dari kiri + backdrop */}
           <div
-            className={`fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
+            className={`fixed inset-0 z-40 bg-ink/40 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
               menuOpen ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
             onClick={() => setMenuOpen(false)}
             aria-hidden
           />
           <aside
-            className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[82vw] flex-col border-r border-line bg-white shadow-xl transition-transform duration-300 md:hidden dark:border-white/10 dark:bg-slate-950 ${
+            className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[82vw] flex-col border-r border-line bg-white shadow-xl transition-transform duration-300 md:hidden ${
               menuOpen ? "translate-x-0" : "-translate-x-full"
             }`}
             role="dialog"
@@ -850,7 +850,7 @@ export function AppShell() {
           >
             <button
               onClick={() => setMenuOpen(false)}
-              className="absolute right-2 top-2 z-10 flex size-11 items-center justify-center rounded-lg text-ink-muted hover:bg-slate-100 dark:hover:bg-white/5"
+              className="absolute right-2 top-2 z-10 flex size-11 items-center justify-center rounded-lg text-ink-muted hover:bg-surface-muted"
               aria-label={u("shTutupMenu")}
             >
               <X className="size-5" aria-hidden />
@@ -859,7 +859,7 @@ export function AppShell() {
           </aside>
 
           {me.user.isDemo ? (
-            <div className="border-b border-brand-200 bg-brand-50 px-4 py-2 text-sm text-brand-800 dark:border-brand-900 dark:bg-brand-950 dark:text-brand-200">
+            <div className="border-b border-brand-line bg-brand-surface px-4 py-2 text-sm text-brand-ink">
               <strong>{u("shModeDemo")}</strong> {u("shDemoBacaSaja")}{" "}
               <a href="/daftar" className="font-medium underline">
                 {u("authDaftarGratis")}
@@ -867,13 +867,13 @@ export function AppShell() {
               {u("shUntukKelolaBisnis")}
             </div>
           ) : !me.user.emailVerified ? (
-            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            <div className="border-b border-awas-line bg-awas-surface px-4 py-2 text-sm text-awas-ink">
               {u("shEmailBelumVerifikasi")}
             </div>
           ) : null}
 
           {tenant.tenantStatus === "past_due" ? (
-            <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+            <div className="border-b border-galat-line bg-galat-surface px-4 py-2 text-sm text-galat-ink">
               {u("shLanggananBerakhir")} <strong>{u("shModeBacaSaja")}</strong>{u("shAktifkanDi")}{" "}
               <Link to="/app/pengaturan" className="font-medium underline">
                 {u("shPengaturan")}
@@ -884,7 +884,7 @@ export function AppShell() {
             // Fase 24: tidak ada lagi hitung mundur trial. Akun yang belum
             // berlangganan tidak punya database sama sekali, jadi spanduknya
             // bukan peringatan melainkan satu-satunya jalan ke depan.
-            <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            <div className="border-b border-awas-line bg-awas-surface px-4 py-2 text-sm text-awas-ink">
               {u("shBelumBerlanggananPesan")}{" "}
               <Link to="/app/pengaturan" className="font-medium underline">
                 {u("shPengaturan")}
@@ -897,7 +897,7 @@ export function AppShell() {
             // berakhir. Sengaja oranye, bukan merah: merah dipakai `past_due`
             // yang artinya sudah benar-benar terkunci, dan menyamakan keduanya
             // membuat pemilik mengira sudah terlambat padahal belum.
-            <div className="border-b border-orange-200 bg-orange-50 px-4 py-2 text-sm text-orange-900 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-200">
+            <div className="border-b border-awas-line bg-awas-surface px-4 py-2 text-sm text-awas-ink">
               {u("shTenggangPrefix")}{" "}
               <strong>
                 {sisaTenggang(tenant.subscriptionEndsAt)} {u("shHari")}

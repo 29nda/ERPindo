@@ -535,3 +535,31 @@ pemilik dikerjakan begitu prasyaratnya tersedia.
 >
 > **Tiga di antaranya kini mendesak dan berurutan** — daftar langkahnya beserta
 > cara memverifikasi tiap langkah: **[docs/langkah-pemilik.md](./langkah-pemilik.md)**.
+
+---
+
+## Perombakan situs — Fase 38 (selesai 21 Agustus 2026)
+
+| Butir | Status |
+| --- | --- |
+| Kerangka peragaan menggantikan seluruh tangkapan layar produk | ✅ **Fase 38a–38f** — 28 naskah, 57 gambar dihapus |
+| Kerangka publik disatukan (3 footer + header keempat → satu) | ✅ **Fase 38c** |
+| Halaman publik untuk pembeli perusahaan (`/harga`, `/keamanan`, `/tentang`, `/kontak`, `/syarat`, `/privasi`) | ✅ **Fase 38d** |
+| Merek murni teks; seluruh berkas logo dihapus | ✅ **Fase 38g** — ikon dirender dari teks |
+| Primitif halaman modul + formulir pindah dari atas daftar ke Lembar | ✅ **Fase 38h, 38j, 38k** — 9 halaman |
+| Utang warna literal mencapai nol | ✅ **Fase 38i** — `sapu-warna` berambang 0/0 |
+| Register naskah untuk pembaca perusahaan + penjaganya | ✅ **Fase 38p–38q** — glosarium §8, kelas `merendahkan` & `klaim-tanpa-bukti` |
+| Pembersihan repo: aset, dokumen mati, kunci kamus mati, kode duplikat | ✅ **Fase 38q** — aset 7,1 MB → 172 KB |
+| Lembar tidak boleh menggulir ke samping | ✅ **Fase 38s** — penjaganya di dalam `bukaLembar()`, 3 formulir diperbaiki |
+| Tiga formulir sisa dipindah ke Lembar | ✅ **Fase 38t** — `commerce.tsx`, `crm.tsx` (Penawaran), `payroll.tsx` (Karyawan) |
+| Ajakan "Tingkatkan ke Enterprise" dicabut | ✅ **Fase 38u** — 7 kunci dihapus, aturan penyapu menjaganya |
+
+Seluruh butir program perombakan selesai. Yang berikutnya tidak lagi menjadi
+bagian Fase 38 dan dicatat di tempatnya sendiri.
+
+### Yang ditemukan sepanjang program dan sengaja dibiarkan
+
+| Butir | Alasan |
+| --- | --- |
+| 146 utang teks layar (`sapu-i18n`) | Angkanya tidak naik sepanjang Fase 38. Menurunkannya adalah program tersendiri: sebagian besar sisa itu ada di halaman yang belum pernah disentuh perombakan bahasa, dan mencampurnya ke sini akan membuat tiap sub-fase menyentuh berkas yang tidak ada hubungannya dengan pokoknya |
+| 9 `empty-state-buntu` (`sapu-gaya`) | Kesembilannya adalah keadaan kosong yang memang buntu di produknya, bukan di naskahnya — memperbaiki kalimatnya tanpa memperbaiki jalan keluarnya hanya memindahkan kebuntuan |

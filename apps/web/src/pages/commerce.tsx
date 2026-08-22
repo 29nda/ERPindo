@@ -1,11 +1,11 @@
 import type { ApiCommerceDoc, SatuanBaris } from "@erpindo/shared";
 import { isi, useLang, pick } from "../i18n";
 import { useUi } from "../i18n/ui";
-import { useHeading } from "../i18n/pageHeadings";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, MessageCircle, Printer, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, formatDate, formatIDR } from "../api/client";
+import { Halaman, Lembar } from "../components/kerangka";
 import { hargaBaris, useGrupHarga } from "../lib/hargaGrup";
 import {
   Alert,
@@ -164,13 +164,13 @@ export function useDebounced<T>(value: T, ms = 300): T {
 export function CommercePage({ mode }: { mode: Mode }) {
   const u = useUi();
   const lang = useLang();
-  const h = useHeading(mode === "sale" ? "penjualan" : "pembelian");
   const cfg = MODE_CFG[mode];
   const { tenant } = useWorkspace();
   const isAdmin = tenant.role !== "viewer";
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  const [lembarBuka, setLembarBuka] = useState(false);
   const [docSearch, setDocSearch] = useState("");
   const docQ = useDebounced(docSearch);
   const [docLimit, setDocLimit] = useState(100);
@@ -232,6 +232,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
       }
       setLines([emptyLine()]);
       setError(null);
+      setLembarBuka(false);
       kustom.reset();
       queryClient.invalidateQueries({ queryKey: [cfg.queryKey, tenant.tenantId] });
       queryClient.invalidateQueries({ queryKey: ["stock", tenant.tenantId] });
@@ -422,7 +423,10 @@ export function CommercePage({ mode }: { mode: Mode }) {
       })
     );
     setError(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Fase 38t: formulir tidak lagi terpasang di halaman, jadi "Ubah" harus
+    // membuka lembarnya. Gulir ke atas dihapus — dulu ia memindahkan mata ke
+    // formulir; kini formulirnya datang sendiri ke depan mata.
+    setLembarBuka(true);
   }
 
   function submit() {
@@ -452,16 +456,51 @@ export function CommercePage({ mode }: { mode: Mode }) {
     });
   }
 
-  return (
-    <div className="space-y-6">
-      <h1 className="judul text-[1.75rem]">{h.title}</h1>
+  // Aksi utama menyebut JENIS DOKUMEN yang aktif, bukan kata "Tambah": satu
+  // komponen ini melayani faktur penjualan dan faktur pembelian, dan tombol yang
+  // berbunyi sama di kedua halaman menghapus satu-satunya petunjuk tentang apa
+  // yang sebenarnya akan terbuat.
+  const judulLembar = `${pick(cfg.docLabel, lang)} ${lang === "en" ? "— new" : "baru"}`;
 
+  return (
+    <Halaman
+      k={mode === "sale" ? "penjualan" : "pembelian"}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <FileText className="size-4" aria-hidden /> {judulLembar}
+          </Button>
+        ) : null
+      }
+    >
+      {/*
+        Fase 38t — editor dokumen pindah ke Lembar.
+        Ditunda di 38k karena ini editor berbaris banyak dengan picking
+        multi-gudang, satuan besar, lot, dan valuta asing — bukan formulir yang
+        bisa digeser secara mekanis. Yang berubah bukan hanya wadahnya: kisi
+        empat kolom disusut jadi dua, dan tombol posting pindah ke kaki lembar.
+      */}
       {isAdmin ? (
-        <Card>
-          <CardHeader title={`${pick(cfg.docLabel, lang)} ${lang === "en" ? "— new" : "baru"}`} description={pick(cfg.stockHint, lang)} />
-          <CardBody className="space-y-4">
+        <Lembar
+          terbuka={lembarBuka}
+          tutup={() => setLembarBuka(false)}
+          lebar="lebar"
+          judul={judulLembar}
+          deskripsi={pick(cfg.stockHint, lang)}
+          aksi={
+            <Button
+              onClick={submit}
+              disabled={
+                create.isPending || !contactId || subtotal === 0 || lines.some(pickingTimpang)
+              }
+            >
+              {create.isPending ? <Spinner /> : null} {u("postingFaktur")}
+            </Button>
+          }
+        >
+          <div className="space-y-4">
             {error ? <Alert tone="error">{error}</Alert> : null}
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="doc-contact">{pick(cfg.contactLabel, lang)}</Label>
                 <SearchSelect
@@ -573,7 +612,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
                         untuk satu kotak angka, tetapi setelah pemilih satuan
                         ikut di dalamnya kotak qty-nya tergencet jadi sesobek
                         garis — angkanya tak terbaca dan tak bisa diketik. */}
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_8.5rem_9rem_5.5rem_9rem_2.5rem] sm:items-center">
+                    <div className="grid grid-cols-2 gap-2 [&>*]:min-w-0 sm:grid-cols-[1fr_8.5rem_9rem_5.5rem_9rem_2.5rem] sm:items-center">
                       <SearchSelect
                         value={line.productId}
                         valueLabel={line.productLabel}
@@ -669,7 +708,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
                       </p>
                     ) : null}
                     {tracked ? (
-                      <div className="grid grid-cols-2 gap-2 rounded-lg bg-amber-50 p-2 sm:grid-cols-[10rem_11rem_1fr] sm:items-center dark:bg-amber-950/40">
+                      <div className="grid grid-cols-2 gap-2 rounded-lg bg-awas-surface p-2 [&>*]:min-w-0 sm:grid-cols-[10rem_11rem_1fr] sm:items-center">
                         <Input
                           aria-label={`${u("nomorLotBaris")} ${i + 1}`}
                           placeholder={u("noLotOpsional")}
@@ -682,7 +721,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
                           value={line.expiryDate}
                           onChange={(e) => setLine(i, { expiryDate: e.target.value })}
                         />
-                        <span className="text-xs text-amber-700 dark:text-amber-300">
+                        <span className="text-xs text-awas-ink">
                           {u("hintFefo")}
                         </span>
                       </div>
@@ -698,11 +737,11 @@ export function CommercePage({ mode }: { mode: Mode }) {
                           {line.picks.length > 0 ? u("ambilSatuGudang") : u("ambilBeberapaGudang")}
                         </Button>
                         {line.picks.length > 0 ? (
-                          <div className="space-y-2 rounded-lg bg-sky-50 p-2 dark:bg-sky-950/40">
+                          <div className="space-y-2 rounded-lg bg-surface-muted p-2">
                             {line.picks.map((p, j) => (
                               <div
                                 key={j}
-                                className="grid grid-cols-[1fr_5rem_2.5rem] gap-2 sm:items-center"
+                                className="grid grid-cols-[1fr_5rem_2.5rem] gap-2 [&>*]:min-w-0 sm:items-center"
                               >
                                 <Select
                                   aria-label={`${u("gudangBaris")} ${i + 1}-${j + 1}`}
@@ -764,8 +803,8 @@ export function CommercePage({ mode }: { mode: Mode }) {
                                 data-testid={`picking-sum-${i}`}
                                 className={
                                   pickingTimpang(line)
-                                    ? "text-xs text-rose-700 dark:text-rose-300"
-                                    : "text-xs text-sky-700 dark:text-sky-300"
+                                    ? "text-xs text-galat-ink"
+                                    : "text-xs text-ink-soft"
                                 }
                               >
                                 {totalPicked(line)} / {Number(line.qty) || 0} ·{" "}
@@ -826,17 +865,9 @@ export function CommercePage({ mode }: { mode: Mode }) {
                   </>
                 )}
               </div>
-              <Button
-                onClick={submit}
-                disabled={
-                  create.isPending || !contactId || subtotal === 0 || lines.some(pickingTimpang)
-                }
-              >
-                {create.isPending ? <Spinner /> : null} {u("postingFaktur")}
-              </Button>
             </div>
-          </CardBody>
-        </Card>
+          </div>
+        </Lembar>
       ) : null}
 
       <Card>
@@ -906,7 +937,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
           )}
         </CardBody>
       </Card>
-    </div>
+    </Halaman>
   );
 }
 
@@ -1172,7 +1203,7 @@ function DocRow({
               </Button>
               <Button
                 variant="secondary"
-                className="h-8 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                className="h-8 text-galat-ink hover:bg-galat-surface"
                 onClick={() => setVoidOpen(true)}
               >
                 {u("batalkan")}
@@ -1221,7 +1252,7 @@ function DocRow({
                   </span>
                 ) : isAdmin ? (
                   <button
-                    className="text-xs font-medium text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                    className="text-xs font-medium text-galat-ink underline-offset-2 hover:underline"
                     onClick={() => setVoidPaymentId(p.id)}
                   >
                     {u("hapus")}
@@ -1239,7 +1270,7 @@ function DocRow({
             <span>
               {l.productName} × {l.qty}
               {l.discountPct > 0 ? (
-                <span className="text-emerald-600 dark:text-emerald-400"> (−{l.discountPct}%)</span>
+                <span className="text-ok-ink"> (−{l.discountPct}%)</span>
               ) : null}
             </span>
             <span className="tabular-nums">{formatIDR(l.amount)}</span>

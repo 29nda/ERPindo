@@ -84,7 +84,7 @@ export function DocNumberingCard({ tenantId }: { tenantId: string }) {
                         {value.trim() ? "" : ` ${u("formatBawaan")}`}
                       </>
                     ) : (
-                      <span className="text-rose-600 dark:text-rose-400">{u("polaHarusSeq")} {"{SEQ}"}.</span>
+                      <span className="text-galat-ink">{u("polaHarusSeq")} {"{SEQ}"}.</span>
                     )}
                   </p>
                 </div>
@@ -106,8 +106,10 @@ export function DocNumberingCard({ tenantId }: { tenantId: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// API publik & webhook (Fase 13h) — modul apiAccess (paket Enterprise). Kelola
-// API key (Bearer) + webhook langganan peristiwa. 403 → kartu upsell.
+// API publik & webhook (Fase 13h). Kelola API key (Bearer) + webhook langganan
+// peristiwa. Dulu modul apiAccess milik paket Enterprise, dan 403 berarti
+// "naikkan paket"; sejak Fase 30 paketnya tidak ada dan 403 berarti peran atau
+// pembatasan IP — kartunya diperbaiki di Fase 38u.
 // ---------------------------------------------------------------------------
 
 // Status tagihan datang dari server sebagai kode; label diterjemahkan di sisi
@@ -176,7 +178,7 @@ export function SubscriptionCard() {
             paket, jadi layar ini tidak lagi memilih melainkan MENYATAKAN apa
             yang didapat. Dialog pratinjau prorata ikut hilang — tanpa paket
             lain untuk dituju, tidak ada selisih harga yang perlu dipratinjau. */}
-        <div className="rounded-xl border border-brand-500 bg-brand-50/50 p-4 dark:border-brand-500 dark:bg-brand-950/30">
+        <div className="rounded-xl border border-brand-line bg-brand-surface p-4">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-ink">{PLAN_LIMITS.lengkap.label}</span>
             {langgananAktif ? <Badge tone="brand">{u("paketAnda")}</Badge> : null}

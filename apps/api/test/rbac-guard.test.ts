@@ -53,6 +53,19 @@ const PUBLIC_ALLOWLIST = new Set([
   // persis dengan "/" di atas: menyisipkan canonical + JSON-LD + <noscript> ke
   // shell SPA. Tidak memuat data tenant apa pun.
   'landingSeo.ts GET "/fitur"',
+  // Enam halaman publik Fase 38d — perlakuan yang sama persis: menyisipkan
+  // canonical + JSON-LD + <noscript> ke shell SPA. Tidak satu pun menyentuh
+  // basis data tenant, dan tidak satu pun menerima masukan pengguna.
+  //
+  // Bahwa keenamnya harus didaftarkan di sini adalah gerbang ini bekerja
+  // sebagaimana mestinya: rute publik baru tidak bisa lahir tanpa seseorang
+  // menyatakannya publik dengan sengaja.
+  'landingSeo.ts GET "/harga"',
+  'landingSeo.ts GET "/keamanan"',
+  'landingSeo.ts GET "/tentang"',
+  'landingSeo.ts GET "/kontak"',
+  'landingSeo.ts GET "/syarat"',
+  'landingSeo.ts GET "/privasi"',
 ]);
 
 /** Endpoint ber-requireAuth yang memang tanpa role gate: ber-scope user

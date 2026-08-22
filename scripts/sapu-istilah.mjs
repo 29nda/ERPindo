@@ -79,12 +79,42 @@ const ATURAN = [
     pola: /\bnama pegawai\b/i,
     pesan: '"karyawan", bukan "pegawai" (glosarium §5b)',
   },
+  {
+    // Fase 38u. Paket bertingkat Starter/Business/Enterprise dibubarkan di Fase
+    // 30, tetapi naskah yang menjualnya bertahan delapan fase lagi di dua kartu
+    // pengaturan — dan baru ketahuan setelah halaman /harga terbit menyatakan
+    // hal yang berlawanan: "seluruh modul terbuka sejak hari pertama".
+    //
+    // Dua permukaan yang saling bertentangan, dan pembaca tidak punya cara tahu
+    // mana yang berlaku. Kelas kegagalan yang sama sudah muncul di /api-docs
+    // (Fase 38g), yang berarti ini bukan kelalaian sekali, melainkan pola.
+    //
+    // Polanya sengaja SEMPIT: hanya frasa yang menamai tingkatan sebagai barang
+    // dagangan. "Enterprise ERP" dan "enterprise-grade" pada naskah Inggris
+    // tetap sah — di sana kata itu berarti "kelas perusahaan", bukan nama paket.
+    nama: "paket-bertingkat-dibubarkan",
+    pola: /\b(paket (Enterprise|Starter|Business)|tingkatkan ke Enterprise|upgrade to (the )?Enterprise|Enterprise plan)\b/i,
+    pesan: "paket bertingkat dibubarkan di Fase 30 — seluruh modul terbuka (docs/riwayat.md)",
+  },
 ];
 
-/** Berkas yang naskahnya dilihat pengguna. */
+/**
+ * Berkas yang naskahnya dilihat pengguna.
+ *
+ * Fase 38a — `apps/web/src/peragaan/**` ditambahkan bersamaan dengan direktori
+ * itu sendiri. Naskah peragaan adalah naskah tayang: ia dibaca pengunjung di
+ * halaman depan, `/fitur`, dan panduan. Tanpa baris ini, 57 naskah berisi
+ * kalimat jualan akan lolos dari gerbang glosarium tanpa siapa pun menyadari —
+ * dan gerbang yang tidak menyapu tempat naskah baru ditulis adalah gerbang
+ * yang perlahan berhenti berarti.
+ *
+ * Aturannya, dicatat di CLAUDE.md: direktori baru yang memuat naskah tayang
+ * WAJIB ditambahkan ke daftar ini pada commit yang sama.
+ */
 const BERKAS = [
   "apps/web/src/i18n/*.ts",
   "apps/web/src/pages/**/*.{ts,tsx}",
+  "apps/web/src/peragaan/**/*.{ts,tsx}",
   "apps/web/src/components/**/*.tsx",
   "packages/shared/src/*.ts",
   "apps/api/src/routes/*.ts",

@@ -1,5 +1,6 @@
 import { escapeHtml, renderMarkdown } from "@erpindo/shared";
 import { Hono } from "hono";
+import { kerangkaHtml } from "../lib/kerangkaPublik";
 import type { AppEnv, Env } from "../env";
 
 /**
@@ -42,56 +43,16 @@ function formatTanggal(iso: string): string {
  * membersihkan teks jualan; ketiganya wajib dirawat bersama. Dijaga cek smoke
  * blok `24d`.
  */
-function page(opts: { title: string; description: string; canonical: string; head?: string; body: string }): string {
-  return `<!doctype html>
-<html lang="id">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escapeHtml(opts.title)}</title>
-<meta name="description" content="${escapeHtml(opts.description)}" />
-<link rel="canonical" href="${escapeHtml(opts.canonical)}" />
-<link rel="icon" type="image/png" href="/favicon.png" />
-<meta property="og:title" content="${escapeHtml(opts.title)}" />
-<meta property="og:description" content="${escapeHtml(opts.description)}" />
-<meta property="og:image" content="/og-image.png" />
-${opts.head ?? ""}
-<style>
-  :root { color-scheme: light; }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #0f172a; background: #f8fafc; line-height: 1.7; }
-  header { border-bottom: 1px solid #e2e8f0; background: #fff; }
-  .wrap { max-width: 46rem; margin: 0 auto; padding: 0 1.25rem; }
-  header .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: .8rem; padding-bottom: .8rem; }
-  header img { height: 2.2rem; display: block; }
-  header nav a { color: #334155; text-decoration: none; font-size: .9rem; margin-left: 1rem; }
-  header nav a.cta { background: #2563eb; color: #fff; padding: .45rem .9rem; border-radius: .5rem; font-weight: 600; }
-  main { padding: 2.5rem 0 4rem; }
-  h1 { font-size: 2rem; line-height: 1.25; margin: 0 0 .5rem; }
-  h2 { font-size: 1.4rem; margin-top: 2rem; }
-  h3 { font-size: 1.15rem; margin-top: 1.5rem; }
-  .meta { color: #64748b; font-size: .9rem; margin-bottom: 2rem; }
-  article a { color: #2563eb; }
-  code { background: #e2e8f0; border-radius: .3rem; padding: .1rem .35rem; font-size: .9em; }
-  .card { display: block; background: #fff; border: 1px solid #e2e8f0; border-radius: .9rem; padding: 1.25rem 1.5rem; margin-bottom: 1rem; text-decoration: none; color: inherit; }
-  .card h2 { margin: 0 0 .3rem; font-size: 1.2rem; color: #1d4ed8; }
-  .card p { margin: .25rem 0 0; color: #475569; font-size: .95rem; }
-  .cover { width: 100%; border-radius: .9rem; margin-bottom: 1.5rem; }
-  footer { border-top: 1px solid #e2e8f0; background: #fff; padding: 2rem 0; text-align: center; color: #64748b; font-size: .9rem; }
-  footer a { color: #2563eb; text-decoration: none; font-weight: 600; }
-</style>
-</head>
-<body>
-<header><div class="wrap">
-  <a href="/"><img src="/brand/logo-erpindo.png" alt="ERPindo" /></a>
-  <nav><a href="/blog">Blog</a><a href="/panduan">Panduan</a><a class="cta" href="/daftar">Daftar</a></nav>
-</div></header>
-<main><div class="wrap">${opts.body}</div></main>
-<footer><div class="wrap">ERPindo — ERP untuk perusahaan Indonesia. <a href="/">Lihat demo berisi data nyata</a> — tanpa mendaftar.</div></footer>
-</body>
-</html>`;
-}
-
+/**
+ * Kerangka halaman blog — kini memakai kerangka publik bersama (Fase 38g).
+ *
+ * Sebelumnya berkas ini menulis `<head>`, CSS, header, dan footernya sendiri
+ * sepanjang 40 baris, berwarna biru `#2563eb` di atas `#f8fafc` — palet yang
+ * sudah tidak ada di produk ini sejak Fase 32a. Ia juga menayangkan
+ * `/brand/logo-erpindo.png`, satu-satunya logo raster yang masih tampil
+ * setelah wordmark menjadi teks.
+ */
+const page = kerangkaHtml;
 const CACHE = "public, max-age=300";
 
 export const blogRoutes = new Hono<AppEnv>()
@@ -175,6 +136,14 @@ ${renderMarkdown(post.body_md)}
     const urls = [
       `<url><loc>${base}/</loc></url>`,
       `<url><loc>${base}/fitur</loc></url>`,
+      // Fase 38d — enam halaman publik baru. Sitemap adalah tempat ketiga yang
+      // harus ikut diperbarui bersama rute SEO dan `run_worker_first`.
+      `<url><loc>${base}/harga</loc></url>`,
+      `<url><loc>${base}/keamanan</loc></url>`,
+      `<url><loc>${base}/tentang</loc></url>`,
+      `<url><loc>${base}/kontak</loc></url>`,
+      `<url><loc>${base}/syarat</loc></url>`,
+      `<url><loc>${base}/privasi</loc></url>`,
       `<url><loc>${base}/panduan</loc></url>`,
       `<url><loc>${base}/blog</loc></url>`,
       ...results.map(

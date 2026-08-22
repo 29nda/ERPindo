@@ -52,7 +52,7 @@ function jsonLd(base: string): string {
       name: "ERPindo",
       url: base,
       logo: `${base}/pwa-512.png`,
-      description: "ERP multi-tenant untuk usaha Indonesia — akuntansi, POS, stok, HR/payroll, dan pajak dalam satu aplikasi.",
+      description: "ERP multi-tenant untuk perusahaan Indonesia — akuntansi, POS, stok, penggajian, dan pajak dalam satu aplikasi, tanpa proyek implementasi.",
     },
     {
       "@context": "https://schema.org",
@@ -83,9 +83,9 @@ function jsonLd(base: string): string {
 function noscriptBlock(base: string): string {
   const faqHtml = FAQ.map(([q, a]) => `<h3>${q}</h3><p>${a}</p>`).join("");
   return `<noscript><div>
-<h1>ERPindo — ERP untuk usaha Indonesia</h1>
+<h1>ERPindo — ERP untuk perusahaan Indonesia</h1>
 <p>Akuntansi double-entry, kasir POS, stok, penggajian (PPh 21 TER), dan pajak (PPN, e-Faktur/Coretax) dalam satu aplikasi. Pengguna tak terbatas. Telusuri demo publik berisi data nyata lintas seluruh modul tanpa mendaftar.</p>
-<p>Satu paket, satu harga: Rp${PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")} per perusahaan per bulan — seluruh modul terbuka, pengguna tak terbatas.</p>
+<p>Satu paket, satu harga: Rp \${PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")} per perusahaan per bulan — seluruh modul terbuka, pengguna tak terbatas.</p>
 <p><a href="${base}/daftar">Daftar &amp; berlangganan</a> · <a href="${base}/masuk">Masuk</a> · <a href="${base}/panduan">Panduan</a> · <a href="${base}/blog">Blog</a></p>
 ${faqHtml}
 </div></noscript>`;
@@ -136,6 +136,51 @@ ${isi}
 </div></noscript>`;
 }
 
+/**
+ * Ringkasan `<noscript>` untuk empat halaman publik Fase 38d.
+ *
+ * Sengaja RINGKAS, mengikuti alasan yang sama dengan `noscriptFitur`: blok ini
+ * ada supaya perayap dan pembaca tanpa JavaScript mendapat inti halamannya,
+ * bukan supaya seluruh isi halaman ditulis dua kali di dua tempat yang akan
+ * berpisah diam-diam.
+ */
+const RINGKAS_PUBLIK: Record<string, [judul: string, isi: string]> = {
+  "/harga": [
+    "Harga ERPindo",
+    `Rp ${PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")} per bulan per perusahaan. Pengguna tak terbatas, seluruh modul terbuka, tanpa biaya implementasi dan tanpa lisensi per pengguna. Biaya kepemilikan tiga tahun adalah 36 kali biaya bulanan, tanpa baris lain di bawahnya.`,
+  ],
+  "/keamanan": [
+    "Keamanan ERPindo",
+    "Basis data terpisah per perusahaan, hak akses ditegakkan di sisi server pada tiap permintaan, jurnal yang tidak bisa dihapus atau disunting, dan ekspor seluruh data sebagai CSV kapan saja. ERPindo belum memegang sertifikasi ISO 27001 maupun SOC 2.",
+  ],
+  "/tentang": [
+    "Tentang ERPindo",
+    "ERPindo dibangun karena 68% proyek ERP gagal memenuhi tujuannya dengan pembengkakan biaya rata-rata 189%. Yang gagal jarang perangkat lunaknya, melainkan proyek pemasangannya. ERPindo tidak punya proyek implementasi.",
+  ],
+  "/kontak": [
+    "Kontak ERPindo",
+    "Demo publik berisi data setahun penuh dapat dibuka tanpa mendaftar. Pertanyaan pengadaan dan keamanan dapat dikirim lewat surel. Pelanggan berjalan memakai menu Dukungan di dalam aplikasi.",
+  ],
+  "/syarat": [
+    "Syarat Layanan ERPindo",
+    "Syarat berlangganan ERPindo: biaya per perusahaan per bulan, berhenti kapan saja, data tetap milik pelanggan dan dapat diunduh kapan saja. Naskah lengkap berbahasa Indonesia.",
+  ],
+  "/privasi": [
+    "Kebijakan Privasi ERPindo",
+    "Data tiap perusahaan disimpan dalam basis data tersendiri. Data tidak dijual dan tidak dipakai untuk periklanan. Ekspor dan permintaan penghapusan tersedia. Naskah lengkap berbahasa Indonesia.",
+  ],
+};
+
+function noscriptPublik(jalur: string): (base: string) => string {
+  const [judul, isi] = RINGKAS_PUBLIK[jalur] ?? ["ERPindo", ""];
+  return (base: string) =>
+    `<noscript><div>
+<h1>${judul}</h1>
+<p>${isi}</p>
+<p><a href="${base}/">Beranda ERPindo</a> · <a href="${base}/fitur">Fitur</a> · <a href="${base}/harga">Harga</a></p>
+</div></noscript>`;
+}
+
 /** Menyisipkan canonical + JSON-LD + <noscript> ke shell SPA hasil build. */
 async function sajikan(c: Context<AppEnv>, jalur: string, noscript: (base: string) => string) {
   const base = origin(c.env, c.req.url);
@@ -154,4 +199,15 @@ export const landingSeoRoutes = new Hono<AppEnv>()
   // `/fitur` (Fase 18f) mendapat perlakuan SEO yang sama dengan halaman depan —
   // termasuk terdaftar di `run_worker_first` pada wrangler.jsonc dan di
   // sitemap.xml. Tanpa ketiganya, halaman ini hanya SPA kosong bagi crawler.
-  .get("/fitur", (c) => sajikan(c, "/fitur", noscriptFitur));
+  .get("/fitur", (c) => sajikan(c, "/fitur", noscriptFitur))
+  // Fase 38d — enam halaman publik baru mendapat perlakuan yang sama. Ketiga
+  // tempat harus diperbarui bersamaan (rute di sini, `run_worker_first` di
+  // wrangler.jsonc, dan sitemap.xml di blog.ts); melewatkan salah satunya
+  // menghasilkan halaman yang tampak benar di peramban tetapi kosong bagi
+  // perayap — kegagalan yang tidak berbunyi di gerbang mana pun.
+  .get("/harga", (c) => sajikan(c, "/harga", noscriptPublik("/harga")))
+  .get("/keamanan", (c) => sajikan(c, "/keamanan", noscriptPublik("/keamanan")))
+  .get("/tentang", (c) => sajikan(c, "/tentang", noscriptPublik("/tentang")))
+  .get("/kontak", (c) => sajikan(c, "/kontak", noscriptPublik("/kontak")))
+  .get("/syarat", (c) => sajikan(c, "/syarat", noscriptPublik("/syarat")))
+  .get("/privasi", (c) => sajikan(c, "/privasi", noscriptPublik("/privasi")));

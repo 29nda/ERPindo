@@ -57,19 +57,20 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
     onError: (err) => toast("error", (err as Error).message),
   });
 
+  // API publik dulu terkunci paket Enterprise, dan 403 di sini berarti "naikkan
+  // paket". Fase 30 membubarkan paketnya dan mencabut penegakannya; yang tersisa
+  // sebagai sumber 403 adalah peran non-Owner dan pembatasan IP. Pesannya
+  // diganti (Fase 38u) supaya Owner yang salah mengetik CIDR membaca sebabnya
+  // yang sebenarnya, bukan tawaran paket yang sudah tidak dijual.
   const err = keys.error as ApiRequestError | undefined;
   if (err && err.status === 403) {
     return (
       <Card>
-        <CardHeader title={u("apiIntegrasi")} description={u("descApiIntegrasiUpsell")} />
+        <CardHeader title={u("apiIntegrasi")} description={u("descApiIntegrasi")} />
         <CardBody>
-          <Alert tone="info">
-            <div className="font-medium">{u("tersediaEnterprise")}</div>
-            <p className="mt-1 text-sm">
-              {u("descApiUpsell")}{" "}
-              <a className="underline" href="/api-docs" target="_blank" rel="noreferrer">{u("dokumentasiApi")}</a>
-              {u("tingkatkanEnterprise")}
-            </p>
+          <Alert tone="warning">
+            <div className="font-medium">{u("aksesPengaturanDitolak")}</div>
+            <p className="mt-1 text-sm">{u("descAksesPengaturanDitolak")}</p>
           </Alert>
         </CardBody>
       </Card>
@@ -111,7 +112,7 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
           {newKey ? (
             <Alert tone="success">
               <div className="text-sm font-medium">{u("salinKunciSekarang")}</div>
-              <code className="mt-1 block break-all rounded bg-white/70 px-2 py-1 text-xs dark:bg-slate-900/60">{newKey}</code>
+              <code className="mt-1 block break-all rounded bg-surface-sunken px-2 py-1 text-xs">{newKey}</code>
               <button className="mt-1 text-xs underline" onClick={() => setNewKey(null)}>{u("sudahSayaSalin")}</button>
             </Alert>
           ) : null}
@@ -169,7 +170,7 @@ export function ApiIntegrationCard({ tenantId }: { tenantId: string }) {
           {newSecret ? (
             <Alert tone="success">
               <div className="text-sm font-medium">{u("secretHmac")}</div>
-              <code className="mt-1 block break-all rounded bg-white/70 px-2 py-1 text-xs dark:bg-slate-900/60">{newSecret}</code>
+              <code className="mt-1 block break-all rounded bg-surface-sunken px-2 py-1 text-xs">{newSecret}</code>
               <button className="mt-1 text-xs underline" onClick={() => setNewSecret(null)}>{u("sudahSayaSalin")}</button>
             </Alert>
           ) : null}

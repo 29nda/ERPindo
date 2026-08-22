@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Tags } from "lucide-react";
+import { Plus, Tags } from "lucide-react";
 import { useState } from "react";
 import { api, formatIDR } from "../api/client";
 import {
@@ -11,7 +11,6 @@ import {
   EmptyState,
   Input,
   Label,
-  PageHeading,
   SearchSelect,
   Select,
   Spinner,
@@ -22,6 +21,7 @@ import {
   Tr,
   useToast,
 } from "../components/ui";
+import { Halaman, Lembar } from "../components/kerangka";
 import { useUi } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -62,6 +62,7 @@ export function GrupHargaPage() {
     onSuccess: () => {
       toast("success", u("ghToastGrupDibuat"));
       setNamaGrup("");
+      setLembarBuka(false);
       setErrorGrup(null);
       queryClient.invalidateQueries({ queryKey: ["price-groups", tenant.tenantId] });
     },
@@ -119,39 +120,52 @@ export function GrupHargaPage() {
     onError: (err) => setErrorHarga((err as Error).message),
   });
 
-  return (
-    <div className="max-w-4xl space-y-6">
-      <div>
-        <PageHeading k="grupHarga" />
-      </div>
+  // Fase 38i — pembuatan grup pindah ke Lembar.
+  const [lembarBuka, setLembarBuka] = useState(false);
 
-      {isAdmin ? (
-        <Card>
-          <CardHeader title={u("ghGrupBaru")} />
-          <CardBody className="space-y-4">
-            {errorGrup ? <Alert tone="error">{errorGrup}</Alert> : null}
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="sm:col-span-2">
-                <Label htmlFor="gh-nama">{u("ghNamaGrup")}</Label>
-                <Input
-                  id="gh-nama"
-                  placeholder={u("ghPhNamaGrup")}
-                  value={namaGrup}
-                  onChange={(e) => setNamaGrup(e.target.value)}
-                />
-              </div>
-              <div className="flex items-end">
-                <Button
-                  onClick={() => buatGrup.mutate()}
-                  disabled={buatGrup.isPending || namaGrup.trim().length < 2}
-                >
-                  {buatGrup.isPending ? <Spinner /> : null} {u("ghTambahGrup")}
-                </Button>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      ) : null}
+  return (
+    <Halaman
+      k="grupHarga"
+      ikon={Tags}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <Plus className="size-4" aria-hidden /> {u("ghGrupBaru")}
+          </Button>
+        ) : null
+      }
+    >
+      <Lembar
+        terbuka={lembarBuka}
+        tutup={() => setLembarBuka(false)}
+        judul={u("ghGrupBaru")}
+        aksi={
+          <>
+            <Button variant="secondary" onClick={() => setLembarBuka(false)}>
+              {u("batal")}
+            </Button>
+            <Button
+              onClick={() => buatGrup.mutate()}
+              disabled={buatGrup.isPending || namaGrup.trim().length < 2}
+            >
+              {buatGrup.isPending ? <Spinner /> : null} {u("ghTambahGrup")}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {errorGrup ? <Alert tone="error">{errorGrup}</Alert> : null}
+          <div>
+            <Label htmlFor="gh-nama">{u("ghNamaGrup")}</Label>
+            <Input
+              id="gh-nama"
+              placeholder={u("ghPhNamaGrup")}
+              value={namaGrup}
+              onChange={(e) => setNamaGrup(e.target.value)}
+            />
+          </div>
+        </div>
+      </Lembar>
 
       <Card>
         <CardHeader title={u("ghDaftarHarga")} description={u("ghSatuanDasarInfo")} />
@@ -280,6 +294,6 @@ export function GrupHargaPage() {
           )}
         </CardBody>
       </Card>
-    </div>
+    </Halaman>
   );
 }

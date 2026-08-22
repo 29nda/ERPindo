@@ -176,7 +176,7 @@ function RequisitionCard({
                 <Input aria-label={u("qtyBarang")} type="number" min={1} className="w-20" value={line.qty} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, qty: e.target.value } : l)))} />
                 <Input aria-label={u("catatanBaris")} placeholder={u("catatanOpsional")} className="min-w-[8rem] flex-1" value={line.note} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, note: e.target.value } : l)))} />
                 {lines.length > 1 ? (
-                  <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-red-600" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
+                  <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-galat-ink" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
                     <Trash2 className="size-4" aria-hidden />
                   </button>
                 ) : null}
@@ -369,7 +369,7 @@ function PurchaseOrderCard({
                   <Input aria-label={u("qtyBarang")} type="number" min={1} className="w-20" value={line.qty} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, qty: e.target.value } : l)))} />
                   <Input aria-label={u("hargaSatuan")} type="number" min={0} placeholder="Harga" className="w-32" value={line.unitPrice} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, unitPrice: e.target.value } : l)))} />
                   {lines.length > 1 ? (
-                    <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-red-600" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
+                    <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-galat-ink" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
                       <Trash2 className="size-4" aria-hidden />
                     </button>
                   ) : null}
@@ -445,7 +445,7 @@ function PurchaseOrderRow({ tenantId, order, isAdmin, onChange }: { tenantId: st
         {order.lines.map((l) => `${l.productName} ×${l.qty} @ ${formatIDR(l.unitPrice)}`).join(" · ")}
       </div>
       {isAdmin && order.status === "ordered" ? (
-        <div className="mt-2.5 border-t pt-2.5 dark:border-slate-700">
+        <div className="mt-2.5 border-t border-line pt-2.5">
           {receiving ? (
             <div className="space-y-2">
               <div className="text-xs font-medium text-ink-muted">{u("jumlahBarangDiterima")}</div>

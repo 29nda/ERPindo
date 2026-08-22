@@ -11,6 +11,7 @@ import { useUi, type UiKey } from "../i18n/ui";
 import { CalendarDays, HandCoins, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { api, formatIDR } from "../api/client";
+import { Lembar } from "../components/kerangka";
 import {
   Alert,
   Badge,
@@ -80,6 +81,7 @@ export function PayrollPage() {
     managerId: "",
   });
   const [empError, setEmpError] = useState<string | null>(null);
+  const [empLembar, setEmpLembar] = useState(false);
   const [period, setPeriod] = useState(thisMonth);
   const [cashAccountId, setCashAccountId] = useState("");
   const [payDate, setPayDate] = useState(today);
@@ -109,6 +111,7 @@ export function PayrollPage() {
         managerId: "",
       });
       setEmpError(null);
+      setEmpLembar(false);
       queryClient.invalidateQueries({ queryKey: ["employees", tenant.tenantId] });
     },
     onError: (err) => setEmpError((err as Error).message),
@@ -171,96 +174,33 @@ export function PayrollPage() {
           <CardHeader
             title={u("karyawan")}
             description={`${activeCount} ${u("aktifDari")} ${employees.length} ${u("karyawanSatuan")}`}
+            action={
+              isAdmin ? (
+                <Button onClick={() => setEmpLembar(true)}>
+                  <UserPlus className="size-4" aria-hidden /> {u("tambahKaryawan")}
+                </Button>
+              ) : null
+            }
           />
           <CardBody className="space-y-4">
+            {isAdmin && empError ? <Alert tone="error">{empError}</Alert> : null}
+
+            {/*
+              Fase 38t — formulir karyawan pindah ke Lembar.
+              Sebelumnya ia berbagi satu kartu dengan DAFTAR karyawan, di dalam
+              satu tab: tujuh medan terpasang permanen mendorong daftarnya turun
+              hampir satu layar penuh, padahal yang paling sering dilakukan di
+              tab ini justru membaca daftarnya. Menambah karyawan adalah kejadian
+              sesekali; membaca daftar adalah kejadian harian.
+            */}
             {isAdmin ? (
-              <>
-                {empError ? <Alert tone="error">{empError}</Alert> : null}
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                  <div className="lg:col-span-1">
-                    <Label htmlFor="emp-name">{u("nama")}</Label>
-                    <Input
-                      id="emp-name"
-                      value={emp.name}
-                      onChange={(e) => setEmp({ ...emp, name: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="emp-pos">{u("jabatan")}</Label>
-                    <Input
-                      id="emp-pos"
-                      value={emp.position}
-                      onChange={(e) => setEmp({ ...emp, position: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="emp-ptkp">{u("statusPtkp")}</Label>
-                    <Select
-                      id="emp-ptkp"
-                      value={emp.ptkpStatus}
-                      onChange={(e) => setEmp({ ...emp, ptkpStatus: e.target.value })}
-                    >
-                      {PTKP_STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="emp-salary">{u("gajiPokok")}</Label>
-                    <Input
-                      id="emp-salary"
-                      type="number"
-                      min={0}
-                      value={emp.baseSalary}
-                      onChange={(e) => setEmp({ ...emp, baseSalary: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="emp-allow">{u("tunjangan")}</Label>
-                    <Input
-                      id="emp-allow"
-                      type="number"
-                      min={0}
-                      value={emp.allowances}
-                      onChange={(e) => setEmp({ ...emp, allowances: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="emp-dept">{u("departemen")}</Label>
-                    <Select
-                      id="emp-dept"
-                      value={emp.departmentId}
-                      onChange={(e) => setEmp({ ...emp, departmentId: e.target.value })}
-                    >
-                      <option value="">— tanpa departemen —</option>
-                      {departments.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.code} · {d.name}
-                        </option>
-                      ))}
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="emp-manager">{u("atasanLangsung")}</Label>
-                    <Select
-                      id="emp-manager"
-                      value={emp.managerId}
-                      onChange={(e) => setEmp({ ...emp, managerId: e.target.value })}
-                    >
-                      <option value="">— tanpa atasan —</option>
-                      {employees
-                        .filter((x) => x.isActive)
-                        .map((x) => (
-                          <option key={x.id} value={x.id}>
-                            {x.name}
-                          </option>
-                        ))}
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex justify-end">
+              <Lembar
+                terbuka={empLembar}
+                tutup={() => setEmpLembar(false)}
+                lebar="lebar"
+                judul={u("tambahKaryawan")}
+                deskripsi={u("descTambahKaryawan")}
+                aksi={
                   <Button
                     onClick={() => createEmp.mutate()}
                     disabled={createEmp.isPending || emp.name.trim().length < 2}
@@ -272,8 +212,93 @@ export function PayrollPage() {
                     )}{" "}
                     {u("tambahKaryawan")}
                   </Button>
+                }
+              >
+                <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="emp-name">{u("nama")}</Label>
+                <Input
+                  id="emp-name"
+                  value={emp.name}
+                  onChange={(e) => setEmp({ ...emp, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="emp-pos">{u("jabatan")}</Label>
+                <Input
+                  id="emp-pos"
+                  value={emp.position}
+                  onChange={(e) => setEmp({ ...emp, position: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="emp-ptkp">{u("statusPtkp")}</Label>
+                <Select
+                  id="emp-ptkp"
+                  value={emp.ptkpStatus}
+                  onChange={(e) => setEmp({ ...emp, ptkpStatus: e.target.value })}
+                >
+                  {PTKP_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="emp-salary">{u("gajiPokok")}</Label>
+                <Input
+                  id="emp-salary"
+                  type="number"
+                  min={0}
+                  value={emp.baseSalary}
+                  onChange={(e) => setEmp({ ...emp, baseSalary: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="emp-allow">{u("tunjangan")}</Label>
+                <Input
+                  id="emp-allow"
+                  type="number"
+                  min={0}
+                  value={emp.allowances}
+                  onChange={(e) => setEmp({ ...emp, allowances: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="emp-dept">{u("departemen")}</Label>
+                <Select
+                  id="emp-dept"
+                  value={emp.departmentId}
+                  onChange={(e) => setEmp({ ...emp, departmentId: e.target.value })}
+                >
+                  <option value="">— tanpa departemen —</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.code} · {d.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="emp-manager">{u("atasanLangsung")}</Label>
+                <Select
+                  id="emp-manager"
+                  value={emp.managerId}
+                  onChange={(e) => setEmp({ ...emp, managerId: e.target.value })}
+                >
+                  <option value="">— tanpa atasan —</option>
+                  {employees
+                    .filter((x) => x.isActive)
+                    .map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.name}
+                      </option>
+                    ))}
+                </Select>
+              </div>
                 </div>
-              </>
+              </Lembar>
             ) : null}
 
             {employeesQuery.isLoading ? (
@@ -334,7 +359,7 @@ export function PayrollPage() {
                         {isAdmin ? (
                           <button
                             onClick={() => toggleActive.mutate(e)}
-                            className="ml-2 text-xs text-brand-700 hover:underline dark:text-brand-400"
+                            className="ml-2 text-xs text-brand-ink hover:underline"
                           >
                             {e.isActive ? "nonaktifkan" : "aktifkan"}
                           </button>
@@ -345,7 +370,7 @@ export function PayrollPage() {
                           href={`/cetak/1721a1?tenant=${tenant.tenantId}&employee=${e.id}&year=${new Date().getFullYear()}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs text-brand-700 hover:underline dark:text-brand-400"
+                          className="text-xs text-brand-ink hover:underline"
                         >
                           {u("cetak")}
                         </a>
@@ -586,7 +611,7 @@ function DepartmentsCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boo
                   {isAdmin ? (
                     <button
                       onClick={() => archive.mutate(d.id)}
-                      className="text-xs text-red-600 hover:underline dark:text-red-400"
+                      className="text-xs text-galat-ink hover:underline"
                     >
                       {u("arsipkan")}
                     </button>
@@ -800,7 +825,7 @@ function AdjustmentsCard({
                   <Td
                     numeric
                     label={u("nominal")}
-                    className={a.amount < 0 ? "text-red-600 dark:text-red-400" : ""}
+                    className={a.amount < 0 ? "text-galat-ink" : ""}
                   >
                     {formatIDR(a.amount)}
                   </Td>
@@ -812,7 +837,7 @@ function AdjustmentsCard({
                         <Badge tone="amber">menunggu run</Badge>
                         <button
                           onClick={() => remove.mutate(a.id)}
-                          className="ml-2 text-xs text-red-600 hover:underline dark:text-red-400"
+                          className="ml-2 text-xs text-galat-ink hover:underline"
                         >
                           hapus
                         </button>
@@ -1281,7 +1306,7 @@ function RunRow({
         {canVoid && !isVoided ? (
           <Button
             variant="ghost"
-            className="h-8 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+            className="h-8 text-galat-ink hover:bg-galat-surface"
             onClick={() => setVoidOpen(true)}
           >
             {u("batalkan")}
@@ -1353,7 +1378,7 @@ function RunRow({
                       href={`/cetak/slip-gaji?tenant=${tenantId}&run=${run.id}&employee=${p.employeeId}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs text-brand-700 hover:underline dark:text-brand-400"
+                      className="text-xs text-brand-ink hover:underline"
                     >
                       {u("cetak")}
                     </a>

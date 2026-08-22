@@ -5,7 +5,7 @@ import {
   type SalesOrderStatus,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Plus, Send, Trash2, Truck } from "lucide-react";
+import { ClipboardList, FileText, Plus, Send, Trash2, Truck } from "lucide-react";
 import { useState } from "react";
 import { api, formatIDR } from "../api/client";
 import {
@@ -20,9 +20,9 @@ import {
   Select,
   Spinner,
   useToast,
-  PageHeading,
 } from "../components/ui";
 import { isi } from "../i18n";
+import { Halaman, Lembar } from "../components/kerangka";
 import { useUi } from "../i18n/ui";
 import { hargaBaris, useGrupHarga } from "../lib/hargaGrup";
 import { useWorkspace } from "./app";
@@ -77,14 +77,36 @@ export function SalesOrdersPage() {
   const cashAccounts = ((accountsQuery.data?.accounts ?? []) as AccountRow[]).filter((a) => a.type === "asset");
   const orders = ordersQuery.data?.orders ?? [];
 
-  return (
-    <div className="space-y-6">
-      <div>
-        {/* Fase 19g: judul + pengantar ke PAGE_HEADINGS (Fase 16a). */}
-        <PageHeading k="pesananPenjualan" />
-      </div>
+  // Fase 38i — pesanan baru pindah dari atas daftar ke dalam Lembar.
+  const [lembarBuka, setLembarBuka] = useState(false);
 
-      {isAdmin ? <NewOrderCard tenantId={tenant.tenantId} products={products} customers={customers} warehouses={warehouses} /> : null}
+  return (
+    <Halaman
+      k="pesananPenjualan"
+      ikon={ClipboardList}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <Plus className="size-4" aria-hidden /> {u("pesananBaru")}
+          </Button>
+        ) : null
+      }
+    >
+      <Lembar
+        terbuka={lembarBuka}
+        tutup={() => setLembarBuka(false)}
+        judul={u("pesananBaru")}
+        deskripsi={u("descPesananBaru")}
+        lebar="lebar"
+      >
+        <NewOrderCard
+          tenantId={tenant.tenantId}
+          products={products}
+          customers={customers}
+          warehouses={warehouses}
+          tutup={() => setLembarBuka(false)}
+        />
+      </Lembar>
 
       <Card>
         <CardHeader title={u("daftarPesanan")} description={u("descDaftarPesanan")} />
@@ -102,11 +124,11 @@ export function SalesOrdersPage() {
           )}
         </CardBody>
       </Card>
-    </div>
+    </Halaman>
   );
 }
 
-function NewOrderCard({ tenantId, products, customers, warehouses }: { tenantId: string; products: ProductRow[]; customers: ContactRow[]; warehouses: WarehouseRow[] }) {
+function NewOrderCard({ tenantId, products, customers, warehouses, tutup }: { tenantId: string; products: ProductRow[]; customers: ContactRow[]; warehouses: WarehouseRow[]; tutup: () => void }) {
   const u = useUi();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -184,6 +206,7 @@ function NewOrderCard({ tenantId, products, customers, warehouses }: { tenantId:
       toast("success", isi(u("toastPesananDibuat"), res.soNo));
       setHead({ contactId: "", warehouseId: "", taxRate: "0", orderDate: today(), expectedDate: "" });
       setLines([barisKosong()]);
+      tutup();
       queryClient.invalidateQueries({ queryKey: ["sales-orders", tenantId] });
     },
     onError: (err) => toast("error", (err as Error).message),
@@ -192,9 +215,7 @@ function NewOrderCard({ tenantId, products, customers, warehouses }: { tenantId:
   const canSubmit = head.contactId && head.warehouseId && lines.some((l) => l.productId && Number(l.qty) > 0);
 
   return (
-    <Card>
-      <CardHeader title={u("pesananBaru")} description={u("descPesananBaru")} />
-      <CardBody className="space-y-3">
+    <div className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <Label htmlFor="so-cust">{u("pelanggan")}</Label>
@@ -253,7 +274,7 @@ function NewOrderCard({ tenantId, products, customers, warehouses }: { tenantId:
               <Input aria-label={u("hargaSatuan")} type="number" min={0} placeholder={u("hargaSatuan")} className="w-32" value={line.unitPrice} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, unitPrice: e.target.value, hargaDisentuh: true } : l)))} />
               <Input aria-label={u("diskonPersen")} type="number" min={0} max={100} placeholder="0%" className="w-16" value={line.discountPct} onChange={(e) => setLines(lines.map((l, j) => (j === i ? { ...l, discountPct: e.target.value } : l)))} />
               {lines.length > 1 ? (
-                <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-red-600" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
+                <button type="button" aria-label={u("hapusBaris")} className="inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:text-galat-ink" onClick={() => setLines(lines.filter((_, j) => j !== i))}>
                   <Trash2 className="size-4" aria-hidden />
                 </button>
               ) : null}
@@ -268,8 +289,7 @@ function NewOrderCard({ tenantId, products, customers, warehouses }: { tenantId:
             </Button>
           </div>
         </div>
-      </CardBody>
-    </Card>
+    </div>
   );
 }
 
@@ -323,7 +343,7 @@ function OrderRow({ order, isAdmin, cashAccounts, companyName }: { order: ApiSal
         {order.lines.map((l) => `${l.productName} ×${l.qty}`).join(" · ")}
       </div>
       {isAdmin ? (
-        <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t pt-2.5 dark:border-slate-700">
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-line pt-2.5">
           {order.status === "open" ? (
             <>
               <Button className="h-8" onClick={() => deliver.mutate()} disabled={deliver.isPending}>

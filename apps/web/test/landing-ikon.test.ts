@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PERAGAAN } from "../src/peragaan";
 import { COMPARISON, INTEGRATIONS, SECURITY_POINTS, SHOWCASE, SINGLE_PLAN_MODULES, TRUST_POINTS } from "../src/pages/landing/sections";
 
 /**
@@ -44,12 +45,25 @@ describe("ikon seksi landing", () => {
 
   it("tiap butir showcase membawa bukti, bukan sekadar kata sifat", () => {
     // Setelah grid fitur dibuang, SHOWCASE menjadi satu-satunya tempat halaman
-    // depan menunjukkan produknya. Bila entrinya kehilangan gambar atau daftar
-    // manfaat, halaman kehilangan buktinya tanpa ada yang menyadarinya.
+    // depan menunjukkan produknya. Bila entrinya kehilangan peragaan atau
+    // daftar manfaat, halaman kehilangan buktinya tanpa ada yang menyadarinya.
+    //
+    // Fase 38b — dulu asersi ini mencocokkan jalur `/landing/*.webp`. Ia hanya
+    // bisa memeriksa BENTUK jalurnya, bukan keberadaan berkasnya: `.webp` yang
+    // salah ketik tetap lolos. Sekarang yang diperiksa adalah keanggotaan di
+    // registri peragaan, dan itu memang bisa dijamin.
     for (const s of SHOWCASE) {
-      expect(s.image, `${s.id} tanpa tangkapan layar`).toMatch(/^\/landing\/.+\.webp$/);
+      expect(PERAGAAN[s.peragaan], `${s.id} menunjuk peragaan tak terdaftar`).toBeTruthy();
       expect(s.benefits.length, `${s.id} tanpa daftar manfaat`).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it("tiap butir showcase memakai peragaan yang BERBEDA", () => {
+    // Alasan yang sama dengan lima perisai identik di seksi keamanan: lima
+    // butir yang memutar peragaan sama akan terlihat "benar" bagi mesin,
+    // sementara halamannya kehilangan seluruh gunanya.
+    const unik = new Set(SHOWCASE.map((s) => s.peragaan));
+    expect(unik.size).toBe(SHOWCASE.length);
   });
 });
 

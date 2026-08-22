@@ -330,7 +330,7 @@ export function ConsolidationPage() {
                         onClick={() => toggleCompany(c.tenantId)}
                         className={`rounded-full border px-3 py-1 text-sm transition-colors ${
                           on
-                            ? "border-brand-500 bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300"
+                            ? "border-brand-500 bg-brand-surface text-brand-ink"
                             : "border-line-strong text-ink-muted"
                         }`}
                       >
@@ -374,8 +374,8 @@ export function ConsolidationPage() {
               <div
                 className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-semibold ${
                   incomeQuery.data.netProfit >= 0
-                    ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
-                    : "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200"
+                    ? "bg-ok-surface text-ok-ink"
+                    : "bg-galat-surface text-galat-ink"
                 }`}
               >
                 <span>

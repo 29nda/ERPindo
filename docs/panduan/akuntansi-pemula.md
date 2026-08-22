@@ -1,6 +1,6 @@
 # Akuntansi untuk Pemula
 
-Tidak paham debit-kredit, SAK, atau jurnal? Tidak masalah. erpindo dirancang agar pembukuan berjalan benar tanpa Anda harus menjadi akuntan — panduan ini menjelaskan 5 hal inti yang cukup Anda tahu.
+Tidak paham debit-kredit, SAK, atau jurnal? Tidak masalah. ERPindo dirancang agar pembukuan berjalan benar tanpa Anda harus menjadi akuntan — panduan ini menjelaskan 5 hal inti yang cukup Anda tahu.
 
 > Buka di aplikasi: `/app/keuangan/catat`
 

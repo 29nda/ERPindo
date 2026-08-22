@@ -240,7 +240,7 @@ export function AttendancePage() {
                     <Td
                       numeric
                       label={u("alfaStatus")}
-                      className={r.alfa ? "text-red-600 dark:text-red-400" : "text-ink-muted"}
+                      className={r.alfa ? "text-galat-ink" : "text-ink-muted"}
                     >
                       {r.alfa || "—"}
                     </Td>
@@ -281,7 +281,7 @@ export function AttendancePage() {
                   {isAdmin ? (
                     <button
                       type="button"
-                      className="ml-auto inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                      className="ml-auto inline-flex size-8 items-center justify-center rounded-lg text-ink-muted hover:bg-galat-surface hover:text-galat-ink"
                       onClick={() => setToDelete(r)}
                       aria-label={`${u("hapusKehadiran")} ${r.employeeName} ${r.date}`}
                     >

@@ -112,6 +112,88 @@ async function waitReady(timeoutMs = 120_000) {
   throw new Error("wrangler dev tidak siap.");
 }
 
+/**
+ * Buka Lembar (panel geser) lewat aksi utama halaman, lalu tunggu ia terpasang.
+ *
+ * Ada karena Fase 38h memindahkan formulir pembuatan dari ATAS DAFTAR ke dalam
+ * `<Lembar>`. Sebelumnya formulir selalu terpasang, jadi asersi bisa langsung
+ * `page.fill("#tk-subject", …)`. Kini medannya belum ada di DOM sampai
+ * lembarnya dibuka.
+ *
+ * Satu penolong, ±25 pemanggil — bukan dua puluh lima suntingan bespoke yang
+ * masing-masing bisa salah dengan caranya sendiri.
+ */
+async function bukaLembar(page, namaTombol) {
+  await page.getByRole("button", { name: namaTombol }).first().click();
+  await page.locator("[data-lembar]").waitFor({ state: "visible", timeout: 10_000 });
+  // Animasi masuk singkat; menunggu satu bingkai membuat `fill` berikutnya
+  // tidak mengenai elemen yang masih bergerak.
+  await page.waitForTimeout(180);
+  await lembarTidakMeluber(page, namaTombol);
+}
+
+/**
+ * Lembar tidak boleh menggulir ke samping (Fase 38s).
+ *
+ * Ditemukan lewat tangkapan layar, bukan lewat gerbang: formulir produk masih
+ * memakai kisi selebar halaman penuh (`sm:grid-cols-[8rem_1fr_5rem_9rem_9rem_
+ * 8rem_auto]`, ±46rem) padahal Lembar hanya selebar `max-w-3xl` (48rem dikurangi
+ * padding). Medan "Nama" tergencet menjadi selebar satu huruf dan tombol simpan
+ * terpotong di tepi kanan.
+ *
+ * Seluruh gerbang hijau saat itu, dan itulah masalahnya: asersi yang ada
+ * menguji medan BISA DIISI, dan medan selebar satu huruf tetap bisa diisi.
+ * Tidak ada satu pun yang menguji medan BISA DIBACA.
+ *
+ * Karena itu penjaganya dipasang di dalam `bukaLembar()` sendiri, bukan sebagai
+ * asersi terpisah di satu halaman: setiap pemanggil yang sudah ada ikut
+ * terjaga, dan setiap Lembar yang ditulis nanti terjaga tanpa siapa pun perlu
+ * ingat menambahkannya. Kisi lebar berikutnya akan menabrak gerbang pada hari
+ * ia ditulis, bukan pada hari seseorang membuka lembarnya.
+ */
+async function lembarTidakMeluber(page, namaTombol) {
+  const luber = await page.evaluate(() => {
+    const l = document.querySelector("[data-lembar]");
+    if (!l) return null;
+    // 2 px toleransi: pembulatan sub-piksel pada border kadang menghasilkan
+    // selisih 1 px yang tidak pernah terlihat mata.
+    const cari = (el) =>
+      el.scrollWidth - el.clientWidth > 2
+        ? { tag: el.tagName.toLowerCase(), kelas: el.className.toString().slice(0, 90), lebih: el.scrollWidth - el.clientWidth }
+        : null;
+    // Kendali formulir DILEWATI, dan ini bukan pelonggaran — ini koreksi.
+    //
+    // `scrollWidth` sebuah <select> adalah lebar OPSI TERPANJANGNYA, bukan
+    // lebar tata letaknya. Peramban memotong sendiri teks opsi yang tidak muat
+    // dan tidak pernah mendorong apa pun ke samping karenanya, jadi angka itu
+    // bukan gejala cacat. Hal yang sama berlaku untuk <input> dan <textarea>
+    // yang isinya lebih panjang daripada kotaknya.
+    //
+    // Ketahuan lewat CI, bukan lewat mesin ini: runner GitHub memakai font
+    // pengganti yang lebih lebar, sehingga pemilih akun di jurnal manual
+    // berbahasa Inggris melewati ambang 19 piksel di sana sementara di sini
+    // tidak. Aturan yang hasilnya bergantung pada font yang kebetulan
+    // terpasang bukan aturan — ia lotre yang merah di tempat lain.
+    //
+    // Daya tangkapnya utuh: cacat yang melahirkan penjaga ini terdeteksi pada
+    // `div.space-y-4` (77px), sebuah WADAH — dan wadah tetap diperiksa.
+    const KENDALI = ["select", "input", "textarea", "button"];
+    const semua = [l, ...l.querySelectorAll("*")];
+    for (const el of semua) {
+      if (KENDALI.includes(el.tagName.toLowerCase())) continue;
+      const t = cari(el);
+      // `overflow-x: auto` yang DISENGAJA (tabel lebar, sumur kode) bukan cacat.
+      if (t && !["auto", "scroll"].includes(getComputedStyle(el).overflowX)) return t;
+    }
+    return null;
+  });
+  check(
+    `Lembar "${namaTombol}" tidak menggulir ke samping`,
+    luber === null,
+    luber ? `${luber.tag}.${luber.kelas} lebih ${luber.lebih}px` : "",
+  );
+}
+
 function run(cmd, args, env) {
   return new Promise((resolve, reject) => {
     const p = spawn(cmd, args, { cwd: ROOT, stdio: "inherit", env: { ...process.env, ...env } });
@@ -403,10 +485,16 @@ try {
   // Fase 16m — pelunasan utang 16b. Rute diverifikasi ke main.tsx:
   // /app/master/produk dan /app/master/kontak. Judul kartu form + label
   // kotak centang selalu tampil untuk admin, jadi asersinya tak bergantung data.
+  //
+  // Fase 38j — formulir produk pindah ke Lembar, jadi label di DALAMNYA hanya
+  // ada setelah lembarnya dibuka. Subjek asersi tidak berubah: ia tetap
+  // menguji bahwa naskah formulir produk ikut berbahasa Inggris.
+  await bukaLembar(page, "Add product");
+  const produkFormEn = await page.innerText("body");
   const adaAddProduct =
-    produkEn.includes("Add product") && produkEn.includes("Track serial numbers");
+    produkFormEn.includes("Add product") && produkFormEn.includes("Track serial numbers");
   const tanpaProdukSisaId =
-    !produkEn.includes("Tambah produk") && !produkEn.includes("Lacak nomor seri");
+    !produkFormEn.includes("Tambah produk") && !produkFormEn.includes("Lacak nomor seri");
   check(
     "F0o sisa teks halaman Produk ikut EN: judul form + label lacak seri, tanpa teks Indonesia",
     adaAddProduct && tanpaProdukSisaId,
@@ -423,6 +511,10 @@ try {
     `→ form=${adaAddContact} tanpaID=${tanpaKontakId}`,
   );
   await gotoRoute("/app/penjualan", 800);
+  // Fase 38t: editor faktur pindah ke Lembar, jadi isinya baru ada di DOM
+  // setelah lembarnya dibuka. Nama tombolnya ikut bahasa aktif — di blok ini
+  // antarmuka sedang berbahasa Inggris.
+  await bukaLembar(page, "Sales invoice — new");
   const jualEn = await page.innerText("body");
   // Judul kartu daftar & label kontak = teks terlihat; harga satuan hanya ada
   // sebagai PLACEHOLDER (atribut) sehingga tak terbaca innerText — dicek lewat
@@ -780,11 +872,17 @@ try {
   // Fase 16p — pelunasan utang 16j. Rute diverifikasi ke main.tsx: /app/proyek.
   // Tombol buat proyek selalu tampil untuk admin; lencana status hanya muncul
   // bila ada proyek, jadi asersinya hanya menuntut tombolnya.
+  //
+  // Fase 38i — penandanya berpindah dari "Create project" ke "New project".
+  // Subjek asersi TIDAK berubah (halaman Proyek ikut berbahasa Inggris); yang
+  // berubah adalah tombol mana yang tampil di halaman, karena formulir
+  // pembuatan beserta tombol "Buat proyek"-nya kini berada di dalam Lembar dan
+  // baru terpasang saat dibuka. Yang tampil di halaman adalah aksi utamanya.
   await gotoRoute("/app/proyek", 800);
   const prjSisaEn = await page.innerText("body");
-  const adaProyekSisaEn = prjSisaEn.includes("Create project");
+  const adaProyekSisaEn = prjSisaEn.includes("New project");
   const tanpaProyekSisaId =
-    !prjSisaEn.includes("Buat proyek") && !prjSisaEn.includes("Seret kartu untuk memindahkan");
+    !prjSisaEn.includes("Proyek baru") && !prjSisaEn.includes("Seret kartu untuk memindahkan");
   check(
     "F0t sisa teks Proyek ikut EN: tombol buat proyek, tanpa teks Indonesia",
     adaProyekSisaEn && tanpaProyekSisaId,
@@ -793,7 +891,12 @@ try {
   // Fase 16o — pelunasan utang 16f. Rute diverifikasi ke main.tsx:
   // /app/keuangan/jurnal. Form jurnal manual selalu tampil untuk admin, jadi
   // penanda positifnya tak bergantung ada/tidaknya jurnal tersimpan.
+  //
+  // Fase 38k — form itu kini berada di dalam Lembar, jadi tombolnya baru ada
+  // setelah lembarnya dibuka. Subjek asersi tidak berubah: ia tetap menguji
+  // naskah form jurnal manual ikut berbahasa Inggris.
   await gotoRoute("/app/keuangan/jurnal", 900);
+  await bukaLembar(page, "New manual entry");
   const jrSisaEn = await page.innerText("body");
   const adaJurnalSisaEn = jrSisaEn.includes("Post entry") && jrSisaEn.includes("Add line");
   const tanpaJurnalSisaId =
@@ -1361,6 +1464,8 @@ try {
   // F1 — Master Data: buat produk via form.
   resetErrors();
   await gotoRoute("/app/master/produk");
+  // Fase 38j — formulir produk pindah ke Lembar; halaman membuka dengan daftar.
+  await bukaLembar(page, "Tambah produk");
   await page.fill("#p-sku", `UISIM-${stamp}`);
   await page.fill("#p-name", "Produk Uji Simulasi");
   await page.fill("#p-sell", "125000");
@@ -1375,6 +1480,7 @@ try {
   // F2 — Master Data: buat kontak pelanggan via form.
   resetErrors();
   await gotoRoute("/app/master/kontak");
+  await bukaLembar(page, "Tambah kontak");
   await page.fill("#k-name", "Pelanggan Uji Simulasi");
   const contactForm = page.locator("form", { has: page.locator("#k-name") });
   const contactPost = postDone("/contacts");
@@ -1399,6 +1505,9 @@ try {
   // F4 — Jurnal Umum manual 2 baris seimbang → Neraca Saldo tetap seimbang.
   resetErrors();
   await gotoRoute("/app/keuangan/jurnal");
+  // Fase 38k — jurnal manual pindah ke Lembar; halaman Jurnal Umum membuka
+  // dengan jurnalnya, dan memposting manual adalah pengecualian.
+  await bukaLembar(page, "Jurnal manual baru");
   await page.fill("#jr-memo", "Jurnal uji simulasi UI");
   await page.getByLabel("Akun baris 1").selectOption({ index: 1 });
   await page.getByLabel("Debit baris 1").fill("250000");
@@ -1637,6 +1746,7 @@ try {
   // supaya penolakan dari skema tak pernah sampai ke pengguna.
   resetErrors();
   await gotoRoute("/app/penjualan", 1000);
+  await bukaLembar(page, "Faktur penjualan baru");
   // Pelanggan wajib dipilih — tanpa itu tombol posting mati karena alasan lain
   // dan pemeriksaan di bawah kehilangan artinya.
   await page.getByPlaceholder("Cari pelanggan…").first().fill("a");
@@ -1713,6 +1823,9 @@ try {
   // F8 — CRM: tambah lead → muncul di papan funnel.
   resetErrors();
   await gotoRoute("/app/crm/leads");
+  // Fase 38i — formulir lead pindah ke Lembar; halaman kini membuka dengan
+  // papan kanban, bukan formulir kosong.
+  await bukaLembar(page, "Lead baru");
   await page.fill("#lead-name", "Lead Uji Simulasi");
   const leadPost = postDone("/leads");
   await page.getByRole("button", { name: "Tambah Lead" }).click();
@@ -1766,6 +1879,9 @@ try {
   // F9 — Helpdesk: buat tiket bertaut kontak.
   resetErrors();
   await gotoRoute("/app/helpdesk");
+  // Fase 38h — formulir tiket kini berada di dalam Lembar, dibuka aksi utama
+  // halaman. Halaman membuka dengan DATA, bukan dengan formulir kosong.
+  await bukaLembar(page, "Tiket baru");
   await page.selectOption("#tk-contact", { index: 1 });
   await page.fill("#tk-subject", "Tiket Uji Simulasi");
   await page.fill("#tk-desc", "Dibuat oleh simulasi UI otomatis.");
@@ -1776,14 +1892,66 @@ try {
   check("F9 helpdesk: tiket baru → 201 → tampil di daftar", true);
   check("F9 helpdesk bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
+  // --- F52 Primitif halaman modul (Fase 38h) --------------------------------
+  //
+  // Diuji pada halaman pilot. Ketiganya mengikat PERAN lewat atribut `data-*`,
+  // bukan markup — sehingga tata letaknya boleh berubah lagi tanpa memecahkan
+  // asersi ini.
+  check(
+    "F52 halaman modul memakai kerangka baku",
+    (await page.locator("[data-halaman]").count()) === 1,
+    `→ ${await page.locator("[data-halaman]").count()} kerangka`,
+  );
+
+  // Perubahan alur kerja yang menjadi alasan seluruh sub-fase ini: yang pertama
+  // terlihat saat halaman dibuka adalah DATA, bukan formulir kosong.
+  check(
+    "F52 halaman terbuka dengan data, bukan formulir pembuatan",
+    (await page.locator("[data-lembar]").count()) === 0,
+    `→ lembar terbuka saat halaman dimuat`,
+  );
+
+  await bukaLembar(page, "Tiket baru");
+  check("F52 Lembar terbuka lewat aksi utama halaman", (await page.locator("[data-lembar]").count()) === 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  check(
+    "F52 Lembar tertutup dengan Escape",
+    (await page.locator("[data-lembar]").count()) === 0,
+    `→ masih terbuka`,
+  );
+
+  // Daftar & detail di layar kecil: SALAH SATU, bukan keduanya bertumpuk.
+  // Sebelumnya keduanya menumpuk, sehingga setelah memilih satu baris pengguna
+  // harus menggulir jauh ke bawah tanpa ada yang memberi tahu.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(300);
+  const daftarTerlihat = await page.locator("[data-daftar]").isVisible();
+  await page.locator("[data-daftar] button").first().click();
+  await page.waitForTimeout(500);
+  const detailTerlihat = await page.locator("[data-detail]").isVisible();
+  const daftarTersembunyi = !(await page.locator("[data-daftar]").isVisible());
+  check(
+    "F52 layar 390px: daftar & detail bergantian, tidak bertumpuk",
+    daftarTerlihat && detailTerlihat && daftarTersembunyi,
+    `→ daftarAwal=${daftarTerlihat} detail=${detailTerlihat} daftarSembunyi=${daftarTersembunyi}`,
+  );
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForTimeout(200);
+
   // F10 — HR: tambah karyawan via form.
   resetErrors();
   await gotoRoute("/app/hr/penggajian", 1000);
+  // Fase 38t: formulir karyawan keluar dari kartu daftar, masuk ke Lembar.
+  await bukaLembar(page, "Tambah karyawan");
   await page.fill("#emp-name", "Karyawan Uji Simulasi");
   await page.fill("#emp-pos", "Staf QA");
   await page.fill("#emp-salary", "5000000");
   const empPost = postDone("/employees");
-  await page.getByRole("button", { name: "Tambah Karyawan" }).click();
+  // Dilingkupi ke dalam Lembar: sejak Fase 38t ADA DUA tombol bernama sama —
+  // pemicu di kepala kartu, dan tombol simpan di kaki lembar. Tanpa lingkup ini
+  // Playwright menolak dengan strict mode violation, bukan memilih salah satu.
+  await page.locator("[data-lembar]").getByRole("button", { name: "Tambah karyawan" }).click();
   await empPost;
   await page.locator("td", { hasText: "Karyawan Uji Simulasi" }).first().waitFor();
   check("F10 HR: karyawan baru → 201 → tampil di daftar", true);
@@ -2140,6 +2308,10 @@ try {
   );
 
   await gotoRoute("/app/master/kontak", 1100);
+  // Fase 38j — kolom kustom dirender di dalam formulir kontak, yang kini
+  // berada di Lembar. Yang diuji tetap sama: definisi kolom benar-benar
+  // muncul sebagai medan, bukan hanya sebagai baris di daftar definisi.
+  await bukaLembar(page, "Tambah kontak");
   const cfKontakAda = await page.locator('[data-testid="field-kustom-kontak"]').count();
   check(
     "F2c kolom kustom benar-benar muncul di form Kontak, bukan hanya di daftar definisi",
@@ -2256,7 +2428,18 @@ try {
   await page.waitForTimeout(700);
 
   await gotoRoute("/app/hr/penggajian", 900);
-  check("F19 Penggajian bertab: default tab Karyawan (form #emp-name)", (await page.locator("#emp-name").count()) === 1);
+  // Subjeknya TIDAK berubah: tab Karyawan tetap yang tampil lebih dulu. Yang
+  // berubah hanya buktinya — dulu ditandai medan #emp-name yang selalu
+  // terpasang; sejak Fase 38t medan itu hidup di dalam Lembar, jadi yang
+  // ditunjuk adalah tombol yang membukanya.
+  check(
+    "F19 Penggajian bertab: default tab Karyawan (aksi 'Tambah karyawan')",
+    (await page.getByRole("button", { name: "Tambah karyawan" }).count()) === 1,
+  );
+  await bukaLembar(page, "Tambah karyawan");
+  check("F19 Lembar karyawan memuat medan #emp-name", (await page.locator("#emp-name").count()) === 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
   await page.getByRole("tab", { name: "Kasbon" }).click();
   await page.waitForTimeout(400);
   check("F19 tab Kasbon menampilkan kartu pinjaman karyawan", (await page.innerText("body")).includes("Kasbon / pinjaman karyawan"));
@@ -2336,6 +2519,7 @@ try {
   // meninggalkan jejak apa pun bila salah.
   resetErrors();
   await gotoRoute("/app/master/grup-harga", 1000);
+  await bukaLembar(page, "Grup baru");
   await page.locator("#gh-nama").fill("Grosir UI");
   await page.getByRole("button", { name: "Tambah grup" }).click();
   await page.waitForTimeout(900);
@@ -2357,6 +2541,7 @@ try {
   // Pelanggan baru yang bergrup — dibuat lewat layar Kontak supaya jalur
   // penyimpanan `priceGroupId` dari form ikut teruji, bukan cuma API-nya.
   await gotoRoute("/app/master/kontak", 1100);
+  await bukaLembar(page, "Tambah kontak");
   await page.locator("#k-name").fill("Toko Grosir UI");
   await page.locator("#k-price-group").selectOption({ label: "Grosir UI" });
   await page.getByRole("button", { name: "Tambah", exact: true }).first().click();
@@ -2370,6 +2555,7 @@ try {
   await page.waitForTimeout(1200);
 
   await gotoRoute("/app/penjualan", 1100);
+  await bukaLembar(page, "Faktur penjualan baru");
   await page.getByPlaceholder("Cari pelanggan…").first().fill("Toko Grosir UI");
   await page.waitForTimeout(800);
   await page.locator("div.absolute.z-30 button").first().click();
@@ -2496,6 +2682,8 @@ try {
 
   // Penawaran (CRM): pilih pelanggan bergrup → lencana + harga grup.
   await gotoRoute("/app/crm/penawaran", 1500);
+  // Fase 38t: editor penawaran keluar dari halaman, masuk ke Lembar.
+  await bukaLembar(page, "Penawaran baru");
   await page.locator("#q-contact").waitFor({ timeout: 15_000 });
   const hargaGrupTiba4 = pageGet("/price-groups/");
   await page.selectOption("#q-contact", { label: "Toko Grosir UI" });
@@ -2831,6 +3019,57 @@ try {
     `→ peragaan=${adaPeragaan} seimbang=${angkaSeimbang}`,
   );
 
+  // --- F49 Peragaan (Fase 38b) ---------------------------------------------
+  //
+  // Tangkapan layar produk diganti peragaan beranimasi. Empat asersi di bawah
+  // menjaga sifat yang membuat penggantian itu layak — dan tiap satunya ada
+  // karena kegagalannya akan SENYAP.
+
+  // Beranda kini memikul buktinya lewat peragaan, bukan berkas gambar. Bila
+  // salah satu hilang, halaman kehilangan pembuktiannya tanpa galat apa pun.
+  const jumlahPeragaan = await page.locator("[data-peragaan]").count();
+  check(
+    "F49a beranda memuat peragaan hero + lima peragaan showcase",
+    jumlahPeragaan >= 2,
+    `→ ${jumlahPeragaan} peragaan`,
+  );
+
+  // Nol gambar produk. Ini yang membuat 3,9 MB bisa dihapus, dan yang menjaga
+  // agar tangkapan layar tidak menyelinap kembali satu per satu.
+  const gambarLanding = await page.locator("main img, section img").count();
+  check("F49a beranda tidak memuat satu pun berkas gambar produk", gambarLanding === 0, `→ ${gambarLanding} <img>`);
+
+  // Peragaan adalah gambar yang bergerak, bukan antarmuka. Kontrol palsu yang
+  // bisa ditekan Tab tetapi tidak melakukan apa pun adalah jebakan bagi
+  // pengguna papan tik — dan tombol "Posting" di dalamnya terlihat persis
+  // seperti tombol sungguhan.
+  // Fase 38f — selektornya dipersempit ke `[data-bingkai]`, yaitu permukaan
+  // PERAGA-nya saja. Yang dilarang adalah kontrol PALSU: tombol yang terlihat
+  // seperti tombol sungguhan, bisa ditekan Tab, dan tidak melakukan apa pun.
+  //
+  // Tombol "Putar ulang" di kaki peragaan panduan bukan kontrol palsu — ia
+  // benar-benar memutar ulang. Melarangnya berarti memakai asersi ini untuk
+  // hal yang bukan maksudnya.
+  const fokusDalamPeragaan = await page
+    .locator('[data-bingkai] :is(a, button, input, select, textarea, [tabindex]:not([tabindex="-1"]))')
+    .count();
+  check(
+    "F49e bingkai peraga tidak memuat satu pun kontrol palsu yang bisa difokus",
+    fokusDalamPeragaan === 0,
+    `→ ${fokusDalamPeragaan} elemen fokus`,
+  );
+
+  // Seluruh isi ada di DOM sejak bingkai pertama; animasi hanya menyingkapnya.
+  // Diperiksa dengan membaca teks peragaan showcase yang BELUM digulir ke
+  // layar — bila isinya baru ditulis saat animasinya berjalan, pembaca layar
+  // dan perayap tidak akan pernah mendapatkannya.
+  const narasiTersedia = peragaan.includes("Jurnal double-entry terbentuk sendiri");
+  check(
+    "F49b narasi langkah terbaca tanpa menunggu animasi selesai",
+    narasiTersedia,
+    `→ narasi ${narasiTersedia ? "ada" : "belum ada"}`,
+  );
+
   // F29 — Fase 18f: halaman /fitur (penjelasan mendalam per modul).
   // Diperiksa dari SISI PENGUNJUNG: benar-benar bisa dicapai lewat tautan di
   // landing (bukan hanya lewat URL yang diketik), memuat modul-modul kunci,
@@ -2848,6 +3087,175 @@ try {
     `→ modul hilang: ${hilang.join(", ") || "tidak ada"}`,
   );
   check("F29 halaman /fitur bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
+  // --- F49 lanjutan: peragaan di /fitur (Fase 38e) --------------------------
+  //
+  // Dua puluh dua modul, dua puluh dua peragaan, nol berkas gambar. Ini
+  // halaman dengan peragaan terbanyak di seluruh situs, jadi ia yang paling
+  // mungkin memperlihatkan cacat kinerja maupun cacat tata letak lebih dulu.
+  const peragaanFitur = await page.locator("[data-peragaan]").count();
+  check(
+    "F49a /fitur memuat satu peragaan untuk tiap modul bergambar",
+    peragaanFitur >= 20,
+    `→ ${peragaanFitur} peragaan`,
+  );
+  const gambarFitur = await page.locator("main img").count();
+  check("F49a /fitur tidak memuat satu pun berkas gambar produk", gambarFitur === 0, `→ ${gambarFitur} <img>`);
+
+  // Antrean global membatasi pemutar aktif menjadi dua, berapa pun yang
+  // terlihat. Diuji dengan menggulir ke tengah halaman — tempat paling banyak
+  // peragaan berada di dalam layar sekaligus.
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
+  await page.waitForTimeout(1200);
+  const berjalan = await page.locator('[data-peragaan] [data-kursor]').count();
+  check(
+    "F49c /fitur tidak menjalankan lebih dari dua peragaan sekaligus",
+    berjalan <= 2,
+    `→ ${berjalan} kursor aktif`,
+  );
+
+  // Narasi tiap peragaan ada di DOM sejak awal, jadi perayap dan pembaca layar
+  // mendapat isi halaman ini tanpa menunggu satu animasi pun selesai.
+  const teksNarasiFitur = await page.innerText("body");
+  check(
+    "F49b narasi peragaan /fitur terbaca tanpa menunggu animasi",
+    teksNarasiFitur.includes("Jurnal pembalik terbentuk") || teksNarasiFitur.includes("jurnal pembalik"),
+    `→ narasi tidak ditemukan`,
+  );
+  await page.evaluate(() => window.scrollTo(0, 0));
+
+  // --- F50 Kerangka publik disatukan (Fase 38c) -----------------------------
+  //
+  // Footer ditulis TIGA kali (landing, /fitur, blog SSR) dan perbedaannya
+  // seluruhnya tak disengaja — pengunjung /fitur tidak punya jalan ke blog, ke
+  // FAQ, maupun ke pendaftaran dari kaki halaman. Persis pola yang sudah
+  // diselesaikan untuk header pada Fase 31c.
+  //
+  // Diperiksa di /fitur, bukan di beranda: beranda selalu punya footer
+  // terlengkap justru karena ia yang disalin. Yang perlu dijaga adalah halaman
+  // SALINANNYA.
+  const kakiFitur = await page.innerText("footer");
+  const tautanKaki = ["Blog", "Panduan", "Masuk", "Daftar"];
+  const kakiHilang = tautanKaki.filter((t) => !kakiFitur.includes(t));
+  check(
+    "F50 kaki halaman /fitur memuat tautan yang sama dengan beranda",
+    kakiHilang.length === 0,
+    `→ hilang: ${kakiHilang.join(", ") || "tidak ada"}`,
+  );
+
+  // GuideHeader punya tombol "Masuk"/"Daftar" yang ditulis harfiah dalam bahasa
+  // Indonesia — satu-satunya header publik yang tidak pernah ikut berbahasa
+  // Inggris, dan tidak ada yang menyadarinya selama tujuh belas fase.
+  await gotoRoute("/panduan", 700);
+  const kepalaPanduan = await page.locator("header").first().innerText();
+  check(
+    "F50 /panduan memakai header publik bersama, bukan header keempat",
+    kepalaPanduan.includes("Panduan") && (await page.locator("header [data-wordmark]").count()) === 1,
+    `→ ${kepalaPanduan.slice(0, 60)}`,
+  );
+  const pemilihBahasaPanduan = await page.getByRole("button", { name: "EN", exact: true }).count();
+  check(
+    "F50 /panduan punya pemilih bahasa (dulu satu-satunya halaman publik tanpa itu)",
+    pemilihBahasaPanduan >= 1,
+    `→ ${pemilihBahasaPanduan} tombol`,
+  );
+  check("F50 /panduan punya kaki halaman", (await page.locator("footer").count()) >= 1);
+
+  // --- F49d Peragaan di panduan (Fase 38f) ---------------------------------
+  //
+  // Panduan mendapat perlakuan yang BERBEDA dari halaman jualan, dan
+  // perbedaannya diuji — karena ia yang membuat penggantian tangkapan layar di
+  // sini bisa dipertanggungjawabkan.
+  await gotoRoute("/panduan/pos", 900);
+  const peragaanPanduan = await page.locator("[data-peragaan]").count();
+  check("F49d halaman panduan modul memuat peragaan", peragaanPanduan >= 1, `→ ${peragaanPanduan}`);
+  const gambarPanduan = await page.locator("main img").count();
+  check("F49d panduan tidak memuat satu pun tangkapan layar", gambarPanduan === 0, `→ ${gambarPanduan} <img>`);
+
+  // Daftar langkah TERLIHAT di panduan, bukan tersembunyi bagi mata seperti di
+  // halaman jualan. Pembaca panduan memakai langkahnya sebagai instruksi.
+  const langkahTampak = await page.locator("[data-peragaan] figcaption ol li").first().isVisible();
+  check("F49d langkah peragaan panduan terlihat di layar, bukan hanya bagi pembaca layar", langkahTampak);
+
+  // Peragaan panduan berhenti di keadaan akhir dan menawarkan tombol ulang.
+  // Tombol itu kontrol SUNGGUHAN — satu-satunya di seluruh peragaan — dan
+  // sengaja berada di luar bingkai peraga supaya F49e tetap berlaku.
+  await page.waitForTimeout(9000);
+  const tombolUlang = await page.getByRole("button", { name: /Putar ulang/i }).count();
+  check(
+    "F49d peragaan panduan berhenti dan menawarkan tombol ulang",
+    tombolUlang >= 1,
+    `→ ${tombolUlang} tombol`,
+  );
+  check("F49d halaman panduan bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
+  // --- F51 Enam halaman publik (Fase 38d) ----------------------------------
+  //
+  // Diperiksa dari SISI PENGUNJUNG, mengikuti alasan F29: rute yang ada tetapi
+  // tak tertaut dari mana pun sama saja tidak ada. Karena itu `/harga` dicapai
+  // lewat klik pada bilah atas, bukan lewat URL yang diketik.
+  await gotoRoute("/", 700);
+  await page.locator('header a[href="/harga"]').first().click();
+  await page.waitForURL("**/harga", { timeout: 15_000 });
+  await page.waitForTimeout(700);
+  const hargaText = (await page.innerText("body")).replace(/\u00A0/g, " ");
+  check(
+    "F51 /harga terjangkau dari bilah atas dan memuat harga bulanan",
+    hargaText.includes("Rp 499.000"),
+    `→ harga tidak ditemukan`,
+  );
+  // 36 × 499.000 = 17.964.000. Diuji karena inilah angka yang diminta bagian
+  // pengadaan, dan satu-satunya angka di situs yang dihitung dari perkalian —
+  // jadi ia akan salah diam-diam bila harga bulanannya berubah tanpa halaman
+  // ini ikut dihitung ulang.
+  check(
+    "F51 /harga menyebut biaya kepemilikan tiga tahun yang benar",
+    hargaText.includes("17.964.000"),
+    `→ biaya 3 tahun tidak ditemukan`,
+  );
+
+  await gotoRoute("/keamanan", 700);
+  const amanText = await page.innerText("body");
+  // Seksi "yang belum ada" adalah yang membuat halaman keamanan layak
+  // dipercaya. Halaman keamanan yang hanya memuat hal baik terbaca sebagai
+  // brosur — dan brosur tidak diteruskan manajer TI ke bagian pengadaan.
+  check(
+    "F51 /keamanan menyebut sertifikasi yang BELUM dimiliki, bukan hanya yang baik",
+    amanText.includes("ISO 27001") && amanText.includes("SOC 2"),
+    `→ seksi kejujuran tidak ditemukan`,
+  );
+
+  await gotoRoute("/kontak", 700);
+  const kontakText = await page.innerText("body");
+  check(
+    "F51 /kontak memuat alamat surel yang bisa diklik",
+    (await page.locator('a[href^="mailto:"]').count()) >= 1 && kontakText.includes("@erpindo.id"),
+    `→ mailto tidak ditemukan`,
+  );
+
+  // Kedua halaman hukum WAJIB menyatakan dirinya draf selama penampung
+  // identitas penyelenggara masih ada. Dokumen yang tampak final padahal masih
+  // berpenampung akan beredar ke bagian hukum calon pelanggan.
+  for (const jalur of ["/syarat", "/privasi"]) {
+    await gotoRoute(jalur, 600);
+    const teks = await page.innerText("body");
+    const berpenampung = teks.includes("[NAMA BADAN USAHA]");
+    check(
+      `F51 ${jalur} menyatakan dirinya draf selagi penampung identitas ada`,
+      !berpenampung || teks.includes("Draf menunggu tinjauan"),
+      `→ penampung=${berpenampung}`,
+    );
+  }
+
+  await gotoRoute("/tentang", 600);
+  check(
+    "F51 /tentang menyebut sumber angka yang dikutipnya",
+    (await page.innerText("body")).includes("Panorama Consulting"),
+    `→ sumber tidak dicantumkan`,
+  );
+
+  check("F51 enam halaman publik bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/", 700);
 
   // Multibahasa (Fase 13d): toggle EN → hero & harga berbahasa Inggris, lalu kembali ID.
@@ -2862,9 +3270,15 @@ try {
     `→ EN tidak lengkap`,
   );
   // Fase 14f: seluruh seksi landing (Showcase/Comparison/Security/FAQ) kini dwibahasa.
+  //
+  // Fase 38b — penanda seksi Showcase berubah dari "Not a mockup" menjadi
+  // "Do not take our word for it". Subjek asersinya TIDAK berubah (seksi
+  // Showcase ikut berbahasa Inggris); yang berubah hanya kalimat yang
+  // dicarinya, karena judul lama ("Ini tampilan aslinya. Bukan gambar rekaan.")
+  // menjadi tidak benar begitu tangkapan layar diganti peragaan.
   check(
     "F15 landing 100% dwibahasa: seksi Showcase/Comparison/FAQ ikut ke Inggris",
-    enText.includes("Not a mockup") && enText.includes("Still using") && enText.includes("Frequently asked questions"),
+    enText.includes("Do not take our word for it") && enText.includes("Still using") && enText.includes("Frequently asked questions"),
     `→ seksi landing belum sepenuhnya EN`,
   );
   await page.getByRole("button", { name: "ID", exact: true }).first().click();

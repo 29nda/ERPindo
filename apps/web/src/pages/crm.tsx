@@ -9,7 +9,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
-import { ArrowRight, Check, FileText, Send, UserPlus, Users, X } from "lucide-react";
+import { Halaman, Lembar } from "../components/kerangka";
+import { ArrowRight, Check, FileText, Send, Target, UserPlus, Users, X } from "lucide-react";
 import { useState } from "react";
 import { api, formatIDR } from "../api/client";
 import {
@@ -22,7 +23,6 @@ import {
   EmptyState,
   Input,
   Label,
-  PageHeading,
   Select,
   Spinner,
   Table,
@@ -169,6 +169,8 @@ export function LeadsPage() {
     estValue: "",
   });
   const [error, setError] = useState<string | null>(null);
+  // Fase 38i — formulir lead pindah ke Lembar; halaman membuka dengan papan kanban.
+  const [lembarBuka, setLembarBuka] = useState(false);
 
   const create = useMutation({
     mutationFn: () =>
@@ -183,6 +185,7 @@ export function LeadsPage() {
     onSuccess: () => {
       toast("success", u("leadDitambahkan"));
       setForm({ name: "", contactPerson: "", phone: "", email: "", source: "", estValue: "" });
+      setLembarBuka(false);
       setError(null);
       queryClient.invalidateQueries({ queryKey: ["leads", tenant.tenantId] });
     },
@@ -197,11 +200,17 @@ export function LeadsPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <PageHeading k="crmPipeline" />
-      </div>
-
+    <Halaman
+      k="crmPipeline"
+      ikon={Target}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <UserPlus className="size-4" aria-hidden /> {u("leadBaru")}
+          </Button>
+        ) : null
+      }
+    >
       {/* Papan kanban funnel — seret kartu antar kolom untuk memindah tahap. */}
       <KanbanBoard leads={leads} isAdmin={isAdmin} />
 
@@ -224,12 +233,29 @@ export function LeadsPage() {
 
       {tenant.role === "owner" ? <KartuFormLead tenantId={tenant.tenantId} /> : null}
 
-      {isAdmin ? (
-        <Card>
-          <CardHeader title={u("leadBaru")} description={u("descLeadAktif")} />
-          <CardBody className="space-y-4">
+      <Lembar
+        terbuka={lembarBuka}
+        tutup={() => setLembarBuka(false)}
+        judul={u("leadBaru")}
+        deskripsi={u("descLeadAktif")}
+        aksi={
+          <>
+            <Button variant="secondary" onClick={() => setLembarBuka(false)}>
+              {u("batal")}
+            </Button>
+            <Button
+              onClick={() => create.mutate()}
+              disabled={create.isPending || form.name.trim().length < 2}
+            >
+              {create.isPending ? <Spinner /> : <UserPlus className="size-4" aria-hidden />}{" "}
+              {u("tambahLead")}
+            </Button>
+          </>
+        }
+      >
+          <div className="space-y-4">
             {error ? <Alert tone="error">{error}</Alert> : null}
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="lead-name">{u("namaProspek")}</Label>
                 <Input
@@ -283,18 +309,8 @@ export function LeadsPage() {
                 />
               </div>
             </div>
-            <div className="flex justify-end">
-              <Button
-                onClick={() => create.mutate()}
-                disabled={create.isPending || form.name.trim().length < 2}
-              >
-                {create.isPending ? <Spinner /> : <UserPlus className="size-4" aria-hidden />}{" "}
-                {u("tambahLead")}
-              </Button>
-            </div>
-          </CardBody>
-        </Card>
-      ) : null}
+          </div>
+      </Lembar>
 
       <Card>
         <CardHeader title={u("leadAktif")} description={`${openLeads.length} ${u("leadTerbukaSuffix")}`} />
@@ -318,7 +334,7 @@ export function LeadsPage() {
       </Card>
 
       <SourceReportCard tenantId={tenant.tenantId} />
-    </div>
+    </Halaman>
   );
 }
 
@@ -370,7 +386,7 @@ function KanbanBoard({ leads, isAdmin }: { leads: ApiLead[]; isAdmin: boolean })
               }}
               className={`w-52 shrink-0 rounded-xl border p-2 transition-colors ${
                 dragOver === stage
-                  ? "border-brand-400 bg-brand-50 dark:border-brand-500/50 dark:bg-brand-500/10"
+                  ? "border-brand-line bg-brand-surface"
                   : "border-line bg-surface-sunken"
               }`}
             >
@@ -386,7 +402,7 @@ function KanbanBoard({ leads, isAdmin }: { leads: ApiLead[]; isAdmin: boolean })
                     key={lead.id}
                     draggable={isAdmin}
                     onDragStart={(e) => e.dataTransfer.setData("text/lead-id", lead.id)}
-                    className={`rounded-lg border border-line bg-white p-2 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-800 ${
+                    className={`rounded-lg border border-line bg-surface p-2 text-sm shadow-sm ${
                       isAdmin ? "cursor-grab active:cursor-grabbing" : ""
                     }`}
                   >
@@ -730,6 +746,7 @@ export function QuotationsPage() {
   const [taxRate, setTaxRate] = useState<0 | 11 | 12>(11);
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
   const [error, setError] = useState<string | null>(null);
+  const [lembarBuka, setLembarBuka] = useState(false);
 
   const products = (productsQuery.data?.items ?? []) as ProductRow[];
   const contacts = ((contactsQuery.data?.items ?? []) as ContactRow[]).filter((k) =>
@@ -756,6 +773,7 @@ export function QuotationsPage() {
       setLines([emptyLine()]);
       setContactId("");
       setError(null);
+      setLembarBuka(false);
       queryClient.invalidateQueries({ queryKey: ["quotations", tenant.tenantId] });
     },
     onError: (err) => setError((err as Error).message),
@@ -801,17 +819,42 @@ export function QuotationsPage() {
   const taxAmount = Math.round((subtotal * taxRate) / 100);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <PageHeading k="crmPenawaran" />
-      </div>
-
+    <Halaman
+      k="crmPenawaran"
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <FileText className="size-4" aria-hidden /> {u("penawaranBaru")}
+          </Button>
+        ) : null
+      }
+    >
+      {/*
+        Fase 38t — editor penawaran pindah ke Lembar.
+        Ia ditunda di 38k karena bukan formulir sederhana: satu kepala, baris
+        barang yang bisa ditambah, dan rekap total yang ikut berubah. Menggeser
+        pembungkusnya saja akan meninggalkan halaman setengah jadi, jadi yang
+        dikerjakan di sini penataan ulang — bukan penggeseran.
+      */}
       {isAdmin ? (
-        <Card>
-          <CardHeader title={u("penawaranBaru")} description={u("descPenawaranBaru")} />
-          <CardBody className="space-y-4">
+        <Lembar
+          terbuka={lembarBuka}
+          tutup={() => setLembarBuka(false)}
+          lebar="lebar"
+          judul={u("penawaranBaru")}
+          deskripsi={u("descPenawaranBaru")}
+          aksi={
+            <Button
+              onClick={() => create.mutate()}
+              disabled={create.isPending || !contactId || subtotal === 0}
+            >
+              {create.isPending ? <Spinner /> : null} {u("buatPenawaran")}
+            </Button>
+          }
+        >
+          <div className="space-y-4">
             {error ? <Alert tone="error">{error}</Alert> : null}
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <Label htmlFor="q-contact">{u("pelanggan")}</Label>
                 <Select
@@ -835,6 +878,18 @@ export function QuotationsPage() {
                 ) : null}
               </div>
               <div>
+                <Label htmlFor="q-tax">PPN</Label>
+                <Select
+                  id="q-tax"
+                  value={String(taxRate)}
+                  onChange={(e) => setTaxRate(Number(e.target.value) as 0 | 11 | 12)}
+                >
+                  <option value="0">{u("tanpaPpn")}</option>
+                  <option value="11">PPN 11%</option>
+                  <option value="12">PPN 12%</option>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="q-date">{u("tanggal")}</Label>
                 <Input
                   id="q-date"
@@ -852,25 +907,17 @@ export function QuotationsPage() {
                   onChange={(e) => setValidUntil(e.target.value)}
                 />
               </div>
-              <div>
-                <Label htmlFor="q-tax">PPN</Label>
-                <Select
-                  id="q-tax"
-                  value={String(taxRate)}
-                  onChange={(e) => setTaxRate(Number(e.target.value) as 0 | 11 | 12)}
-                >
-                  <option value="0">{u("tanpaPpn")}</option>
-                  <option value="11">PPN 11%</option>
-                  <option value="12">PPN 12%</option>
-                </Select>
-              </div>
             </div>
 
             <div className="space-y-2">
               {lines.map((line, i) => (
                 <div
                   key={i}
-                  className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_6rem_10rem_10rem_2.5rem] sm:items-center"
+                  /* `[&>*]:min-w-0` — lihat catatan di finance.tsx: lebar auto
+                     sebuah <select> adalah selebar opsi terpanjangnya, jadi trek
+                     `1fr` menolak menyusut dan barisnya mendorong lembarnya
+                     menggulir ke samping. */
+                  className="grid grid-cols-2 gap-2 [&>*]:min-w-0 sm:grid-cols-[1fr_5rem_8rem_8rem_2.5rem] sm:items-center"
                 >
                   <Select
                     aria-label={`${u("produkBaris")} ${i + 1}`}
@@ -916,7 +963,7 @@ export function QuotationsPage() {
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
               <Button
                 type="button"
                 variant="secondary"
@@ -934,15 +981,9 @@ export function QuotationsPage() {
                 ) : null}{" "}
                 · Total <strong className="tabular-nums">{formatIDR(subtotal + taxAmount)}</strong>
               </div>
-              <Button
-                onClick={() => create.mutate()}
-                disabled={create.isPending || !contactId || subtotal === 0}
-              >
-                {create.isPending ? <Spinner /> : null} {u("buatPenawaran")}
-              </Button>
             </div>
-          </CardBody>
-        </Card>
+          </div>
+        </Lembar>
       ) : null}
 
       <Card>
@@ -965,7 +1006,7 @@ export function QuotationsPage() {
           )}
         </CardBody>
       </Card>
-    </div>
+    </Halaman>
   );
 }
 
@@ -1033,7 +1074,7 @@ function QuoteRow({ quote, isAdmin }: { quote: ApiQuotation; isAdmin: boolean })
           href={`/cetak/penawaran?tenant=${tenant.tenantId}&id=${quote.id}`}
           target="_blank"
           rel="noreferrer"
-          className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
+          className="text-sm font-medium text-brand-ink hover:underline"
         >
           {u("cetak")}
         </a>
@@ -1098,7 +1139,7 @@ function QuoteRow({ quote, isAdmin }: { quote: ApiQuotation; isAdmin: boolean })
       ) : null}
 
       {quote.status === "converted" ? (
-        <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">
+        <p className="mt-2 text-xs text-ok-ink">
           {u("sudahJadiFaktur")}
         </p>
       ) : null}

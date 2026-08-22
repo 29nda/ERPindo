@@ -3,7 +3,115 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 19 Agustus 2026
+**Terakhir diperbarui:** 21 Agustus 2026
+
+## Yang baru saja selesai — Fase 38: perombakan total situs
+
+Ini perombakan desain **ketiga** di repo ini. Dua yang sebelumnya (Fase 17a dan
+18a) hanya mengganti nilai warna di satu berkas sementara 50 halaman menulis
+warnanya sendiri — itu sebabnya keduanya tidak pernah terasa berubah. Yang ini
+mengubah hal yang berbeda.
+
+### 1. Tidak ada lagi tangkapan layar produk. Sama sekali.
+
+Situs ini punya 57 gambar produk seberat 3,9 MB. Semuanya dihapus, diganti
+**peragaan** — alur kerja yang benar-benar berjalan di depan mata pengunjung,
+dirakit dari komponen yang sama dengan aplikasinya.
+
+Bedanya bukan kecantikan. Tangkapan layar adalah klaim yang harus dipercaya;
+peragaan bisa diperiksa. Jurnal yang diperagakan adalah double-entry sungguhan,
+dan **keseimbangannya diuji mesin** — angka karangan akan menggagalkan build.
+
+Peragaan juga tidak bisa basi: begitu tampilan aplikasi berubah, ia ikut
+berubah sendiri.
+
+### 2. Halaman modul membuka dengan data, bukan formulir kosong
+
+Sembilan halaman dulu menaruh formulir pembuatan yang selalu terbuka **di atas**
+daftarnya. Hal pertama yang Anda lihat saat membuka halaman Produk adalah
+formulir produk kosong — bukan produk Anda.
+
+Ini sebab terbesar aplikasi terbaca seperti aplikasi lama, dan lebih besar
+daripada warna mana pun. Sekarang formulirnya muncul sebagai panel yang digeser
+masuk saat Anda menekan tombol di pojok kanan atas — tempat yang sama di setiap
+halaman.
+
+### 3. Enam halaman baru yang bisa Anda kirimkan
+
+`/harga`, `/keamanan`, `/tentang`, `/kontak`, `/syarat`, `/privasi`.
+
+Sebelumnya harga hanyalah bagian dari beranda, dan tidak ada satu pun halaman
+yang bisa diteruskan ke bagian pengadaan atau bagian hukum calon pelanggan.
+Halaman `/keamanan` menyebut juga apa yang **belum** ada (ERPindo belum
+bersertifikat ISO 27001 maupun SOC 2) — halaman keamanan yang hanya memuat hal
+baik terbaca sebagai brosur.
+
+### 4. Merek sepenuhnya teks
+
+Tidak ada berkas logo tersisa. Favicon, ikon aplikasi, dan gambar pratinjau
+tautan tetap ada karena peramban mewajibkannya, tetapi isinya **dirender dari
+teks** oleh skrip — tidak ada gambar buatan tangan di mana pun.
+
+### 5. Situsnya jauh lebih ringan
+
+| | Sebelum | Sesudah |
+| --- | --- | --- |
+| Berkas aset | 7,1 MB | **172 KB** |
+| Hasil build | 9,7 MB | **3,4 MB** |
+| Yang diunduh untuk dipasang sebagai aplikasi | 5.837 KB | **2.719 KB** |
+
+### 6. Lima hal yang ditemukan di jalan, dan tidak ada yang pernah melaporkannya
+
+- **Panduan menjanjikan uji coba 30 hari** yang sudah dihapus empat belas fase
+  sebelumnya — di halaman yang justru dibaca orang yang sudah serius memakai
+  produknya.
+- **Halaman `/api-docs` menjual "paket Enterprise"** yang sudah dibubarkan,
+  bertentangan langsung dengan halaman harga yang baru.
+- **Mencetak faktur dalam tema gelap menghasilkan halaman nyaris kosong** —
+  teks krem terang di atas kertas putih. Dugaan saya, yang mengalaminya
+  menyimpulkan printernya bermasalah.
+- **Dua kartu pengaturan masih menawarkan "Tingkatkan ke Enterprise"** pada
+  jalur galatnya. Yang membuatnya lebih buruk daripada sekadar naskah basi:
+  galat itu sebenarnya berarti *peran Anda tidak cukup*, atau *alamat IP Anda
+  tidak termasuk yang diizinkan*. Seorang Pemilik yang baru saja salah mengetik
+  daftar IP-nya sendiri akan membaca tawaran paket — jawaban yang salah, pada
+  saat yang paling buruk, tentang masalah yang sama sekali berbeda.
+- **Formulir produk pecah di dalam panel barunya**: kotak "Nama" tergencet
+  menjadi selebar satu huruf dan tombol simpan terpotong di tepi kanan.
+
+Kelimanya diperbaiki, dan kelimanya kini dijaga uji otomatis supaya tidak bisa
+kembali.
+
+### 7. Cacat kelima itu ditemukan oleh mata, bukan oleh mesin
+
+Ini layak diceritakan tersendiri, karena ia menyangkut cara kerja seluruh
+gerbang di repo ini.
+
+Saat formulir produk pecah, **semua pemeriksaan otomatis hijau**. Bukan karena
+ada yang bocor: pemeriksaannya menguji apakah kotak isian **bisa diisi**, dan
+kotak selebar satu huruf tetap bisa diisi. Tidak ada satu pun yang menguji
+apakah ia **bisa dibaca**.
+
+Ia ketahuan karena Anda meminta melihat hasilnya, dan gambarnya benar-benar
+diambil dari aplikasi yang berjalan. Yang dilakukan berikutnya bukan sekadar
+membetulkan formulirnya, melainkan memasang penjaga di dalam pembuka panel
+itu sendiri — sehingga **setiap panel yang ditulis nanti ikut terjaga tanpa
+siapa pun perlu ingat menambahkannya**. Penjaganya juga dibuktikan bisa gagal
+lebih dulu: kesalahan lama dipasang kembali sebentar, dan gerbangnya menolak.
+
+Sebuah pemeriksaan yang belum pernah terlihat gagal belum diketahui berguna.
+
+### 8. Formulir terakhir ikut pindah
+
+Tiga formulir sengaja ditunda pada gelombang pertama karena bukan formulir
+sederhana: editor faktur (dengan pengambilan dari beberapa gudang, satuan
+besar, lot & kedaluwarsa, dan valuta asing), editor penawaran, dan formulir
+karyawan. Ketiganya kini selesai — ditata ulang, bukan sekadar dipindahkan.
+
+Pada halaman Penggajian, tujuh kotak isian yang dulu terpasang permanen
+mendorong daftar karyawan turun hampir satu layar penuh. Membaca daftar itu
+kejadian harian; menambah karyawan kejadian sesekali — dan tata letak lamanya
+menomorsatukan yang jarang.
 
 ## Di mana kita sekarang?
 
@@ -308,9 +416,9 @@
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.129 skenario ujian end-to-end + 597 unit test + 356 cek simulasi UI browser nyata**, totalnya **2.082 pemeriksaan**. Di atas itu ada dua gerbang lagi yang juga wajib lulus: pemeriksa tipe data dan pemeriksa standar kode (wajib sejak Fase 12a). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.157 skenario ujian end-to-end + 917 unit test + 424 cek simulasi UI browser nyata**, totalnya **2.498 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
-*Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 17 Agustus 2026, bukan disalin dari catatan.*
+*Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 21 Agustus 2026, bukan disalin dari catatan.*
 
 ## Apakah sudah bisa diakses di internet?
 
@@ -328,6 +436,9 @@ Pekerjaan kode sudah selesai, dan infrastruktur Cloudflare (7 database + penyimp
 1. **Semai ulang demo publik** → demo produksi masih 6 bulan sampai workflow-nya dijalankan (±20 menit, gratis).
 2. **Workers Paid + D1 dinamis** → menembus batas 6 perusahaan ($5/bulan).
 3. **Token analitik** → menyalakan monitor kuota di dasbor (±5 menit, gratis).
+
+4. **Aktifkan kotak surat `halo@erpindo.id`** → halaman `/kontak` sudah memasang alamat ini sebagai satu-satunya jalur menghubungi Anda sebelum berlangganan. Sampai kotak surat itu dibuat di penyedia domain, surel yang dikirim pengunjung hilang tanpa jejak (±10 menit).
+5. **Ganti penampung identitas di `/syarat` dan `/privasi`** → kedua halaman memuat `[NAMA BADAN USAHA]` dan `[ALAMAT LENGKAP]`, dan selama itu ada keduanya menampilkan spanduk "draf menunggu tinjauan". Halaman hukum sebaiknya juga dibaca penasihat hukum sebelum dipakai sebagai dasar perjanjian.
 
 Langkah rincinya, beserta cara memverifikasi tiap langkah berhasil: **[docs/langkah-pemilik.md](./langkah-pemilik.md)**.
 

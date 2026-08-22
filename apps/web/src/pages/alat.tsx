@@ -47,7 +47,7 @@ function ResultRow({
       </span>
       <span
         className={
-          strong ? "text-brand-700 dark:text-brand-300" : "text-ink"
+          strong ? "text-brand-ink" : "text-ink"
         }
       >
         {value}
@@ -255,7 +255,7 @@ function BepCalc() {
               <ResultRow label={u("setaraOmzet")} value={formatIDR(bepRupiah)} />
             </>
           ) : (
-            <p className="py-2 text-sm text-red-600 dark:text-red-400">
+            <p className="py-2 text-sm text-galat-ink">
               {u("peringatanBepHargaJual")}
             </p>
           )}

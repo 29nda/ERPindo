@@ -13,9 +13,13 @@ function csvEscape(v: unknown): string {
 }
 
 /**
- * Keamanan enterprise (Fase 13g). Modul `advancedSecurity` (paket Enterprise,
- * digerbangi enforcePlanByPath lewat segmen "security"): pengaturan 2FA wajib +
- * pembatasan IP, plus ekspor audit log CSV. Semua endpoint khusus Owner.
+ * Keamanan lanjutan (Fase 13g): pengaturan 2FA wajib + pembatasan IP, plus
+ * ekspor audit log CSV. Semua endpoint khusus Owner.
+ *
+ * Dulu modul `advancedSecurity` yang digerbangi `enforcePlanByPath` lewat segmen
+ * "security". Gerbang itu dicabut bersama paket bertingkat di Fase 30, dan
+ * penyebutannya di sini dibetulkan di Fase 38u — komentar yang menunjuk
+ * mekanisme yang sudah tidak ada membuat pembaca berikutnya mencarinya.
  *
  * Catatan katup pengaman: requireTenantRole mengecualikan endpoint yang berakhir
  * "/security" dari pembatasan IP agar Owner yang salah mengetik CIDR tetap bisa

@@ -156,7 +156,7 @@ export function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLS
 
 export function FieldError({ messages }: { messages?: string[] }) {
   if (!messages?.length) return null;
-  return <p className="mt-1 text-xs text-red-600 dark:text-red-400">{messages[0]}</p>;
+  return <p className="mt-1 text-xs text-galat-ink">{messages[0]}</p>;
 }
 
 // --- Card & layout -------------------------------------------------------------
@@ -238,16 +238,16 @@ export function Alert({
   testId?: string;
 }) {
   const tones = {
-    info: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-200",
+    info: "border-line bg-surface-muted text-ink-soft",
     success:
-      "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
+      "border-ok-line bg-ok-surface text-ok-ink",
     // Fase 17b: tone yang selama ini tidak ada, sehingga peringatan "belum
     // fatal" terpaksa memakai `error` (merah) dan terbaca lebih gawat dari
     // semestinya.
     warning:
-      "border-accent-200 bg-accent-50 text-accent-800 dark:border-accent-900 dark:bg-accent-950 dark:text-accent-200",
+      "border-awas-line bg-accent-surface text-accent-ink",
     error:
-      "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200",
+      "border-galat-line bg-galat-surface text-galat-ink",
   };
   return (
     <div
@@ -406,10 +406,10 @@ export function Badge({
 }) {
   const tones = {
     neutral: "bg-surface-muted text-ink-soft",
-    brand: "bg-brand-100 text-brand-800 dark:bg-brand-500/20 dark:text-brand-200",
-    amber: "bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200",
-    red: "bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-200",
-    green: "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200",
+    brand: "bg-brand-surface text-brand-ink",
+    amber: "bg-awas-surface text-awas-ink",
+    red: "bg-galat-surface text-galat-ink",
+    green: "bg-ok-surface text-ok-ink",
   };
   return (
     <span
@@ -579,7 +579,7 @@ export function SearchSelect({
                 className={cx(
                   "flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm",
                   i === highlight
-                    ? "bg-brand-50 text-brand-800 dark:bg-brand-600/20 dark:text-brand-100"
+                    ? "bg-brand-surface text-brand-ink"
                     : "text-ink-soft hover:bg-surface-muted",
                   opt.value === value && "font-semibold"
                 )}
@@ -645,7 +645,7 @@ export function ConfirmDialog({
       aria-modal="true"
     >
       <div
-        className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
         onClick={onCancel}
         aria-hidden="true"
       />
@@ -753,27 +753,6 @@ export function useDarkMode() {
 
 // --- Wordmark ERPindo (Fase 10a) ------------------------------------------------------
 
-/** Wordmark merek: gambar logo ASLI dari pemilik (public/brand/logo-erpindo.png),
- *  dipakai apa adanya. Chip putih membuat logo tetap terbaca di tema gelap /
- *  latar gradien. Atur ukuran lewat className tinggi (mis. "h-8"). */
-/**
- * Wordmark merek (Fase 19a — chip putih dihapus).
- *
- * Sebelumnya logo dibungkus chip `bg-white` karena berkas PNG-nya **RGB tanpa
- * kanal alfa**: latar putihnya ikut terbakar di dalam gambar, sehingga chip itu
- * bukan hiasan melainkan penyamar kotak putih yang memang akan muncul. Di tema
- * gelap ia terlihat seperti tambalan, dan di tema terang masih samar terlihat
- * di atas panel `brand-50` halaman masuk.
- *
- * Kini dipakai dua varian ber-alfa hasil `scripts/brand-alfa.mjs` — varian
- * gelap mencerahkan tulisan abu-gelap ("indo" + tagline) sambil mempertahankan
- * biru merek, karena tulisan itu praktis tak terbaca di latar gelap.
- *
- * Keduanya dirender bertumpuk dan ditukar lewat `dark:` alih-alih memilih di
- * JavaScript: penukaran murni CSS ikut berlaku pada muat pertama, sebelum React
- * hidrasi, sehingga tidak ada kedipan logo salah tema (alasan yang sama dengan
- * anti-FOUC `theme-init.js`).
- */
 /**
  * Wordmark ERPindo — digambar, bukan gambar (Fase 32a).
  *
@@ -813,7 +792,7 @@ export function BrandWordmark({ className = "h-8" }: { className?: string }) {
       data-wordmark=""
     >
       <span className="judul text-[1.35em] tracking-tight text-ink">ERP</span>
-      <span className="text-[1.28em] font-light tracking-tight text-brand-600 dark:text-brand-400">
+      <span className="text-[1.28em] font-light tracking-tight text-brand-ink">
         indo
       </span>
     </span>
@@ -853,7 +832,7 @@ export function Tabs<T extends string>({
           className={cx(
             "-mb-px border-b-2 px-3 py-2 text-sm font-medium",
             active === t.key
-              ? "border-brand-600 text-brand-700 dark:border-brand-400 dark:text-brand-300"
+              ? "border-brand-line text-brand-ink"
               : "border-transparent text-ink-muted hover:text-ink"
           )}
         >
@@ -993,7 +972,7 @@ export function PageTour({
       aria-label={step.title}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
+        <span className="text-xs font-semibold uppercase tracking-wide text-brand-ink">
           Tur · {i + 1}/{steps.length}
         </span>
         <button
@@ -1048,7 +1027,7 @@ export function PageTour({
         </>
       ) : (
         <>
-          <div className="fixed inset-0 bg-slate-950/60" onClick={finish} aria-hidden="true" />
+          <div className="fixed inset-0 bg-ink/50" onClick={finish} aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center p-4">{card}</div>
         </>
       )}

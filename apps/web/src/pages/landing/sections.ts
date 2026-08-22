@@ -17,6 +17,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { FAQ_LANDING } from "@erpindo/shared";
+// Fase 38p — `formatRupiah` pindah ke `@erpindo/shared` (glosarium §6 memang
+// sudah menyatakannya di sana; sampai fase ini pernyataan itu tidak benar).
+export { formatRupiah } from "@erpindo/shared";
+import type { PeragaanId } from "../../peragaan";
 import type { Dual } from "../../i18n";
 
 /**
@@ -74,7 +78,15 @@ export type ShowcaseItem = {
   id: string;
   label: Dual;
   icon: LucideIcon;
-  image: string;
+  /**
+   * Peragaan yang diputar untuk butir ini (Fase 38b).
+   *
+   * Dulu `image: string` berisi jalur `.webp`. Bertipe `string`, jadi salah
+   * ketik nama berkas lolos typecheck, lolos lint, lolos uji, dan baru terlihat
+   * sebagai gambar rusak di halaman jualan. `PeragaanId` menutup kelas itu:
+   * peragaan yang tidak terdaftar adalah galat kompilasi.
+   */
+  peragaan: PeragaanId;
   title: Dual;
   benefits: Dual[];
 };
@@ -84,7 +96,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     id: "pos",
     label: { id: "Kasir", en: "Till" },
     icon: Store,
-    image: "/landing/showcase-pos.webp",
+    peragaan: "kasir-shift",
     title: { id: "Kasir yang langsung masuk pembukuan", en: "A till that posts straight to your books" },
     benefits: [
       { id: "Cari barang cepat, beri diskon per item, cetak struk berlogo Anda.", en: "Find items fast, discount per line, print receipts with your logo." },
@@ -96,7 +108,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     id: "faktur",
     label: { id: "Faktur & PPN", en: "Invoices & VAT" },
     icon: ReceiptText,
-    image: "/landing/showcase-penjualan.webp",
+    peragaan: "faktur-berantai",
     title: { id: "Faktur rapi dalam hitungan detik", en: "A tidy invoice in seconds" },
     benefits: [
       { id: "Satu kali simpan: stok berkurang dan tagihan pelanggan ikut tercatat.", en: "Save once: stock drops and the customer's bill is recorded too." },
@@ -108,7 +120,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     id: "laporan",
     label: { id: "Laporan keuangan", en: "Financial reports" },
     icon: LineChart,
-    image: "/landing/showcase-laporan.webp",
+    peragaan: "laporan-tersusun",
     title: { id: "Untung rugi bisa dilihat kapan saja", en: "Check your profit any time" },
     benefits: [
       { id: "Laba rugi, neraca, dan arus kas tersusun dari transaksi yang sudah Anda catat.", en: "Profit and loss, balance sheet, and cash flow are built from what you already recorded." },
@@ -120,7 +132,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     id: "gaji",
     label: { id: "Gaji & pajak karyawan", en: "Payroll & staff tax" },
     icon: Wallet,
-    image: "/landing/showcase-gaji.webp",
+    peragaan: "gaji-sekali-jalan",
     title: { id: "Gajian sekali klik, pajaknya sudah dihitung", en: "One-click payday, tax already worked out" },
     benefits: [
       { id: "PPh 21 dan BPJS terhitung mengikuti aturan yang berlaku sekarang.", en: "Income tax and social security follow the rules in force today." },
@@ -132,7 +144,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     id: "stok",
     label: { id: "Stok", en: "Stock" },
     icon: Boxes,
-    image: "/landing/showcase-stok.webp",
+    peragaan: "stok-tepercaya",
     title: { id: "Stok yang angkanya bisa dipercaya", en: "Stock figures you can trust" },
     benefits: [
       { id: "Beberapa gudang sekaligus, dan modal barang terhitung tiap kali ada penjualan.", en: "Several warehouses at once, with cost of goods computed on every sale." },
@@ -290,9 +302,6 @@ export const INTEGRATIONS: { icon: LucideIcon; label: Dual }[] = [
   { icon: ShoppingBag, label: { id: "Impor Shopee · Tokopedia · TikTok Shop", en: "Import Shopee · Tokopedia · TikTok Shop" } },
 ];
 
-export function formatRupiah(n: number): string {
-  return `Rp ${n.toLocaleString("id-ID")}`;
-}
 
 /**
  * Empat penyebab proyek ERP gagal, dan apa yang menggantikannya di sini

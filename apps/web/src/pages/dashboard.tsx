@@ -111,7 +111,7 @@ function SalesTrendChart({ tenantId }: { tenantId: string }) {
                 onClick={() => setRange(r)}
                 className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
                   range === r
-                    ? "bg-brand-600 text-white dark:bg-brand-400 dark:text-slate-900"
+                    ? "bg-brand-solid text-brand-teks"
                     : "bg-surface-muted text-ink-soft hover:bg-surface-active"
                 }`}
               >
@@ -145,14 +145,14 @@ function SalesTrendChart({ tenantId }: { tenantId: string }) {
                     x2={W - 6}
                     y1={y(t)}
                     y2={y(t)}
-                    className="stroke-slate-200 dark:stroke-slate-800"
+                    className="stroke-line"
                     strokeWidth={1}
                   />
                   <text
                     x={PAD_L - 6}
                     y={y(t) + 3.5}
                     textAnchor="end"
-                    className="fill-slate-400 dark:fill-slate-500"
+                    className="fill-ink-faint"
                     fontSize={10}
                   >
                     {compactNumber(t)}
@@ -174,9 +174,13 @@ function SalesTrendChart({ tenantId }: { tenantId: string }) {
                         height={barH}
                         rx={Math.min(4, barW / 2)}
                         className={
+                          // Fase 38i — dua keadaan sempat runtuh menjadi satu
+                          // warna saat pasangan `dark:` diganti token. Batang
+                          // yang disorot harus tetap BERBEDA dari yang lain,
+                          // kalau tidak sorotannya tidak menyampaikan apa pun.
                           hover === i
-                            ? "fill-brand-500 dark:fill-brand-300"
-                            : "fill-brand-600 dark:fill-brand-400"
+                            ? "fill-brand-solid"
+                            : "fill-brand-ink"
                         }
                       />
                     ) : null}
@@ -195,7 +199,7 @@ function SalesTrendChart({ tenantId }: { tenantId: string }) {
                         x={cx}
                         y={H - 6}
                         textAnchor="middle"
-                        className="fill-slate-400 dark:fill-slate-500"
+                        className="fill-ink-faint"
                         fontSize={10}
                       >
                         {formatDate(d.date).replace(/ \d{4}$/, "")}
@@ -254,7 +258,7 @@ function DueInvoicesWidget({ tenantId }: { tenantId: string }) {
             {overdue.map((n, i) => (
               <li key={i} className="flex items-start justify-between gap-2">
                 <Link to="/app/penjualan" className="group block min-w-0 flex-1 text-sm">
-                  <span className="block font-medium text-ink group-hover:text-brand-700 dark:group-hover:text-brand-300">
+                  <span className="block font-medium text-ink group-hover:text-brand-ink">
                     {n.title.replace("Faktur ", "").replace(" lewat jatuh tempo", "")}
                   </span>
                   <span className="block text-xs text-ink-muted">
@@ -271,7 +275,7 @@ function DueInvoicesWidget({ tenantId }: { tenantId: string }) {
                         "noopener"
                       )
                     }
-                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-emerald-300 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-ok-line px-2 py-1 text-xs font-medium text-ok-ink transition hover:bg-ok-surface"
                     title={u("dsKirimPengingatWa")}
                   >
                     <MessageCircle className="size-3.5" aria-hidden /> Tagih (WA)
@@ -310,7 +314,7 @@ function AnomaliesWidget({ tenantId }: { tenantId: string }) {
               <li key={a.code} className="text-sm">
                 <span className="block font-medium text-ink">
                   {a.name}{" "}
-                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                  <span className="rounded bg-awas-surface px-1.5 py-0.5 text-xs font-semibold text-awas-ink">
                     {a.ratio.toFixed(1)}
                     {u("kaliBiasanya")}
                   </span>
@@ -437,7 +441,7 @@ function OnboardingChecklist({ tenantId }: { tenantId: string }) {
         action={
           <Link
             to="/app/mulai"
-            className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400"
+            className="text-sm font-medium text-brand-ink hover:underline"
           >
             {u("bukaPanduCepat")}
           </Link>
@@ -446,7 +450,7 @@ function OnboardingChecklist({ tenantId }: { tenantId: string }) {
       <CardBody>
         <div className="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
           <div
-            className="h-full rounded-full bg-brand-600 transition-all dark:bg-brand-400"
+            className="h-full rounded-full bg-brand-solid transition-all"
             style={{ width: `${(doneCount / steps.length) * 100}%` }}
           />
         </div>
@@ -457,7 +461,7 @@ function OnboardingChecklist({ tenantId }: { tenantId: string }) {
                 <span
                   className={`flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${
                     s.done
-                      ? "border-brand-600 bg-brand-600 text-white dark:border-brand-400 dark:bg-brand-400 dark:text-slate-900"
+                      ? "border-brand-line bg-brand-solid text-brand-teks"
                       : "border-line-strong text-transparent"
                   }`}
                   aria-hidden
@@ -468,7 +472,7 @@ function OnboardingChecklist({ tenantId }: { tenantId: string }) {
                   className={
                     s.done
                       ? "text-ink-faint line-through"
-                      : "text-ink group-hover:text-brand-700 dark:group-hover:text-brand-300"
+                      : "text-ink group-hover:text-brand-ink"
                   }
                 >
                   {s.label}
@@ -555,14 +559,14 @@ function MonthlyTrendChart({ tenantId }: { tenantId: string }) {
                     x2={W - 6}
                     y1={y(t)}
                     y2={y(t)}
-                    className="stroke-slate-200 dark:stroke-slate-800"
+                    className="stroke-line"
                     strokeWidth={1}
                   />
                   <text
                     x={PAD_L - 6}
                     y={y(t) + 3.5}
                     textAnchor="end"
-                    className="fill-slate-400 dark:fill-slate-500"
+                    className="fill-ink-faint"
                     fontSize={10}
                   >
                     {compactNumber(t)}
@@ -583,9 +587,13 @@ function MonthlyTrendChart({ tenantId }: { tenantId: string }) {
                         height={barH}
                         rx={4}
                         className={
+                          // Fase 38i — dua keadaan sempat runtuh menjadi satu
+                          // warna saat pasangan `dark:` diganti token. Batang
+                          // yang disorot harus tetap BERBEDA dari yang lain,
+                          // kalau tidak sorotannya tidak menyampaikan apa pun.
                           hover === i
-                            ? "fill-brand-500 dark:fill-brand-300"
-                            : "fill-brand-600 dark:fill-brand-400"
+                            ? "fill-brand-solid"
+                            : "fill-brand-ink"
                         }
                       />
                     ) : null}
@@ -602,7 +610,7 @@ function MonthlyTrendChart({ tenantId }: { tenantId: string }) {
                       x={cx}
                       y={H - 6}
                       textAnchor="middle"
-                      className="fill-slate-400 dark:fill-slate-500"
+                      className="fill-ink-faint"
                       fontSize={10}
                     >
                       {monthLabel(m.month)}
@@ -873,7 +881,7 @@ export function DashboardPage() {
       label: en ? "Cash & Bank" : "Kas & Bank",
       value: dash.data?.cashAndBank,
       icon: Wallet,
-      chip: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
+      chip: "bg-ok-surface text-ok-ink",
       to: "/app/keuangan/kas-bank",
     },
     {
@@ -885,7 +893,7 @@ export function DashboardPage() {
       delta: salesDelta,
       deltaYoY: salesDeltaYoY,
       icon: LineChart,
-      chip: "bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300",
+      chip: "bg-brand-surface text-brand-ink",
       to: "/app/laporan/penjualan",
     },
     {
@@ -894,28 +902,28 @@ export function DashboardPage() {
       delta: profitDelta,
       deltaYoY: profitDeltaYoY,
       icon: TrendingUp,
-      chip: "bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300",
+      chip: "bg-surface-muted text-ink-soft",
       to: "/app/keuangan/laba-rugi",
     },
     {
       label: en ? "Receivables Outstanding" : "Piutang Belum Lunas",
       value: dash.data?.receivableOutstanding,
       icon: ArrowDownToLine,
-      chip: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+      chip: "bg-awas-surface text-awas-ink",
       to: "/app/keuangan/umur-tagihan",
     },
     {
       label: en ? "Payables Outstanding" : "Utang Belum Lunas",
       value: dash.data?.payableOutstanding,
       icon: ArrowUpFromLine,
-      chip: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
+      chip: "bg-galat-surface text-galat-ink",
       to: "/app/keuangan/umur-tagihan",
     },
     {
       label: en ? "Inventory Value" : "Nilai Persediaan",
       value: dash.data?.inventoryValue,
       icon: Boxes,
-      chip: "bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300",
+      chip: "bg-ok-surface text-ok-ink",
       to: "/app/stok",
     },
     {
@@ -923,7 +931,7 @@ export function DashboardPage() {
       value: dash.data?.openLeadsCount,
       currency: false,
       icon: Target,
-      chip: "bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300",
+      chip: "bg-surface-muted text-ink-soft",
       to: "/app/crm/leads",
     },
   ];
@@ -965,7 +973,7 @@ export function DashboardPage() {
               <>
                 {" "}
                 {en ? "There are " : "Ada "}
-                <span className="font-medium text-amber-600 dark:text-amber-400">
+                <span className="font-medium text-awas-ink">
                   {overdueCount} {en ? "overdue invoices" : "faktur lewat jatuh tempo"}
                 </span>
                 {en ? " to collect." : " yang perlu ditagih."}
@@ -992,14 +1000,14 @@ export function DashboardPage() {
                     onClick={() => widgets.toggle(w.key)}
                     className={`flex items-center gap-2.5 rounded-xl border p-3 text-left text-sm transition-colors ${
                       on
-                        ? "border-brand-300 bg-brand-50/50 dark:border-brand-800 dark:bg-brand-950/30"
+                        ? "border-brand-line bg-brand-surface"
                         : "border-line"
                     }`}
                   >
                     <span
                       className={`flex size-5 shrink-0 items-center justify-center rounded-md border ${
                         on
-                          ? "border-brand-600 bg-brand-600 text-white dark:border-brand-400 dark:bg-brand-400 dark:text-slate-900"
+                          ? "border-brand-line bg-brand-solid text-brand-teks"
                           : "border-line-strong text-transparent"
                       }`}
                       aria-hidden
@@ -1050,7 +1058,7 @@ export function DashboardPage() {
               <Card hover className="h-full">
                 <CardBody>
                   <div className="flex items-start justify-between gap-2">
-                    <div className="text-sm text-ink-muted group-hover:text-brand-700 dark:group-hover:text-brand-300">
+                    <div className="text-sm text-ink-muted group-hover:text-brand-ink">
                       {stat.label}
                     </div>
                     <span
@@ -1077,8 +1085,8 @@ export function DashboardPage() {
                       <span
                         className={
                           stat.delta >= 0
-                            ? "font-medium text-emerald-600 dark:text-emerald-400"
-                            : "font-medium text-red-600 dark:text-red-400"
+                            ? "font-medium text-ok-ink"
+                            : "font-medium text-galat-ink"
                         }
                       >
                         {stat.delta >= 0 ? "▲" : "▼"} {Math.abs(stat.delta)}% {u("vsBulanLalu")}
@@ -1089,8 +1097,8 @@ export function DashboardPage() {
                         data-testid="delta-tahun-lalu"
                         className={
                           stat.deltaYoY >= 0
-                            ? "font-medium text-emerald-600 dark:text-emerald-400"
-                            : "font-medium text-red-600 dark:text-red-400"
+                            ? "font-medium text-ok-ink"
+                            : "font-medium text-galat-ink"
                         }
                       >
                         {stat.deltaYoY >= 0 ? "▲" : "▼"} {Math.abs(stat.deltaYoY)}% {u("vsTahunLalu")}
@@ -1131,9 +1139,9 @@ export function DashboardPage() {
                       <Link
                         key={q.to}
                         to={q.to}
-                        className="group flex items-center gap-3 rounded-xl border border-line p-3 transition-colors hover:border-brand-300 hover:bg-brand-50/50 dark:hover:border-brand-800 dark:hover:bg-brand-950/30"
+                        className="group flex items-center gap-3 rounded-xl border border-line p-3 transition-colors hover:border-brand-line hover:bg-brand-surface"
                       >
-                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-ink-soft transition-colors group-hover:bg-brand-100 group-hover:text-brand-700 dark:group-hover:bg-brand-900/60 dark:group-hover:text-brand-300">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-ink-soft transition-colors group-hover:bg-brand-surface group-hover:text-brand-ink">
                           <q.icon className="size-4" aria-hidden />
                         </span>
                         <span>
@@ -1161,9 +1169,9 @@ export function DashboardPage() {
                 <Link
                   key={q.to}
                   to={q.to}
-                  className="group flex items-center gap-3 rounded-xl border border-line p-3 transition-colors hover:border-brand-300 hover:bg-brand-50/50 dark:hover:border-brand-800 dark:hover:bg-brand-950/30"
+                  className="group flex items-center gap-3 rounded-xl border border-line p-3 transition-colors hover:border-brand-line hover:bg-brand-surface"
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-ink-soft transition-colors group-hover:bg-brand-100 group-hover:text-brand-700 dark:group-hover:bg-brand-900/60 dark:group-hover:text-brand-300">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-ink-soft transition-colors group-hover:bg-brand-surface group-hover:text-brand-ink">
                     <q.icon className="size-4" aria-hidden />
                   </span>
                   <span>

@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";
-import { BrandWordmark, Button } from "../components/ui";
-import { pick, useLang, type Lang } from "../i18n";
-import { PublicHeader } from "../components/publik";
+import { Button } from "../components/ui";
+import { pick, useLang } from "../i18n";
+import { L, PublicFooter, PublicHeader, PublicShell } from "../components/publik";
+import { Peragaan, PERAGAAN } from "../peragaan";
 import { MODUL_DETAIL } from "./landing/fiturDetail";
 import { INTEGRATIONS } from "./landing/sections";
 
@@ -22,20 +23,16 @@ import { INTEGRATIONS } from "./landing/sections";
  * halaman depan. Karena itu ia juga terdaftar di `run_worker_first`.
  */
 
-function L(lang: Lang, id: string, en: string): string {
-  return lang === "en" ? en : id;
-}
-
 export function FiturPage() {
   const lang = useLang();
   return (
-    <div className="flex min-h-full flex-col bg-surface-sunken text-ink">
+    <PublicShell>
       <PublicHeader />
       <main className="flex-1">
         <section className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 sm:pt-24 lg:pt-32">
           <h1 className="judul-hero max-w-4xl text-[2.75rem] sm:text-[4.25rem]">
             {L(lang, "Apa saja yang", "Everything ERPindo")}{" "}
-            <span className="text-brand-600 dark:text-brand-400">
+            <span className="text-brand-ink">
               {L(lang, "dikerjakan ERPindo", "actually does for you")}
             </span>
           </h1>
@@ -54,7 +51,7 @@ export function FiturPage() {
               <a
                 key={m.id}
                 href={`#${m.id}`}
-                className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium text-ink shadow-sm transition-colors hover:border-brand-300 hover:text-brand-700 dark:hover:text-brand-300"
+                className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium text-ink shadow-sm transition-colors hover:border-brand-300 hover:text-brand-ink"
               >
                 <m.icon className="size-4" aria-hidden />
                 {pick(m.nama, lang)}
@@ -70,9 +67,9 @@ export function FiturPage() {
             className={`scroll-mt-20 ${i % 2 === 1 ? "bg-surface" : ""}`}
           >
             <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-24 lg:py-32">
-              <div className={`grid items-start gap-10 ${m.gambar ? "lg:grid-cols-2" : ""}`}>
+              <div className={`grid items-start gap-10 ${m.peragaan ? "lg:grid-cols-2" : ""}`}>
                 <div>
-                  <span className="flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-900/60 dark:text-brand-300">
+                  <span className="flex size-11 items-center justify-center rounded-xl bg-brand-surface text-brand-ink">
                     <m.icon className="size-5" aria-hidden />
                   </span>
                   <h2 className="judul mt-4 text-[1.75rem] sm:text-[2rem]">
@@ -93,7 +90,7 @@ export function FiturPage() {
                         className="flex items-start gap-3 text-sm leading-relaxed text-ink-soft"
                       >
                         <Check
-                          className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                          className="mt-0.5 size-4 shrink-0 text-ok-ink"
                           aria-hidden
                         />
                         {pick(c, lang)}
@@ -101,27 +98,19 @@ export function FiturPage() {
                     ))}
                   </ul>
 
-                  <p className="mt-6 rounded-card border border-brand-200 bg-brand-50 p-4 text-sm font-medium leading-relaxed text-brand-900 dark:border-brand-900 dark:bg-brand-950/40 dark:text-brand-100">
+                  <p className="mt-6 rounded-card border border-brand-line bg-brand-surface p-4 text-sm font-medium leading-relaxed text-brand-ink">
                     {pick(m.hasil, lang)}
                   </p>
                 </div>
 
-                {/* Modul tanpa tangkapan layar sengaja dirender TANPA gambar
-                    (Fase 24c). Meminjam tangkapan layar modul lain akan
-                    menampilkan layar yang bukan miliknya — memberi kesan keliru
-                    tentang apa yang akan dilihat pembeli. */}
-                {m.gambar ? (
-                <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card lg:sticky lg:top-24">
-                  <img
-                    src={m.gambar}
-                    alt={`${L(lang, "Tampilan", "View of")} ${pick(m.nama, lang)} — ${pick(m.hasil, lang)}`}
-                    width={1280}
-                    height={800}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full"
-                  />
-                </div>
+                {/* Modul tanpa peragaan sengaja dirender TANPA apa pun
+                    (Fase 24c, dipertahankan di 38e). Meminjam peragaan modul
+                    lain akan menampilkan layar yang bukan miliknya — memberi
+                    kesan keliru tentang apa yang akan dilihat pembeli. */}
+                {m.peragaan ? (
+                  <div className="lg:sticky lg:top-24">
+                    <Peragaan naskah={PERAGAAN[m.peragaan]} tinggi="sedang" />
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -150,7 +139,7 @@ export function FiturPage() {
             <ul data-kisi="integrasi" className="mt-8 grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
               {INTEGRATIONS.map((it) => (
                 <li key={it.label.id} className="flex items-center gap-3 text-ink-soft">
-                  <it.icon className="size-4 shrink-0 text-brand-600 dark:text-brand-400" aria-hidden />
+                  <it.icon className="size-4 shrink-0 text-brand-ink" aria-hidden />
                   <span className="text-[15px]">{pick(it.label, lang)}</span>
                 </li>
               ))}
@@ -181,25 +170,7 @@ export function FiturPage() {
         </section>
       </main>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl flex-col items-start gap-3 px-4 py-6 text-sm text-ink-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <BrandWordmark className="h-7" />
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <a href="/" className="hover:text-ink">
-              {L(lang, "Beranda", "Home")}
-            </a>
-            <a href="/#harga" className="hover:text-ink">
-              {L(lang, "Harga", "Pricing")}
-            </a>
-            <a href="/panduan" className="hover:text-ink">
-              {L(lang, "Panduan", "Guide")}
-            </a>
-            <Link to="/masuk" className="hover:text-ink">
-              {L(lang, "Masuk", "Sign in")}
-            </Link>
-          </div>
-        </div>
-      </footer>
-    </div>
+      <PublicFooter />
+    </PublicShell>
   );
 }

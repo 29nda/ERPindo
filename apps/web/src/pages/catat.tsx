@@ -204,8 +204,8 @@ export function CatatPage() {
                 }}
                 className={`flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 text-sm font-medium transition-colors sm:flex-row sm:justify-center ${
                   mode === m.key
-                    ? "border-brand-300 bg-brand-50 text-brand-700 dark:border-brand-500/40 dark:bg-brand-500/15 dark:text-brand-200"
-                    : "border-line text-ink-soft hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                    ? "border-brand-line bg-brand-surface text-brand-ink"
+                    : "border-line text-ink-soft hover:bg-surface-muted"
                 }`}
               >
                 <m.icon className="size-4 shrink-0" aria-hidden />
@@ -333,7 +333,7 @@ export function CatatPage() {
               </div>
 
               {preview ? (
-                <div className="rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-200">
+                <div className="rounded-xl border border-brand-line bg-brand-surface px-4 py-3 text-sm text-brand-ink">
                   {u("yangAkanDicatat")} <span className="font-medium">{preview}</span>
                 </div>
               ) : null}

@@ -8,7 +8,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
-import { Search } from "lucide-react";
+import { BookText, ListTree, Plus, Search } from "lucide-react";
+import { Halaman, Lembar } from "../components/kerangka";
 import { useEffect, useState, type FormEvent } from "react";
 import { api, downloadXlsx, formatDate, formatIDR } from "../api/client";
 import { useDebounced } from "./commerce";
@@ -123,14 +124,30 @@ export function AccountsPage() {
     create.mutate(parsed.data, { onSuccess: () => form.reset() });
   }
 
-  return (
-    <div className="space-y-6">
-      <PageHeading k="baganAkun" />
+  // Fase 38k — penambahan akun pindah ke Lembar; halaman membuka dengan bagan
+  // akunnya, yang memang hal yang dicari orang saat membuka halaman ini.
+  const [lembarBuka, setLembarBuka] = useState(false);
 
+  return (
+    <Halaman
+      k="baganAkun"
+      ikon={ListTree}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <Plus className="size-4" aria-hidden /> {u("tambahAkun")}
+          </Button>
+        ) : null
+      }
+    >
       {isAdmin ? (
-        <Card>
-          <CardHeader title={u("tambahAkun")} description={u("akunTemplateOtomatis")} />
-          <CardBody>
+        <Lembar
+          terbuka={lembarBuka}
+          tutup={() => setLembarBuka(false)}
+          judul={u("tambahAkun")}
+          deskripsi={u("akunTemplateOtomatis")}
+        >
+          <div>
             <form
               onSubmit={onSubmit}
               className="flex flex-col gap-3 sm:flex-row sm:items-end"
@@ -160,8 +177,8 @@ export function AccountsPage() {
                 {create.isPending ? <Spinner /> : null} {u("tambah")}
               </Button>
             </form>
-          </CardBody>
-        </Card>
+          </div>
+        </Lembar>
       ) : null}
 
       <Card>
@@ -255,7 +272,7 @@ export function AccountsPage() {
           )}
         </CardBody>
       </Card>
-    </div>
+    </Halaman>
   );
 }
 
@@ -446,14 +463,32 @@ export function JournalPage() {
 
   const activeAccounts = (accountsQuery.data?.accounts ?? []).filter((a) => !a.isArchived);
 
-  return (
-    <div className="space-y-6">
-      <PageHeading k="jurnalUmum" />
+  // Fase 38k — jurnal manual pindah ke Lembar. Halaman Jurnal Umum membuka
+  // dengan JURNALNYA — dan itu memang alasan orang membukanya; memposting
+  // jurnal manual adalah pengecualian, bukan pekerjaan hariannya.
+  const [lembarBuka, setLembarBuka] = useState(false);
 
+  return (
+    <Halaman
+      k="jurnalUmum"
+      ikon={BookText}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setLembarBuka(true)}>
+            <Plus className="size-4" aria-hidden /> {u("jurnalManualBaru")}
+          </Button>
+        ) : null
+      }
+    >
       {isAdmin ? (
-        <Card>
-          <CardHeader title={u("jurnalManualBaru")} description={u("descJurnalManual")} />
-          <CardBody className="space-y-4">
+        <Lembar
+          terbuka={lembarBuka}
+          tutup={() => setLembarBuka(false)}
+          lebar="lebar"
+          judul={u("jurnalManualBaru")}
+          deskripsi={u("descJurnalManual")}
+        >
+          <div className="space-y-4">
             {error ? <Alert tone="error">{error}</Alert> : null}
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="sm:w-44">
@@ -497,7 +532,15 @@ export function JournalPage() {
               {lines.map((line, i) => (
                 <div
                   key={i}
-                  className={`grid grid-cols-2 gap-2 ${costCenters.length > 0 ? "sm:grid-cols-[1fr_1fr_9rem_7rem_7rem_2.5rem]" : "sm:grid-cols-[1fr_1fr_8rem_8rem_2.5rem]"}`}
+                  /*
+                    `[&>*]:min-w-0` (Fase 38s) — tanpa ini baris jurnal meluber
+                    keluar Lembar. Butir kisi berlaku `min-width: auto`, dan
+                    lebar auto sebuah <select> adalah selebar OPSI TERPANJANGNYA
+                    — di sini nama akun beserta kodenya. Jadi trek `1fr` yang
+                    seharusnya menyusut justru menolak menyusut, dan barisnya
+                    mendorong lembarnya menggulir ke samping.
+                  */
+                  className={`grid grid-cols-2 gap-2 [&>*]:min-w-0 ${costCenters.length > 0 ? "sm:grid-cols-[1fr_1fr_9rem_7rem_7rem_2.5rem]" : "sm:grid-cols-[1fr_1fr_8rem_8rem_2.5rem]"}`}
                 >
                   <Select
                     aria-label={`${u("akunBaris")} ${i + 1}`}
@@ -643,8 +686,8 @@ export function JournalPage() {
                 </Button>
               </div>
             ) : null}
-          </CardBody>
-        </Card>
+          </div>
+        </Lembar>
       ) : null}
 
       {isAdmin ? (
@@ -722,7 +765,7 @@ export function JournalPage() {
                     !e.reversesEntryNo &&
                     e.status === "posted" ? (
                       <button
-                        className="ml-auto text-xs font-medium text-red-600 underline-offset-2 hover:underline dark:text-red-400"
+                        className="ml-auto text-xs font-medium text-galat-ink underline-offset-2 hover:underline"
                         onClick={() => setReverseTarget({ id: e.id, entryNo: e.entryNo })}
                       >
                         {u("balik")}
@@ -802,7 +845,7 @@ export function JournalPage() {
           setReverseToday(false);
         }}
       />
-    </div>
+    </Halaman>
   );
 }
 
@@ -1085,7 +1128,7 @@ function TemplatesCard({
                 </Button>
                 <Button
                   variant="ghost"
-                  className="h-8 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+                  className="h-8 text-galat-ink hover:bg-galat-surface"
                   onClick={() => remove.mutate(t.id)}
                 >
                   {u("hapus")}

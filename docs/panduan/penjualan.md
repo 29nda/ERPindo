@@ -10,7 +10,19 @@ Faktur penjualan dengan PPN & diskon per baris, pencatatan pembayaran sampai lun
 2. Tambahkan baris produk — harga terisi otomatis, diskon % per baris opsional.
 3. Posting: jurnal (Piutang, Pendapatan, PPN Keluaran, HPP, Persediaan) dan stok keluar terjadi otomatis. Cetak/PDF berkop tersedia.
 
-![Daftar faktur penjualan](../../apps/web/public/panduan/penjualan-1.webp)
+**Satu faktur diposting, empat catatan terisi sendiri**
+
+Kasir memasukkan satu faktur penjualan. Jurnal, stok, laba rugi, dan PPN terisi tanpa satu pun entri tambahan — dan jurnalnya seimbang.
+
+1. Pilih pelanggannya.
+2. Masukkan barang dan jumlahnya.
+3. PPN 11% dihitung dari nilai barisnya, bukan diketik ulang.
+4. Totalnya ikut terbentuk.
+5. Faktur diposting.
+6. Jurnal double-entry terbentuk sendiri, dan debit sama dengan kredit.
+7. Stok berkurang sepuluh, dan harga pokoknya memakai biaya rata-rata yang berlaku.
+8. Laba rugi berjalan ikut bergerak.
+9. PPN masa ini bertambah, siap diekspor ke Coretax.
 
 ## Pembayaran, retur, & pembatalan
 

@@ -161,7 +161,7 @@ Mode uji vs produksi Xendit dibedakan **prefiks kunci** (`xnd_development_` vs
 | `ui-sim.mjs` | 337 cek klik-tembus Chromium nyata terhadap wrangler dev |
 | `seed-demo.mjs` | Menyemai demo 6 bulan ke deployment; `SEED_PROBE=1` memeriksa kredensial + status comped **tanpa menulis apa pun** |
 | `bersihkan-tenant.mjs` | Mengosongkan DB tenant lalu baris control-plane (urutan itu mencegah slot kotor). `softtin` & `pt-demo-sejahtera` dilindungi; demo hanya bisa dihapus dengan `--izinkan-demo` |
-| `screenshots.mjs` | Pipeline tangkapan layar (wrangler dev + seed lokal + Playwright + sharp → WebP) untuk landing & panduan |
+
 | `sapu-i18n.mjs` | Penyapu teks satu bahasa. **Glob wajib `**`** — pola `pages/*.tsx` tidak turun ke subfolder |
 | `export-panduan-md.mjs` | Regenerasi `docs/panduan/` dari sumber panduan aplikasi |
 | `ai-probe.mjs` | Uji Workers AI terhadap deployment |

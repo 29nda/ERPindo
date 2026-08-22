@@ -249,7 +249,8 @@ export const billingRoutes = new Hono<AppEnv>()
     const m = await loadMembership(c);
     if (!m) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
     if (m.row.role !== "owner") return c.json({ error: "Hanya Pemilik yang dapat mengatur langganan." }, 403);
-    // Paket yang dibeli (Fase 13b) — Starter/Business/Enterprise, harga dari PLAN_LIMITS.
+    // Paket yang dibeli (Fase 13b). Sejak Fase 30 hanya ada satu — "lengkap" —
+    // dan harganya tetap dibaca dari PLAN_LIMITS, bukan ditulis ulang di sini.
     const parsed = checkoutSchema.safeParse(await c.req.json().catch(() => ({})));
     if (!parsed.success) return c.json({ error: "Paket tidak valid." }, 400);
     const plan = parsed.data.plan;

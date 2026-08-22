@@ -7135,6 +7135,75 @@ try {
   const petaXml = await peta.text();
   check("SEO /fitur terdaftar di sitemap.xml", petaXml.includes("/fitur</loc>"), `→ ${peta.status}`);
 
+  // --- Enam halaman publik Fase 38d -------------------------------------------
+  //
+  // Ketiga hal yang sama harus benar sekaligus untuk tiap halaman, dan
+  // kegagalan salah satunya TIDAK terlihat di peramban: halaman yang lupa
+  // didaftarkan di `run_worker_first` tetap tampil sempurna bagi pengunjung —
+  // Worker hanya tak pernah dipanggil, jadi perayap menerima SPA kosong.
+  //
+  // Itulah sebabnya cek ini di smoke, bukan di ui-sim: yang diuji adalah
+  // perilaku Worker, dan ui-sim justru buta terhadapnya karena ia menjalankan
+  // JavaScript.
+  for (const [jalur, penanda] of [
+    ["/harga", "Harga ERPindo"],
+    ["/keamanan", "Keamanan ERPindo"],
+    ["/tentang", "Tentang ERPindo"],
+    ["/kontak", "Kontak ERPindo"],
+    ["/syarat", "Syarat Layanan ERPindo"],
+    ["/privasi", "Kebijakan Privasi ERPindo"],
+  ]) {
+    const res = await fetch(`${BASE}${jalur}`);
+    const html = await res.text();
+    const canonical = new RegExp(`rel="canonical" href="[^"]*${jalur}"`).test(html);
+    check(
+      `38d ${jalur}: Worker menyajikan canonical + noscript berisi ringkasannya`,
+      res.status === 200 && canonical && html.includes("<noscript>") && html.includes(penanda),
+      `→ status=${res.status} canonical=${canonical} penanda=${html.includes(penanda)}`,
+    );
+    check(`38d ${jalur} terdaftar di sitemap.xml`, petaXml.includes(`${jalur}</loc>`));
+  }
+
+  // Halaman hukum menyatakan dirinya draf. Diuji karena kebalikannya —
+  // dokumen yang tampak final padahal masih memuat penampung identitas — akan
+  // beredar ke bagian hukum calon pelanggan tanpa ada yang menyadarinya.
+  // --- Merek murni teks (Fase 38g) --------------------------------------------
+  //
+  // Halaman yang disajikan Worker adalah satu-satunya tempat logo raster masih
+  // tayang setelah wordmark menjadi teks pada Fase 32a. Cek ini menjaga agar ia
+  // tidak kembali — dan agar rujukan berkas yang TIDAK ADA (seperti
+  // `/logo.svg` di /api-docs, yang disembunyikan `onerror` selama belasan fase)
+  // tidak bisa lolos lagi tanpa berbunyi.
+  for (const jalur of ["/blog", "/api-docs"]) {
+    const html = await (await fetch(`${BASE}${jalur}`)).text();
+    check(
+      `38g ${jalur} memakai wordmark teks, bukan berkas logo`,
+      html.includes("data-wordmark") && !/\/brand\/|logo\.svg/.test(html),
+      `→ wordmark=${html.includes("data-wordmark")}`,
+    );
+    check(
+      `38g ${jalur} memakai palet krem yang sama dengan aplikasinya`,
+      html.includes("#f5f2ea") && !html.includes("#2563eb"),
+      `→ palet lama masih ada`,
+    );
+  }
+
+  // /api-docs sempat menjual "paket Enterprise" yang dibubarkan Fase 30 —
+  // bertentangan langsung dengan /harga yang menyatakan seluruh modul terbuka.
+  const docsHtml = await (await fetch(`${BASE}/api-docs`)).text();
+  check(
+    "38g /api-docs tidak menjual paket bertingkat yang sudah dibubarkan",
+    !/\b(Enterprise|Starter)\b/.test(docsHtml),
+    `→ nama paket lama masih disebut`,
+  );
+
+  const syaratHtml = await (await fetch(`${BASE}/syarat`)).text();
+  check(
+    "38d /syarat menyatakan dirinya draf selama penampung identitas masih ada",
+    !syaratHtml.includes("[NAMA BADAN USAHA]") || syaratHtml.includes("Draf menunggu tinjauan"),
+    `→ penampung tanpa spanduk draf`,
+  );
+
   // --- Logout -----------------------------------------------------------------
   console.log("15. Logout");
   const out = await owner("POST", "/api/auth/logout");

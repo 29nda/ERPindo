@@ -244,8 +244,8 @@ export function IncomeStatementPage() {
               <div
                 className={`flex items-center justify-between rounded-lg px-4 py-3 text-sm font-semibold ${
                   query.data.netProfit >= 0
-                    ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
-                    : "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200"
+                    ? "bg-ok-surface text-ok-ink"
+                    : "bg-galat-surface text-galat-ink"
                 }`}
               >
                 <span>{query.data.netProfit >= 0 ? u("labaBersih") : u("rugiBersih")}</span>
@@ -274,8 +274,8 @@ export function IncomeStatementPage() {
                         <span
                           className={
                             (now as number) >= (was as number)
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-red-600 dark:text-red-400"
+                              ? "text-ok-ink"
+                              : "text-galat-ink"
                           }
                         >
                           ({deltaPct(now as number, was as number)})
@@ -365,7 +365,7 @@ export function CashFlowPage() {
             <>
               {row(u("saldoKasAwal"), query.data.openingBalance, true)}
               <div>
-                <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-ok-ink">
                   {u("kasMasuk")}
                 </h3>
                 {query.data.inflows.length === 0 ? (
@@ -376,7 +376,7 @@ export function CashFlowPage() {
                 {row(u("totalKasMasuk"), query.data.totalIn, true)}
               </div>
               <div>
-                <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+                <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-galat-ink">
                   {u("kasKeluar")}
                 </h3>
                 {query.data.outflows.length === 0 ? (
@@ -447,7 +447,7 @@ function ProyeksiArusKasCard() {
                     <Td numeric label={u("pkKeluar")}>{formatIDR(e.keluar)}</Td>
                     <Td numeric label={u("pkSaldoAkhir")} className="font-medium">
                       {e.saldoAkhir < 0 ? (
-                        <span className="text-rose-600 dark:text-rose-400">{formatIDR(e.saldoAkhir)}</span>
+                        <span className="text-galat-ink">{formatIDR(e.saldoAkhir)}</span>
                       ) : (
                         formatIDR(e.saldoAkhir)
                       )}

@@ -9,7 +9,14 @@ Profil perusahaan, logo kop faktur, anggota tim dengan peran berbeda, keamanan 2
 1. Isi nama tampilan, alamat, dan NPWP (dipakai di kop faktur & ekspor e-Faktur/Coretax).
 2. Unggah logo — otomatis dikecilkan dan tampil di cetakan faktur serta struk kasir.
 
-![Halaman pengaturan perusahaan](../../apps/web/public/panduan/pengaturan-1.webp)
+**Siapa boleh melihat apa, dan siapa mengubah apa**
+
+Hak akses diatur per modul dan per dimensi, ditegakkan di sisi server pada tiap permintaan. Setiap perubahan meninggalkan catatan berisi pelakunya, waktunya, dan nilai sebelum serta sesudahnya.
+
+1. Peran kustom dibuat dengan hak akses yang dipilih per modul.
+2. Pembatasan cabang berlaku di server, bukan disembunyikan di antarmuka.
+3. Tiap perubahan tercatat lengkap dengan pelakunya.
+4. Termasuk pembatalan dokumen, yang justru paling perlu ditelusuri.
 
 ## Undang tim dengan peran
 

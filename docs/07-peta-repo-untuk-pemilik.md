@@ -66,7 +66,7 @@ neraca selalu bisa dibuktikan seimbang.
 | **Semua tulisan di dalam aplikasi** (dwibahasa ID/EN) | `apps/web/src/i18n/ui.ts` |
 | **Menu/navigasi** aplikasi | `apps/web/src/pages/app.tsx` (daftar `NAV_ITEMS`) |
 | Isi **email** yang dikirim otomatis | teks pesannya menyatu dengan pengirimnya — pengingat langganan di `apps/api/src/index.ts`, email akun di `apps/api/src/routes/auth.ts`; mekanisme kirimnya di `apps/api/src/lib/mailer.ts` |
-| **Gambar produk** di halaman depan | `apps/web/public/landing/` (dihasilkan `scripts/screenshots.mjs`) |
+| **Peragaan produk** di halaman depan | `apps/web/src/peragaan/naskah/` (naskah data; tidak ada berkas gambar) |
 | **Gambar panduan** di dalam aplikasi | `apps/web/public/panduan/` (29 berkas, dari skrip yang sama) |
 | Logo, favicon, ikon aplikasi | `apps/web/public/` (`favicon.png`, `pwa-192.png`, `pwa-512.png`, `og-image.png`, `brand/`) |
 | **Isi demo publik** (data contoh yang dilihat calon pelanggan) | `scripts/seed-demo.mjs` |

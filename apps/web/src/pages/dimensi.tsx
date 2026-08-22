@@ -138,7 +138,7 @@ function CostCenterCard() {
                   <Td label={u("nama")}>{cc.name}</Td>
                   <Td className="text-right">
                     <button
-                      className="text-xs text-red-600 hover:underline dark:text-red-400"
+                      className="text-xs text-galat-ink hover:underline"
                       onClick={() => setToArchive({ id: cc.id, name: cc.name })}
                     >
                       Arsipkan
@@ -252,7 +252,7 @@ function DimensionReportCard() {
                   <Td
                     numeric
                     label={u("labaRugiKolom")}
-                    className={`font-medium ${r.net < 0 ? "text-red-600 dark:text-red-400" : ""}`}
+                    className={`font-medium ${r.net < 0 ? "text-galat-ink" : ""}`}
                   >
                     {formatIDR(r.net)}
                   </Td>
@@ -381,7 +381,7 @@ function BankRuleCard() {
                   {u("hariSuffixTol")}
                 </span>
                 <button
-                  className="text-xs text-red-600 hover:underline dark:text-red-400"
+                  className="text-xs text-galat-ink hover:underline"
                   onClick={() => del.mutate(r.id)}
                 >
                   {u("hapus")}

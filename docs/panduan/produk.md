@@ -11,7 +11,14 @@ Katalog barang dan jasa Anda: harga jual/beli, satuan, ambang stok minimum, pela
 3. Centang "Lacak kedaluwarsa" untuk produk ber-lot (makanan/obat) — penjualan otomatis mengambil lot paling dekat kedaluwarsa (FEFO).
 4. Isi "Stok minimum" agar lonceng notifikasi mengingatkan sebelum kehabisan.
 
-![Daftar produk dengan form tambah](../../apps/web/public/panduan/produk-1.webp)
+**Data produk yang dipakai seluruh modul**
+
+Produk dicatat sekali beserta harga jual, satuan, dan akun akuntansinya. Kasir, faktur, pembelian, dan laporan membaca dari catatan yang sama, jadi harga tidak pernah berbeda antar-modul.
+
+1. Nama produk diisi.
+2. Harga jualnya ditetapkan.
+3. Produk disimpan.
+4. Sekali disimpan, ia tersedia di seluruh modul tanpa dimasukkan ulang.
 
 ## Impor dari Excel/CSV
 

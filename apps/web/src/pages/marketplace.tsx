@@ -268,7 +268,7 @@ export function MarketplacePage() {
                 ) : null}
               </div>
               {result.failed.slice(0, 8).map((f) => (
-                <div key={f.externalOrderNo} className="text-xs text-red-600 dark:text-red-400">
+                <div key={f.externalOrderNo} className="text-xs text-galat-ink">
                   {f.externalOrderNo}: {f.reason}
                 </div>
               ))}

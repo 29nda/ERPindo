@@ -261,8 +261,8 @@ export function KasBankPage() {
                 onClick={() => setSelectedId(w.id)}
                 className={`rounded-2xl border p-4 text-left transition-colors ${
                   selected?.id === w.id
-                    ? "border-brand-300 bg-brand-50 dark:border-brand-500/40 dark:bg-brand-500/10"
-                    : "border-line bg-surface hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                    ? "border-brand-line bg-brand-surface"
+                    : "border-line bg-surface hover:bg-surface-muted"
                 }`}
               >
                 <div className="flex items-center gap-2 text-sm text-ink-muted">
@@ -546,7 +546,7 @@ export function KasBankPage() {
                           <Td
                             numeric
                             label={u("jumlah")}
-                            className={item.amount < 0 ? "text-red-600 dark:text-red-400" : ""}
+                            className={item.amount < 0 ? "text-galat-ink" : ""}
                           >
                             {formatIDR(item.amount)}
                           </Td>
@@ -559,7 +559,7 @@ export function KasBankPage() {
                                   {isAdmin ? (
                                     <button
                                       onClick={() => unmatchMutation.mutate(item.id)}
-                                      className="inline-flex items-center gap-1 text-xs text-ink-muted hover:text-red-600"
+                                      className="inline-flex items-center gap-1 text-xs text-ink-muted hover:text-galat-ink"
                                     >
                                       <Link2Off className="size-3.5" aria-hidden /> {u("lepasCocok")}
                                     </button>

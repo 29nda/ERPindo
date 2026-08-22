@@ -856,7 +856,7 @@ export function PosPage() {
                     <p className="text-xs text-ink-muted">{u("pindaiArahkan")}</p>
                     <video
                       ref={videoRef}
-                      className="w-full max-w-sm rounded-lg bg-slate-900"
+                      className="w-full max-w-sm rounded-lg bg-ink"
                       muted
                       playsInline
                     />
@@ -869,7 +869,7 @@ export function PosPage() {
                 <button
                   key={p.id}
                   onClick={() => addToCart(p)}
-                  className="rounded-lg border border-line p-3 text-left hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20"
+                  className="rounded-lg border border-line p-3 text-left hover:border-brand-500 hover:bg-brand-surface"
                 >
                   <div className="line-clamp-2 text-sm font-medium">{p.name}</div>
                   <div className="mt-1 text-xs text-ink-muted">{p.sku}</div>
@@ -963,7 +963,7 @@ export function PosPage() {
                     type="button"
                     onClick={() => addTender(m)}
                     disabled={cart.length === 0}
-                    className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium hover:border-brand-400 hover:bg-brand-50 disabled:opacity-40 dark:hover:bg-brand-950/30"
+                    className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-medium hover:border-brand-400 hover:bg-brand-surface disabled:opacity-40"
                   >
                     + {u(POS_METHOD_KEY[m])}
                   </button>
@@ -985,7 +985,7 @@ export function PosPage() {
                   <button
                     type="button"
                     aria-label={u("hapusPembayaran")}
-                    className="text-ink-muted hover:text-red-600"
+                    className="text-ink-muted hover:text-galat-ink"
                     onClick={() => removeTender(i)}
                   >
                     ✕
@@ -1017,15 +1017,15 @@ export function PosPage() {
               </div>
               <div className="flex items-baseline justify-between text-sm">
                 {remaining > 0 ? (
-                  <span className="text-amber-600 dark:text-amber-400">
+                  <span className="text-awas-ink">
                     {u("sisaLabel")} {formatIDR(remaining)}
                   </span>
                 ) : (
-                  <span className="text-emerald-600 dark:text-emerald-400">{u("lunas")}</span>
+                  <span className="text-ok-ink">{u("lunas")}</span>
                 )}
                 {change > 0 ? (
                   // Kembalian dibuat menonjol agar kasir tak salah hitung (Fase 12e).
-                  <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-base font-bold text-ok-ink">
                     {u("kembalianTitik")} <span className="tabular-nums">{formatIDR(change)}</span>
                   </span>
                 ) : null}
@@ -1076,7 +1076,7 @@ export function PosPage() {
                     <button
                       type="button"
                       aria-label={u("hapusTahan")}
-                      className="text-ink-muted hover:text-red-600"
+                      className="text-ink-muted hover:text-galat-ink"
                       onClick={() => deleteHeld.mutate(h.id)}
                     >
                       ✕

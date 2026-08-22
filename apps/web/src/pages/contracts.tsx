@@ -449,7 +449,7 @@ function ContractRow({ contract, isAdmin }: { contract: ApiContract; isAdmin: bo
         {isAdmin && contract.status !== "ended" ? (
           <button
             onClick={() => setStatus.mutate(contract.status === "active" ? "paused" : "active")}
-            className="text-brand-700 hover:underline dark:text-brand-400"
+            className="text-brand-ink hover:underline"
           >
             {contract.status === "active" ? "jeda" : "aktifkan"}
           </button>

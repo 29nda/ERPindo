@@ -51,7 +51,7 @@ export function InvoicePrintPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl bg-white p-8 text-ink print:p-0">
+    <div className="tema-cetak mx-auto max-w-3xl bg-white p-8 text-ink print:p-0">
       <div className="mb-4 flex justify-end print:hidden">
         <button
           onClick={() => window.print()}
@@ -61,7 +61,7 @@ export function InvoicePrintPage() {
         </button>
       </div>
 
-      <header className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+      <header className="flex items-start justify-between border-b-2 border-ink pb-4">
         <div className="flex items-start gap-4">
           {company.logo_data_url ? (
             <img src={company.logo_data_url} alt="Logo perusahaan" className="h-16 w-auto max-w-32 object-contain" />
@@ -109,7 +109,7 @@ export function InvoicePrintPage() {
 
       <table className="mt-6 w-full text-sm">
         <thead>
-          <tr className="border-b-2 border-slate-900 text-left">
+          <tr className="border-b-2 border-ink text-left">
             <th className="py-2 pr-4">Barang</th>
             <th className="py-2 pr-4 text-right">Qty</th>
             <th className="py-2 pr-4 text-right">Harga Satuan</th>
@@ -146,7 +146,7 @@ export function InvoicePrintPage() {
               <td className="py-1.5 text-right tabular-nums">{formatIDR(doc.taxAmount)}</td>
             </tr>
           ) : null}
-          <tr className="border-t-2 border-slate-900 text-base font-bold">
+          <tr className="border-t-2 border-ink text-base font-bold">
             <td colSpan={4} className="py-2 pr-4 text-right">
               TOTAL
             </td>
@@ -210,7 +210,7 @@ export function QuotationPrintPage() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl bg-white p-8 text-ink print:p-0">
+    <div className="tema-cetak mx-auto max-w-3xl bg-white p-8 text-ink print:p-0">
       <div className="mb-4 flex justify-end print:hidden">
         <button
           onClick={() => window.print()}
@@ -220,7 +220,7 @@ export function QuotationPrintPage() {
         </button>
       </div>
 
-      <header className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+      <header className="flex items-start justify-between border-b-2 border-ink pb-4">
         <div className="flex items-start gap-4">
           {company.logo_data_url ? (
             <img src={company.logo_data_url} alt="Logo perusahaan" className="h-16 w-auto max-w-32 object-contain" />
@@ -249,7 +249,7 @@ export function QuotationPrintPage() {
           {quote.validUntil ? (
             <div>
               Berlaku sampai: <span className="font-medium">{formatDate(quote.validUntil)}</span>
-              {expired ? <span className="ml-1 font-semibold text-red-600">(KEDALUWARSA)</span> : null}
+              {expired ? <span className="ml-1 font-semibold text-galat-ink">(KEDALUWARSA)</span> : null}
             </div>
           ) : null}
         </div>
@@ -257,7 +257,7 @@ export function QuotationPrintPage() {
 
       <table className="mt-6 w-full text-sm">
         <thead>
-          <tr className="border-b-2 border-slate-900 text-left">
+          <tr className="border-b-2 border-ink text-left">
             <th className="py-2 pr-4">Barang</th>
             <th className="py-2 pr-4 text-right">Qty</th>
             <th className="py-2 pr-4 text-right">Harga Satuan</th>
@@ -294,7 +294,7 @@ export function QuotationPrintPage() {
               <td className="py-1.5 text-right tabular-nums">{formatIDR(quote.taxAmount)}</td>
             </tr>
           ) : null}
-          <tr className="border-t-2 border-slate-900 text-base font-bold">
+          <tr className="border-t-2 border-ink text-base font-bold">
             <td colSpan={4} className="py-2 pr-4 text-right">
               TOTAL
             </td>
@@ -375,7 +375,7 @@ export function PayslipPrintPage() {
   );
 
   return (
-    <div className="mx-auto max-w-2xl bg-white p-8 text-ink print:p-0">
+    <div className="tema-cetak mx-auto max-w-2xl bg-white p-8 text-ink print:p-0">
       <div className="mb-4 flex justify-end print:hidden">
         <button
           onClick={() => window.print()}
@@ -385,7 +385,7 @@ export function PayslipPrintPage() {
         </button>
       </div>
 
-      <header className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+      <header className="flex items-start justify-between border-b-2 border-ink pb-4">
         <div className="flex items-start gap-4">
           {company.logo_data_url ? (
             <img src={company.logo_data_url} alt="Logo perusahaan" className="h-14 w-auto max-w-32 object-contain" />
@@ -463,7 +463,7 @@ export function PayslipPrintPage() {
         </table>
       </div>
 
-      <div className="mt-6 flex items-center justify-between border-t-2 border-slate-900 pt-3">
+      <div className="mt-6 flex items-center justify-between border-t-2 border-ink pt-3">
         <span className="text-lg font-bold">Gaji bersih (dibawa pulang)</span>
         <span className="text-lg font-bold tabular-nums">{formatIDR(slip.net)}</span>
       </div>
@@ -529,7 +529,7 @@ export function Form1721A1PrintPage() {
   const totalPph = rows.reduce((s, x) => s + x.slip.pph21, 0);
 
   return (
-    <div className="mx-auto max-w-3xl bg-white p-8 text-ink print:p-0">
+    <div className="tema-cetak mx-auto max-w-3xl bg-white p-8 text-ink print:p-0">
       <div className="mb-4 flex justify-end print:hidden">
         <button
           onClick={() => window.print()}
@@ -539,7 +539,7 @@ export function Form1721A1PrintPage() {
         </button>
       </div>
 
-      <header className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+      <header className="flex items-start justify-between border-b-2 border-ink pb-4">
         <div>
           <div className="text-xl font-bold">{company.display_name ?? "—"}</div>
           {company.address ? <div className="text-sm">{company.address}</div> : null}
@@ -566,7 +566,7 @@ export function Form1721A1PrintPage() {
 
       <table className="mt-6 w-full text-sm">
         <thead>
-          <tr className="border-b-2 border-slate-900 text-left">
+          <tr className="border-b-2 border-ink text-left">
             <th className="py-2 pr-4">Masa</th>
             <th className="py-2 pr-4 text-right">Bruto</th>
             <th className="py-2 pr-4 text-right">BPJS pekerja</th>
@@ -594,7 +594,7 @@ export function Form1721A1PrintPage() {
           )}
         </tbody>
         <tfoot>
-          <tr className="border-t-2 border-slate-900 text-base font-bold">
+          <tr className="border-t-2 border-ink text-base font-bold">
             <td className="py-2 pr-4">TOTAL SETAHUN</td>
             <td className="py-2 pr-4 text-right tabular-nums">{formatIDR(totalGross)}</td>
             <td className="py-2 pr-4 text-right tabular-nums">{formatIDR(totalBpjs)}</td>

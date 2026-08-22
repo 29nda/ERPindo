@@ -10,8 +10,7 @@ export const TRANSAKSI: GuideModule[] = [
     sections: [
       {
         heading: "Buka shift, jual, tutup shift",
-        image: "/panduan/pos-1.webp",
-        imageAlt: "Layar kasir POS",
+        peragaan: "kasir-shift",
         steps: [
           "Buka shift: pilih gudang & isi kas awal laci.",
           "Cari produk (ketik nama/SKU), atur jumlah & diskon per item, terima uang tunai — kembalian dihitung otomatis, struk siap cetak.",
@@ -36,8 +35,7 @@ export const TRANSAKSI: GuideModule[] = [
     sections: [
       {
         heading: "Membuat faktur",
-        image: "/panduan/penjualan-1.webp",
-        imageAlt: "Daftar faktur penjualan",
+        peragaan: "faktur-berantai",
         steps: [
           "Pilih pelanggan (ketik untuk mencari), tanggal, jatuh tempo, dan tarif PPN (0/11/12%).",
           "Tambahkan baris produk — harga terisi otomatis, diskon % per baris opsional.",
@@ -64,8 +62,7 @@ export const TRANSAKSI: GuideModule[] = [
     sections: [
       {
         heading: "Mencatat pembelian",
-        image: "/panduan/pembelian-1.webp",
-        imageAlt: "Daftar faktur pembelian",
+        peragaan: "pembelian-utang",
         steps: [
           "Pilih pemasok, gudang tujuan, tarif PPN, dan baris produk.",
           "Untuk produk berpelacakan kedaluwarsa, isi nomor lot & tanggal exp per baris.",
@@ -86,8 +83,7 @@ export const TRANSAKSI: GuideModule[] = [
     sections: [
       {
         heading: "Memantau & menelusuri stok",
-        image: "/panduan/stok-1.webp",
-        imageAlt: "Halaman stok dengan level per gudang",
+        peragaan: "stok-tepercaya",
         body: [
           "Tabel stok menampilkan jumlah, biaya rata-rata, dan nilai per produk per gudang — angkanya selalu sama dengan akun Persediaan di neraca. Klik produk untuk melihat kartu stok (riwayat masuk/keluar + saldo berjalan).",
         ],
@@ -111,8 +107,7 @@ export const TRANSAKSI: GuideModule[] = [
     sections: [
       {
         heading: "Cara kerjanya",
-        image: "/panduan/persetujuan-1.webp",
-        imageAlt: "Antrean persetujuan pembelian",
+        peragaan: "persetujuan-berjenjang",
         steps: [
           "Owner mengatur ambang (mis. Rp 5.000.000) di halaman Persetujuan.",
           "Pembelian Admin di bawah ambang langsung diposting; di atasnya masuk antrean menunggu.",

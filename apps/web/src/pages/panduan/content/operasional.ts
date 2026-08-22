@@ -10,8 +10,7 @@ export const OPERASIONAL: GuideModule[] = [
     sections: [
       {
         heading: "Karyawan & run penggajian",
-        image: "/panduan/penggajian-1.webp",
-        imageAlt: "Halaman penggajian",
+        peragaan: "gaji-sekali-jalan",
         steps: [
           "Tambah karyawan: nama, jabatan, status PTKP (TK/0, K/1, dst.), gaji pokok & tunjangan.",
           "Jalankan penggajian per bulan: pilih periode, akun pembayar, dan tanggal bayar.",
@@ -32,8 +31,7 @@ export const OPERASIONAL: GuideModule[] = [
     sections: [
       {
         heading: "Pipeline lead",
-        image: "/panduan/crm-1.webp",
-        imageAlt: "Pipeline CRM",
+        peragaan: "pipeline-penawaran",
         steps: [
           "Catat lead beserta nilai potensinya; geser tahapan (baru → dihubungi → terkualifikasi → penawaran → menang/kalah).",
           "Tambahkan aktivitas follow-up (telepon, meeting, catatan) agar riwayat komunikasi tersimpan.",
@@ -42,8 +40,7 @@ export const OPERASIONAL: GuideModule[] = [
       },
       {
         heading: "Penawaran (quotation)",
-        image: "/panduan/crm-2.webp",
-        imageAlt: "Daftar penawaran",
+        peragaan: "penawaran-cetak",
         steps: [
           "Buat penawaran berisi baris produk + PPN untuk pelanggan.",
           "Saat disetujui pelanggan, tandai \"Diterima\" lalu Konversi — faktur penjualan terbit dengan stok & jurnal otomatis.",
@@ -60,8 +57,7 @@ export const OPERASIONAL: GuideModule[] = [
     sections: [
       {
         heading: "Proyek, tugas, dan profitabilitas",
-        image: "/panduan/proyek-1.webp",
-        imageAlt: "Halaman proyek",
+        peragaan: "proyek-biaya",
         steps: [
           "Buat proyek dengan kode & anggaran; tambahkan tugas dan tandai selesai.",
           "Saat membuat faktur atau jurnal, pilih proyek terkait — pendapatan/biaya otomatis tertandai ke proyek itu.",
@@ -79,8 +75,7 @@ export const OPERASIONAL: GuideModule[] = [
     sections: [
       {
         heading: "Membuat kontrak berulang",
-        image: "/panduan/kontrak-1.webp",
-        imageAlt: "Daftar kontrak berulang",
+        peragaan: "kontrak-berulang",
         steps: [
           "Buat kontrak: pelanggan, frekuensi (bulanan), tanggal mulai, dan baris item + harga.",
           "Setiap jatuh tempo, faktur terbit otomatis (lewat cron harian) — muncul di menu Penjualan seperti faktur biasa.",
@@ -97,8 +92,7 @@ export const OPERASIONAL: GuideModule[] = [
     sections: [
       {
         heading: "BoM → produksi → QC",
-        image: "/panduan/manufaktur-1.webp",
-        imageAlt: "Halaman manufaktur",
+        peragaan: "manufaktur-bom",
         steps: [
           "Definisikan BoM: komponen & jumlahnya untuk menghasilkan sekian unit barang jadi.",
           "Buat perintah produksi → Selesaikan: stok bahan keluar, barang jadi masuk dengan biaya gabungan bahan.",
@@ -116,8 +110,7 @@ export const OPERASIONAL: GuideModule[] = [
     sections: [
       {
         heading: "Jadwal servis & work order",
-        image: "/panduan/maintenance-1.webp",
-        imageAlt: "Halaman pemeliharaan",
+        peragaan: "pemeliharaan-jadwal",
         steps: [
           "Buat jadwal: aset, nama servis, interval bulan, tanggal mulai — work order terbit otomatis saat jatuh tempo.",
           "Selesaikan work order dengan biaya & akun pembayar — beban pemeliharaan terjurnal; riwayat per aset tersimpan.",
@@ -134,8 +127,7 @@ export const OPERASIONAL: GuideModule[] = [
     sections: [
       {
         heading: "Mengelola tiket",
-        image: "/panduan/helpdesk-1.webp",
-        imageAlt: "Daftar tiket helpdesk",
+        peragaan: "helpdesk-tiket",
         steps: [
           "Buat tiket terhubung ke kontak, pilih prioritas (low/medium/high).",
           "Balas ke pelanggan atau tulis catatan internal (tidak terlihat pelanggan); tugaskan ke anggota tim.",

@@ -1,6 +1,6 @@
 # Kamus Istilah
 
-Penjelasan singkat dan sederhana untuk istilah akuntansi & bisnis yang muncul di erpindo — tanpa teori yang berat.
+Penjelasan singkat dan sederhana untuk istilah akuntansi & bisnis yang muncul di ERPindo — tanpa teori yang berat.
 
 ## Dasar pembukuan
 
@@ -16,7 +16,7 @@ Penjelasan singkat dan sederhana untuk istilah akuntansi & bisnis yang muncul di
 
 1. Faktur (invoice) — dokumen tagihan resmi atas penjualan/pembelian.
 2. Piutang usaha — uang yang belum dibayar pelanggan kepada Anda.
-3. Hutang usaha — uang yang belum Anda bayar ke pemasok.
+3. Utang usaha — uang yang belum Anda bayar ke pemasok.
 4. Jatuh tempo — batas tanggal pembayaran tagihan.
 5. Retur — pengembalian barang; pembukuannya otomatis dibalik secara proporsional.
 6. Void — membatalkan dokumen yang salah input (belum dibayar); jurnal pembalik dibuat otomatis.
@@ -38,7 +38,7 @@ Penjelasan singkat dan sederhana untuk istilah akuntansi & bisnis yang muncul di
 2. Neraca — potret kekayaan pada satu tanggal: aset = kewajiban + ekuitas (selalu seimbang).
 3. Arus kas — uang benar-benar masuk dan keluar dari kas & bank.
 4. Aset — semua yang dimiliki perusahaan (kas, piutang, stok, kendaraan).
-5. Kewajiban (liabilitas) — semua yang harus dibayar (hutang usaha, hutang gaji, PPN keluaran).
+5. Kewajiban (liabilitas) — semua yang harus dibayar (utang usaha, utang gaji, PPN keluaran).
 6. Ekuitas (modal) — hak pemilik: aset dikurangi kewajiban.
 7. Penyusutan (depresiasi) — nilai aset tetap yang "dipakai habis" sedikit demi sedikit tiap bulan dan dibukukan sebagai beban.
 
@@ -46,7 +46,7 @@ Penjelasan singkat dan sederhana untuk istilah akuntansi & bisnis yang muncul di
 
 1. PPN — Pajak Pertambahan Nilai yang dipungut saat menjual (keluaran) dan dibayar saat membeli (masukan).
 2. DPP — Dasar Pengenaan Pajak: nilai transaksi sebelum PPN.
-3. e-Faktur / Coretax — sistem faktur pajak elektronik DJP; erpindo menyiapkan berkas XML siap impor.
+3. e-Faktur / Coretax — sistem faktur pajak elektronik DJP; ERPindo menyiapkan berkas XML siap impor.
 4. NPWP — Nomor Pokok Wajib Pajak; sejak Coretax dinormalkan menjadi 16 digit.
 5. PPh 21 — pajak penghasilan karyawan yang dipotong dari gaji; dihitung dengan tarif efektif rata-rata (TER).
 6. BPJS — iuran jaminan kesehatan & ketenagakerjaan yang dipotong/ditanggung sesuai ketentuan.

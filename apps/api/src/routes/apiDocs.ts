@@ -6,6 +6,7 @@ import {
   type WebhookEvent,
 } from "@erpindo/shared";
 import { Hono } from "hono";
+import { kerangkaHtml } from "../lib/kerangkaPublik";
 import type { AppEnv, Env } from "../env";
 
 /**
@@ -19,34 +20,6 @@ function origin(env: Env, reqUrl: string): string {
   return (env.APP_URL ?? new URL(reqUrl).origin).replace(/\/$/, "");
 }
 
-const CSS = `
-  :root { color-scheme: light; }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #0f172a; background: #f8fafc; line-height: 1.7; }
-  header { border-bottom: 1px solid #e2e8f0; background: #fff; }
-  .wrap { max-width: 52rem; margin: 0 auto; padding: 0 1.25rem; }
-  header .wrap { display: flex; align-items: center; justify-content: space-between; padding: .8rem 1.25rem; }
-  header img { height: 2.2rem; display: block; }
-  header nav a { color: #334155; text-decoration: none; font-size: .9rem; margin-left: 1rem; }
-  header nav a.cta { background: #2563eb; color: #fff; padding: .45rem .9rem; border-radius: .5rem; font-weight: 600; }
-  main { padding: 2rem 0 4rem; }
-  h1 { font-size: 2rem; margin: 0 0 .3rem; }
-  h2 { font-size: 1.3rem; margin: 2.2rem 0 .6rem; border-top: 1px solid #e2e8f0; padding-top: 1.6rem; }
-  h3 { font-size: 1.02rem; margin: 1.4rem 0 .4rem; }
-  p.lead { color: #475569; font-size: 1.05rem; }
-  code { background: #eef2ff; color: #3730a3; padding: .1rem .35rem; border-radius: .3rem; font-size: .87em; }
-  pre { background: #0f172a; color: #e2e8f0; padding: 1rem 1.1rem; border-radius: .6rem; overflow-x: auto; font-size: .85rem; line-height: 1.6; }
-  pre code { background: none; color: inherit; padding: 0; }
-  table { width: 100%; border-collapse: collapse; margin: .6rem 0; font-size: .92rem; }
-  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-  th { color: #64748b; font-weight: 600; }
-  .method { font-weight: 700; color: #16a34a; }
-  .method.post { color: #2563eb; }
-  .badge { display: inline-block; background: #fef3c7; color: #92400e; font-size: .72rem; font-weight: 700; padding: .1rem .45rem; border-radius: .3rem; margin-left: .4rem; }
-  footer { border-top: 1px solid #e2e8f0; color: #64748b; font-size: .85rem; padding: 1.5rem 0; }
-  a { color: #2563eb; }
-`;
-
 function esc(s: string): string {
   return s.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch] ?? ch);
 }
@@ -56,28 +29,18 @@ function docsHtml(base: string): string {
     (e: WebhookEvent) => `<tr><td><code>${esc(e)}</code></td><td>${esc(WEBHOOK_EVENT_LABELS[e])}</td></tr>`,
   ).join("\n");
 
-  return `<!doctype html>
-<html lang="id">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dokumentasi API — ERPindo</title>
-<meta name="description" content="API publik ERPindo: autentikasi Bearer API key, endpoint kontak/produk/faktur/pembayaran/ringkasan, dan webhook peristiwa dengan tanda tangan HMAC. Tersedia pada paket Enterprise." />
-<link rel="canonical" href="${esc(base)}/api-docs" />
-<link rel="icon" type="image/png" href="/favicon.png" />
-<meta property="og:title" content="Dokumentasi API — ERPindo" />
-<meta property="og:description" content="Integrasikan sistem Anda dengan ERPindo lewat API publik & webhook." />
-<style>${CSS}</style>
-</head>
-<body>
-<header><div class="wrap">
-  <a href="/"><img src="/logo.svg" alt="ERPindo" onerror="this.style.display='none'" /></a>
-  <nav><a href="/">Beranda</a><a href="/blog">Blog</a><a class="cta" href="/app">Masuk</a></nav>
-</div></header>
-<main><div class="wrap">
+  // Fase 38g — kerangka HTML sendiri diganti kerangka publik bersama. Yang
+  // lama menampilkan `/logo.svg`, berkas yang TIDAK PERNAH ADA di repo ini,
+  // disembunyikan `onerror` sehingga tidak seorang pun menyadarinya.
+  return kerangkaHtml({
+    title: "Dokumentasi API — ERPindo",
+    description:
+      "API publik ERPindo: autentikasi Bearer API key, endpoint kontak/produk/faktur/pembayaran/ringkasan, dan webhook peristiwa dengan tanda tangan HMAC.",
+    canonical: `${base}/api-docs`,
+    body: `
   <h1>Dokumentasi API ERPindo</h1>
   <p class="lead">Integrasikan toko online, aplikasi kasir, atau sistem internal Anda dengan ERPindo.
-  API publik &amp; webhook tersedia pada paket <strong>Enterprise</strong>.</p>
+  API publik &amp; webhook <strong>termasuk dalam langganan</strong>, seperti seluruh modul lain.</p>
 
   <h2>1. Autentikasi</h2>
   <p>Buat <strong>API key</strong> di <em>Pengaturan → API &amp; Integrasi</em> (khusus Pemilik).
@@ -145,10 +108,8 @@ if (expected !== req.headers["${esc(WEBHOOK_SIGNATURE_HEADER.toLowerCase())}"]) 
   <p>Pengiriman yang gagal dicoba ulang otomatis dengan jeda bertambah (hingga 5 kali).
   Balas <code>2xx</code> secepatnya untuk menandai sukses.</p>
 
-  <footer><div class="wrap">ERPindo — ERP untuk usaha Indonesia. <a href="/">Kembali ke beranda</a>.</div></footer>
-</div></main>
-</body>
-</html>`;
+`,
+  });
 }
 
 export const apiDocsRoutes = new Hono<AppEnv>().get("/api-docs", (c) => {

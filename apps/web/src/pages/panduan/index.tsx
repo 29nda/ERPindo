@@ -30,7 +30,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { BrandWordmark, Button, useDarkMode } from "../../components/ui";
+import { Button } from "../../components/ui";
+import { PublicFooter, PublicHeader, PublicShell } from "../../components/publik";
+import { Peragaan, PERAGAAN } from "../../peragaan";
 import { pick, useLang } from "../../i18n";
 import { GUIDE_CATEGORIES, GUIDE_MODULES, guideBySlug, type GuideModule } from "./content";
 
@@ -88,19 +90,27 @@ export function GuideSections({ mod }: { mod: GuideModule }) {
             </p>
           ))}
           {s.steps ? (
-            <ol className="mt-3 max-w-3xl list-decimal space-y-2 pl-5 text-ink-soft marker:font-semibold marker:text-brand-600 dark:marker:text-brand-400">
+            <ol className="mt-3 max-w-3xl list-decimal space-y-2 pl-5 text-ink-soft marker:font-semibold marker:text-brand-ink">
               {s.steps.map((st) => (
                 <li key={st.slice(0, 40)}>{st}</li>
               ))}
             </ol>
           ) : null}
-          {s.image ? (
-            <div className="mt-5 overflow-hidden rounded-2xl border border-line shadow-card">
-              <img src={s.image} alt={s.imageAlt ?? s.heading} width={1280} height={800} loading="lazy" decoding="async" className="w-full" />
+          {/* Fase 38f — tangkapan layar diganti peragaan.
+          
+              Dua perlakuan membedakannya dari peragaan halaman jualan, dan
+              keduanya karena pekerjaan pembacanya berbeda: `sekaliJalan`
+              menghentikannya di keadaan akhir (pembaca panduan sedang
+              mencocokkan layarnya sendiri, dan gerak berulang mengganggu),
+              dan `langkahTampak` menampilkan daftar langkah bernomor di layar
+              alih-alih menyembunyikannya bagi mata. */}
+          {s.peragaan ? (
+            <div className="mt-5 max-w-3xl">
+              <Peragaan naskah={PERAGAAN[s.peragaan]} tinggi="sedang" sekaliJalan langkahTampak />
             </div>
           ) : null}
           {s.tips?.length ? (
-            <div className="mt-4 max-w-3xl rounded-xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-900 dark:border-accent-500/30 dark:bg-accent-500/10 dark:text-accent-200">
+            <div className="mt-4 max-w-3xl rounded-xl border border-awas-line bg-awas-surface px-4 py-3 text-sm text-awas-ink">
               {s.tips.map((t) => (
                 <p key={t.slice(0, 40)} className="flex items-start gap-2 py-0.5">
                   <Lightbulb className="mt-0.5 size-4 shrink-0" aria-hidden /> {t}
@@ -111,36 +121,6 @@ export function GuideSections({ mod }: { mod: GuideModule }) {
         </section>
       ))}
     </>
-  );
-}
-
-function GuideHeader() {
-  const { dark, toggle } = useDarkMode();
-  const lang = useLang();
-  return (
-    <header className="sticky top-0 z-30 border-b border-line bg-slate-50/80 backdrop-blur dark:bg-slate-950/80">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-        <Link to="/" className="flex items-center gap-2 text-lg font-bold tracking-tight text-brand-700 dark:text-brand-400">
-          <BrandWordmark className="h-8" /> <span className="font-normal text-ink-muted">/ panduan</span>
-        </Link>
-        <nav className="flex items-center gap-2">
-          <button
-            onClick={toggle}
-            className="rounded-lg p-2 text-ink-muted hover:bg-slate-200/60 dark:hover:bg-slate-800"
-            aria-label={pick({ id: "Ganti tema terang/gelap", en: "Toggle light/dark theme" }, lang)}
-          >
-            {dark ? "☀" : "☾"}
-          </button>
-          <Link to="/masuk">
-            <Button variant="ghost">Masuk</Button>
-          </Link>
-          <Link to="/daftar">
-            {/* Fase 24d: trial dihapus di 24a — bilah atas tak lagi menjanjikan gratis. */}
-            <Button>Daftar</Button>
-          </Link>
-        </nav>
-      </div>
-    </header>
   );
 }
 
@@ -155,8 +135,8 @@ export function PanduanIndexPage() {
     m.sections.some((s) => s.heading.toLowerCase().includes(query));
 
   return (
-    <div className="min-h-full bg-surface-sunken text-ink">
-      <GuideHeader />
+    <PublicShell>
+      <PublicHeader sub={{ id: "Panduan", en: "Guide" }} />
       <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Panduan ERPindo</h1>
@@ -191,12 +171,12 @@ export function PanduanIndexPage() {
                       key={m.slug}
                       to="/panduan/$modul"
                       params={{ modul: m.slug }}
-                      className="group rounded-2xl border border-line bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg dark:hover:border-brand-700"
+                      className="group rounded-2xl border border-line bg-surface p-5 transition-all hover:-translate-y-0.5 hover:border-brand-line hover:shadow-lg"
                     >
-                      <span className="flex size-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700 dark:bg-brand-900/60 dark:text-brand-300">
+                      <span className="flex size-10 items-center justify-center rounded-xl bg-brand-surface text-brand-ink">
                         <Icon className="size-5" aria-hidden />
                       </span>
-                      <h3 className="mt-3 font-semibold group-hover:text-brand-700 dark:group-hover:text-brand-300">
+                      <h3 className="mt-3 font-semibold group-hover:text-brand-ink">
                         {m.title}
                       </h3>
                       <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{m.intro}</p>
@@ -212,7 +192,8 @@ export function PanduanIndexPage() {
           <p className="mt-12 text-center text-sm text-ink-muted">Tidak ada panduan yang cocok dengan pencarian.</p>
         ) : null}
       </main>
-    </div>
+      <PublicFooter />
+    </PublicShell>
   );
 }
 
@@ -225,23 +206,24 @@ export function PanduanModulePage() {
 
   if (!mod) {
     return (
-      <div className="min-h-full bg-surface-sunken">
-        <GuideHeader />
+      <PublicShell>
+        <PublicHeader sub={{ id: "Panduan", en: "Guide" }} />
         <main className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
           <p className="text-ink-soft">Panduan tidak ditemukan.</p>
-          <Link to="/panduan" className="mt-4 inline-block text-brand-600 hover:underline dark:text-brand-400">
+          <Link to="/panduan" className="mt-4 inline-block text-brand-ink hover:underline">
             ← Kembali ke daftar panduan
           </Link>
         </main>
-      </div>
+        <PublicFooter />
+      </PublicShell>
     );
   }
 
   const anchor = (h: string) => h.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
   return (
-    <div className="min-h-full bg-surface-sunken text-ink">
-      <GuideHeader />
+    <PublicShell>
+      <PublicHeader sub={{ id: "Panduan", en: "Guide" }} />
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:grid lg:grid-cols-[220px_1fr] lg:gap-10">
         {/* TOC kiri (desktop) */}
         <aside className="hidden lg:block">
@@ -254,7 +236,7 @@ export function PanduanModulePage() {
               <a
                 key={s.heading}
                 href={`#${anchor(s.heading)}`}
-                className="block rounded-md px-2 py-1 text-ink-soft hover:bg-slate-100 hover:text-ink dark:hover:bg-slate-900"
+                className="block rounded-md px-2 py-1 text-ink-soft hover:bg-surface-muted hover:text-ink"
               >
                 {s.heading}
               </a>
@@ -307,6 +289,7 @@ export function PanduanModulePage() {
           </nav>
         </article>
       </main>
-    </div>
+      <PublicFooter />
+    </PublicShell>
   );
 }

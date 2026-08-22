@@ -94,7 +94,7 @@ function BudgetRow({
         numeric
         label={u("selisihKolom")}
         className={
-          favorable ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+          favorable ? "text-ok-ink" : "text-galat-ink"
         }
       >
         {favorable ? "+" : ""}
@@ -165,8 +165,8 @@ function BudgetTable({
               label={u("selisihKolom")}
               className={
                 favorable
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-red-600 dark:text-red-400"
+                  ? "text-ok-ink"
+                  : "text-galat-ink"
               }
             >
               {favorable ? "+" : ""}

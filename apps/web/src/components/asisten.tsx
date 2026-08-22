@@ -102,18 +102,18 @@ export function Asisten({ tenantId, isAdmin }: { tenantId: string; isAdmin: bool
         <div className="fixed bottom-20 right-5 z-40 flex h-[min(560px,75vh)] w-[min(380px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl print:hidden">
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <div className="flex items-center gap-2 font-semibold">
-              <Sparkles className="size-4 text-brand-600 dark:text-brand-400" aria-hidden /> {u("cpAsisten")}
+              <Sparkles className="size-4 text-brand-ink" aria-hidden /> {u("cpAsisten")}
             </div>
             <div className="flex rounded-lg bg-surface-muted p-0.5 text-xs">
               <button
                 onClick={() => setMode("chat")}
-                className={`rounded-md px-2.5 py-1 ${mode === "chat" ? "bg-white font-medium shadow-sm dark:bg-slate-700" : "text-ink-muted"}`}
+                className={`rounded-md px-2.5 py-1 ${mode === "chat" ? "bg-surface font-medium shadow-sm" : "text-ink-muted"}`}
               >
                 {u("cpModeTanya")}
               </button>
               <button
                 onClick={() => setMode("laporan")}
-                className={`rounded-md px-2.5 py-1 ${mode === "laporan" ? "bg-white font-medium shadow-sm dark:bg-slate-700" : "text-ink-muted"}`}
+                className={`rounded-md px-2.5 py-1 ${mode === "laporan" ? "bg-surface font-medium shadow-sm" : "text-ink-muted"}`}
               >
                 <span className="inline-flex items-center gap-1">
                   <LineChart className="size-3" aria-hidden /> {u("cpModeLaporan")}
@@ -122,7 +122,7 @@ export function Asisten({ tenantId, isAdmin }: { tenantId: string; isAdmin: bool
               {isAdmin ? (
                 <button
                   onClick={() => setMode("jurnal")}
-                  className={`rounded-md px-2.5 py-1 ${mode === "jurnal" ? "bg-white font-medium shadow-sm dark:bg-slate-700" : "text-ink-muted"}`}
+                  className={`rounded-md px-2.5 py-1 ${mode === "jurnal" ? "bg-surface font-medium shadow-sm" : "text-ink-muted"}`}
                 >
                   <span className="inline-flex items-center gap-1">
                     <NotebookPen className="size-3" aria-hidden /> {u("cpModeJurnal")}
@@ -184,7 +184,7 @@ export function Asisten({ tenantId, isAdmin }: { tenantId: string; isAdmin: bool
               </div>
             ) : null}
             {notice ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+              <div className="rounded-xl border border-awas-line bg-awas-surface px-3 py-2 text-xs text-awas-ink">
                 {notice}
               </div>
             ) : null}

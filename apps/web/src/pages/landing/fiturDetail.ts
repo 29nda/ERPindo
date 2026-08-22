@@ -23,6 +23,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import type { PeragaanId } from "../../peragaan";
 import type { Dual } from "../../i18n";
 
 /**
@@ -50,16 +51,19 @@ export type ModulDetail = {
   /** Hasil yang didapat, sedapat mungkin bisa diperiksa sendiri. */
   hasil: Dual;
   /**
-   * Tangkapan layar produk NYATA. Opsional (Fase 24c): beberapa modul belum
-   * punya tangkapan layarnya sendiri, dan meminjam milik modul lain akan
-   * menampilkan layar yang bukan miliknya. Lebih baik tanpa gambar daripada
-   * dengan gambar yang salah.
+   * Peragaan yang diputar untuk modul ini (Fase 38e).
    *
-   * Fase 25b: dua modul terakhir yang tak bergambar (Kas & Bank, Asisten AI)
-   * sudah punya miliknya sendiri — kini SELURUH entri bergambar. Sifat opsional
-   * ini sengaja dipertahankan untuk modul yang ditambahkan kelak.
+   * Menggantikan `gambar?: string` yang berisi jalur `.webp`. Sifat OPSIONALNYA
+   * sengaja dipertahankan, dan alasan Fase 24c masih berlaku kata per kata:
+   * modul yang belum punya peragaannya sendiri lebih baik tampil tanpa
+   * peragaan daripada meminjam milik modul lain — pengunjung yang melihat layar
+   * yang bukan miliknya akan menyimpulkan hal yang salah tentang produknya.
+   *
+   * Yang berubah adalah tipenya. `string` membuat salah ketik nama berkas lolos
+   * typecheck, lint, dan uji sekaligus, lalu muncul sebagai gambar rusak di
+   * halaman jualan. `PeragaanId` menjadikannya galat kompilasi.
    */
-  gambar?: string;
+  peragaan?: PeragaanId;
 };
 
 export const MODUL_DETAIL: ModulDetail[] = [
@@ -93,7 +97,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       id: "Neraca Saldo selalu seimbang — dan bila tidak, sistem menolak menyimpannya. Laporan dibaca dari satu sumber: jurnal.",
       en: "The trial balance always balances — and if it wouldn't, the system refuses to save. Reports read from a single source: the journal.",
     },
-    gambar: "/panduan/akuntansi-1.webp",
+    peragaan: "jurnal-pembalik",
   },
   {
     id: "faktur",
@@ -125,7 +129,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       id: "Faktur berkop siap cetak atau PDF dalam hitungan detik, dan tidak ada tagihan yang lewat tanpa terlihat.",
       en: "Branded invoices ready to print or PDF in seconds, and no bill slips past unseen.",
     },
-    gambar: "/landing/showcase-penjualan.webp",
+    peragaan: "faktur-berantai",
   },
   {
     id: "pos",
@@ -153,7 +157,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       id: "Penjualan hari ini sudah masuk laporan keuangan hari ini — bukan besok, dan bukan setelah diketik ulang.",
       en: "Today's sales are in today's financial reports — not tomorrow, and not after being retyped.",
     },
-    gambar: "/landing/showcase-pos.webp",
+    peragaan: "kasir-shift",
   },
   {
     id: "stok",
@@ -185,7 +189,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       id: "Nilai persediaan di neraca berasal dari perhitungan, bukan perkiraan — dan lot yang mau kedaluwarsa muncul sebelum jadi kerugian.",
       en: "Inventory value on the balance sheet comes from calculation, not estimation — and lots nearing expiry surface before they become a loss.",
     },
-    gambar: "/landing/showcase-stok.webp",
+    peragaan: "stok-tepercaya",
   },
   {
     id: "payroll",
@@ -217,7 +221,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       id: "Gajian jadi pekerjaan sekali klik, dan laporan keuangan bulan itu sudah memuat beban gaji yang benar.",
       en: "Payroll becomes a one-click job, and that month's financial reports already carry the correct payroll expense.",
     },
-    gambar: "/landing/showcase-gaji.webp",
+    peragaan: "gaji-sekali-jalan",
   },
   {
     id: "pajak",
@@ -245,7 +249,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       id: "Masa pajak selesai dari data yang sudah ada, bukan dari pekerjaan rekap baru.",
       en: "A tax period is completed from data you already have, not from fresh tallying work.",
     },
-    gambar: "/panduan/pajak-1.webp",
+    peragaan: "ppn-coretax",
   },
   {
     id: "laporan",
@@ -277,7 +281,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       id: "Pertanyaan 'bulan ini untung atau rugi' bisa dijawab sekarang, bukan dua minggu lagi.",
       en: "The question \"are we profitable this month\" can be answered now, not in two weeks.",
     },
-    gambar: "/landing/showcase-laporan.webp",
+    peragaan: "laporan-tersusun",
   },
   {
     id: "multi",
@@ -305,7 +309,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       id: "Gambaran grup bisa dilihat tanpa menunggu tiap anak usaha mengirim rekap.",
       en: "The group picture is visible without waiting for each subsidiary to send a summary.",
     },
-    gambar: "/panduan/konsolidasi-1.webp",
+    peragaan: "konsolidasi-entitas",
   },
   {
     id: "keamanan",
@@ -333,7 +337,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       id: "Anda bisa pergi kapan saja dan membawa seluruh riwayat pembukuan Anda. Itu yang membuat 'data Anda milik Anda' bukan sekadar slogan.",
       en: "You can leave whenever you want and take your entire accounting history with you. That is what makes \"your data is yours\" more than a slogan.",
     },
-    gambar: "/panduan/pengaturan-1.webp",
+    peragaan: "peran-audit",
   },
 
   // --- Fase 24c: modul yang sebelumnya tak pernah disebut di halaman jualan ---
@@ -358,7 +362,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Checklist \"Mulai cepat\" menuntun pengisian awal; contoh produk & kontak bisa diisikan sekali klik sesuai jenis usaha.", en: "A quick-start checklist guides initial setup; sample products and contacts can be filled in with one click per business type." },
     ],
     hasil: { id: "Kondisi bisnis terbaca dalam hitungan detik setelah masuk, bukan setelah menyusun laporan.", en: "You read the state of the business seconds after signing in, not after assembling a report." },
-    gambar: "/landing/hero-dashboard.webp",
+    peragaan: "dasbor-harian",
   },
   {
     id: "pembelian",
@@ -375,7 +379,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Harga pokok rata-rata diperbarui otomatis tiap penerimaan, termasuk saat satuan besar dikonversi (1 dus = 24 pcs).", en: "Average cost updates automatically on each receipt, including when bulk units convert (1 box = 24 pcs)." },
     ],
     hasil: { id: "Setiap barang yang masuk punya dokumen, harga, dan penanggung jawabnya.", en: "Everything that comes in has a document, a price, and someone accountable for it." },
-    gambar: "/panduan/pembelian-1.webp",
+    peragaan: "pembelian-utang",
   },
   {
     id: "persetujuan",
@@ -391,7 +395,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Tiap langkah meninggalkan jejak: siapa, kapan, dan disetujui atau ditolak.", en: "Every step leaves a trail: who, when, and approved or rejected." },
     ],
     hasil: { id: "Keputusan pengeluaran punya bukti, bukan ingatan.", en: "Spending decisions have evidence, not recollection." },
-    gambar: "/panduan/persetujuan-1.webp",
+    peragaan: "persetujuan-berjenjang",
   },
   {
     id: "kasbank",
@@ -408,7 +412,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Kas kecil memakai sistem dana tetap: sistem menghitung sendiri berapa yang perlu diisikan, jadi angkanya tidak diketik dan tidak bisa salah ketik.", en: "Petty cash uses an imprest system: the app computes the top-up itself, so the figure is never typed and never mistyped." },
     ],
     hasil: { id: "Selisih dengan bank ketahuan saat terjadi, bukan saat tutup buku.", en: "Discrepancies with the bank surface when they happen, not at closing." },
-    gambar: "/panduan/kasbank-1.webp",
+    peragaan: "kas-rekonsiliasi",
   },
   {
     id: "aset",
@@ -425,7 +429,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Revaluasi ke nilai wajar: kenaikan masuk ke Ekuitas sebagai Surplus Revaluasi, bukan menggelembungkan laba.", en: "Revaluation to fair value: increases go to Equity as a revaluation surplus, never inflating profit." },
     ],
     hasil: { id: "Beban penyusutan masuk tepat waktu, jadi laba yang Anda lihat adalah laba sesungguhnya.", en: "Depreciation lands on time, so the profit you see is the profit you have." },
-    gambar: "/panduan/aset-1.webp",
+    peragaan: "aset-penyusutan",
   },
   {
     id: "crm",
@@ -443,7 +447,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Laporan konversi per sumber menunjukkan kanal mana yang benar-benar menghasilkan, bukan yang paling ramai.", en: "Conversion-by-source reporting shows which channel actually closes, not which is loudest." },
     ],
     hasil: { id: "Tidak ada calon pelanggan yang hilang karena lupa dihubungi.", en: "No prospect is lost to a forgotten follow-up." },
-    gambar: "/panduan/crm-1.webp",
+    peragaan: "pipeline-penawaran",
   },
   {
     id: "anggaran",
@@ -459,7 +463,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Laporan selisih (varians) berwarna menunjukkan mana yang lewat target dan sebesar apa.", en: "A colour-coded variance report shows what went over target and by how much." },
     ],
     hasil: { id: "Pemborosan terlihat di pertengahan bulan, saat masih bisa dikoreksi.", en: "Overspending appears mid-month, while it can still be corrected." },
-    gambar: "/panduan/anggaran-1.webp",
+    peragaan: "anggaran-realisasi",
   },
   {
     id: "proyek",
@@ -477,7 +481,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Timesheet (jam × tarif) memunculkan biaya tenaga kerja, dan termin penagihan menjadi faktur jasa yang tertaut ke proyeknya.", en: "Timesheets (hours × rate) surface labour cost, and billing milestones become service invoices linked to the project." },
     ],
     hasil: { id: "Setiap proyek punya angka laba sendiri yang bisa dipertanggungjawabkan.", en: "Every project carries its own defensible profit figure." },
-    gambar: "/panduan/proyek-1.webp",
+    peragaan: "proyek-biaya",
   },
   {
     id: "kontrak",
@@ -493,7 +497,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Template jurnal berulang menangani biaya tetap seperti sewa — terbit sekali klik atau otomatis tiap bulan.", en: "Recurring journal templates handle fixed costs like rent — one click, or automatically each month." },
     ],
     hasil: { id: "Pendapatan berulang tertagih sendiri, bulan demi bulan.", en: "Recurring revenue bills itself, month after month." },
-    gambar: "/panduan/kontrak-1.webp",
+    peragaan: "kontrak-berulang",
   },
   {
     id: "manufaktur",
@@ -510,7 +514,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Inspeksi QC memisahkan hasil yang lulus dari yang dikarantina.", en: "QC inspection separates passed output from quarantined output." },
     ],
     hasil: { id: "Harga jual disusun di atas harga pokok yang benar, bukan perkiraan.", en: "Selling prices are built on a true cost, not an estimate." },
-    gambar: "/panduan/manufaktur-1.webp",
+    peragaan: "manufaktur-bom",
   },
   {
     id: "maintenance",
@@ -526,7 +530,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Biaya tiap perbaikan dijurnal dan menempel pada asetnya.", en: "Each repair cost is journalled and sticks to its asset." },
     ],
     hasil: { id: "Mesin berhenti karena dijadwalkan, bukan karena kaget.", en: "Machines stop on schedule, not by surprise." },
-    gambar: "/panduan/maintenance-1.webp",
+    peragaan: "pemeliharaan-jadwal",
   },
   {
     id: "helpdesk",
@@ -542,7 +546,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Umur tiket ditandai warna — kuning di atas 24 jam, merah di atas 72 jam.", en: "Ticket age is colour-flagged — amber past 24 hours, red past 72." },
     ],
     hasil: { id: "Tidak ada keluhan yang mengendap tanpa jawaban.", en: "No complaint sits unanswered." },
-    gambar: "/panduan/helpdesk-1.webp",
+    peragaan: "helpdesk-tiket",
   },
   {
     id: "asisten",
@@ -559,6 +563,6 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Ringkasan mingguan berbahasa Indonesia dihitung dari jurnal Anda, bukan ditebak model.", en: "A weekly narrative summary is computed from your journals, not guessed by a model." },
     ],
     hasil: { id: "Pertanyaan bisnis dijawab tanpa harus fasih berbahasa akuntansi.", en: "Business questions get answered without needing to speak accounting." },
-    gambar: "/panduan/asisten-1.webp",
+    peragaan: "asisten-tanya",
   },
 ];

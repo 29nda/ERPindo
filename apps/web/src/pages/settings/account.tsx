@@ -196,7 +196,7 @@ export function SecurityCard() {
               {setupData.secret}
             </p>
             <p>
-              <a href={setupData.otpauthUrl} className="text-brand-700 underline dark:text-brand-400">
+              <a href={setupData.otpauthUrl} className="text-brand-ink underline">
                 {u("bukaDiAuthenticator")}
               </a>
             </p>

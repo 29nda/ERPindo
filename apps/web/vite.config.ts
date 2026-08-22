@@ -9,9 +9,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.png", "brand/logo-erpindo.png"],
+      // Fase 38g — `brand/logo-erpindo.png` dilepas. Ia memaksa 205 KB masuk
+      // precache service worker untuk SETIAP pengguna, padahal aplikasinya
+      // sendiri sudah menggambar wordmark sebagai teks sejak Fase 32a. Satu
+      // pemakainya yang tersisa (header blog SSR) kini juga memakai teks.
+      includeAssets: ["favicon.png"],
       manifest: {
-        name: "ERPindo — ERP untuk UMKM Indonesia",
+        name: "ERPindo — ERP untuk perusahaan Indonesia",
         short_name: "ERPindo",
         description:
           "Akuntansi double-entry, kasir POS, stok, penggajian PPh 21 TER, dan e-Faktur dalam satu aplikasi.",

@@ -73,7 +73,7 @@ export function PaletPerintah({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-start justify-center bg-slate-950/60 p-4 pt-[12vh] backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-start justify-center bg-ink/50 p-4 pt-[12vh] backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label={lang === "en" ? "Command palette" : "Palet perintah"}
@@ -103,7 +103,7 @@ export function PaletPerintah({
           }}
           placeholder={lang === "en" ? "Jump to a page…" : "Lompat ke halaman…"}
           aria-label={lang === "en" ? "Search pages" : "Cari halaman"}
-          className="h-11 w-full border-b border-line bg-transparent px-4 text-sm outline-none placeholder:text-slate-400"
+          className="h-11 w-full border-b border-line bg-transparent px-4 text-sm outline-none placeholder:text-ink-faint"
         />
         <ul className="max-h-80 overflow-y-auto py-1">
           {hasil.length === 0 ? (

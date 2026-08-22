@@ -77,3 +77,32 @@ export function toSlug(name: string): string {
       .replace(/-+$/g, "") || "perusahaan"
   );
 }
+
+/**
+ * Rupiah — SATU sumber untuk seluruh repo (Fase 38p).
+ *
+ * ## Kenapa dipindah ke sini
+ *
+ * `docs/glosarium.md` §6 menyatakan "Satu sumber: `formatRupiah()` di
+ * `packages/shared`". Pernyataan itu **tidak benar** sampai fase ini: fungsinya
+ * hidup di `apps/web/src/pages/landing/sections.ts`, dan di sebelahnya ada
+ * fungsi KEDUA — `formatIDR()` di `api/client.ts` — dengan 30 pemakai.
+ *
+ * Keduanya menghasilkan bentuk yang berbeda:
+ *
+ * | | Keluaran |
+ * | --- | --- |
+ * | `formatIDR` (Intl, `style: "currency"`) | `Rp` + **spasi tak-putus** + angka |
+ * | `formatRupiah` (manual) | `Rp` + spasi biasa + angka |
+ *
+ * Selisih satu karakter tak terlihat itu nyata akibatnya: asersi ui-sim harus
+ * menormalkan ` ` sebelum mencocokkan teks, dan `sapu-istilah` — yang
+ * menegakkan aturan "Rp 499.000 berspasi" — melihat dua bentuk berbeda sebagai
+ * hal yang sama.
+ *
+ * Kini satu fungsi, dan bentuknya yang dipilih adalah **spasi biasa**: ia yang
+ * dinyatakan glosarium, dan ia yang bisa dicocokkan tanpa penormalan.
+ */
+export function formatRupiah(n: number): string {
+  return `Rp ${Math.round(n).toLocaleString("id-ID")}`;
+}

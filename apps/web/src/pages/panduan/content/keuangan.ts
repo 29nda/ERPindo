@@ -10,8 +10,7 @@ export const KEUANGAN: GuideModule[] = [
     sections: [
       {
         heading: "Bagan akun & jurnal umum",
-        image: "/panduan/akuntansi-1.webp",
-        imageAlt: "Jurnal umum",
+        peragaan: "bagan-akun",
         body: [
           "Bagan akun standar Indonesia (kas, bank, piutang, persediaan, PPN, modal, pendapatan, beban) sudah tersedia sejak daftar; Anda bisa menambah akun sendiri atau mengganti namanya (kode & tipe terkunci demi integritas laporan).",
           "Sebagian besar jurnal dibuat otomatis oleh modul lain. Untuk pencatatan manual (mis. bayar listrik, setoran modal), pakai Jurnal Umum — sistem menolak jurnal yang tidak seimbang.",
@@ -19,8 +18,7 @@ export const KEUANGAN: GuideModule[] = [
       },
       {
         heading: "Buku besar & neraca saldo",
-        image: "/panduan/akuntansi-2.webp",
-        imageAlt: "Neraca saldo",
+        peragaan: "jurnal-pembalik",
         body: [
           "Buku besar menampilkan mutasi & saldo per akun. Neraca saldo merangkum semua akun — total debit selalu sama dengan total kredit; kalau tidak, sistemlah yang salah, bukan Anda (dan 390+ uji otomatis kami menjaganya).",
         ],
@@ -37,16 +35,14 @@ export const KEUANGAN: GuideModule[] = [
     sections: [
       {
         heading: "Laba Rugi & Neraca",
-        image: "/panduan/laporan-1.webp",
-        imageAlt: "Laporan laba rugi",
+        peragaan: "laporan-tersusun",
         body: [
           "Pilih periode → laporan tampil seketika. Neraca menyertakan laba berjalan sehingga selalu seimbang. Karena satu sumber (jurnal), angka antar laporan tidak mungkin saling bertentangan.",
         ],
       },
       {
         heading: "Arus Kas & Umur Tagihan",
-        image: "/panduan/laporan-2.webp",
-        imageAlt: "Laporan arus kas",
+        peragaan: "neraca-seimbang",
         body: [
           "Arus Kas menampilkan uang masuk/keluar per keterangan jurnal — memudahkan melihat ke mana kas mengalir. Umur Piutang/Utang mengelompokkan tagihan per usia (lancar, 1–30, 31–60, 61–90, >90 hari) agar penagihan terprioritas.",
         ],
@@ -68,8 +64,7 @@ export const KEUANGAN: GuideModule[] = [
     sections: [
       {
         heading: "Ekspor XML Coretax",
-        image: "/panduan/pajak-1.webp",
-        imageAlt: "Halaman ekspor e-Faktur",
+        peragaan: "ppn-coretax",
         steps: [
           "Pastikan NPWP perusahaan terisi di Pengaturan, dan NPWP pembeli terisi di Kontak.",
           "Buka Ekspor e-Faktur → pilih periode → \"Unduh XML Coretax\".",
@@ -90,8 +85,7 @@ export const KEUANGAN: GuideModule[] = [
     sections: [
       {
         heading: "Menetapkan & memantau anggaran",
-        image: "/panduan/anggaran-1.webp",
-        imageAlt: "Halaman anggaran",
+        peragaan: "anggaran-realisasi",
         steps: [
           "Pilih bulan → isi angka anggaran di baris akun pendapatan/beban (tersimpan saat pindah kolom).",
           "Kolom realisasi terisi otomatis dan selalu cocok dengan Laba Rugi bulan itu.",
@@ -108,8 +102,7 @@ export const KEUANGAN: GuideModule[] = [
     sections: [
       {
         heading: "Mendaftarkan & menyusutkan aset",
-        image: "/panduan/aset-1.webp",
-        imageAlt: "Register aset tetap",
+        peragaan: "aset-penyusutan",
         steps: [
           "Daftarkan aset: nama, kategori, tanggal & harga perolehan, umur manfaat (bulan), nilai residu, akun pembayar.",
           "Penyusutan bulanan berjalan otomatis (Cron) — akumulasi & nilai buku ikut terbarui, bebannya terjurnal.",
@@ -127,8 +120,7 @@ export const KEUANGAN: GuideModule[] = [
     sections: [
       {
         heading: "Kurs & faktur valas",
-        image: "/panduan/kurs-1.webp",
-        imageAlt: "Master kurs mata uang",
+        peragaan: "kurs-selisih",
         steps: [
           "Daftarkan mata uang & kursnya di halaman Mata Uang (mis. USD 16.200).",
           "Di form faktur, pilih mata uang + kurs transaksi — pembukuan tetap dalam Rupiah.",
@@ -146,8 +138,7 @@ export const KEUANGAN: GuideModule[] = [
     sections: [
       {
         heading: "Menambah perusahaan & laporan gabungan",
-        image: "/panduan/konsolidasi-1.webp",
-        imageAlt: "Laporan konsolidasi",
+        peragaan: "konsolidasi-entitas",
         steps: [
           "Di pengalih perusahaan (kiri atas) pilih \"Tambah perusahaan\" — database baru dibuat otomatis.",
           "Berpindah workspace kapan saja lewat pengalih yang sama.",

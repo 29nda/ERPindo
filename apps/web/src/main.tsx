@@ -68,6 +68,44 @@ const routes = [
   createRoute({ getParentRoute: () => rootRoute, path: "/cetak/penawaran", component: QuotationPrintPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/cetak/slip-gaji", component: PayslipPrintPage }),
   createRoute({ getParentRoute: () => rootRoute, path: "/cetak/1721a1", component: Form1721A1PrintPage }),
+  // Halaman publik untuk pembeli perusahaan (Fase 38d) — code-split, karena
+  // pengunjung yang datang ke beranda belum tentu membukanya.
+  //
+  // Keenamnya ada karena pembelian perangkat lunak perusahaan dinilai dan
+  // disetujui oleh orang yang berbeda, dan yang menilai bekerja dengan cara
+  // MENERUSKAN TAUTAN. `/#harga` bukan tautan yang layak diteruskan ke bagian
+  // pengadaan, dan tidak ada satu pun halaman yang bisa dikirim ke bagian
+  // hukum.
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/harga",
+    component: lazyRouteComponent(() => import("./pages/publik"), "HargaPage"),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/keamanan",
+    component: lazyRouteComponent(() => import("./pages/publik"), "KeamananPage"),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/tentang",
+    component: lazyRouteComponent(() => import("./pages/publik"), "TentangPage"),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/kontak",
+    component: lazyRouteComponent(() => import("./pages/publik"), "KontakPage"),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/syarat",
+    component: lazyRouteComponent(() => import("./pages/publik"), "SyaratPage"),
+  }),
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/privasi",
+    component: lazyRouteComponent(() => import("./pages/publik"), "PrivasiPage"),
+  }),
   // Panduan pengguna: publik & code-split — kontennya tidak membebani bundle utama.
   createRoute({
     getParentRoute: () => rootRoute,

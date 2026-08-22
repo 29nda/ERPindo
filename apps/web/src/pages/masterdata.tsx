@@ -9,7 +9,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isi, useLang } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
-import { Contact, Download, Package, Search, Upload, Warehouse } from "lucide-react";
+import { Contact, Download, Package, Plus, Search, Upload, Warehouse } from "lucide-react";
+import { Halaman, Lembar } from "../components/kerangka";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { api, downloadCsv, formatIDR, parseCsv } from "../api/client";
 import { useDebounced } from "./commerce";
@@ -124,7 +125,7 @@ function ImportCsvButton({
         {u("unduhTemplate")}
       </Button>
       {result && result.errors.length > 0 ? (
-        <div className="w-full rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+        <div className="w-full rounded-lg border border-awas-line bg-awas-surface px-3 py-2 text-xs text-awas-ink">
           {result.errors.slice(0, 8).map((er) => (
             <div key={er.row}>
               {u("barisKe")} {er.row}: {er.message}
@@ -316,7 +317,7 @@ function RowActions({ onEdit, onArchive }: { onEdit: () => void; onArchive: () =
       </Button>
       <Button
         variant="ghost"
-        className="h-8 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
+        className="h-8 text-galat-ink hover:bg-galat-surface"
         onClick={onArchive}
       >
         {u("arsipkan")}
@@ -539,20 +540,43 @@ export function ProductsPage() {
     }
   }
 
+  const [tambahBuka, setTambahBuka] = useState(false);
   const busy = create.isPending || update.isPending;
-  return (
-    <div className="space-y-6">
-      <PageHeading k="produk" />
 
+  // Fase 38j — formulir produk pindah ke Lembar. Ia melayani DUA hal sekaligus:
+  // pembuatan (dibuka aksi utama) dan penyuntingan (dibuka tombol ubah pada
+  // baris). Keduanya memang formulir yang sama, dan menyatukannya di satu
+  // tempat menghilangkan kebingungan lama: dulu mengeklik "ubah" pada baris
+  // paling bawah menggulirkan halaman jauh ke atas tanpa penjelasan.
+  const lembarBuka = Boolean(editing) || tambahBuka;
+  const tutupLembar = () => {
+    setEditing(null);
+    setTambahBuka(false);
+  };
+
+  return (
+    <Halaman
+      k="produk"
+      ikon={Package}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setTambahBuka(true)}>
+            <Plus className="size-4" aria-hidden /> {u("tambahProduk")}
+          </Button>
+        ) : null
+      }
+    >
       {isAdmin && (query.data?.total ?? 0) === 0 ? <IndustryTemplateCard /> : null}
 
       {isAdmin ? (
-        <Card>
-          <CardHeader
-            title={editing ? `${u("ubahProduk")} — ${editing.sku}` : u("tambahProduk")}
-            description={editing ? u("descUbahProduk") : u("descTambahProduk")}
-          />
-          <CardBody className="space-y-4">
+        <Lembar
+          terbuka={lembarBuka}
+          tutup={tutupLembar}
+          lebar="lebar"
+          judul={editing ? `${u("ubahProduk")} — ${editing.sku}` : u("tambahProduk")}
+          deskripsi={editing ? u("descUbahProduk") : u("descTambahProduk")}
+        >
+          <div className="space-y-4">
             {editing ? null : (
               <ImportCsvButton
                 entity="products"
@@ -573,7 +597,7 @@ export function ProductsPage() {
             <form
               key={editing?.id ?? "new"}
               onSubmit={onSubmit}
-              className="grid gap-3 sm:grid-cols-[8rem_1fr_5rem_9rem_9rem_8rem_auto] sm:items-end"
+              className="grid gap-3 sm:grid-cols-2"
               noValidate
             >
               <div>
@@ -588,6 +612,15 @@ export function ProductsPage() {
                 <FieldError messages={issues.sku} />
               </div>
               <div>
+                <Label htmlFor="p-unit">{u("satuan")}</Label>
+                <Input
+                  id="p-unit"
+                  name="unit"
+                  placeholder="pcs"
+                  defaultValue={editing?.unit ?? "pcs"}
+                />
+              </div>
+              <div className="sm:col-span-2">
                 <Label htmlFor="p-name">{u("nama")}</Label>
                 <Input
                   id="p-name"
@@ -597,15 +630,6 @@ export function ProductsPage() {
                   required
                 />
                 <FieldError messages={issues.name} />
-              </div>
-              <div>
-                <Label htmlFor="p-unit">{u("satuan")}</Label>
-                <Input
-                  id="p-unit"
-                  name="unit"
-                  placeholder="pcs"
-                  defaultValue={editing?.unit ?? "pcs"}
-                />
               </div>
               <div>
                 <Label htmlFor="p-sell">{u("hargaJualRp")}</Label>
@@ -640,43 +664,7 @@ export function ProductsPage() {
                   defaultValue={editing?.min_stock || ""}
                 />
               </div>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={busy}>
-                  {busy ? <Spinner /> : null} {editing ? u("simpan") : u("tambah")}
-                </Button>
-                {editing ? (
-                  <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
-                    {u("batal")}
-                  </Button>
-                ) : null}
-              </div>
-              <div className="sm:col-span-7">
-                <CustomFieldInputs
-                  defs={kustom.defs}
-                  values={kustom.values}
-                  onChange={kustom.setValue}
-                  idPrefix="produk"
-                />
-              </div>
-              <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-3">
-                <input
-                  type="checkbox"
-                  name="trackExpiry"
-                  className="h-4 w-4 rounded border-line-strong"
-                  defaultChecked={editing ? editing.track_expiry === 1 : false}
-                />
-                {u("lacakLotKedaluwarsa")}
-              </label>
-              <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-3">
-                <input
-                  type="checkbox"
-                  name="isService"
-                  className="h-4 w-4 rounded border-line-strong"
-                  defaultChecked={editing ? editing.is_service === 1 : false}
-                />
-                {u("jasaTanpaStok")}
-              </label>
-              <div className="sm:col-span-3">
+              <div>
                 <Label htmlFor="p-barcode">{u("barcodeLabel")}</Label>
                 <Input
                   id="p-barcode"
@@ -686,7 +674,7 @@ export function ProductsPage() {
                 />
                 <FieldError messages={issues.barcode} />
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <Label htmlFor="p-uom2">{u("satuanBesar")}</Label>
                 <Input
                   id="p-uom2"
@@ -695,7 +683,7 @@ export function ProductsPage() {
                   defaultValue={editing?.uom_secondary ?? ""}
                 />
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <Label htmlFor="p-uomf">{u("satuanBesarSamaDengan")}</Label>
                 <Input
                   id="p-uomf"
@@ -709,19 +697,61 @@ export function ProductsPage() {
                 />
                 <FieldError messages={issues.uomFactor} />
               </div>
-              <label className="flex items-center gap-2 text-sm text-ink-soft sm:col-span-3">
+              <div className="sm:col-span-2">
+                <CustomFieldInputs
+                  defs={kustom.defs}
+                  values={kustom.values}
+                  onChange={kustom.setValue}
+                  idPrefix="produk"
+                />
+              </div>
+              <label className="flex items-start gap-2 text-sm text-ink-soft sm:col-span-2">
+                <input
+                  type="checkbox"
+                  name="trackExpiry"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong"
+                  defaultChecked={editing ? editing.track_expiry === 1 : false}
+                />
+                {u("lacakLotKedaluwarsa")}
+              </label>
+              <label className="flex items-start gap-2 text-sm text-ink-soft sm:col-span-2">
+                <input
+                  type="checkbox"
+                  name="isService"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong"
+                  defaultChecked={editing ? editing.is_service === 1 : false}
+                />
+                {u("jasaTanpaStok")}
+              </label>
+              <label className="flex items-start gap-2 text-sm text-ink-soft sm:col-span-2">
                 <input
                   type="checkbox"
                   name="trackSerial"
-                  className="h-4 w-4 rounded border-line-strong"
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-line-strong"
                   defaultChecked={editing ? editing.track_serial === 1 : false}
                 />
                 {u("lacakNomorSeri")}
               </label>
+              {/*
+                Aksi utama duduk di DASAR formulir, bukan di tengahnya.
+                Sebelum Fase 38h formulir ini berbaris mendatar di atas daftar,
+                jadi tombolnya jatuh di kolom terakhir — di dalam Lembar yang
+                menggulir tegak, posisi itu menaruh "Simpan" di tengah medan.
+              */}
+              <div className="flex gap-2 border-t border-line pt-3 sm:col-span-2">
+                <Button type="submit" disabled={busy}>
+                  {busy ? <Spinner /> : null} {editing ? u("simpan") : u("tambah")}
+                </Button>
+                {editing ? (
+                  <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
+                    {u("batal")}
+                  </Button>
+                ) : null}
+              </div>
             </form>
             {editing && editing.track_serial === 1 ? <SerialManager product={editing} /> : null}
-          </CardBody>
-        </Card>
+          </div>
+        </Lembar>
       ) : null}
 
       <Card>
@@ -840,7 +870,7 @@ export function ProductsPage() {
         onConfirm={() => toArchive && archive.mutate(toArchive.id)}
         onCancel={() => setToArchive(null)}
       />
-    </div>
+    </Halaman>
   );
 }
 
@@ -868,6 +898,7 @@ const CONTACT_TYPE_LABELS: Record<ContactType, UiKey> = {
 
 export function ContactsPage() {
   const u = useUi();
+  const [tambahBuka, setTambahBuka] = useState(false);
   const {
     isAdmin,
     query,
@@ -918,16 +949,29 @@ export function ContactsPage() {
 
   const busy = create.isPending || update.isPending;
   return (
-    <div className="space-y-6">
-      <PageHeading k="kontak" />
-
+    <Halaman
+      k="kontak"
+      ikon={Contact}
+      aksi={
+        isAdmin ? (
+          <Button onClick={() => setTambahBuka(true)}>
+            <Plus className="size-4" aria-hidden /> {u("tambahKontak")}
+          </Button>
+        ) : null
+      }
+    >
       {isAdmin ? (
-        <Card>
-          <CardHeader
-            title={editing ? `${u("ubahKontak")} — ${editing.name}` : u("tambahKontak")}
-            description={editing ? u("descUbahKontak") : u("descTambahKontak")}
-          />
-          <CardBody className="space-y-4">
+        <Lembar
+          terbuka={Boolean(editing) || tambahBuka}
+          tutup={() => {
+            setEditing(null);
+            setTambahBuka(false);
+          }}
+          lebar="lebar"
+          judul={editing ? `${u("ubahKontak")} — ${editing.name}` : u("tambahKontak")}
+          deskripsi={editing ? u("descUbahKontak") : u("descTambahKontak")}
+        >
+          <div className="space-y-4">
             {editing ? null : (
               <ImportCsvButton
                 entity="contacts"
@@ -957,7 +1001,7 @@ export function ContactsPage() {
             <form
               key={editing?.id ?? "new"}
               onSubmit={onSubmit}
-              className="grid gap-3 sm:grid-cols-[11rem_1fr_1fr_1fr_auto] sm:items-end"
+              className="grid gap-3 sm:grid-cols-2"
               noValidate
             >
               <div>
@@ -968,7 +1012,25 @@ export function ContactsPage() {
                   <option value="both">{u("keduanya")}</option>
                 </Select>
               </div>
+              {/* Fase 23a: grup harga pelanggan. Ditaruh di form utama, bukan di
+                  blok "hanya saat mengubah", karena grup paling sering ditetapkan
+                  justru saat pelanggan grosir pertama kali didaftarkan. */}
               <div>
+                <Label htmlFor="k-price-group">{u("ghGrup")}</Label>
+                <Select
+                  id="k-price-group"
+                  name="priceGroupId"
+                  defaultValue={editing?.price_group_id ?? ""}
+                >
+                  <option value="">{u("ghTanpaGrup")}</option>
+                  {priceGroups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
                 <Label htmlFor="k-name">{u("nama")}</Label>
                 <Input
                   id="k-name"
@@ -999,45 +1061,9 @@ export function ContactsPage() {
                   defaultValue={editing?.phone ?? ""}
                 />
               </div>
-              {/* Fase 23a: grup harga pelanggan. Ditaruh di form utama, bukan di
-                  blok "hanya saat mengubah", karena grup paling sering ditetapkan
-                  justru saat pelanggan grosir pertama kali didaftarkan. */}
-              <div>
-                <Label htmlFor="k-price-group">{u("ghGrup")}</Label>
-                <Select
-                  id="k-price-group"
-                  name="priceGroupId"
-                  defaultValue={editing?.price_group_id ?? ""}
-                >
-                  <option value="">{u("ghTanpaGrup")}</option>
-                  {priceGroups.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" disabled={busy}>
-                  {busy ? <Spinner /> : null} {editing ? u("simpan") : u("tambah")}
-                </Button>
-                {editing ? (
-                  <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
-                    {u("batal")}
-                  </Button>
-                ) : null}
-              </div>
-              <div className="sm:col-span-5">
-                <CustomFieldInputs
-                  defs={kustom.defs}
-                  values={kustom.values}
-                  onChange={kustom.setValue}
-                  idPrefix="kontak"
-                />
-              </div>
               {editing ? (
                 <>
-                  <div className="sm:col-span-2">
+                  <div>
                     <Label htmlFor="k-address">{u("alamat")}</Label>
                     <Input
                       id="k-address"
@@ -1057,9 +1083,27 @@ export function ContactsPage() {
                   </div>
                 </>
               ) : null}
+              <div className="sm:col-span-2">
+                <CustomFieldInputs
+                  defs={kustom.defs}
+                  values={kustom.values}
+                  onChange={kustom.setValue}
+                  idPrefix="kontak"
+                />
+              </div>
+              <div className="flex gap-2 border-t border-line pt-3 sm:col-span-2">
+                <Button type="submit" disabled={busy}>
+                  {busy ? <Spinner /> : null} {editing ? u("simpan") : u("tambah")}
+                </Button>
+                {editing ? (
+                  <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
+                    {u("batal")}
+                  </Button>
+                ) : null}
+              </div>
             </form>
-          </CardBody>
-        </Card>
+          </div>
+        </Lembar>
       ) : null}
 
       <Card>
@@ -1146,7 +1190,7 @@ export function ContactsPage() {
         onConfirm={() => toArchive && archive.mutate(toArchive.id)}
         onCancel={() => setToArchive(null)}
       />
-    </div>
+    </Halaman>
   );
 }
 
