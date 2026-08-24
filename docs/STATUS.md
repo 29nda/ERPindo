@@ -432,8 +432,8 @@ Kenapa $5 memang diperlukan, dengan angka: paket gratis Cloudflare membatasi 100
 
 Pekerjaan kode sudah selesai, dan infrastruktur Cloudflare (7 database + penyimpanan cepat) sudah dibuatkan. **Sisanya hanya bisa Anda kerjakan**, karena menuntut akses ke akun Cloudflare Anda:
 
-0. **Buka <https://erpindo.29nurudhuhaalamin.workers.dev> sekali** → skema database terbentuk sendiri pada request pertama (10 detik, gratis). **Kerjakan ini lebih dulu.**
-1. **Semai ulang demo publik** → demo produksi masih 6 bulan sampai workflow-nya dijalankan (±20 menit, gratis).
+0. ~~**Buka alamat aplikasi sekali** → skema database terbentuk sendiri.~~ ✅ **Sudah selesai.** Diperiksa langsung di database produksi pada 24 Agustus 2026: ke-19 tabel control-plane sudah terbentuk.
+1. ~~**Semai ulang demo publik**~~ ✅ **Sudah selesai.** Demo produksi kini berisi 236 jurnal yang membentang **15 bulan** (Juni 2025 s.d. Agustus 2026), bukan 6 bulan seperti tertulis sebelumnya. Neracanya juga diperiksa dan seimbang tepat.
 2. **Workers Paid + D1 dinamis** → menembus batas 6 perusahaan ($5/bulan).
 3. **Token analitik** → menyalakan monitor kuota di dasbor (±5 menit, gratis).
 
