@@ -15,8 +15,8 @@
 
 | # | Langkah | Waktu | Biaya | Akibat bila ditunda |
 | --- | --- | --- | --- | --- |
-| **0** | **Buka alamat di atas sekali** | **10 detik** | gratis | **Skema database belum terbentuk.** Kerjakan ini lebih dulu — sisanya bergantung padanya |
-| 1 | Semai ulang demo → 12 bulan | ±20 menit | gratis | Demo masih 6 bulan; calon pelanggan melihat produk yang lebih dangkal daripada aslinya |
+| ~~0~~ | ~~Buka alamat di atas sekali~~ | — | — | ✅ **Sudah selesai** — skema control-plane terbentuk (diperiksa 24 Agustus 2026) |
+| ~~1~~ | ~~Semai ulang demo → 12 bulan~~ | — | — | ✅ **Sudah selesai** — demo produksi berisi 15 bulan data, neraca seimbang (diperiksa 24 Agustus 2026) |
 | 2 | Workers Paid + D1 dinamis | ±15 menit | **$5/bulan** | **Kapasitas mentok 6 perusahaan.** Pendaftar ke-7 ditolak |
 | 3 | Token analitik (monitor kuota) | ±5 menit | gratis | Anda tidak tahu sisa kuota sampai pelanggan menelepon karena aplikasi mati |
 

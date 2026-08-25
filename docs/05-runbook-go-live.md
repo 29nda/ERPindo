@@ -172,8 +172,8 @@ akan membuat aplikasi gagal keras.
 ## 4. Checklist pra-peluncuran
 
 **Gerbang mutu (harus hijau — sudah otomatis di CI):**
-- [ ] `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` (**1.087 smoke · 470 unit**)
-- [ ] `node scripts/ui-sim.mjs` (**337 cek browser**)
+- [ ] `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` (**1.157 smoke · 917 unit**)
+- [ ] `node scripts/ui-sim.mjs` (**424 cek browser**)
 - [ ] `pnpm lint`
 
 **Urutan pasang kunci (bukan sembarang urutan):**
@@ -202,12 +202,14 @@ akan membuat aplikasi gagal keras.
       menunjuk domain final
 - [ ] Empat kunci §1 terpasang (Xendit **produksi** + token webhook-nya, Google, admin, Resend)
 - [ ] `COMPED_EMAILS` berisi email pemilik (akun kebal trial) bila diperlukan
-- [ ] **Demo publik disemai ulang ke 6 bulan** (Fase 24b). Sejak trial dihapus,
-      demo inilah satu-satunya cara calon pelanggan menilai produk — landing
-      menjanjikan "6 bulan data nyata", jadi demo yang masih berisi 2 bulan
-      membuat janji itu tidak ditepati. Caranya di §7.
-- [ ] Seed demo produksi masih tampil sehat (`/app` mode demo, neraca seimbang,
-      **laba positif** di jendela 6 bulan maupun bulan berjalan)
+- [x] **Demo publik disemai ulang ke 12 bulan** (Fase 24b, diperdalam di Fase 30).
+      Sejak trial dihapus, demo inilah satu-satunya cara calon pelanggan menilai
+      produk. Caranya di §7. **Terverifikasi 24 Agustus 2026:** demo produksi
+      berisi 236 jurnal yang membentang 15 bulan (2025-06 s.d. 2026-08).
+- [x] Seed demo produksi masih tampil sehat (`/app` mode demo, neraca seimbang,
+      **laba positif** di jendela 12 bulan maupun bulan berjalan).
+      **Terverifikasi 24 Agustus 2026** langsung di D1 produksi: total debit =
+      total kredit (Rp 5.085.725.220) dan **nol** jurnal yang tidak seimbang.
 
 **Uji asap manual pasca-deploy (di domain produksi):**
 - [ ] Daftar perusahaan baru → login → buat faktur → terima pembayaran → Neraca seimbang
@@ -284,7 +286,7 @@ migrasi yang perlu dijalankan.
 
 ---
 
-## 7. Menyemai ulang demo publik (6 bulan)
+## 7. Menyemai ulang demo publik (12 bulan)
 
 Perusahaan demo **tidak pernah membayar**, dan sejak Fase 24a hanya akun yang
 terdaftar di `COMPED_EMAILS` yang mendapat database saat mendaftar. Karena itu
