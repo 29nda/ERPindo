@@ -490,3 +490,27 @@ body {
   --erp-galat-line: #e0a79f;
   --erp-galat-surface: #f9eae7;
 }
+
+/* --- Ukuran wordmark ERPindo (Fase 39b) -----------------------------------
+   Ukurannya di sini, bukan sebagai style inline di `BrandWordmark`, karena
+   style inline mengalahkan kelas apa pun — dan wordmark WAJIB mengecil di
+   layar sempit.
+
+   Angkanya berasal dari satu kegagalan yang nyata. Wordmark SPA dulu 0,72em,
+   sementara kembarannya di cangkang SSR (`apps/api/src/lib/kerangkaPublik.ts`)
+   1,35rem/1,28rem — 39% lebih besar. Dua berkas, satu merek, dua ukuran, dan
+   tidak pernah terlihat karena keduanya tidak pernah tampil di layar yang sama.
+
+   Menyamakan keduanya di 1em memperbaiki mereknya dan MERUSAK bilah atas
+   ponsel: pada 390px, `/app`, `/app/stok`, dan `/app/penjualan` meluber
+   menjadi 408px, dan asersi F26 ui-sim menangkapnya. Karena itu ukuran penuh
+   hanya berlaku sejak 640px ke atas; di bawah itu wordmark tetap dekat dengan
+   ukuran lamanya, tempat ia memang tidak punya ruang untuk tumbuh. */
+[data-wordmark] {
+  font-size: 0.75em;
+}
+@media (min-width: 640px) {
+  [data-wordmark] {
+    font-size: 1em;
+  }
+}

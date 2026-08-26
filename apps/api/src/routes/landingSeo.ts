@@ -1,4 +1,4 @@
-import { FAQ_RICH_RESULT, PLAN_LIMITS, PLANS } from "@erpindo/shared";
+import { FAQ_RICH_RESULT, FITUR_UTAMA, PLAN_LIMITS, PLANS } from "@erpindo/shared";
 import { Hono, type Context } from "hono";
 import type { AppEnv, Env } from "../env";
 
@@ -34,7 +34,43 @@ function origin(env: Env, reqUrl: string): string {
  */
 const FAQ = FAQ_RICH_RESULT;
 
-function jsonLd(base: string): string {
+/**
+ * Harga berformat Indonesia ("499.000"), dihitung SEKALI dari `PLAN_LIMITS`.
+ *
+ * Ada karena kalimat harga di blok <noscript> dulu ditulis
+ * `Rp \${PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")}` — dolarnya
+ * ter-escape, sehingga yang tersaji ke perayap adalah potongan kode itu sendiri,
+ * bukan angkanya. Tidak ada gerbang yang melihatnya selama berbulan-bulan:
+ * penjaga "SSR menyatakan satu harga tunggal" mencari "499.000" dan menemukannya
+ * di teks FAQ pada halaman yang sama, lalu menyatakan halaman itu benar.
+ *
+ * Konstanta ini menutup celahnya di sumbernya — tidak ada lagi ekspresi di dalam
+ * naskah yang bisa ter-escape — dan smoke kini menolak `${` mentah di <noscript>.
+ */
+const HARGA_ID = PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID");
+
+/**
+ * Tangkapan layar yang diumumkan ke schema.org.
+ *
+ * `screenshot` adalah properti sah `SoftwareApplication`, dan sejak halaman
+ * `/tampilan` ada, gambar-gambar ini benar-benar tersaji — jadi mengumumkannya
+ * bukan klaim kosong. Sengaja hanya empat: yang paling mewakili, bukan semuanya.
+ */
+const TANGKAPAN_LAYAR = ["dasbor", "kasir", "laba-rugi", "penggajian"];
+
+/**
+ * Data terstruktur, DIPILIH PER HALAMAN.
+ *
+ * Sebelumnya fungsi ini mengembalikan blok yang sama persis untuk kesembilan
+ * jalur — termasuk `FAQPage` di `/privasi` dan `/syarat`, yang tidak menampilkan
+ * satu pun tanya-jawab. Menjanjikan FAQ lewat markup pada halaman yang tidak
+ * memuatnya persis pelanggaran yang sudah diperbaiki Fase 31c di tempat lain;
+ * ia hanya lolos di sini karena tak ada yang memeriksa halaman selain beranda.
+ *
+ * Aturannya sekarang: sebuah blok hanya ikut bila halamannya benar-benar
+ * memperlihatkan isinya kepada manusia.
+ */
+function jsonLd(base: string, jalur: string): string {
   // Satu paket, satu penawaran (Fase 30). Tetap berbentuk daftar karena
   // schema.org `offers` memang menerima daftar, dan bentuknya tidak perlu
   // berubah bila suatu saat ada penawaran tahunan.
@@ -44,48 +80,130 @@ function jsonLd(base: string): string {
     price: PLAN_LIMITS[p].pricePerMonth,
     priceCurrency: "IDR",
     category: "monthly subscription",
+    availability: "https://schema.org/InStock",
+    url: `${base}/harga`,
   }));
-  const blocks = [
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      name: "ERPindo",
-      url: base,
-      logo: `${base}/pwa-512.png`,
-      description: "ERP multi-tenant untuk perusahaan Indonesia — akuntansi, POS, stok, penggajian, dan pajak dalam satu aplikasi, tanpa proyek implementasi.",
+
+  const organisasi = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "ERPindo",
+    url: base,
+    logo: `${base}/pwa-512.png`,
+    email: "halo@erpindo.id",
+    areaServed: { "@type": "Country", name: "Indonesia" },
+    knowsLanguage: ["id", "en"],
+    description:
+      "ERP multi-tenant untuk perusahaan Indonesia — akuntansi, POS, stok, penggajian, dan pajak dalam satu aplikasi, tanpa proyek implementasi.",
+  };
+
+  const situs = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "ERPindo",
+    url: base,
+    inLanguage: ["id-ID", "en"],
+    publisher: { "@type": "Organization", name: "ERPindo" },
+  };
+
+  const aplikasi = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "ERPindo",
+    applicationCategory: "BusinessApplication",
+    applicationSubCategory: "Enterprise Resource Planning",
+    operatingSystem: "Web, Android, iOS (PWA)",
+    url: base,
+    offers: priceOffer,
+    inLanguage: ["id-ID", "en"],
+    featureList: FITUR_UTAMA,
+    screenshot: TANGKAPAN_LAYAR.map((n) => `${base}/tampilan/${n}.webp`),
+    audience: {
+      "@type": "BusinessAudience",
+      audienceType: "Perusahaan di Indonesia — distributor, ritel, manufaktur, jasa, dan grup usaha multi-entitas",
     },
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      name: "ERPindo",
-      applicationCategory: "BusinessApplication",
-      operatingSystem: "Web, Android, iOS (PWA)",
-      url: base,
-      offers: priceOffer,
-      description: "Akuntansi double-entry, kasir POS, stok, penggajian PPh 21 TER, hingga e-Faktur. Demo publik berisi data nyata lintas seluruh modul, tanpa perlu mendaftar.",
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: FAQ.map(([q, a]) => ({
-        "@type": "Question",
-        name: q,
-        acceptedAnswer: { "@type": "Answer", text: a },
-      })),
-    },
-  ];
+    description:
+      "Akuntansi double-entry, kasir POS, stok, penggajian PPh 21 TER, hingga e-Faktur. Demo publik berisi data nyata lintas seluruh modul, tanpa perlu mendaftar.",
+  };
+
+  const tanyaJawab = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ.map(([q, a]) => ({
+      "@type": "Question",
+      name: q,
+      acceptedAnswer: { "@type": "Answer", text: a },
+    })),
+  };
+
+  /** Remah roti: menolong mesin memahami tempat halaman di dalam situs. */
+  const remah = (nama: string) => ({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Beranda", item: base },
+      { "@type": "ListItem", position: 2, name: nama, item: `${base}${jalur}` },
+    ],
+  });
+
+  const NAMA_HALAMAN: Record<string, string> = {
+    "/fitur": "Fitur",
+    "/harga": "Harga",
+    "/keamanan": "Keamanan",
+    "/tentang": "Tentang",
+    "/kontak": "Kontak",
+    "/syarat": "Syarat Layanan",
+    "/privasi": "Kebijakan Privasi",
+    "/tampilan": "Tampilan Aplikasi",
+  };
+
+  const blocks: object[] = [organisasi, situs];
+  // Beranda satu-satunya yang benar-benar MENAMPILKAN tanya-jawab kepada
+  // pembaca, jadi ia satu-satunya yang boleh mengumumkan FAQPage.
+  if (jalur === "/") blocks.push(aplikasi, tanyaJawab);
+  // `/fitur` dan `/tampilan` memperlihatkan produknya sendiri — layak
+  // SoftwareApplication, tetapi TANPA `offers`: penawaran hidup di `/harga`,
+  // dan menyebar Offer ke banyak halaman membuat mesin melihat banyak harga.
+  else if (jalur === "/fitur" || jalur === "/tampilan") {
+    const { offers: _abaikan, ...tanpaHarga } = aplikasi;
+    blocks.push(tanpaHarga);
+  } else if (jalur === "/harga") blocks.push(aplikasi);
+  if (jalur !== "/" && NAMA_HALAMAN[jalur]) blocks.push(remah(NAMA_HALAMAN[jalur]));
+
   return blocks
     .map((b) => `<script type="application/ld+json">${JSON.stringify(b).replace(/</g, "\\u003c")}</script>`)
     .join("\n");
 }
+
+/**
+ * Jawaban langsung atas "apa itu ERPindo", satu paragraf, berdiri sendiri.
+ *
+ * Ditulis untuk DIKUTIP UTUH oleh mesin penjawab (ChatGPT, Perplexity, ringkasan
+ * AI Google). Mesin begitu mengutip paragraf yang menjawab pertanyaannya tanpa
+ * perlu kalimat sebelum atau sesudahnya — jadi subjeknya disebut penuh
+ * ("ERPindo adalah…"), bukan "kami" atau "aplikasi ini", dan setiap angka yang
+ * dipakai berdiri di kalimat yang sama dengan satuannya.
+ */
+const DEFINISI =
+  `ERPindo adalah perangkat lunak ERP berbasis web untuk perusahaan di Indonesia. ` +
+  `Satu aplikasi mencakup akuntansi double-entry, kasir (POS), stok multi-gudang, ` +
+  `pembelian, penggajian dengan PPh 21 metode TER, PPN, dan ekspor e-Faktur ke Coretax DJP. ` +
+  `Harganya Rp ${HARGA_ID} per perusahaan per bulan untuk pengguna tak terbatas, ` +
+  `seluruh modul terbuka, tanpa biaya implementasi dan tanpa lisensi per pengguna.`;
 
 /** Konten teks minimal untuk crawler tanpa JS (SPA butuh JS untuk render penuh). */
 function noscriptBlock(base: string): string {
   const faqHtml = FAQ.map(([q, a]) => `<h3>${q}</h3><p>${a}</p>`).join("");
   return `<noscript><div>
 <h1>ERPindo — ERP untuk perusahaan Indonesia</h1>
+<p>${DEFINISI}</p>
 <p>Akuntansi double-entry, kasir POS, stok, penggajian (PPh 21 TER), dan pajak (PPN, e-Faktur/Coretax) dalam satu aplikasi. Pengguna tak terbatas. Telusuri demo publik berisi data nyata lintas seluruh modul tanpa mendaftar.</p>
-<p>Satu paket, satu harga: Rp \${PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")} per perusahaan per bulan — seluruh modul terbuka, pengguna tak terbatas.</p>
+<p>Satu paket, satu harga: Rp ${HARGA_ID} per perusahaan per bulan — seluruh modul terbuka, pengguna tak terbatas.</p>
+<h2>Untuk siapa ERPindo dibuat</h2>
+<p>Perusahaan di Indonesia yang pembukuannya sudah melampaui spreadsheet: distributor, ritel dan jaringan toko, manufaktur skala kecil dan menengah, kontraktor dan perusahaan jasa, serta grup usaha dengan lebih dari satu badan usaha yang perlu laporan konsolidasi.</p>
+<h2>Yang membedakan ERPindo</h2>
+<p>Tidak ada proyek implementasi: bagan akun standar Indonesia, tarif PPN, PPh 21 TER, dan BPJS sudah terpasang saat perusahaan dibuat. Tagihan dihitung per perusahaan, bukan per pengguna. Tiap perusahaan memakai basis data tersendiri, dan seluruh datanya dapat diunduh sebagai CSV kapan saja, termasuk setelah langganan berakhir.</p>
+<p><a href="${base}/tampilan">Tangkapan layar aplikasi</a> · <a href="${base}/fitur">Fitur per modul</a> · <a href="${base}/harga">Harga</a> · <a href="${base}/keamanan">Keamanan</a></p>
 <p><a href="${base}/daftar">Daftar &amp; berlangganan</a> · <a href="${base}/masuk">Masuk</a> · <a href="${base}/panduan">Panduan</a> · <a href="${base}/blog">Blog</a></p>
 ${faqHtml}
 </div></noscript>`;
@@ -165,6 +283,10 @@ const RINGKAS_PUBLIK: Record<string, [judul: string, isi: string]> = {
     "Syarat Layanan ERPindo",
     "Syarat berlangganan ERPindo: biaya per perusahaan per bulan, berhenti kapan saja, data tetap milik pelanggan dan dapat diunduh kapan saja. Naskah lengkap berbahasa Indonesia.",
   ],
+  "/tampilan": [
+    "Tampilan aplikasi ERPindo",
+    "Sepuluh tangkapan layar aplikasi ERPindo yang sedang berjalan di atas data demo: dasbor, kasir (POS), faktur penjualan, laba rugi, neraca, stok, penggajian, jurnal, ekspor e-Faktur, dan aset tetap. Seluruhnya ditangkap otomatis dari aplikasi yang benar-benar berjalan, dan tanggal penangkapannya tercetak di halaman.",
+  ],
   "/privasi": [
     "Kebijakan Privasi ERPindo",
     "Data tiap perusahaan disimpan dalam basis data tersendiri. Data tidak dijual dan tidak dipakai untuk periklanan. Ekspor dan permintaan penghapusan tersedia. Naskah lengkap berbahasa Indonesia.",
@@ -189,7 +311,7 @@ async function sajikan(c: Context<AppEnv>, jalur: string, noscript: (base: strin
   if (!res.ok) return c.env.ASSETS.fetch(c.req.raw); // fallback: layani apa adanya
   let html = await res.text();
   const canonical = `<link rel="canonical" href="${base}${jalur}" />`;
-  html = html.replace("</head>", `${canonical}\n${jsonLd(base)}\n</head>`);
+  html = html.replace("</head>", `${canonical}\n${jsonLd(base, jalur)}\n</head>`);
   html = html.replace("</body>", `${noscript(base)}\n</body>`);
   return c.html(html);
 }
@@ -210,4 +332,8 @@ export const landingSeoRoutes = new Hono<AppEnv>()
   .get("/tentang", (c) => sajikan(c, "/tentang", noscriptPublik("/tentang")))
   .get("/kontak", (c) => sajikan(c, "/kontak", noscriptPublik("/kontak")))
   .get("/syarat", (c) => sajikan(c, "/syarat", noscriptPublik("/syarat")))
-  .get("/privasi", (c) => sajikan(c, "/privasi", noscriptPublik("/privasi")));
+  .get("/privasi", (c) => sajikan(c, "/privasi", noscriptPublik("/privasi")))
+  // Fase 39d — halaman tangkapan layar. Empat tempat yang sama harus ikut:
+  // rute di sini, `run_worker_first` di wrangler.jsonc, sitemap.xml di blog.ts,
+  // dan rute SPA di apps/web/src/main.tsx.
+  .get("/tampilan", (c) => sajikan(c, "/tampilan", noscriptPublik("/tampilan")));

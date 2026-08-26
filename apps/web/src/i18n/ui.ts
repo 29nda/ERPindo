@@ -3470,6 +3470,50 @@ export const UI = {
   prFakturTakDitemukan: { id: "Faktur tidak ditemukan, atau Anda tidak punya akses ke perusahaannya.", en: "Invoice not found, or you do not have access to its company." },
   stokUsulanCatatan: { id: "Usulan otomatis dari titik pesan (stok menipis)", en: "Suggested automatically from the reorder point (stock is low)" },
 
+  // --- Fase 39c: dokumen cetak (apps/web/src/pages/print.tsx) ----------------
+  //
+  // Empat halaman cetak — faktur, penawaran, slip gaji, dan rekap 1721-A1 —
+  // adalah satu-satunya naskah aplikasi yang MENINGGALKAN aplikasi: ia dicetak,
+  // dilampirkan ke surel, dan dikirim ke pelanggan serta karyawan. Sampai fase
+  // ini keempatnya berbahasa Indonesia harfiah, sehingga pengguna yang sudah
+  // memilih Inggris tetap mengirimkan faktur berbahasa Indonesia — dan itu
+  // justru dokumen yang paling dilihat orang di luar perusahaannya.
+  prCetakPdf: { id: "🖨 Cetak / Simpan PDF", en: "🖨 Print / Save as PDF" },
+  // Surat jalan (apps/web/src/pages/salesorders.tsx) dirakit sebagai string HTML
+  // ke jendela cetak baru, bukan sebagai JSX — sehingga ia luput dari seluruh
+  // program dwibahasa Fase 19 meski merupakan dokumen yang DISERAHKAN kepada
+  // pelanggan dan ditandatangani penerimanya.
+  sjJudul: { id: "SURAT JALAN", en: "DELIVERY NOTE" },
+  sjPesanan: { id: "Pesanan", en: "Order" },
+  sjKepada: { id: "Kepada:", en: "To:" },
+  sjTanggal: { id: "Tanggal:", en: "Date:" },
+  sjBarang: { id: "Barang", en: "Item" },
+  sjJumlah: { id: "Jumlah", en: "Qty" },
+  sjDiterimaOleh: { id: "Diterima oleh:", en: "Received by:" },
+  prJejakErpindo: { id: "Dibuat dengan ERPindo — ERP untuk perusahaan Indonesia", en: "Made with ERPindo — ERP for Indonesian companies" },
+  prTajukFaktur: { id: "FAKTUR", en: "INVOICE" },
+  prTajukPenawaran: { id: "PENAWARAN", en: "QUOTATION" },
+  prTanggalLabel: { id: "Tanggal:", en: "Date:" },
+  prStatusLabel: { id: "Status:", en: "Status:" },
+  prLunas: { id: "LUNAS", en: "PAID" },
+  prBelumLunas: { id: "BELUM LUNAS", en: "UNPAID" },
+  prKolomBarang: { id: "Barang", en: "Item" },
+  prKolomJumlah: { id: "Jumlah", en: "Amount" },
+  prSudahDibayar: { id: "Sudah dibayar", en: "Already paid" },
+  prPenawaranTakDitemukan: { id: "Penawaran tidak ditemukan, atau Anda tidak punya akses ke perusahaannya.", en: "Quotation not found, or you do not have access to its company." },
+  prKedaluwarsa: { id: "(KEDALUWARSA)", en: "(EXPIRED)" },
+  prCatatan: { id: "Catatan", en: "Notes" },
+  prPenawaranBukanTagihan: { id: "Dokumen ini adalah penawaran harga, bukan tagihan. Harga dapat berubah setelah masa berlaku berakhir.", en: "This document is a price quotation, not an invoice. Prices may change once the validity period ends." },
+  prSlipTakDitemukan: { id: "Slip gaji tidak ditemukan, atau Anda tidak punya akses ke perusahaannya.", en: "Payslip not found, or you do not have access to its company." },
+  prKaryawanTakDitemukan: { id: "Karyawan tidak ditemukan, atau Anda tidak punya akses ke perusahaannya.", en: "Employee not found, or you do not have access to their company." },
+  prNamaKaryawan: { id: "Nama karyawan", en: "Employee name" },
+  prStatusPtkp: { id: "Status PTKP:", en: "PTKP status:" },
+  prRekening: { id: "Rekening:", en: "Bank account:" },
+  prSlipCatatanKaki: { id: "Slip gaji ini dihasilkan otomatis oleh ERPindo. Tarif PPh 21 (TER) & BPJS mengikuti ketentuan yang berlaku.", en: "This payslip is generated automatically by ERPindo. PPh 21 (TER) and BPJS rates follow the regulations in force." },
+  prKolomMasa: { id: "Masa", en: "Period" },
+  prBelumAdaPenggajian: { id: "Belum ada penggajian untuk karyawan ini di tahun {0}. Jalankan penggajian lebih dulu lewat menu Penggajian, lalu cetak ulang ringkasan ini.", en: "No payroll has been run for this employee in {0}. Run payroll from the Payroll menu first, then print this summary again." },
+  prRekapCatatanKaki: { id: "Ringkasan ini disusun dari data penggajian di ERPindo sebagai alat bantu. Untuk pelaporan pajak resmi, cocokkan dengan formulir 1721-A1 dan ketentuan DJP yang berlaku.", en: "This summary is assembled from ERPindo payroll data as an aid. For official tax reporting, reconcile it against form 1721-A1 and the DJP regulations in force." },
+
   // Fase 33h — dulu dirakit dari potongan kamus (prefix + nilai + suffix),
   // yang mengunci urutan kata Indonesia ke dalam kode.
   toastDisetujuiDiposting: { id: "Disetujui — {0} diposting ({1}).", en: "Approved — {0} posted ({1})." },

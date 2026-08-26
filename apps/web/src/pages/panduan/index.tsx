@@ -31,7 +31,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../../components/ui";
-import { PublicFooter, PublicHeader, PublicShell } from "../../components/publik";
+import { L, PublicFooter, PublicHeader, PublicShell } from "../../components/publik";
 import { Peragaan, PERAGAAN } from "../../peragaan";
 import { pick, useLang } from "../../i18n";
 import { GUIDE_CATEGORIES, GUIDE_MODULES, guideBySlug, type GuideModule } from "./content";
@@ -139,10 +139,21 @@ export function PanduanIndexPage() {
       <PublicHeader sub={{ id: "Panduan", en: "Guide" }} />
       <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Panduan ERPindo</h1>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            {L(lang, "Panduan ERPindo", "ERPindo guide")}
+          </h1>
+          {/* Fase 39c: kalimat ini dulu menjanjikan "tangkapan layar asli dari
+              aplikasi" — dan sejak Fase 38 mengganti gambar dengan peragaan,
+              janji itu tidak lagi benar. Dua gerbang bahkan saling bertentangan
+              tanpa ada yang menyadarinya: ui-sim MENJAMIN panduan tidak memuat
+              satu pun tangkapan layar, sementara halamannya mengiklankannya.
+              Tangkapan layar sekarang punya rumahnya sendiri di `/tampilan`. */}
           <p className="mx-auto mt-3 max-w-2xl text-ink-soft">
-            Cara memakai setiap fitur — dengan tangkapan layar asli dari aplikasi. Semua modul, dari faktur pertama
-            sampai ekspor XML Coretax.
+            {L(
+              lang,
+              "Cara memakai setiap fitur — dengan peragaan yang berjalan langsung di halamannya. Semua modul, dari faktur pertama sampai ekspor XML Coretax.",
+              "How to use every feature — with demos that run right on the page. Every module, from your first invoice through to the Coretax XML export.",
+            )}
           </p>
           <div className="relative mx-auto mt-6 max-w-md">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-muted" aria-hidden />
@@ -189,7 +200,9 @@ export function PanduanIndexPage() {
         })}
 
         {GUIDE_MODULES.filter(matches).length === 0 ? (
-          <p className="mt-12 text-center text-sm text-ink-muted">Tidak ada panduan yang cocok dengan pencarian.</p>
+          <p className="mt-12 text-center text-sm text-ink-muted">
+            {L(lang, "Tidak ada panduan yang cocok dengan pencarian.", "No guide matches your search.")}
+          </p>
         ) : null}
       </main>
       <PublicFooter />
@@ -198,6 +211,7 @@ export function PanduanIndexPage() {
 }
 
 export function PanduanModulePage() {
+  const lang = useLang();
   const { modul } = useParams({ strict: false }) as { modul: string };
   const mod = guideBySlug(modul);
   const idx = GUIDE_MODULES.findIndex((m) => m.slug === modul);
@@ -209,9 +223,9 @@ export function PanduanModulePage() {
       <PublicShell>
         <PublicHeader sub={{ id: "Panduan", en: "Guide" }} />
         <main className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6">
-          <p className="text-ink-soft">Panduan tidak ditemukan.</p>
+          <p className="text-ink-soft">{L(lang, "Panduan tidak ditemukan.", "Guide not found.")}</p>
           <Link to="/panduan" className="mt-4 inline-block text-brand-ink hover:underline">
-            ← Kembali ke daftar panduan
+            {L(lang, "← Kembali ke daftar panduan", "← Back to the guide index")}
           </Link>
         </main>
         <PublicFooter />
@@ -256,7 +270,8 @@ export function PanduanModulePage() {
             {mod.appPath ? (
               <a href={mod.appPath} target="_blank" rel="noreferrer">
                 <Button variant="secondary" className="h-9">
-                  Buka di aplikasi <ExternalLink className="size-3.5" aria-hidden />
+                  {L(lang, "Buka di aplikasi", "Open in the app")}{" "}
+                  <ExternalLink className="size-3.5" aria-hidden />
                 </Button>
               </a>
             ) : null}

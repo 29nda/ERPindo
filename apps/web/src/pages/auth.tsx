@@ -94,7 +94,7 @@ function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: R
           aria-hidden
         />
         <Link to="/" className="relative">
-          <BrandWordmark className="h-8" />
+          <BrandWordmark className="h-9" />
         </Link>
         <div className="relative">
           <h2 className="max-w-md text-2xl font-semibold leading-snug">{u("authTagline")}</h2>
@@ -118,7 +118,7 @@ function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: R
             undangan) tidak punya cara mengganti bahasa sama sekali. */}
         <LangSwitcher className="absolute right-4 top-4" />
         <Link to="/" className="mb-5 lg:hidden">
-          <BrandWordmark className="h-7" />
+          <BrandWordmark className="h-8" />
         </Link>
         <Card className="w-full max-w-md">
           <CardBody className="py-6">

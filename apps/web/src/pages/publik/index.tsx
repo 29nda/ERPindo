@@ -11,8 +11,11 @@ import {
   T_HARGA,
   T_KEAMANAN,
   T_KONTAK,
+  T_TAMPILAN,
   T_TENTANG,
+  TANGKAPAN,
 } from "./teks";
+import { TANGKAPAN_KOMIT, TANGKAPAN_TANGGAL } from "./tangkapanMeta";
 import { BERLAKU_SEJAK, PRIVASI, SYARAT, T_LEGAL, type BagianLegal } from "./legalTeks";
 
 /**
@@ -299,6 +302,76 @@ export function KontakPage() {
 }
 
 // --- /syarat & /privasi -----------------------------------------------------
+
+
+/**
+ * `/tampilan` (Fase 39d) — tangkapan layar aplikasi.
+ *
+ * Alasan halaman ini ada beserta hubungannya dengan keputusan Fase 38 ditulis
+ * lengkap di atas `T_TAMPILAN` (`./teks.ts`). Yang perlu diketahui saat membaca
+ * komponen ini: gambarnya dihasilkan `scripts/tangkap-layar.mjs`, bukan ditulis
+ * tangan, dan umurnya sengaja ditampilkan.
+ */
+export function TampilanPage() {
+  const lang = useLang();
+  return (
+    <PublicShell>
+      <PublicHeader />
+      <Kepala judul={T_TAMPILAN.judul} pengantar={T_TAMPILAN.pengantar} />
+      <Isi>
+        {/* Umur tangkapan disebut di ATAS gambarnya, bukan di kaki halaman.
+            Pembaca yang menilai produk berhak tahu seberapa baru yang
+            dilihatnya sebelum ia menilainya, bukan sesudah. */}
+        <p className="pt-2 text-[13px] text-ink-muted">
+          {pick(T_TAMPILAN.umurAwalan, lang)}{" "}
+          <span className="num">{TANGKAPAN_TANGGAL}</span>{" "}
+          {pick(T_TAMPILAN.umurAkhiran, lang)} <span className="num">{TANGKAPAN_KOMIT}</span>.
+        </p>
+
+        <div className="space-y-12 py-8">
+          {TANGKAPAN.map((t) => (
+            <figure key={t.berkas}>
+              <figcaption className="mb-3">
+                <h2 className="judul text-xl text-ink">{pick(t.judul, lang)}</h2>
+                <p className="mt-1.5 max-w-[46rem] text-[15px] leading-relaxed text-ink-soft">
+                  {pick(t.isi, lang)}
+                </p>
+              </figcaption>
+              {/* `loading="lazy"` + width/height: sepuluh gambar sekaligus akan
+                  menahan muat halaman pertama, dan dimensi yang disebutkan
+                  mencegah tata letak melompat saat tiap gambar tiba. */}
+              <img
+                src={`/tampilan/${t.berkas}.webp`}
+                alt={pick(t.judul, lang)}
+                width={1200}
+                height={750}
+                loading="lazy"
+                decoding="async"
+                className="w-full rounded-card border border-line shadow-card"
+              />
+            </figure>
+          ))}
+        </div>
+
+        <section className="border-t border-line py-8">
+          <h2 className="judul text-xl text-ink">{pick(T_TAMPILAN.peragaanJudul, lang)}</h2>
+          <p className="mt-2 max-w-[46rem] text-[15px] leading-relaxed text-ink-soft">
+            {pick(T_TAMPILAN.peragaanIsi, lang)}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <a href="/">
+              <Button>{L(lang, "Lihat demo berisi data", "Open the demo with real data")}</Button>
+            </a>
+            <Link to="/daftar">
+              <Button variant="secondary">{L(lang, "Daftar & Berlangganan", "Sign up & subscribe")}</Button>
+            </Link>
+          </div>
+        </section>
+      </Isi>
+      <PublicFooter />
+    </PublicShell>
+  );
+}
 
 function HalamanLegal({ judul, bagian }: { judul: Dual; bagian: BagianLegal[] }) {
   const lang = useLang();

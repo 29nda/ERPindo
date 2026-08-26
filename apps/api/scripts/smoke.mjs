@@ -7056,7 +7056,16 @@ try {
   // `applicationCategory`, bukan nama paket. Tanpa pengecualian ini penegaknya
   // memerah selamanya karena hal yang benar — dan cek yang selalu merah akan
   // dimatikan orang, bukan diperbaiki.
-  const htmlTanpaSchema = landingHtml.replaceAll("BusinessApplication", "");
+  // Fase 39a: kosakata schema.org bertambah tiga, dan ketiganya memuat kata
+  // yang dulu menjadi nama paket. Dikecualikan dengan alasan yang sama persis
+  // seperti `BusinessApplication` di atas — ini istilah baku schema.org, bukan
+  // paket yang dijual. Yang tetap dijaga penjaga ini tidak berubah: kata
+  // "Starter"/"Business"/"Enterprise" yang berdiri SENDIRI sebagai nama paket.
+  //
+  // Dikecualikan sebagai frasa UTUH, bukan per kata, supaya "Enterprise" telanjang
+  // di kalimat jualan tetap tertangkap.
+  const KOSAKATA_SCHEMA = ["BusinessApplication", "Enterprise Resource Planning", "BusinessAudience"];
+  const htmlTanpaSchema = KOSAKATA_SCHEMA.reduce((h, k) => h.replaceAll(k, ""), landingHtml);
   const paketLama = ["Starter", "Business", "Enterprise"];
   const sisaNamaPaket = paketLama.filter((nama) => htmlTanpaSchema.includes(nama));
   check(
@@ -7152,6 +7161,8 @@ try {
     ["/kontak", "Kontak ERPindo"],
     ["/syarat", "Syarat Layanan ERPindo"],
     ["/privasi", "Kebijakan Privasi ERPindo"],
+    // Fase 39d — halaman tangkapan layar tunduk pada empat syarat yang sama.
+    ["/tampilan", "Tampilan aplikasi ERPindo"],
   ]) {
     const res = await fetch(`${BASE}${jalur}`);
     const html = await res.text();
@@ -7167,6 +7178,100 @@ try {
   // Halaman hukum menyatakan dirinya draf. Diuji karena kebalikannya —
   // dokumen yang tampak final padahal masih memuat penampung identitas — akan
   // beredar ke bagian hukum calon pelanggan tanpa ada yang menyadarinya.
+  // --- Fase 39a: naskah yang dibaca MESIN, bukan hanya perayap pencarian ------
+  //
+  // Tiga cek di bawah lahir dari satu bug sungguhan. Kalimat harga di blok
+  // <noscript> beranda ditulis `Rp \${PLAN_LIMITS...toLocaleString("id-ID")}` —
+  // dolarnya ter-escape di dalam template literal, sehingga yang tersaji ke
+  // Google dan mesin penjawab adalah POTONGAN KODE ITU SENDIRI, bukan angkanya.
+  //
+  // Yang membuatnya bertahan lama bukan ketiadaan gerbang, melainkan gerbang
+  // yang menyatakan hal benar karena alasan yang salah: penjaga "SSR menyatakan
+  // satu harga tunggal" mencari "499.000", dan menemukannya di teks FAQ pada
+  // halaman yang sama. Halaman dinyatakan benar sementara kalimat harganya rusak.
+  //
+  // Karena itu cek pertama tidak mencari yang BENAR melainkan menolak yang
+  // MUSTAHIL: sintaks template yang tersisa di keluaran adalah kode yang bocor,
+  // apa pun bentuknya.
+  const landingNoscript = landingHtml.slice(landingHtml.indexOf("<noscript>"), landingHtml.indexOf("</noscript>") + 11);
+  check(
+    "39a <noscript> beranda tidak membocorkan sintaks template ke perayap",
+    !landingNoscript.includes("${"),
+    `→ ${landingNoscript.includes("${") ? landingNoscript.match(/\$\{[^}]*\}/)?.[0] : "bersih"}`,
+  );
+  check(
+    "39a kalimat harga <noscript> memuat angkanya, bukan ekspresinya",
+    /Satu paket, satu harga: Rp 499\.000 per perusahaan per bulan/.test(landingNoscript),
+    "→ tidak ditemukan",
+  );
+
+  // Definisi berdiri sendiri: yang dikutip mesin penjawab saat ditanya "apa itu
+  // ERPindo". Harus menyebut subjeknya penuh, bukan "kami" atau "aplikasi ini".
+  check(
+    "39a <noscript> beranda memuat definisi yang bisa dikutip utuh",
+    /ERPindo adalah perangkat lunak ERP berbasis web untuk perusahaan di Indonesia/.test(landingNoscript),
+  );
+
+  // --- Fase 39a: /llms.txt ----------------------------------------------------
+  const llms = await fetch(`${BASE}/llms.txt`);
+  const llmsTxt = await llms.text();
+  check(
+    "39a /llms.txt 200 berjenis teks biasa",
+    llms.status === 200 && (llms.headers.get("content-type") ?? "").includes("text/plain"),
+    `→ status=${llms.status} tipe=${llms.headers.get("content-type")}`,
+  );
+  check(
+    "39a /llms.txt menyebut harga sebagai angka, bukan ekspresi",
+    llmsTxt.includes("Rp 499.000 per perusahaan per bulan") && !llmsTxt.includes("${"),
+  );
+  check(
+    "39a /llms.txt menyebut modul, FAQ, dan peta halaman",
+    llmsTxt.includes("## Modul") && llmsTxt.includes("## Pertanyaan yang sering diajukan") && llmsTxt.includes("## Halaman"),
+  );
+  // Bagian "Yang BELUM ada" adalah yang membuat berkas ini berguna, bukan
+  // sekadar brosur: model yang mengutipnya akan ikut menyebut batasannya, dan
+  // calon pelanggan tidak datang membawa harapan yang tidak bisa dipenuhi.
+  check(
+    "39a /llms.txt menyebut yang BELUM ada (ISO 27001, SOC 2, draf legal)",
+    llmsTxt.includes("Yang BELUM ada") && llmsTxt.includes("ISO 27001") && llmsTxt.includes("SOC 2"),
+  );
+  check("39a /llms.txt terdaftar sebagai jalur Worker (bukan SPA kosong)", !llmsTxt.includes("<div id=\"root\">"));
+
+  // --- Fase 39a: robots.txt menyambut perayap mesin penjawab ------------------
+  check(
+    "39a robots.txt menyebut perayap AI satu per satu dan mengizinkannya",
+    ["GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended"].every((n) => robotsTxt.includes(`User-agent: ${n}`)),
+  );
+  check(
+    "39a robots.txt tetap memblokir /app dan /api bagi perayap AI",
+    (robotsTxt.match(/Disallow: \/app/g) ?? []).length >= 2,
+  );
+
+  // --- Fase 39a: JSON-LD dipilih per halaman ----------------------------------
+  //
+  // FAQPage pada halaman yang tidak menampilkan satu pun tanya-jawab adalah
+  // markup yang menjanjikan sesuatu yang tidak ada di halamannya — pelanggaran
+  // data terstruktur yang sama seperti yang diperbaiki Fase 31c, dan sebelumnya
+  // disajikan di kesembilan jalur karena tak ada yang memeriksa selain beranda.
+  const privasiHtml = await (await fetch(`${BASE}/privasi`)).text();
+  check(
+    "39a FAQPage HANYA di beranda, tidak di /privasi yang tak memuat FAQ",
+    landingHtml.includes('"@type":"FAQPage"') && !privasiHtml.includes('"@type":"FAQPage"'),
+    `→ beranda=${landingHtml.includes('"@type":"FAQPage"')} privasi=${privasiHtml.includes('"@type":"FAQPage"')}`,
+  );
+  check(
+    "39a /privasi tetap mendapat Organization + remah roti",
+    privasiHtml.includes('"@type":"Organization"') && privasiHtml.includes('"@type":"BreadcrumbList"'),
+  );
+  check(
+    "39a Offer TIDAK menyebar ke /privasi (harga hidup di satu tempat)",
+    !privasiHtml.includes('"@type":"Offer"'),
+  );
+  check(
+    "39a JSON-LD beranda mengumumkan featureList + tangkapan layar yang benar-benar ada",
+    landingHtml.includes('"featureList"') && landingHtml.includes("/tampilan/dasbor.webp"),
+  );
+
   // --- Merek murni teks (Fase 38g) --------------------------------------------
   //
   // Halaman yang disajikan Worker adalah satu-satunya tempat logo raster masih

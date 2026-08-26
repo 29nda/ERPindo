@@ -780,9 +780,11 @@ export function BrandWordmark({ className = "h-8" }: { className?: string }) {
   return (
     <span
       className={cx("inline-flex select-none items-baseline leading-none", className)}
-      // Ukuran ikut tinggi wadah supaya pemanggil lama (`h-7`, `h-8`) tidak
-      // perlu diubah — sebelumnya tinggi datang dari <img className="h-full">.
-      style={{ fontSize: "0.72em" }}
+      // Ukuran DATANG DARI CSS (`[data-wordmark]` di styles.css), bukan dari
+      // style inline. Bukan selera: style inline mengalahkan kelas apa pun,
+      // sehingga ukuran yang ditulis di sini mustahil dibuat responsif — dan
+      // wordmark memang harus lebih kecil di layar sempit. Perinciannya beserta
+      // alasan angkanya ada di styles.css.
       // Penanda uji, BUKAN `aria-label`. Sejak wordmark menjadi teks sungguhan,
       // `aria-label="ERPindo"` justru MENIMPA isi yang dibaca pembaca layar —
       // ia mengulang apa yang sudah ada di DOM sambil membuang struktur

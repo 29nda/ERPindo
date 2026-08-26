@@ -3256,6 +3256,87 @@ try {
 
   check("F51 enam halaman publik bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
+  // --- F53 Halaman tampilan aplikasi (Fase 39d) -----------------------------
+  //
+  // Dicapai lewat KLIK di bilah atas, mengikuti alasan F51/F29: rute yang tidak
+  // tertaut dari mana pun sama saja tidak ada.
+  //
+  // Yang paling perlu dijaga di halaman ini bukan tata letaknya melainkan
+  // GAMBARNYA BENAR-BENAR TERMUAT. Uji vitest sudah memastikan berkasnya ada di
+  // cakram, tetapi berkas yang ada bisa tetap gagal tampil di peramban — jalur
+  // salah, dilayani sebagai 404 HTML, atau tertahan aturan aset Worker. Hanya
+  // peramban sungguhan yang bisa membedakannya, dan `naturalWidth === 0` adalah
+  // caranya: itu nilai gambar yang gagal dimuat, apa pun sebabnya.
+  await gotoRoute("/", 700);
+  await page.locator('header a[href="/tampilan"]').first().click();
+  await page.waitForURL("**/tampilan", { timeout: 15_000 });
+  await page.waitForTimeout(900);
+  const tampilanBody = await page.innerText("body");
+  check(
+    "F53 /tampilan terjangkau dari bilah atas",
+    page.url().includes("/tampilan") && tampilanBody.includes("Seperti apa layarnya"),
+    `→ url=${page.url()}`,
+  );
+
+  // Gulir sampai bawah supaya gambar `loading="lazy"` ikut diminta — tanpa ini
+  // sembilan dari sepuluh gambar tidak pernah dimuat dan ceknya lulus palsu.
+  await page.evaluate(async () => {
+    for (let y = 0; y < document.body.scrollHeight; y += 600) {
+      window.scrollTo(0, y);
+      await new Promise((r) => setTimeout(r, 80));
+    }
+    window.scrollTo(0, 0);
+  });
+  await page.waitForTimeout(1200);
+  const gambar = await page.evaluate(() =>
+    [...document.querySelectorAll("main img, figure img")].map((g) => ({
+      src: g.getAttribute("src") ?? "",
+      lebarAsli: g.naturalWidth,
+      punyaAlt: (g.getAttribute("alt") ?? "").length > 0,
+    })),
+  );
+  const tangkapan = gambar.filter((g) => g.src.startsWith("/tampilan/"));
+  check(
+    "F53 /tampilan memuat sepuluh tangkapan layar",
+    tangkapan.length === 10,
+    `→ ${tangkapan.length} gambar`,
+  );
+  const gagalMuat = tangkapan.filter((g) => g.lebarAsli === 0).map((g) => g.src);
+  check(
+    "F53 setiap tangkapan benar-benar termuat di peramban (bukan kotak kosong)",
+    gagalMuat.length === 0,
+    `→ gagal: ${gagalMuat.join(", ")}`,
+  );
+  check(
+    "F53 setiap tangkapan punya teks alternatif",
+    tangkapan.every((g) => g.punyaAlt),
+    `→ tanpa alt: ${tangkapan.filter((g) => !g.punyaAlt).length}`,
+  );
+
+  // Umur tangkapan tercetak di halaman. Inilah yang membedakan halaman ini dari
+  // tangkapan layar yang dihapus Fase 38: gambar boleh menua, asalkan
+  // menyebutkan umurnya sendiri alih-alih mengaku segar.
+  check(
+    "F53 /tampilan menyebutkan kapan gambarnya ditangkap",
+    /Ditangkap\s+\d{4}-\d{2}-\d{2}/.test(tampilanBody.replace(/\u00A0/g, " ")),
+    `→ tanggal penangkapan tidak disebut`,
+  );
+
+  // Halaman ini TIDAK boleh menjadi jalan masuknya gambar kembali ke beranda:
+  // keputusan Fase 38 (peragaan menggantikan tangkapan layar di halaman jualan
+  // utama) tetap berlaku, dan pelanggarannya akan merayap masuk diam-diam.
+  await gotoRoute("/", 900);
+  const gambarBeranda = await page.evaluate(
+    () => [...document.querySelectorAll("img")].filter((g) => (g.getAttribute("src") ?? "").startsWith("/tampilan/")).length,
+  );
+  check(
+    "F53 beranda TETAP tanpa tangkapan layar — peragaan tidak digantikan",
+    gambarBeranda === 0,
+    `→ ${gambarBeranda} tangkapan bocor ke beranda`,
+  );
+
+  check("F53 halaman tampilan bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/", 700);
 
   // Multibahasa (Fase 13d): toggle EN → hero & harga berbahasa Inggris, lalu kembali ID.

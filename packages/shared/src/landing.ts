@@ -147,3 +147,29 @@ export const FAQ_RICH_RESULT: [q: string, a: string][] = FAQ_LANDING.slice(0, 5)
   f.q.id,
   f.a.id,
 ]);
+
+/**
+ * Modul utama ERPindo dalam satu kalimat masing-masing.
+ *
+ * Satu sumber untuk DUA pembaca mesin yang berbeda: `featureList` di JSON-LD
+ * (`apps/api/src/routes/landingSeo.ts`) dan bagian "Modul" di `/llms.txt`
+ * (`apps/api/src/routes/blog.ts`). Sebelum ini keduanya akan menjadi dua daftar
+ * yang berpisah diam-diam — persis nasib FAQ sebelum Fase 31c, ketika daftar
+ * "selaras dengan FAQ di landing" ternyata tidak punya satu pun pertanyaan yang
+ * sama dengan FAQ yang benar-benar tampil.
+ */
+export const FITUR_UTAMA: string[] = [
+  "Akuntansi double-entry dengan bagan akun standar Indonesia",
+  "Faktur penjualan & pembelian dengan PPN dan diskon per baris",
+  "Kasir (POS) dengan shift kas, multi-tender, dan mode luring",
+  "Stok multi-gudang dengan HPP rata-rata bergerak dan FEFO",
+  "Pembelian & pengadaan: permintaan, pesanan, penerimaan, persetujuan berjenjang",
+  "Penggajian dengan PPh 21 metode TER dan BPJS, slip gaji dan 1721-A1",
+  "Pajak: PPN, PPh Final UMKM, PPh 23, dan ekspor e-Faktur XML untuk Coretax DJP",
+  "Laporan keuangan: laba rugi, neraca, arus kas, buku besar, umur piutang dan utang",
+  "Multi-perusahaan dengan laporan konsolidasi dan multi mata uang",
+  "Aset tetap dengan penyusutan komersial dan fiskal, revaluasi, dan pelepasan",
+  "Manufaktur dengan resep produk, perintah produksi, work center, dan QC",
+  "Proyek, anggaran, CRM, kontrak berulang, pemeliharaan aset, dan helpdesk",
+  "Asisten AI yang menjawab dari panduan dan dari buku Anda sendiri",
+];

@@ -35,6 +35,11 @@ const PUBLIC_ALLOWLIST = new Set([
   'blog.ts GET "/blog/:slug"',
   'blog.ts GET "/sitemap.xml"',
   'blog.ts GET "/robots.txt"',
+  // `/llms.txt` (Fase 39a) — peta situs berbentuk prosa untuk mesin penjawab.
+  // Publik dengan alasan yang persis sama seperti robots.txt dan sitemap.xml:
+  // isinya naskah pemasaran yang memang ditujukan untuk dibaca siapa pun, dan
+  // tidak satu pun datanya berasal dari tenant.
+  'blog.ts GET "/llms.txt"',
   // Webhook notifikasi Midtrans (Fase 11b) — dipanggil server Midtrans, bukan
   // pengguna; diamankan lewat verifikasi tanda tangan SHA-512, bukan sesi.
   'billing.ts POST "/notification"',
@@ -66,6 +71,9 @@ const PUBLIC_ALLOWLIST = new Set([
   'landingSeo.ts GET "/kontak"',
   'landingSeo.ts GET "/syarat"',
   'landingSeo.ts GET "/privasi"',
+  // `/tampilan` (Fase 39d) — halaman tangkapan layar. Publik seperti kedelapan
+  // jalur SEO di atasnya; gambarnya ditangkap dari data demo, bukan data tenant.
+  'landingSeo.ts GET "/tampilan"',
 ]);
 
 /** Endpoint ber-requireAuth yang memang tanpa role gate: ber-scope user
