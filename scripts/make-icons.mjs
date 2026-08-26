@@ -100,8 +100,8 @@ function svgPratinjau() {
   <rect x="0" y="${h - 10}" width="${w}" height="10" fill="${MEREK}"/>
   <text x="90" y="300" font-family="${SERIF}" font-size="132" fill="${TINTA}" letter-spacing="-3">ERP<tspan
         font-family="${SANS}" font-weight="300" font-size="126" fill="${MEREK}">indo</tspan></text>
-  <text x="94" y="372" font-family="${SANS}" font-size="38" fill="${TINTA}" opacity="0.75">ERP untuk perusahaan Indonesia</text>
-  <text x="94" y="432" font-family="${SANS}" font-size="30" fill="${TINTA}" opacity="0.55">Tanpa proyek implementasi. Tanpa lisensi per pengguna.</text>
+  <text x="94" y="372" font-family="${SANS}" font-size="38" fill="${TINTA}" opacity="0.75">Penjualan, stok, gaji, dan pajak dalam satu aplikasi</text>
+  <text x="94" y="432" font-family="${SANS}" font-size="30" fill="${TINTA}" opacity="0.55">Untuk perusahaan Indonesia. Tanpa lisensi per pengguna.</text>
   <line x1="90" y1="${h - 120}" x2="${w - 90}" y2="${h - 120}" stroke="${GARIS}" stroke-width="2"/>
   <text x="94" y="${h - 72}" font-family="${SANS}" font-size="28" fill="${TINTA}" opacity="0.55">Rp 499.000 / bulan / perusahaan · pengguna tak terbatas</text>
 </svg>`;

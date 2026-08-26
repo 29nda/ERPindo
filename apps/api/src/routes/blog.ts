@@ -216,7 +216,7 @@ ${FITUR_UTAMA.map((f) => `- ${f}`).join("\n")}
 
 ## Yang membedakan
 
-- Tanpa proyek implementasi: bagan akun standar Indonesia, tarif PPN, PPh 21 TER, dan BPJS sudah terpasang saat perusahaan dibuat.
+- Siap dipakai sejak hari pertama: bagan akun standar Indonesia, tarif PPN, PPh 21 TER, dan BPJS sudah terpasang saat perusahaan dibuat.
 - Kepatuhan Indonesia bawaan: PPN 11/12% termasuk DPP nilai lain sesuai PMK 131/2024, PPh 21 metode TER, BPJS, PPh Final UMKM, PPh 23, dan ekspor XML Coretax DJP.
 - Satu basis data terpisah per perusahaan, bukan satu tabel bersama berkolom penanda.
 - Seluruh data dapat diunduh sebagai CSV kapan saja, termasuk setelah langganan berakhir.

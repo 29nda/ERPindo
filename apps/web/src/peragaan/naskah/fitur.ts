@@ -274,7 +274,7 @@ export const KONSOLIDASI_ENTITAS: Naskah = {
       id: "eliminasi",
       nada: "awas",
       teks: {
-        id: "PT Berkah Logistik menagih jasa pengiriman Rp 350.000.000 kepada PT Berkah Jaya. Bagi grup, itu bukan pendapatan — uangnya berpindah di dalam rumah sendiri.",
+        id: "PT Berkah Logistik menagih jasa pengiriman Rp 350.000.000 kepada PT Berkah Jaya. Bagi grup, itu bukan pendapatan, karena uangnya hanya berpindah di dalam grup sendiri.",
         en: "PT Berkah Logistik billed Rp 350,000,000 of freight to PT Berkah Jaya. For the group that is not revenue — the money moved inside the same house.",
       },
     },
@@ -565,7 +565,7 @@ export const PEMBELIAN_UTANG: Naskah = {
     en: "Goods in, payable recorded, input VAT ready to credit",
   },
   ringkas: {
-    id: "Satu penerimaan barang menambah stok, membentuk utang usaha, dan mencatat PPN masukan sekaligus — sehingga tidak ada tagihan pemasok yang baru ditemukan saat ditagih.",
+    id: "Satu penerimaan barang menambah stok, membentuk utang usaha, dan mencatat PPN masukan sekaligus, sehingga tidak ada tagihan pemasok yang baru ditemukan saat ditagih.",
     en: "One goods receipt raises stock, creates the payable, and records input VAT at once — so no supplier bill is discovered only when they chase it.",
   },
   panel: [
@@ -729,7 +729,7 @@ export const PERSETUJUAN_BERJENJANG: Naskah = {
       id: "jejak",
       nada: "ok",
       teks: {
-        id: "Keputusan tersimpan beserta pelakunya, waktunya, dan catatan yang ditulisnya. Dokumen yang ditolak tidak terhapus — ia tercatat sebagai ditolak, sehingga alasannya bisa dibaca kembali.",
+        id: "Keputusan tersimpan beserta pelakunya, waktunya, dan catatan yang ditulisnya. Dokumen yang ditolak tidak terhapus. Ia tercatat sebagai ditolak, sehingga alasannya bisa dibaca kembali.",
         en: "The decision is stored with who, when, and the note they wrote. A rejected document is not deleted — it is recorded as rejected, so the reason can be read again later.",
       },
     },
@@ -772,7 +772,7 @@ export const KAS_REKONSILIASI: Naskah = {
   jalur: "/app/keuangan/kas-bank",
   judul: { id: "Rekonsiliasi bank yang menyisakan selisih nol", en: "Bank reconciliation that ends at zero" },
   ringkas: {
-    id: "Mutasi rekening dicocokkan dengan jurnal kas. Yang cocok ditandai, yang tidak cocok disebutkan satu per satu — sehingga selisih tidak pernah berupa satu angka besar tanpa penjelasan.",
+    id: "Mutasi rekening dicocokkan dengan jurnal kas. Yang cocok ditandai, yang tidak cocok disebutkan satu per satu, sehingga selisih tidak pernah berupa satu angka besar tanpa penjelasan.",
     en: "Bank movements are matched against the cash journal. Matches are marked, mismatches are named one by one — so a difference is never one large unexplained figure.",
   },
   panel: [
@@ -945,7 +945,7 @@ export const PIPELINE_PENAWARAN: Naskah = {
   jalur: "/app/crm/leads",
   judul: { id: "Dari calon pelanggan sampai faktur, tanpa mengetik ulang", en: "From prospect to invoice without retyping" },
   ringkas: {
-    id: "Calon pelanggan bergerak antar-tahapan, penawaran dibuat dari datanya, dan penawaran yang diterima menjadi pesanan lalu faktur — nomor dan harganya terbawa, tidak diketik ulang.",
+    id: "Calon pelanggan bergerak antar-tahapan, penawaran dibuat dari datanya, dan penawaran yang diterima menjadi pesanan lalu faktur. Nomor dan harganya terbawa, tidak diketik ulang.",
     en: "A prospect moves between stages, a quotation is built from their data, and an accepted quotation becomes an order then an invoice — numbers and prices carry over rather than being retyped.",
   },
   panel: [
@@ -1517,7 +1517,7 @@ export const HELPDESK_TIKET: Naskah = {
       id: "hasil",
       nada: "ok",
       teks: {
-        id: "Penyelesaiannya berupa retur penjualan yang membalik jurnal dan mengembalikan stok, dibuat langsung dari tiketnya — bukan diminta lewat bagian lain.",
+        id: "Penyelesaiannya berupa retur penjualan yang membalik jurnal dan mengembalikan stok, dibuat langsung dari tiketnya, bukan diminta lewat bagian lain.",
         en: "The resolution is a sales return that reverses the journal and restores stock, created straight from the ticket rather than requested through another department.",
       },
     },

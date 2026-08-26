@@ -189,7 +189,7 @@ export const BAGAN_AKUN: Naskah = {
   jalur: "/app/keuangan/akun",
   judul: { id: "Bagan akun yang sudah terpasang, bukan yang harus disusun", en: "A chart of accounts already in place, not one to be built" },
   ringkas: {
-    id: "Bagan akun standar Indonesia terpasang saat perusahaan dibuat. Ia bisa ditambah, tetapi tidak perlu disusun dari nol — dan tidak ada proyek berbulan-bulan untuk menetapkannya.",
+    id: "Bagan akun standar Indonesia terpasang saat perusahaan dibuat. Ia bisa ditambah, tetapi tidak perlu disusun dari nol, dan tidak ada proyek berbulan-bulan untuk menetapkannya.",
     en: "A standard Indonesian chart of accounts is in place the moment the company is created. It can be extended, but does not need building from scratch — and there is no months-long project to settle it.",
   },
   panel: [
@@ -305,7 +305,7 @@ export const NERACA_SEIMBANG: Naskah = {
       id: "catatan",
       nada: "ok",
       teks: {
-        id: "Kedua sisi berjumlah Rp 3.000.000.000. Bila sebuah jurnal tidak seimbang, sistem menolak menyimpannya — jadi neraca tidak pernah perlu dicocokkan belakangan.",
+        id: "Kedua sisi berjumlah Rp 3.000.000.000. Bila sebuah jurnal tidak seimbang, sistem menolak menyimpannya, jadi neraca tidak pernah perlu dicocokkan belakangan.",
         en: "Both sides total Rp 3,000,000,000. If a journal would not balance, the system refuses to save it — so the balance sheet never needs reconciling afterwards.",
       },
     },

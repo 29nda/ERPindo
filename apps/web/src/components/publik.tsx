@@ -231,8 +231,8 @@ export function PublicFooter() {
           <p className="mt-1.5 max-w-xs text-xs leading-relaxed">
             {L(
               lang,
-              "ERP untuk perusahaan Indonesia. Tanpa proyek implementasi, tanpa lisensi per pengguna.",
-              "ERP for Indonesian companies. No implementation project, no per-seat licence.",
+              "Aplikasi pembukuan, stok, gaji, dan pajak untuk perusahaan Indonesia. Satu harga, tanpa lisensi per pengguna.",
+              "Bookkeeping, stock, payroll, and tax for Indonesian companies. One price, no per-seat licence.",
             )}
           </p>
         </div>

@@ -3063,7 +3063,11 @@ try {
   // Diperiksa dengan membaca teks peragaan showcase yang BELUM digulir ke
   // layar — bila isinya baru ditulis saat animasinya berjalan, pembaca layar
   // dan perayap tidak akan pernah mendapatkannya.
-  const narasiTersedia = peragaan.includes("Jurnal double-entry terbentuk sendiri");
+  // Fase 40b: kalimat langkah disederhanakan ("Jurnalnya terbentuk sendiri,
+  // dan debit sama dengan kredit") supaya pembaca yang bukan akuntan tetap
+  // memahaminya. Istilah "double-entry" tetap ada di FAQ, /fitur, dan JSON-LD;
+  // yang berubah hanya narasi langkah yang dipindai sekilas.
+  const narasiTersedia = peragaan.includes("Jurnalnya terbentuk sendiri");
   check(
     "F49b narasi langkah terbaca tanpa menunggu animasi selesai",
     narasiTersedia,
@@ -3347,7 +3351,7 @@ try {
     "F15 toggle EN menerjemahkan hero + harga ke Inggris",
     // "Most popular" hilang bersama kartu bertingkat (Fase 30) — lencana kartu
     // tunggal kini menyatakan bahwa paketnya memang cuma satu.
-    enText.includes("with no rollout project") && enText.includes("One plan for everything") && enText.includes("/month"),
+    enText.includes("in a single application") && enText.includes("One plan for everything") && enText.includes("/month"),
     `→ EN tidak lengkap`,
   );
   // Fase 14f: seluruh seksi landing (Showcase/Comparison/Security/FAQ) kini dwibahasa.
@@ -3368,8 +3372,14 @@ try {
   // dilonggarkan menjadi pencocokan sebagian.
   //
   // Fase 40a: judul diganti lagi. Bunyi lama ("tanpa proyek implementasi")
-  // adalah alih-kata dari Inggris; penggantinya berbentuk Indonesia.
-  check("F15 toggle kembali ke ID", (await page.innerText("body")).includes("tanpa proyek pemasangan"));
+  // adalah alih-kata dari Inggris.
+  //
+  // Fase 40c: judul berhenti berporos pada industrinya sama sekali. Penandanya
+  // kini pekerjaan yang dikenali pembaca dari kantornya sendiri.
+  check(
+    "F15 toggle kembali ke ID",
+    (await page.innerText("body")).includes("Penjualan, stok, gaji, dan pajak perusahaan Anda"),
+  );
   // --- Fase 27b: formulir "Jadwalkan demo" DIHAPUS ----------------------------
   //
   // Cek lama di sini mengisi & mengirim formulir itu. Fiturnya dihapus karena
