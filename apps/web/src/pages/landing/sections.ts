@@ -304,47 +304,61 @@ export const INTEGRATIONS: { icon: LucideIcon; label: Dual }[] = [
 
 
 /**
- * Empat penyebab proyek ERP gagal, dan apa yang menggantikannya di sini
- * (Fase 37c).
+ * Empat pertanyaan yang biasanya muncul sebelum memutuskan (Fase 40c).
  *
- * Ini seksi terpenting di halaman bagi pembeli perusahaan, karena ia menjawab
- * keberatan NOMOR SATU — bukan harga, melainkan "proyeknya akan gagal seperti
- * yang dulu". Persentasenya nyata dan bersumber; lihat docs/posisi-produk.md.
+ * ## Kenapa bentuknya berubah
  *
- * Aturan yang mengikat isi tabel ini: tiap jawaban harus bisa ditunjuk barisnya
- * di produk. Tidak ada yang boleh berbunyi seperti janji.
+ * Seksi ini dulu berjudul "Empat sebab proyek ERP gagal" dan memajang tiga
+ * persentase kegagalan industri (34%, 35%, 38%). Bentuk itu keputusan Fase 37c
+ * yang berpijak pada `docs/posisi-produk.md`: pembeli perusahaan disebut
+ * paling takut proyeknya gagal seperti yang dulu.
+ *
+ * Keputusan pemilik pada Fase 40c membatalkannya. Alasannya: seluruh halaman
+ * jadi berbicara dari sudut pandang ORANG DALAM INDUSTRI ERP — proyek
+ * pemasangan, tingkat kegagalan, taksonomi penyebab pembengkakan biaya —
+ * padahal pembacanya menjalankan perusahaan sendiri dan tidak mengikuti
+ * industri perangkat lunak. Halaman yang membuka dengan statistik kegagalan
+ * kategorinya sendiri menjelaskan bisnis ERP, bukan menjelaskan produknya.
+ *
+ * Posisi seksi ini di corong TIDAK berubah: ia tetap menjawab keberatan
+ * sebelum tombol daftar. Yang berubah, keberatannya kini ditulis sebagai
+ * pertanyaan yang benar-benar diajukan pelanggan, bukan sebagai kegagalan yang
+ * dialami vendor lain.
+ *
+ * Argumen kegagalan ERP tidak hilang dari situs. Ia tetap hidup di `/tentang`,
+ * halaman yang memang menjelaskan kenapa produk ini dibangun, lengkap dengan
+ * sumbernya.
+ *
+ * Aturan yang mengikat isi tabel ini tidak berubah: tiap jawaban harus bisa
+ * ditunjuk barisnya di produk, dan tidak boleh berbunyi seperti janji.
  */
-export const KEGAGALAN_ERP: { sebab: Dual; angka: Dual; jawaban: Dual }[] = [
+export const PERTANYAAN_SEBELUM_MULAI: { tanya: Dual; jawaban: Dual }[] = [
   {
-    sebab: { id: "Migrasi data yang berantakan", en: "Botched data migration" },
-    angka: { id: "34% penyebab pembengkakan biaya", en: "34% of budget overruns" },
+    tanya: { id: "Data yang sudah ada bagaimana?", en: "What happens to the data we already have?" },
     jawaban: {
-      id: "Produk dan kontak diimpor dari CSV dengan pratinjau dan laporan per baris, jadi baris bermasalah terlihat sebelum apa pun tersimpan. Saldo awal menjadi satu jurnal pembuka yang otomatis seimbang.",
-      en: "Products and contacts import from CSV with a preview and per-row report, so bad rows surface before anything is saved. Opening balances become a single opening entry that balances itself.",
+      id: "Produk, kontak, dan saldo awal diimpor dari berkas Excel atau CSV. Tiap baris ditampilkan lebih dulu sebagai pratinjau, jadi baris yang bermasalah terlihat sebelum apa pun tersimpan. Saldo awal masuk sebagai satu jurnal pembuka yang otomatis seimbang.",
+      en: "Products, contacts, and opening balances import from an Excel or CSV file. Every row is previewed first, so problem rows surface before anything is saved. Opening balances enter as a single opening entry that balances itself.",
     },
   },
   {
-    sebab: { id: "Ruang lingkup yang terus melar", en: "Scope that keeps expanding" },
-    angka: { id: "35% penyebab pembengkakan biaya", en: "35% of budget overruns" },
+    tanya: { id: "Tim kami perlu dilatih dulu?", en: "Does our team need training first?" },
     jawaban: {
-      id: "Seluruh modul sudah terbuka sejak hari pertama. Tidak ada yang perlu dinegosiasikan, dibeli menyusul, atau dibuka dengan biaya tambahan.",
-      en: "Every module is unlocked from day one. Nothing needs negotiating, buying later, or unlocking for a fee.",
+      id: "Tidak perlu menunggu pelatihan untuk menilainya. Demo publik sudah berisi satu perusahaan dengan data setahun penuh, dan tim Anda dapat menelusurinya lebih dulu tanpa mendaftar serta tanpa biaya.",
+      en: "You do not need training to judge it. The public demo already holds a company with a full year of data, and your team can explore it first without signing up and without paying.",
     },
   },
   {
-    sebab: { id: "Tim implementasi kurang orang", en: "Understaffed implementation team" },
-    angka: { id: "38% penyebab pembengkakan biaya", en: "38% of budget overruns" },
+    tanya: { id: "Nanti ada biaya tambahan?", en: "Will there be extra charges later?" },
     jawaban: {
-      id: "Tidak ada tim implementasi yang perlu disiapkan. Bagan akun standar Indonesia, tarif PPN, PPh 21 metode TER, dan BPJS sudah terpasang saat perusahaan dibuat.",
-      en: "There is no implementation team to staff. The Indonesian chart of accounts, VAT rates, PPh 21 TER, and BPJS are in place the moment the company is created.",
+      id: "Satu harga per perusahaan per bulan, dan seluruh modul sudah terbuka sejak hari pertama. Tidak ada fitur yang dikunci untuk dijual menyusul, dan menambah pengguna tidak menambah tagihan.",
+      en: "One price per company per month, with every module unlocked from day one. No feature is held back to be sold later, and adding users does not add to the bill.",
     },
   },
   {
-    sebab: { id: "Tim menolak memakainya", en: "The team will not adopt it" },
-    angka: { id: "penyebab kegagalan paling sering dilaporkan", en: "the most reported cause of failure" },
+    tanya: { id: "Kalau suatu saat kami berhenti?", en: "What if we stop subscribing?" },
     jawaban: {
-      id: "Demo publik berisi satu perusahaan dengan data setahun penuh. Tim Anda bisa menelusurinya sebelum satu rupiah pun dikeluarkan, dan sebelum satu orang pun dilatih.",
-      en: "The public demo holds one company with a full year of data. Your team can explore it before a single rupiah is spent, and before anyone is trained.",
+      id: "Seluruh data dapat diunduh sebagai berkas CSV kapan saja, termasuk setelah langganan berakhir. Akun beralih ke mode baca-saja, jadi catatan lama tetap dapat dibuka dan dicari.",
+      en: "All your data downloads as CSV files at any time, including after the subscription ends. The account switches to read-only, so old records stay open and searchable.",
     },
   },
 ];

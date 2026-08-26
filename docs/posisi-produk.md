@@ -5,6 +5,35 @@
 > ditakutkannya, dan bukti mana yang menjawabnya. Naskah halaman depan tunduk
 > pada dokumen ini.
 
+> **Revisi pemilik (Fase 40c) — sudut pandang halaman depan.**
+>
+> Dokumen ini sempat membuat halaman depan berbicara sebagai **orang dalam
+> industri ERP**: judulnya berporos pada "tanpa proyek implementasi", dan satu
+> seksi penuh memajang tingkat kegagalan proyek ERP (68%, 189%, 34/35/38%).
+>
+> Keputusan pemilik: **berhenti**. Pembaca halaman depan menjalankan
+> perusahaannya sendiri dan tidak mengikuti industri perangkat lunak. Ia tidak
+> tahu — dan tidak perlu tahu — bahwa ERP biasanya datang bersama proyek
+> pemasangan. Halaman yang membuka dengan statistik kegagalan kategorinya
+> sendiri sedang menjelaskan bisnis ERP, bukan menjelaskan produknya.
+>
+> Yang berlaku sekarang:
+>
+> - **Halaman depan menjelaskan produk**, memakai pekerjaan yang dikenali
+>   pembaca dari kantornya sendiri: penjualan, stok, gaji, pajak.
+> - **Keunggulan "siap dipakai" dinyatakan sebagai manfaat** ("dapat mulai
+>   dipakai hari ini juga"), bukan sebagai bantahan terhadap cara vendor lain
+>   bekerja.
+> - **Angka kegagalan ERP tidak dihapus dari situs.** Ia pindah ke `/tentang`,
+>   halaman yang memang menjelaskan kenapa produk ini dibangun, lengkap dengan
+>   sumbernya. Pembeli yang mencarinya tetap menemukannya.
+> - **Seksi keberatan sebelum tombol daftar tetap ada**, tetapi keberatannya
+>   ditulis sebagai pertanyaan yang benar-benar diajukan pelanggan ("Data yang
+>   sudah ada bagaimana?"), bukan sebagai kegagalan yang dialami vendor lain.
+>
+> Tabel §2 dan §3 di bawah **tetap berlaku sebagai daftar ketakutan pembeli** —
+> yang berubah hanya cara halaman depan menyebutkannya.
+
 ## 1. Dua pembeli, satu halaman
 
 Pada pembelian perangkat lunak perusahaan, **yang menilai dan yang menyetujui

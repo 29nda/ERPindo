@@ -94,7 +94,7 @@ function jsonLd(base: string, jalur: string): string {
     areaServed: { "@type": "Country", name: "Indonesia" },
     knowsLanguage: ["id", "en"],
     description:
-      "ERP untuk perusahaan Indonesia. Akuntansi, kasir, stok, penggajian, dan pajak dalam satu aplikasi, siap dipakai tanpa proyek pemasangan berbulan-bulan.",
+      "Aplikasi untuk mencatat penjualan, stok, gaji, dan pajak perusahaan di Indonesia. Pembukuan, laporan keuangan, PPN, dan PPh 21 tersusun sendiri dari transaksi yang dicatat.",
   };
 
   const situs = {
@@ -202,7 +202,7 @@ function noscriptBlock(base: string): string {
 <h2>Untuk siapa ERPindo dibuat</h2>
 <p>Perusahaan di Indonesia yang pembukuannya sudah melampaui spreadsheet: distributor, ritel dan jaringan toko, manufaktur skala kecil dan menengah, kontraktor dan perusahaan jasa, serta grup usaha dengan lebih dari satu badan usaha yang perlu laporan konsolidasi.</p>
 <h2>Yang membedakan ERPindo</h2>
-<p>Tidak ada proyek implementasi: bagan akun standar Indonesia, tarif PPN, PPh 21 TER, dan BPJS sudah terpasang saat perusahaan dibuat. Tagihan dihitung per perusahaan, bukan per pengguna. Tiap perusahaan memakai basis data tersendiri, dan seluruh datanya dapat diunduh sebagai CSV kapan saja, termasuk setelah langganan berakhir.</p>
+<p>Bagan akun standar Indonesia, tarif PPN, PPh 21 metode TER, dan BPJS sudah terpasang saat perusahaan dibuat, jadi pencatatan dapat dimulai hari itu juga. Tagihan dihitung per perusahaan, bukan per pengguna. Tiap perusahaan memakai basis data tersendiri, dan seluruh datanya dapat diunduh sebagai CSV kapan saja, termasuk setelah langganan berakhir.</p>
 <p><a href="${base}/tampilan">Tangkapan layar aplikasi</a> · <a href="${base}/fitur">Fitur per modul</a> · <a href="${base}/harga">Harga</a> · <a href="${base}/keamanan">Keamanan</a></p>
 <p><a href="${base}/daftar">Daftar &amp; berlangganan</a> · <a href="${base}/masuk">Masuk</a> · <a href="${base}/panduan">Panduan</a> · <a href="${base}/blog">Blog</a></p>
 ${faqHtml}

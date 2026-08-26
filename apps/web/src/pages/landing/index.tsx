@@ -7,7 +7,7 @@ import { Button } from "../../components/ui";
 import { PublicFooter, PublicHeader, PublicShell } from "../../components/publik";
 import { Peragaan, PERAGAAN } from "../../peragaan";
 import { pick, useLang, type Lang } from "../../i18n";
-import { KEGAGALAN_ERP,
+import { PERTANYAAN_SEBELUM_MULAI,
   COMPARISON,
   FAQ,
   formatRupiah,
@@ -130,54 +130,33 @@ function Hero() {
             Layar pertama melayani DUA pembeli sekaligus (lihat
             docs/posisi-produk.md): angka dan sumber untuk yang menyetujui,
             peragaan hidup di bawahnya untuk yang menilai. */}
-        {/* Fase 40a — judul lama berbunyi "ERP untuk perusahaan, tanpa proyek
-            implementasi", dan itu kalimat Inggris yang dialihkata: "Enterprise
-            ERP, without the implementation project". Kalimat penjelasnya lebih
-            jauh lagi — "ERPindo tidak punya proyek" praktis tidak bermakna
-            tanpa kerangka Inggris di belakangnya.
+        {/* Fase 40c — judul berhenti membingkai produk lewat industrinya.
+            
+            Dua judul sebelumnya berporos pada hal yang sama: "tanpa proyek
+            implementasi", lalu "tanpa proyek pemasangan". Keduanya menuntut
+            pembaca sudah tahu bahwa ERP biasanya datang dengan proyek
+            pemasangan — pengetahuan orang dalam industri perangkat lunak,
+            bukan pengetahuan orang yang menjalankan perusahaan.
 
-            Yang menggantikannya berbentuk Indonesia: klaim produk lebih dulu,
-            lalu buktinya. Angka kegagalan ERP TETAP ada karena pembeli yang
-            menyetujui anggaran memakainya, tetapi ia turun menjadi pembanding
-            di bawah, bukan kalimat pertama yang menyambut pengunjung. Membuka
-            halaman jualan dengan statistik kegagalan industri adalah kebiasaan
-            B2B Inggris, bukan Indonesia. */}
+            Keputusan pemilik (Fase 40c): halaman ini menjelaskan PRODUKNYA,
+            bukan bisnis ERP. Karena itu judulnya kini menyebut pekerjaan yang
+            dikenali pembaca dari kantornya sendiri — penjualan, stok, gaji,
+            pajak — dan keunggulan "siap dipakai" dinyatakan sebagai manfaat
+            ("dapat mulai dipakai hari ini juga"), bukan sebagai bantahan
+            terhadap cara vendor lain bekerja. */}
         <h1 className="judul-hero max-w-3xl text-[2.25rem] sm:text-[3.25rem]">
-          {L(lang, "ERP siap pakai untuk perusahaan Indonesia,", "ERP that is ready to use,")}{" "}
+          {L(lang, "Penjualan, stok, gaji, dan pajak perusahaan Anda,", "Your sales, stock, payroll, and tax,")}{" "}
           <span className="text-brand-ink">
-            {L(lang, "tanpa proyek pemasangan.", "with no rollout project.")}
+            {L(lang, "dalam satu aplikasi.", "in a single application.")}
           </span>
         </h1>
-        {/* Fase 40b — kalimat ini dulu membuka dengan daftar istilah pajak
-            ("bagan akun", "PPh 21 metode TER") sebelum pernah menyebutkan
-            aplikasinya BISA DIPAKAI UNTUK APA.
-
-            Itu cacat yang lebih besar daripada alih-kata Fase 40a. Pengunjung
-            datang bertanya "ini aplikasi apa", dan tiga blok pertama halaman
-            menjawab posisi produk, istilah pajak, lalu statistik kegagalan
-            industri. Pembaca yang belum tahu arti "bagan akun" sudah hilang di
-            kalimat pertama, padahal dialah yang menandatangani langganan.
-
-            Sekarang kalimat pertama memakai kata kerja yang dipahami siapa pun
-            di perusahaan: catat, kelola, hitung, susun. Istilah pajaknya
-            menyusul di kalimat kedua, tempat ia menjadi bukti, bukan sambutan. */}
         <p className="mt-5 max-w-[40rem] text-lg leading-[1.65] text-ink-soft">
           {L(
             lang,
-            "Catat penjualan, kelola stok, hitung gaji, dan susun laporan keuangan perusahaan Anda dalam satu aplikasi. Bagan akun standar Indonesia, PPN, PPh 21 metode TER, dan BPJS sudah terpasang sejak hari pertama, jadi tidak ada tim konsultan yang perlu didatangkan.",
-            "Record sales, manage stock, run payroll, and produce your financial statements in one application. The Indonesian chart of accounts, VAT, PPh 21 (TER method), and BPJS are in place from day one, so there is no consulting team to bring in.",
+            "ERPindo mencatat semuanya satu kali, lalu pembukuan, laporan keuangan, PPN, dan PPh 21 karyawan tersusun sendiri dari catatan itu. Bagan akun standar Indonesia dan tarif pajaknya sudah terpasang, jadi perusahaan Anda dapat mulai memakainya hari ini juga.",
+            "ERPindo records everything once, then your books, financial statements, VAT, and employee income tax assemble themselves from those records. The Indonesian chart of accounts and tax rates are already in place, so your company can start using it today.",
           )}
         </p>
-        {/* Fase 40b — angka kegagalan ERP (68% / 189%) DIPINDAHKAN, bukan
-            dibuang. Ia tampil lengkap beserta sumbernya di seksi "Empat sebab
-            proyek ERP gagal" lebih bawah, tempat keempat persentasenya memang
-            diuraikan.
-
-            Menyebutnya dua kali membuat halaman terbaca seperti ceramah
-            tentang kegagalan industri alih-alih penjelasan tentang produk —
-            dan yang pertama muncul justru sebelum pembaca sempat tahu produk
-            ini apa. Pembeli yang menyetujui anggaran tetap mendapat angka dan
-            sumbernya; ia hanya tidak lagi menjadi hal ketiga yang dibacanya. */}
         <div className="mt-7 flex flex-wrap items-center gap-3">
           <DemoButton />
           <Link to="/daftar">
@@ -475,18 +454,20 @@ function PerUserCalculator() {
 }
 
 /**
- * "Kenapa proyek ERP gagal" (Fase 37c) — seksi terpenting di halaman ini bagi
- * pembeli perusahaan.
+ * "Empat pertanyaan sebelum memutuskan" (Fase 37c, ditulis ulang Fase 40c).
  *
- * Ia menjawab keberatan NOMOR SATU, dan keberatan itu bukan harga. Pembeli
- * perusahaan hampir selalu punya cerita proyek ERP yang gagal — miliknya
- * sendiri atau milik kenalannya. Halaman yang tidak menyinggungnya sama sekali
- * terbaca seperti halaman yang tidak tahu apa yang dibelinya orang.
+ * Seksi ini menjawab keberatan tepat sebelum tombol daftar, dan posisinya di
+ * corong tidak berubah sejak Fase 37c. Yang berubah adalah SUDUT PANDANGNYA.
  *
- * Bentuknya sengaja BUKAN grid kartu: dua kolom bersebelahan, sebab di kiri dan
- * jawabannya di kanan, supaya pasangannya terbaca sebagai pasangan.
+ * Bentuk lamanya berjudul "Empat sebab proyek ERP gagal" dan memajang tiga
+ * persentase kegagalan industri. Itu membuat halaman berbicara sebagai orang
+ * dalam industri perangkat lunak kepada pembaca yang tidak mengikutinya.
+ * Alasan lengkapnya ada di atas `PERTANYAAN_SEBELUM_MULAI` (`./sections.ts`).
+ *
+ * Bentuknya sengaja BUKAN grid kartu: dua kolom bersebelahan, pertanyaan di
+ * kiri dan jawabannya di kanan, supaya pasangannya terbaca sebagai pasangan.
  */
-function KenapaGagal() {
+function PertanyaanSebelumMulai() {
   const lang = useLang();
   return (
     <section className="border-y border-line bg-surface">
@@ -494,30 +475,18 @@ function KenapaGagal() {
         <h2 className="judul max-w-3xl text-[2rem] sm:text-[2.5rem]">
           {L(
             lang,
-            "Empat sebab proyek ERP gagal, dan cara ERPindo menghindarinya",
-            "What makes ERP projects fail — and what replaces it here",
+            "Empat pertanyaan yang biasanya muncul sebelum memutuskan",
+            "Four questions that usually come up before deciding",
           )}
         </h2>
         <ul className="mt-10 divide-y divide-line">
-          {KEGAGALAN_ERP.map((k) => (
-            <li key={k.sebab.id} className="grid gap-2 py-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] md:gap-10">
-              <div>
-                <h3 className="text-base font-semibold text-ink">{pick(k.sebab, lang)}</h3>
-                <p className="num mt-1 text-[12px] uppercase tracking-wide text-brand-ink">
-                  {pick(k.angka, lang)}
-                </p>
-              </div>
+          {PERTANYAAN_SEBELUM_MULAI.map((k) => (
+            <li key={k.tanya.id} className="grid gap-2 py-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] md:gap-10">
+              <h3 className="text-base font-semibold text-ink">{pick(k.tanya, lang)}</h3>
               <p className="text-[15px] leading-relaxed text-ink-soft">{pick(k.jawaban, lang)}</p>
             </li>
           ))}
         </ul>
-        <p className="mt-6 text-xs text-ink-faint">
-          {L(
-            lang,
-            "Persentase dari Panorama Consulting Solutions, ERP Report 2025.",
-            "Percentages from Panorama Consulting Solutions, ERP Report 2025.",
-          )}
-        </p>
       </div>
     </section>
   );
@@ -754,7 +723,7 @@ export function LandingPage() {
         <TrustBar />
         <Showcase />
         <Comparison />
-        <KenapaGagal />
+        <PertanyaanSebelumMulai />
         <Pricing />
         <Security />
         <Faq />
