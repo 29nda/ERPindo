@@ -3063,7 +3063,11 @@ try {
   // Diperiksa dengan membaca teks peragaan showcase yang BELUM digulir ke
   // layar — bila isinya baru ditulis saat animasinya berjalan, pembaca layar
   // dan perayap tidak akan pernah mendapatkannya.
-  const narasiTersedia = peragaan.includes("Jurnal double-entry terbentuk sendiri");
+  // Fase 40b: kalimat langkah disederhanakan ("Jurnalnya terbentuk sendiri,
+  // dan debit sama dengan kredit") supaya pembaca yang bukan akuntan tetap
+  // memahaminya. Istilah "double-entry" tetap ada di FAQ, /fitur, dan JSON-LD;
+  // yang berubah hanya narasi langkah yang dipindai sekilas.
+  const narasiTersedia = peragaan.includes("Jurnalnya terbentuk sendiri");
   check(
     "F49b narasi langkah terbaca tanpa menunggu animasi selesai",
     narasiTersedia,

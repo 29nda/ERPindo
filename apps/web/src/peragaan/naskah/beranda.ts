@@ -35,7 +35,7 @@ export const FAKTUR_BERANTAI: Naskah = {
     en: "One invoice posted, four records fill themselves in",
   },
   ringkas: {
-    id: "Kasir memasukkan satu faktur penjualan. Jurnal, stok, laba rugi, dan PPN terisi tanpa satu pun entri tambahan — dan jurnalnya seimbang.",
+    id: "Kasir memasukkan satu faktur penjualan. Jurnal, stok, laba rugi, dan PPN terisi tanpa satu pun entri tambahan, dan jurnalnya tetap seimbang.",
     en: "A clerk enters one sales invoice. The journal, stock, profit and loss, and VAT fill in with no further entry — and the journal balances.",
   },
   panel: [
@@ -151,7 +151,7 @@ export const FAKTUR_BERANTAI: Naskah = {
       aksi: "isi",
       sasaran: { panel: "jurnal" },
       narasi: {
-        id: "Jurnal double-entry terbentuk sendiri, dan debit sama dengan kredit.",
+        id: "Jurnalnya terbentuk sendiri, dan debit sama dengan kredit.",
         en: "A double-entry journal forms itself, and debits equal credits.",
       },
     },
@@ -202,7 +202,7 @@ export const KASIR_SHIFT: Naskah = {
   id: "kasir-shift",
   jalur: "/app/pos",
   judul: {
-    id: "Kasir yang tidak menyisakan pekerjaan pembukuan",
+    id: "Tutup kasir tanpa menyisakan pekerjaan pembukuan",
     en: "A till that leaves no bookkeeping behind",
   },
   ringkas: {
@@ -357,7 +357,7 @@ export const LAPORAN_TERSUSUN: Naskah = {
     en: "Reports you can trace back to the journal",
   },
   ringkas: {
-    id: "Laba rugi, neraca, dan arus kas disusun dari jurnal berstatus posted. Tiap angka bisa diklik sampai ke transaksi pembentuknya, jadi tidak ada baris yang tidak diketahui asalnya.",
+    id: "Laba rugi, neraca, dan arus kas disusun dari jurnal yang sudah diposting. Tiap angka dapat diklik sampai ke transaksi pembentuknya, jadi tidak ada baris yang tidak diketahui asalnya.",
     en: "Profit and loss, balance sheet, and cash flow are assembled from posted journals. Every figure drills down to the transactions behind it, so no line has an unknown origin.",
   },
   panel: [
@@ -632,7 +632,7 @@ export const STOK_TEPERCAYA: Naskah = {
     en: "Stock figures you never recount",
   },
   ringkas: {
-    id: "Beberapa gudang dalam satu daftar, harga pokok memakai biaya rata-rata bergerak, dan peringatan datang sebelum stok habis atau kedaluwarsa — bukan sesudahnya.",
+    id: "Beberapa gudang dalam satu daftar, harga pokok memakai biaya rata-rata bergerak, dan peringatan datang sebelum stok habis atau kedaluwarsa, bukan sesudahnya.",
     en: "Several warehouses in one list, cost of goods on a moving average, and warnings arrive before you run out or expire — not after.",
   },
   panel: [

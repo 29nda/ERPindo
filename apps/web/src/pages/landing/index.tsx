@@ -148,23 +148,36 @@ function Hero() {
             {L(lang, "tanpa proyek pemasangan.", "with no rollout project.")}
           </span>
         </h1>
+        {/* Fase 40b — kalimat ini dulu membuka dengan daftar istilah pajak
+            ("bagan akun", "PPh 21 metode TER") sebelum pernah menyebutkan
+            aplikasinya BISA DIPAKAI UNTUK APA.
+
+            Itu cacat yang lebih besar daripada alih-kata Fase 40a. Pengunjung
+            datang bertanya "ini aplikasi apa", dan tiga blok pertama halaman
+            menjawab posisi produk, istilah pajak, lalu statistik kegagalan
+            industri. Pembaca yang belum tahu arti "bagan akun" sudah hilang di
+            kalimat pertama, padahal dialah yang menandatangani langganan.
+
+            Sekarang kalimat pertama memakai kata kerja yang dipahami siapa pun
+            di perusahaan: catat, kelola, hitung, susun. Istilah pajaknya
+            menyusul di kalimat kedua, tempat ia menjadi bukti, bukan sambutan. */}
         <p className="mt-5 max-w-[40rem] text-lg leading-[1.65] text-ink-soft">
           {L(
             lang,
-            "Bagan akun standar Indonesia, tarif PPN, PPh 21 metode TER, dan BPJS sudah terpasang begitu perusahaan Anda dibuat. Tidak ada tim konsultan yang perlu didatangkan, dan tidak ada persiapan berbulan-bulan sebelum tim Anda mulai mencatat.",
-            "The Indonesian chart of accounts, VAT rates, PPh 21 (TER method), and BPJS are in place the moment your company is created. There is no consulting team to bring in, and no months of setup before your team starts recording.",
+            "Catat penjualan, kelola stok, hitung gaji, dan susun laporan keuangan perusahaan Anda dalam satu aplikasi. Bagan akun standar Indonesia, PPN, PPh 21 metode TER, dan BPJS sudah terpasang sejak hari pertama, jadi tidak ada tim konsultan yang perlu didatangkan.",
+            "Record sales, manage stock, run payroll, and produce your financial statements in one application. The Indonesian chart of accounts, VAT, PPh 21 (TER method), and BPJS are in place from day one, so there is no consulting team to bring in.",
           )}
         </p>
-        {/* Sumber dicantumkan. Angka tanpa sumber di halaman jualan adalah
-            angka yang tidak bisa dipakai pembacanya untuk meyakinkan atasannya
-            — dan meyakinkan atasan justru pekerjaan utama halaman ini. */}
-        <p className="mt-2 text-xs text-ink-faint">
-          {L(
-            lang,
-            "Sebagai pembanding, 68% proyek ERP gagal memenuhi tujuannya dengan pembengkakan biaya rata-rata 189%. Sumber: Panorama Consulting Solutions, ERP Report 2025.",
-            "For comparison, 68% of ERP projects miss their objectives, with an average cost overrun of 189%. Source: Panorama Consulting Solutions, ERP Report 2025.",
-          )}
-        </p>
+        {/* Fase 40b — angka kegagalan ERP (68% / 189%) DIPINDAHKAN, bukan
+            dibuang. Ia tampil lengkap beserta sumbernya di seksi "Empat sebab
+            proyek ERP gagal" lebih bawah, tempat keempat persentasenya memang
+            diuraikan.
+
+            Menyebutnya dua kali membuat halaman terbaca seperti ceramah
+            tentang kegagalan industri alih-alih penjelasan tentang produk —
+            dan yang pertama muncul justru sebelum pembaca sempat tahu produk
+            ini apa. Pembeli yang menyetujui anggaran tetap mendapat angka dan
+            sumbernya; ia hanya tidak lagi menjadi hal ketiga yang dibacanya. */}
         <div className="mt-7 flex flex-wrap items-center gap-3">
           <DemoButton />
           <Link to="/daftar">
@@ -243,7 +256,7 @@ function Showcase() {
           layar yang sama. */}
       <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Jangan percaya. Periksa angkanya.", "Do not take our word for it. Check the figures.")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
-        {L(lang, "Lima pekerjaan yang paling menyita waktu, diperagakan langkah demi langkah. Jurnalnya double-entry sungguhan, dan debitnya sama dengan kredit. Pilih satu.", "The five jobs that consume the most time, demonstrated step by step. The journals are genuine double-entry, and the debits equal the credits. Pick one.")}
+        {L(lang, "Lima pekerjaan yang paling menyita waktu, diperagakan langkah demi langkah. Angkanya benar-benar dihitung, bukan gambar. Pilih salah satu untuk melihatnya berjalan.", "The five jobs that consume the most time, demonstrated step by step. The journals are genuine double-entry, and the debits equal the credits. Pick one.")}
       </p>
       {/* Tab bergaya bilah alat: sudut tegas, berdempetan dalam satu bingkai —
           bukan pil melayang berbayang. */}
