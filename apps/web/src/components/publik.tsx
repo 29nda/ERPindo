@@ -60,6 +60,9 @@ export type TautanPublik = [href: string, label: { id: string; en: string }];
  */
 export const TAUTAN_PUBLIK: TautanPublik[] = [
   ["/fitur", { id: "Fitur", en: "Features" }],
+  // Fase 39d — ditaruh tepat setelah Fitur: pengunjung yang baru membaca daftar
+  // modul justru di titik itulah bertanya "layarnya seperti apa".
+  ["/tampilan", { id: "Tampilan", en: "Screens" }],
   // Fase 38d — `/harga` kini halaman sungguhan, bukan jangkar ke seksi beranda.
   // Seksi di beranda TETAP ada beserta `id="harga"`-nya: ia yang membuat harga
   // terbaca sebelum pengunjung memutuskan menggulir, dan asersi F30b menjaganya.
@@ -107,7 +110,7 @@ export function PublicHeader({
 
   const merek = (
     <span className="flex items-baseline gap-1.5">
-      <BrandWordmark className="h-7" />
+      <BrandWordmark className="h-8" />
       {sub ? <span className="text-sm font-normal text-ink-muted">/ {sub[lang]}</span> : null}
     </span>
   );
@@ -224,7 +227,7 @@ export function PublicFooter() {
     <footer className="mt-auto border-t border-line">
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 py-7 text-[13px] text-ink-muted sm:flex-row sm:items-start sm:px-6">
         <div>
-          <BrandWordmark className="h-7" />
+          <BrandWordmark className="h-8" />
           <p className="mt-1.5 max-w-xs text-xs leading-relaxed">
             {L(
               lang,

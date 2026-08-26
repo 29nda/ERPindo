@@ -698,7 +698,7 @@ export function AppShell() {
     <>
       <div className="border-b border-line px-3 py-2.5">
         <div className="flex items-center gap-2">
-          <BrandWordmark className="h-8" />
+          <BrandWordmark className="h-9" />
         </div>
         {workspacePicker}
       </div>
@@ -794,7 +794,7 @@ export function AppShell() {
               >
                 <Menu className="size-5" aria-hidden />
               </button>
-              <BrandWordmark className="h-7" />
+              <BrandWordmark className="h-8" />
             </div>
             <div className="hidden items-center gap-2 md:flex">
               {tenant.tenantStatus === "provisioning" ? <Badge tone="amber">{u("shBelumBerlangganan")}</Badge> : null}

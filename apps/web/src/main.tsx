@@ -106,6 +106,14 @@ const routes = [
     path: "/privasi",
     component: lazyRouteComponent(() => import("./pages/publik"), "PrivasiPage"),
   }),
+  // Fase 39d — tangkapan layar aplikasi. Empat tempat harus ikut diperbarui:
+  // rute ini, rute SEO di `apps/api/src/routes/landingSeo.ts`, `sitemap.xml`
+  // di `apps/api/src/routes/blog.ts`, dan `run_worker_first` di wrangler.jsonc.
+  createRoute({
+    getParentRoute: () => rootRoute,
+    path: "/tampilan",
+    component: lazyRouteComponent(() => import("./pages/publik"), "TampilanPage"),
+  }),
   // Panduan pengguna: publik & code-split — kontennya tidak membebani bundle utama.
   createRoute({
     getParentRoute: () => rootRoute,

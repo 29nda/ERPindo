@@ -23,7 +23,7 @@ import {
 } from "../components/ui";
 import { isi } from "../i18n";
 import { Halaman, Lembar } from "../components/kerangka";
-import { useUi } from "../i18n/ui";
+import { useUi, type UiKey } from "../i18n/ui";
 import { hargaBaris, useGrupHarga } from "../lib/hargaGrup";
 import { useWorkspace } from "./app";
 
@@ -41,20 +41,20 @@ const SO_TONE: Record<SalesOrderStatus, "brand" | "amber" | "green" | "red"> = {
 };
 
 /** Cetak surat jalan sederhana lewat jendela print browser. */
-function printDeliveryNote(o: ApiSalesOrder, companyName: string) {
+function printDeliveryNote(o: ApiSalesOrder, companyName: string, u: (k: UiKey) => string) {
   const rows = o.lines.map((l) => `<tr><td>${l.productName}</td><td style="text-align:right">${l.qty}</td></tr>`).join("");
   const w = window.open("", "_blank", "width=600,height=700");
   if (!w) return;
-  w.document.write(`<!doctype html><html><head><title>Surat Jalan ${o.deliveryNo ?? o.soNo}</title><style>
+  w.document.write(`<!doctype html><html><head><title>${u("sjJudul")} ${o.deliveryNo ?? o.soNo}</title><style>
     body{font-family:sans-serif;font-size:13px;padding:24px;max-width:640px;margin:0 auto}
     h1{font-size:18px} table{width:100%;border-collapse:collapse;margin-top:12px}
     th,td{border-bottom:1px solid #ddd;padding:6px;text-align:left} .r{text-align:right}
   </style></head><body>
     <h1>${companyName}</h1>
-    <div><strong>SURAT JALAN</strong> ${o.deliveryNo ?? "—"} · Pesanan ${o.soNo}</div>
-    <div>Kepada: ${o.contactName} · Tanggal: ${o.orderDate}</div>
-    <table><thead><tr><th>Barang</th><th class="r">Jumlah</th></tr></thead><tbody>${rows}</tbody></table>
-    <p style="margin-top:32px">Diterima oleh: ________________</p>
+    <div><strong>${u("sjJudul")}</strong> ${o.deliveryNo ?? "—"} · ${u("sjPesanan")} ${o.soNo}</div>
+    <div>${u("sjKepada")} ${o.contactName} · ${u("sjTanggal")} ${o.orderDate}</div>
+    <table><thead><tr><th>${u("sjBarang")}</th><th class="r">${u("sjJumlah")}</th></tr></thead><tbody>${rows}</tbody></table>
+    <p style="margin-top:32px">${u("sjDiterimaOleh")} ________________</p>
     <script>window.print()</script>
   </body></html>`);
   w.document.close();
@@ -362,13 +362,13 @@ function OrderRow({ order, isAdmin, cashAccounts, companyName }: { order: ApiSal
               <Button className="h-8" onClick={() => invoice.mutate()} disabled={invoice.isPending}>
                 <Send className="size-4" aria-hidden /> {u("buatFaktur")}
               </Button>
-              <Button variant="secondary" className="h-8" onClick={() => printDeliveryNote(order, companyName)}>
+              <Button variant="secondary" className="h-8" onClick={() => printDeliveryNote(order, companyName, u)}>
                 {u("cetakSuratJalan")}
               </Button>
             </>
           ) : null}
           {order.status === "invoiced" && order.deliveryNo ? (
-            <Button variant="secondary" className="h-8" onClick={() => printDeliveryNote(order, companyName)}>
+            <Button variant="secondary" className="h-8" onClick={() => printDeliveryNote(order, companyName, u)}>
               {u("cetakSuratJalan")}
             </Button>
           ) : null}

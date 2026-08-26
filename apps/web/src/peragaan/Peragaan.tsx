@@ -89,7 +89,12 @@ export function Peragaan({
       >
         {/* --- Bilah atas: merek, jalur, pintasan ---------------------------- */}
         <div className="flex items-center gap-2 border-b border-line bg-surface-sunken px-3 py-2">
-          <BrandWordmark className="h-3.5" />
+          {/* Font induk disetel kecil supaya wordmark (1em) tetap sepadan
+              dengan jalur text-[11px] di sebelahnya — bilah ini meniru
+              peramban, dan merek sebesar header sungguhan akan merusak ilusinya. */}
+          <span className="text-[11.5px] leading-none">
+            <BrandWordmark className="h-3.5" />
+          </span>
           <span className="text-ink-faint" aria-hidden>
             /
           </span>

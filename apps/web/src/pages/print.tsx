@@ -2,16 +2,25 @@ import type { ApiCommerceDoc, ApiEmployee, ApiPayslip, ApiQuotation } from "@erp
 import { useQuery } from "@tanstack/react-query";
 import { api, formatDate, formatIDR } from "../api/client";
 import { Spinner } from "../components/ui";
+import { isi, useLang, type Lang } from "../i18n";
 import { useUi } from "../i18n/ui";
 
-const MONTH_NAMES_ID = [
-  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-];
-function periodLabel(period: string): string {
+/**
+ * Nama bulan untuk masa gaji, kedua bahasa.
+ *
+ * Sampai Fase 39c hanya ada sisi Indonesia, sehingga slip gaji berbahasa
+ * Inggris tetap menulis "Januari 2026" — persis jenis kebocoran yang tidak
+ * terlihat gerbang mana pun, karena nama bulan bukan literal yang dicari
+ * penyapu i18n dan bukan pula kunci kamus yang hilang.
+ */
+const NAMA_BULAN: Record<Lang, string[]> = {
+  id: ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"],
+  en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+};
+function periodLabel(period: string, lang: Lang): string {
   const [y, m] = period.split("-");
   const idx = Number(m) - 1;
-  return `${MONTH_NAMES_ID[idx] ?? m} ${y}`;
+  return `${NAMA_BULAN[lang][idx] ?? m} ${y}`;
 }
 
 /**
@@ -57,7 +66,7 @@ export function InvoicePrintPage() {
           onClick={() => window.print()}
           className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800"
         >
-          🖨 Cetak / Simpan PDF
+          {u("prCetakPdf")}
         </button>
       </div>
 
@@ -73,7 +82,7 @@ export function InvoicePrintPage() {
           </div>
         </div>
         <div className="text-right">
-          <div className="text-xl font-bold tracking-wide">FAKTUR</div>
+          <div className="text-xl font-bold tracking-wide">{u("prTajukFaktur")}</div>
           <div className="font-mono text-sm">{doc.docNo}</div>
         </div>
       </header>
@@ -85,7 +94,7 @@ export function InvoicePrintPage() {
         </div>
         <div className="text-right">
           <div>
-            Tanggal: <span className="font-medium">{formatDate(doc.date)}</span>
+            {u("prTanggalLabel")} <span className="font-medium">{formatDate(doc.date)}</span>
           </div>
           {doc.dueDate ? (
             <div>
@@ -93,7 +102,8 @@ export function InvoicePrintPage() {
             </div>
           ) : null}
           <div>
-            Status: <span className="font-medium">{doc.status === "paid" ? "LUNAS" : "BELUM LUNAS"}</span>
+            {u("prStatusLabel")}{" "}
+            <span className="font-medium">{doc.status === "paid" ? u("prLunas") : u("prBelumLunas")}</span>
           </div>
           {/* Fase 20j: field kustom ikut tercetak. Kolom yang ditambahkan
               pemilik biasanya justru yang dituntut pembeli ada di faktur
@@ -110,11 +120,11 @@ export function InvoicePrintPage() {
       <table className="mt-6 w-full text-sm">
         <thead>
           <tr className="border-b-2 border-ink text-left">
-            <th className="py-2 pr-4">Barang</th>
+            <th className="py-2 pr-4">{u("prKolomBarang")}</th>
             <th className="py-2 pr-4 text-right">Qty</th>
             <th className="py-2 pr-4 text-right">Harga Satuan</th>
             <th className="py-2 pr-4 text-right">Diskon</th>
-            <th className="py-2 text-right">Jumlah</th>
+            <th className="py-2 text-right">{u("prKolomJumlah")}</th>
           </tr>
         </thead>
         <tbody>
@@ -155,7 +165,7 @@ export function InvoicePrintPage() {
           {doc.paidAmount > 0 && doc.status !== "paid" ? (
             <tr>
               <td colSpan={4} className="py-1.5 pr-4 text-right">
-                Sudah dibayar
+                {u("prSudahDibayar")}
               </td>
               <td className="py-1.5 text-right tabular-nums">{formatIDR(doc.paidAmount)}</td>
             </tr>
@@ -164,7 +174,7 @@ export function InvoicePrintPage() {
       </table>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan ERPindo — ERP untuk perusahaan Indonesia
+        {u("prJejakErpindo")}
       </footer>
     </div>
   );
@@ -175,6 +185,7 @@ export function InvoicePrintPage() {
  * Dibuka di tab baru: /cetak/penawaran?tenant=<tenantId>&id=<quotationId>
  */
 export function QuotationPrintPage() {
+  const u = useUi();
   const params = new URLSearchParams(window.location.search);
   const tenantId = params.get("tenant") ?? "";
   const quotationId = params.get("id") ?? "";
@@ -201,7 +212,7 @@ export function QuotationPrintPage() {
     );
   }
   if (!quote) {
-    return <div className="p-8 text-sm">Penawaran tidak ditemukan atau Anda tidak punya akses.</div>;
+    return <div className="p-8 text-sm">{u("prPenawaranTakDitemukan")}</div>;
   }
 
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -216,7 +227,7 @@ export function QuotationPrintPage() {
           onClick={() => window.print()}
           className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800"
         >
-          🖨 Cetak / Simpan PDF
+          {u("prCetakPdf")}
         </button>
       </div>
 
@@ -232,7 +243,7 @@ export function QuotationPrintPage() {
           </div>
         </div>
         <div className="text-right">
-          <div className="text-xl font-bold tracking-wide">PENAWARAN</div>
+          <div className="text-xl font-bold tracking-wide">{u("prTajukPenawaran")}</div>
           <div className="font-mono text-sm">{quote.quoteNo}</div>
         </div>
       </header>
@@ -244,12 +255,12 @@ export function QuotationPrintPage() {
         </div>
         <div className="text-right">
           <div>
-            Tanggal: <span className="font-medium">{formatDate(quote.quoteDate)}</span>
+            {u("prTanggalLabel")} <span className="font-medium">{formatDate(quote.quoteDate)}</span>
           </div>
           {quote.validUntil ? (
             <div>
               Berlaku sampai: <span className="font-medium">{formatDate(quote.validUntil)}</span>
-              {expired ? <span className="ml-1 font-semibold text-galat-ink">(KEDALUWARSA)</span> : null}
+              {expired ? <span className="ml-1 font-semibold text-galat-ink">{u("prKedaluwarsa")}</span> : null}
             </div>
           ) : null}
         </div>
@@ -258,11 +269,11 @@ export function QuotationPrintPage() {
       <table className="mt-6 w-full text-sm">
         <thead>
           <tr className="border-b-2 border-ink text-left">
-            <th className="py-2 pr-4">Barang</th>
+            <th className="py-2 pr-4">{u("prKolomBarang")}</th>
             <th className="py-2 pr-4 text-right">Qty</th>
             <th className="py-2 pr-4 text-right">Harga Satuan</th>
             <th className="py-2 pr-4 text-right">Diskon</th>
-            <th className="py-2 text-right">Jumlah</th>
+            <th className="py-2 text-right">{u("prKolomJumlah")}</th>
           </tr>
         </thead>
         <tbody>
@@ -305,17 +316,17 @@ export function QuotationPrintPage() {
 
       {quote.notes ? (
         <section className="mt-6 text-sm">
-          <div className="font-semibold text-ink-muted">Catatan</div>
+          <div className="font-semibold text-ink-muted">{u("prCatatan")}</div>
           <p className="whitespace-pre-line">{quote.notes}</p>
         </section>
       ) : null}
 
       <p className="mt-6 text-xs text-ink-muted">
-        Dokumen ini adalah penawaran harga, bukan tagihan. Harga dapat berubah setelah masa berlaku berakhir.
+        {u("prPenawaranBukanTagihan")}
       </p>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan ERPindo — ERP untuk perusahaan Indonesia
+        {u("prJejakErpindo")}
       </footer>
     </div>
   );
@@ -326,6 +337,8 @@ export function QuotationPrintPage() {
  * Dibuka di tab baru: /cetak/slip-gaji?tenant=<tenantId>&run=<runId>&employee=<employeeId>
  */
 export function PayslipPrintPage() {
+  const u = useUi();
+  const lang = useLang();
   const params = new URLSearchParams(window.location.search);
   const tenantId = params.get("tenant") ?? "";
   const runId = params.get("run") ?? "";
@@ -360,7 +373,7 @@ export function PayslipPrintPage() {
     );
   }
   if (!run || !slip) {
-    return <div className="p-8 text-sm">Slip gaji tidak ditemukan atau Anda tidak punya akses.</div>;
+    return <div className="p-8 text-sm">{u("prSlipTakDitemukan")}</div>;
   }
 
   const bpjs = slip.bpjsHealthEmployee + slip.bpjsJhtEmployee + slip.bpjsJpEmployee;
@@ -381,7 +394,7 @@ export function PayslipPrintPage() {
           onClick={() => window.print()}
           className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800"
         >
-          🖨 Cetak / Simpan PDF
+          {u("prCetakPdf")}
         </button>
       </div>
 
@@ -398,26 +411,26 @@ export function PayslipPrintPage() {
         </div>
         <div className="text-right">
           <div className="text-lg font-bold tracking-wide">SLIP GAJI</div>
-          <div className="text-sm">{periodLabel(run.period)}</div>
+          <div className="text-sm">{periodLabel(run.period, lang)}</div>
           <div className="font-mono text-xs text-ink-muted">{run.runNo}</div>
         </div>
       </header>
 
       <section className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <div className="font-semibold text-ink-muted">Nama karyawan</div>
+          <div className="font-semibold text-ink-muted">{u("prNamaKaryawan")}</div>
           <div className="font-medium">{slip.employeeName}</div>
           {slip.position ? <div className="text-ink-muted">{slip.position}</div> : null}
         </div>
         <div className="text-right">
           {employee?.ptkpStatus ? (
             <div>
-              Status PTKP: <span className="font-medium">{employee.ptkpStatus}</span>
+              {u("prStatusPtkp")} <span className="font-medium">{employee.ptkpStatus}</span>
             </div>
           ) : null}
           {employee?.bankAccount ? (
             <div>
-              Rekening: <span className="font-medium">{employee.bankAccount}</span>
+              {u("prRekening")} <span className="font-medium">{employee.bankAccount}</span>
             </div>
           ) : null}
         </div>
@@ -469,7 +482,7 @@ export function PayslipPrintPage() {
       </div>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Slip gaji ini dihasilkan otomatis oleh ERPindo. Tarif PPh 21 (TER) & BPJS mengikuti ketentuan yang berlaku.
+        {u("prSlipCatatanKaki")}
       </footer>
     </div>
   );
@@ -481,6 +494,8 @@ export function PayslipPrintPage() {
  * /cetak/1721a1?tenant=<tenantId>&employee=<employeeId>&year=<YYYY>
  */
 export function Form1721A1PrintPage() {
+  const u = useUi();
+  const lang = useLang();
   const params = new URLSearchParams(window.location.search);
   const tenantId = params.get("tenant") ?? "";
   const employeeId = params.get("employee") ?? "";
@@ -513,7 +528,7 @@ export function Form1721A1PrintPage() {
     );
   }
   if (!employee) {
-    return <div className="p-8 text-sm">Karyawan tidak ditemukan atau Anda tidak punya akses.</div>;
+    return <div className="p-8 text-sm">{u("prKaryawanTakDitemukan")}</div>;
   }
 
   // Kumpulkan seluruh slip karyawan ini pada tahun yang diminta —
@@ -535,7 +550,7 @@ export function Form1721A1PrintPage() {
           onClick={() => window.print()}
           className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800"
         >
-          🖨 Cetak / Simpan PDF
+          {u("prCetakPdf")}
         </button>
       </div>
 
@@ -553,13 +568,13 @@ export function Form1721A1PrintPage() {
 
       <section className="mt-4 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <div className="font-semibold text-ink-muted">Nama karyawan</div>
+          <div className="font-semibold text-ink-muted">{u("prNamaKaryawan")}</div>
           <div className="font-medium">{employee.name}</div>
           {employee.position ? <div className="text-ink-muted">{employee.position}</div> : null}
         </div>
         <div className="text-right">
           <div>
-            Status PTKP: <span className="font-medium">{employee.ptkpStatus}</span>
+            {u("prStatusPtkp")} <span className="font-medium">{employee.ptkpStatus}</span>
           </div>
         </div>
       </section>
@@ -567,7 +582,7 @@ export function Form1721A1PrintPage() {
       <table className="mt-6 w-full text-sm">
         <thead>
           <tr className="border-b-2 border-ink text-left">
-            <th className="py-2 pr-4">Masa</th>
+            <th className="py-2 pr-4">{u("prKolomMasa")}</th>
             <th className="py-2 pr-4 text-right">Bruto</th>
             <th className="py-2 pr-4 text-right">BPJS pekerja</th>
             <th className="py-2 text-right">PPh 21 dipotong</th>
@@ -577,13 +592,13 @@ export function Form1721A1PrintPage() {
           {rows.length === 0 ? (
             <tr>
               <td colSpan={4} className="py-4 text-center text-ink-muted">
-                Belum ada penggajian untuk karyawan ini di tahun {year}.
+                {isi(u("prBelumAdaPenggajian"), year)}
               </td>
             </tr>
           ) : (
             rows.map((x) => (
               <tr key={x.period} className="border-b border-line">
-                <td className="py-2 pr-4">{periodLabel(x.period)}</td>
+                <td className="py-2 pr-4">{periodLabel(x.period, lang)}</td>
                 <td className="py-2 pr-4 text-right tabular-nums">{formatIDR(x.slip.gross)}</td>
                 <td className="py-2 pr-4 text-right tabular-nums">
                   {formatIDR(x.slip.bpjsHealthEmployee + x.slip.bpjsJhtEmployee + x.slip.bpjsJpEmployee)}
@@ -604,12 +619,11 @@ export function Form1721A1PrintPage() {
       </table>
 
       <p className="mt-6 text-xs text-ink-muted">
-        Ringkasan ini disusun dari data penggajian di ERPindo sebagai alat bantu. Untuk pelaporan pajak resmi,
-        cocokkan dengan formulir 1721-A1 dan ketentuan DJP yang berlaku.
+        {u("prRekapCatatanKaki")}
       </p>
 
       <footer className="mt-10 text-center text-xs text-ink-muted">
-        Dibuat dengan ERPindo — ERP untuk perusahaan Indonesia
+        {u("prJejakErpindo")}
       </footer>
     </div>
   );

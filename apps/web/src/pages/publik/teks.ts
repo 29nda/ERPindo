@@ -293,3 +293,138 @@ export const T_KONTAK = {
     en: "There is no form asking for your phone number and handing it to a salesperson. There is no scheduled demo to wait a week for. The demo is already live, and the price is already written down.",
   },
 } satisfies Record<string, Dual | Dual[] | unknown>;
+
+/**
+ * Naskah halaman `/tampilan` (Fase 39d) — tangkapan layar aplikasi.
+ *
+ * ## Kenapa halaman ini ada, padahal Fase 38 menghapus semua tangkapan layar
+ *
+ * Keputusan Fase 38 tidak dicabut, dan alasannya masih berlaku: tangkapan layar
+ * adalah klaim yang harus dipercaya, sedangkan peragaan bisa diperiksa. Beranda
+ * dan `/fitur` karena itu TETAP memakai peragaan, dan tidak satu gambar pun
+ * dikembalikan ke sana.
+ *
+ * Yang berubah: peragaan ternyata tidak menjawab satu pertanyaan yang memang
+ * ditanyakan pembeli perusahaan — "seperti apa layarnya kalau saya benar-benar
+ * memakainya sehari-hari". Peragaan sengaja memperagakan satu alur sempit
+ * selangkah demi selangkah; ia tidak pernah memperlihatkan satu layar padat
+ * berisi sidebar, bilah atas, dan tabel sungguhan sekaligus.
+ *
+ * Dua pengaman supaya kesalahan lama tidak terulang: gambarnya tidak pernah
+ * dibuat tangan (`node scripts/tangkap-layar.mjs` menangkapnya dari aplikasi
+ * yang benar-benar berjalan), dan tanggal penangkapannya tercetak di halaman.
+ * Tangkapan layar basi yang MENGAKU segar adalah masalahnya; yang menyebutkan
+ * umurnya sendiri tidak.
+ */
+export const T_TAMPILAN = {
+  judul: { id: "Seperti apa layarnya", en: "What the screens look like" },
+  pengantar: {
+    id: "Sepuluh layar aplikasi yang sedang berjalan di atas data demo — bukan gambar rancangan, dan bukan mockup. Ditangkap otomatis dari aplikasi yang sama dengan yang Anda pakai setelah berlangganan.",
+    en: "Ten screens of the application running on demo data — not design mockups, and not renderings. Captured automatically from the same application you use once you subscribe.",
+  },
+
+  umurAwalan: { id: "Ditangkap", en: "Captured" },
+  umurAkhiran: { id: "dari versi", en: "from build" },
+
+  peragaanJudul: { id: "Ingin memeriksanya sendiri?", en: "Would you rather check it yourself?" },
+  peragaanIsi: {
+    id: "Tangkapan layar tetap harus dipercaya. Demo publik tidak: ia berisi satu perusahaan dengan data yang sudah terisi di seluruh modul, bisa ditelusuri tanpa akun dan tanpa kartu kredit.",
+    en: "A screenshot still has to be taken on trust. The public demo does not: it holds one company with data already filled in across every module, explorable with no account and no credit card.",
+  },
+} satisfies Record<string, Dual>;
+
+/**
+ * Daftar tangkapan layar beserta keterangannya.
+ *
+ * `berkas` WAJIB sama dengan `nama` di `scripts/tangkap-layar.mjs`, dan
+ * `apps/web/test/tampilan.test.ts` menolak berkas yang disebut di sini tetapi
+ * tidak ada di `apps/web/public/tampilan/`. Tanpa uji itu, gambar yang hilang
+ * hanya menyisakan kotak kosong di halaman jualan — kegagalan paling sunyi
+ * yang bisa dialami halaman semacam ini.
+ *
+ * Keterangannya menyebut apa yang SEDANG TERLIHAT di gambar, bukan janji
+ * umum tentang modulnya. Keterangan yang bisa diperiksa terhadap gambarnya
+ * sendiri adalah satu-satunya keterangan yang menambah kepercayaan.
+ */
+export const TANGKAPAN: { berkas: string; judul: Dual; isi: Dual }[] = [
+  {
+    berkas: "dasbor",
+    judul: { id: "Dasbor", en: "Dashboard" },
+    isi: {
+      id: "Kas, penjualan bulan berjalan, laba, piutang, utang, dan nilai persediaan dalam satu layar. Tiap kartu membawa Anda ke laporan sumbernya, dan pembandingnya bulan lalu serta tahun lalu.",
+      en: "Cash, month-to-date sales, profit, receivables, payables, and stock value on one screen. Each card leads to the report behind it, compared against last month and last year.",
+    },
+  },
+  {
+    berkas: "kasir",
+    judul: { id: "Kasir (POS)", en: "Point of sale" },
+    isi: {
+      id: "Katalog yang dicari dari server, keranjang dengan diskon per baris, dan pembayaran multi-tender. Struk tercetak berlogo perusahaan, dan penjualannya langsung menjadi jurnal.",
+      en: "A catalogue searched server-side, a basket with per-line discounts, and multi-tender payment. Receipts print with your logo, and the sale becomes a journal entry immediately.",
+    },
+  },
+  {
+    berkas: "penjualan",
+    judul: { id: "Faktur penjualan", en: "Sales invoices" },
+    isi: {
+      id: "Daftar faktur beserta status pembayaran dan umur tagihannya. Sekali simpan menyelesaikan tiga hal sekaligus: jurnal, stok keluar, dan piutang pelanggan.",
+      en: "Invoices with payment status and ageing. One save settles three things at once: the journal, stock going out, and the customer receivable.",
+    },
+  },
+  {
+    berkas: "laba-rugi",
+    judul: { id: "Laba rugi", en: "Profit and loss" },
+    isi: {
+      id: "Disusun langsung dari jurnal berstatus terposting, bukan diketik ulang. Periodenya bisa diganti kapan saja, dan tiap baris bisa ditelusuri sampai transaksi aslinya.",
+      en: "Assembled straight from posted journal entries, never retyped. Change the period at any time, and trace any line back to the transaction behind it.",
+    },
+  },
+  {
+    berkas: "neraca",
+    judul: { id: "Neraca", en: "Balance sheet" },
+    isi: {
+      id: "Aset, liabilitas, dan ekuitas pada tanggal mana pun. Karena setiap transaksi memposting jurnal double-entry, keseimbangannya bukan hasil pembulatan melainkan konsekuensi.",
+      en: "Assets, liabilities, and equity on any date. Because every transaction posts a double-entry journal, the balance is a consequence rather than a rounding exercise.",
+    },
+  },
+  {
+    berkas: "stok",
+    judul: { id: "Stok", en: "Stock" },
+    isi: {
+      id: "Saldo per gudang beserta nilai persediaannya. Harga pokok dihitung rata-rata bergerak di setiap transaksi, dan barang terdekat kedaluwarsa keluar lebih dulu.",
+      en: "Balances per warehouse with their inventory value. Cost is recomputed as a moving average on every transaction, and stock closest to expiry leaves first.",
+    },
+  },
+  {
+    berkas: "penggajian",
+    judul: { id: "Penggajian", en: "Payroll" },
+    isi: {
+      id: "Satu periode gaji dengan PPh 21 metode TER dan BPJS terhitung per karyawan. Slip gaji siap cetak, dan beban gajinya langsung masuk laporan keuangan.",
+      en: "One payroll period with PPh 21 TER and social security computed per employee. Payslips are ready to print, and the wage cost lands in the financial statements at once.",
+    },
+  },
+  {
+    berkas: "jurnal",
+    judul: { id: "Jurnal", en: "Journal" },
+    isi: {
+      id: "Pusat data seluruh aplikasi. Jurnal tidak pernah dihapus maupun disunting — koreksi dilakukan lewat jurnal pembalik, sehingga jejak auditnya tetap utuh.",
+      en: "The heart of the whole application. Journal entries are never deleted or edited — corrections go through reversing entries, so the audit trail stays intact.",
+    },
+  },
+  {
+    berkas: "e-faktur",
+    judul: { id: "Ekspor e-Faktur", en: "e-Faktur export" },
+    isi: {
+      id: "Rekap faktur keluaran ber-PPN per masa pajak, siap diunduh sebagai XML Coretax DJP. Kode transaksinya dipilih sistem mengikuti PMK 131/2024.",
+      en: "A recap of VAT output invoices per tax period, ready to download as Coretax XML. The transaction code is chosen for you following PMK 131/2024.",
+    },
+  },
+  {
+    berkas: "aset",
+    judul: { id: "Aset tetap", en: "Fixed assets" },
+    isi: {
+      id: "Daftar aset beserta nilai buku berjalannya. Penyusutan dibukukan otomatis tiap bulan, dan penyusutan fiskal berdampingan untuk keperluan koreksi SPT.",
+      en: "Assets with their running book value. Depreciation is posted automatically each month, with fiscal depreciation alongside it for tax reconciliation.",
+    },
+  },
+];

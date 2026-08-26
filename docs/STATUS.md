@@ -3,9 +3,70 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 21 Agustus 2026
+**Terakhir diperbarui:** 25 Agustus 2026
 
-## Yang baru saja selesai — Fase 38: perombakan total situs
+## Yang baru saja selesai — Fase 39: situs dibaca mesin, dan layarnya bisa dilihat
+
+Empat pekerjaan, semuanya berangkat dari permintaan Anda.
+
+### 1. Halaman baru `/tampilan` — sepuluh layar aplikasi
+
+Pembeli perusahaan menanyakan satu hal yang tidak dijawab peragaan: "seperti apa
+layarnya kalau saya benar-benar memakainya sehari-hari". Peragaan memperagakan
+satu alur sempit langkah demi langkah; ia tidak pernah memperlihatkan satu layar
+padat berisi sidebar, bilah atas, dan tabel sungguhan sekaligus.
+
+Sepuluh tangkapan layar sekarang ada di `/tampilan`, tertaut dari bilah atas.
+Gambarnya **tidak dibuat tangan** — satu perintah menangkapnya ulang dari
+aplikasi yang benar-benar berjalan — dan **tanggal penangkapannya tercetak di
+halaman**. Itu yang membedakannya dari tangkapan layar yang dihapus Fase 38:
+gambar boleh menua, asalkan menyebutkan umurnya sendiri.
+
+Beranda tetap memakai peragaan. Sebuah pemeriksaan otomatis menjaga agar
+tangkapan layar tidak merayap kembali ke sana.
+
+### 2. Situs kini ditulis untuk mesin penjawab, bukan hanya mesin pencari
+
+Makin banyak calon pelanggan bertanya kepada ChatGPT atau Perplexity alih-alih
+mengetik di Google. Situs ini sekarang menyediakan yang mereka baca:
+
+- **`/llms.txt`** — ringkasan situs berbentuk prosa khusus untuk mesin penjawab,
+  berisi harga, modul, dan — yang justru membuatnya berguna — **apa yang belum
+  ada** (ERPindo belum punya ISO 27001 maupun SOC 2). Model yang mengutipnya
+  ikut menyebut batasannya, sehingga calon pelanggan tidak datang membawa
+  harapan yang tidak bisa dipenuhi.
+- **robots.txt menyebut perayap AI satu per satu** dan mengizinkannya.
+- **Data terstruktur diperbaiki**: daftar fitur, tangkapan layar, dan sasaran
+  pengguna kini diumumkan ke mesin; tanya-jawab tidak lagi diumumkan di halaman
+  yang tidak memuat tanya-jawab.
+
+**Satu bug tertangkap di jalan.** Kalimat harga di beranda yang khusus disajikan
+kepada perayap ternyata mengirimkan potongan kode program, bukan "Rp 499.000".
+Google dan mesin penjawab telah membaca versi rusak itu selama berbulan-bulan.
+Pemeriksaan otomatisnya menyatakan halaman itu benar — karena angka "499.000"
+memang ada di halaman yang sama, hanya di bagian tanya-jawab. Sudah diperbaiki,
+beserta penjaga baru yang menolak bentuk kesalahan itu, bukan sekadar mencari
+bentuk yang benar.
+
+### 3. Teks logo diperbesar
+
+Sekaligus menutup selisih lama: wordmark di aplikasi ternyata 39% lebih kecil
+daripada kembarannya di halaman blog, dan tidak pernah terlihat karena keduanya
+tidak pernah tampil bersamaan. Di layar ponsel ukurannya tetap seperti semula —
+versi besarnya sempat membuat tiga halaman meluber, dan pemeriksaan otomatis
+menangkapnya sebelum sampai ke Anda.
+
+### 4. Dokumen yang Anda kirimkan kini ikut dwibahasa
+
+Faktur, penawaran, slip gaji, rekap pajak karyawan, dan surat jalan sebelumnya
+selalu berbahasa Indonesia — bahkan bagi pengguna yang sudah memilih Inggris.
+Padahal justru dokumen itulah yang paling dilihat orang **di luar** perusahaan
+pemakainya. Kelimanya sekarang mengikuti bahasa yang dipilih.
+
+Halaman Panduan juga berhenti menjanjikan "tangkapan layar asli", yang sudah
+tidak benar sejak Fase 38.
+
+## Sebelumnya — Fase 38: perombakan total situs
 
 Ini perombakan desain **ketiga** di repo ini. Dua yang sebelumnya (Fase 17a dan
 18a) hanya mengganti nilai warna di satu berkas sementara 50 halaman menulis
