@@ -71,7 +71,7 @@ function DemoButton({ size = "lg", variant = "primary" }: { size?: "md" | "lg"; 
               setError(
                 L(
                   lang,
-                  "Demo sedang disiapkan. Sementara ini, daftar saja — akun langsung bisa dipakai.",
+                  "Demo sedang disiapkan. Sementara ini Anda dapat langsung mendaftar, dan akunnya bisa dipakai saat itu juga.",
                   "The demo is being prepared. In the meantime, just sign up — your account works right away.",
                 ),
               );
@@ -130,17 +130,29 @@ function Hero() {
             Layar pertama melayani DUA pembeli sekaligus (lihat
             docs/posisi-produk.md): angka dan sumber untuk yang menyetujui,
             peragaan hidup di bawahnya untuk yang menilai. */}
+        {/* Fase 40a — judul lama berbunyi "ERP untuk perusahaan, tanpa proyek
+            implementasi", dan itu kalimat Inggris yang dialihkata: "Enterprise
+            ERP, without the implementation project". Kalimat penjelasnya lebih
+            jauh lagi — "ERPindo tidak punya proyek" praktis tidak bermakna
+            tanpa kerangka Inggris di belakangnya.
+
+            Yang menggantikannya berbentuk Indonesia: klaim produk lebih dulu,
+            lalu buktinya. Angka kegagalan ERP TETAP ada karena pembeli yang
+            menyetujui anggaran memakainya, tetapi ia turun menjadi pembanding
+            di bawah, bukan kalimat pertama yang menyambut pengunjung. Membuka
+            halaman jualan dengan statistik kegagalan industri adalah kebiasaan
+            B2B Inggris, bukan Indonesia. */}
         <h1 className="judul-hero max-w-3xl text-[2.25rem] sm:text-[3.25rem]">
-          {L(lang, "ERP untuk perusahaan,", "Enterprise ERP,")}{" "}
+          {L(lang, "ERP siap pakai untuk perusahaan Indonesia,", "ERP that is ready to use,")}{" "}
           <span className="text-brand-ink">
-            {L(lang, "tanpa proyek implementasi.", "without the implementation project.")}
+            {L(lang, "tanpa proyek pemasangan.", "with no rollout project.")}
           </span>
         </h1>
         <p className="mt-5 max-w-[40rem] text-lg leading-[1.65] text-ink-soft">
           {L(
             lang,
-            "68% proyek ERP gagal memenuhi tujuannya, dan biayanya rata-rata membengkak 189%. ERPindo tidak punya proyek: bagan akun standar Indonesia, PPN, PPh 21 TER, dan e-Faktur sudah terpasang sejak perusahaan Anda dibuat.",
-            "68% of ERP projects miss their objectives, and budgets overrun by 189% on average. ERPindo has no project: the Indonesian chart of accounts, VAT, PPh 21 TER, and e-Faktur are in place the moment your company is created.",
+            "Bagan akun standar Indonesia, tarif PPN, PPh 21 metode TER, dan BPJS sudah terpasang begitu perusahaan Anda dibuat. Tidak ada tim konsultan yang perlu didatangkan, dan tidak ada persiapan berbulan-bulan sebelum tim Anda mulai mencatat.",
+            "The Indonesian chart of accounts, VAT rates, PPh 21 (TER method), and BPJS are in place the moment your company is created. There is no consulting team to bring in, and no months of setup before your team starts recording.",
           )}
         </p>
         {/* Sumber dicantumkan. Angka tanpa sumber di halaman jualan adalah
@@ -149,8 +161,8 @@ function Hero() {
         <p className="mt-2 text-xs text-ink-faint">
           {L(
             lang,
-            "Sumber: Panorama Consulting Solutions, ERP Report 2025.",
-            "Source: Panorama Consulting Solutions, ERP Report 2025.",
+            "Sebagai pembanding, 68% proyek ERP gagal memenuhi tujuannya dengan pembengkakan biaya rata-rata 189%. Sumber: Panorama Consulting Solutions, ERP Report 2025.",
+            "For comparison, 68% of ERP projects miss their objectives, with an average cost overrun of 189%. Source: Panorama Consulting Solutions, ERP Report 2025.",
           )}
         </p>
         <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -469,7 +481,7 @@ function KenapaGagal() {
         <h2 className="judul max-w-3xl text-[2rem] sm:text-[2.5rem]">
           {L(
             lang,
-            "Yang membuat proyek ERP gagal — dan apa yang menggantikannya di sini",
+            "Empat sebab proyek ERP gagal, dan cara ERPindo menghindarinya",
             "What makes ERP projects fail — and what replaces it here",
           )}
         </h2>
@@ -538,7 +550,7 @@ function Pricing() {
             <p className="mt-0.5 text-xs text-ink-muted">
               {L(
                 lang,
-                "Seluruh modul terbuka, pengguna tak terbatas — dari toko pertama sampai grup perusahaan",
+                "Seluruh modul terbuka dan pengguna tak terbatas, dari satu badan usaha sampai grup perusahaan",
                 "Every module unlocked, unlimited users — from your first shop to a group of companies",
               )}
             </p>
@@ -585,7 +597,7 @@ function Pricing() {
           <p className="mt-2 max-w-3xl text-[13px] text-ink-soft">
             {L(
               lang,
-              "Kelola beberapa badan usaha dalam satu akun dengan laporan konsolidasi lintas perusahaan dan dimensi per cabang — tanpa paket khusus, karena tidak ada paket khusus. Tiap perusahaan berlangganan sendiri dengan harga yang sama.",
+              "Kelola beberapa badan usaha dalam satu akun, lengkap dengan laporan konsolidasi lintas perusahaan dan dimensi per cabang. Tidak ada paket khusus untuk ini, karena memang tidak ada paket khusus. Tiap perusahaan berlangganan sendiri dengan harga yang sama.",
               "Manage several entities from one account with cross-company consolidated reports and per-branch dimensions — no special plan needed, because there is no special plan. Each company subscribes on its own at the same price.",
             )}
           </p>
@@ -599,9 +611,9 @@ function Security() {
   const lang = useLang();
   return (
     <section className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
-      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Data Anda tetap milik Anda, termasuk setelah Anda pergi.", "Your data stays yours, including after you leave.")}</h2>
+      <h2 className="judul text-[2rem] sm:text-[2.5rem]">{L(lang, "Data Anda tetap milik Anda, termasuk setelah berhenti berlangganan.", "Your data stays yours, including after you leave.")}</h2>
       <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
-        {L(lang, "Aman saja tidak cukup. Anda juga harus bisa berhenti kapan saja dan membawa seluruh data Anda.", "Secure is necessary, but not enough. You should also be able to leave whenever you want — and take all your data with you.")}
+        {L(lang, "Keamanan saja belum cukup. Perusahaan Anda dapat berhenti kapan saja dan membawa seluruh datanya.", "Secure is necessary, but not enough. You should also be able to leave whenever you want — and take all your data with you.")}
       </p>
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         {SECURITY_POINTS.map((s) => (

@@ -44,31 +44,31 @@ export const TRUST_POINTS: { value: Dual; label: Dual; icon: LucideIcon }[] = [
     icon: Wallet,
     value: { id: "Pengguna tak terbatas", en: "Unlimited users" },
     label: {
-      id: "Rp 499.000 per bulan per badan usaha. Tambah 10 atau 200 orang, tagihannya tidak bergerak.",
+      id: "Rp 499.000 per bulan untuk satu badan usaha. Mau menambah 10 orang atau 200 orang, tagihannya tetap sama.",
       en: "Rp 499,000 a month per legal entity. Add 10 people or 200 — the bill does not move.",
     },
   },
   {
     icon: Percent,
-    value: { id: "Kepatuhan bawaan", en: "Compliance built in" },
+    value: { id: "Pajak terhitung otomatis", en: "Tax calculated automatically" },
     label: {
-      id: "PPN, PPh 21 metode TER, dan BPJS terhitung otomatis. XML-nya langsung diimpor ke Coretax DJP.",
+      id: "PPN, PPh 21 metode TER, dan BPJS dihitung sendiri oleh sistem. Berkas XML-nya siap diunggah ke Coretax DJP.",
       en: "VAT, PPh 21 (TER method), and BPJS calculated automatically. The XML imports straight into Coretax.",
     },
   },
   {
     icon: Building2,
-    value: { id: "Multi-entitas", en: "Multi-entity" },
+    value: { id: "Banyak badan usaha, satu akun", en: "Many entities, one account" },
     label: {
-      id: "Tiap badan usaha punya basis data sendiri. Laporan konsolidasi disusun lintas perusahaan, termasuk eliminasi antar-perusahaan.",
+      id: "Tiap badan usaha memakai basis data sendiri. Laporan konsolidasi disusun lintas perusahaan, lengkap dengan eliminasi antar-perusahaan.",
       en: "Each legal entity gets its own database. Consolidated reports span companies, intercompany eliminations included.",
     },
   },
   {
     icon: Database,
-    value: { id: "Tanpa kunci vendor", en: "No vendor lock-in" },
+    value: { id: "Data tetap milik Anda", en: "Your data stays yours" },
     label: {
-      id: "Seluruh tabel dapat diunduh sebagai CSV kapan saja — termasuk setelah langganan berakhir.",
+      id: "Seluruh tabel dapat diunduh sebagai berkas CSV kapan saja, termasuk setelah langganan berakhir.",
       en: "Every table downloads as CSV any time — including after the subscription ends.",
     },
   },
@@ -97,7 +97,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     label: { id: "Kasir", en: "Till" },
     icon: Store,
     peragaan: "kasir-shift",
-    title: { id: "Kasir yang langsung masuk pembukuan", en: "A till that posts straight to your books" },
+    title: { id: "Jual di kasir, pembukuannya ikut tercatat", en: "Sell at the till, the books record themselves" },
     benefits: [
       { id: "Cari barang cepat, beri diskon per item, cetak struk berlogo Anda.", en: "Find items fast, discount per line, print receipts with your logo." },
       { id: "Buka shift, jual seharian, tutup shift. Selisih kasnya ikut tercatat.", en: "Open a shift, sell all day, close it. Any cash difference is recorded too." },
@@ -109,7 +109,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     label: { id: "Faktur & PPN", en: "Invoices & VAT" },
     icon: ReceiptText,
     peragaan: "faktur-berantai",
-    title: { id: "Faktur rapi dalam hitungan detik", en: "A tidy invoice in seconds" },
+    title: { id: "Buat faktur dalam hitungan detik", en: "Raise an invoice in seconds" },
     benefits: [
       { id: "Satu kali simpan: stok berkurang dan tagihan pelanggan ikut tercatat.", en: "Save once: stock drops and the customer's bill is recorded too." },
       { id: "PPN dan diskon per baris dihitung sendiri.", en: "VAT and per-line discounts are worked out for you." },
@@ -121,7 +121,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     label: { id: "Laporan keuangan", en: "Financial reports" },
     icon: LineChart,
     peragaan: "laporan-tersusun",
-    title: { id: "Untung rugi bisa dilihat kapan saja", en: "Check your profit any time" },
+    title: { id: "Lihat untung rugi kapan saja", en: "Check your profit any time" },
     benefits: [
       { id: "Laba rugi, neraca, dan arus kas tersusun dari transaksi yang sudah Anda catat.", en: "Profit and loss, balance sheet, and cash flow are built from what you already recorded." },
       { id: "Angkanya selalu cocok, karena disusun mesin bukan diketik ulang.", en: "The figures always tie up, because they are assembled, not retyped." },
@@ -133,7 +133,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     label: { id: "Gaji & pajak karyawan", en: "Payroll & staff tax" },
     icon: Wallet,
     peragaan: "gaji-sekali-jalan",
-    title: { id: "Gajian sekali klik, pajaknya sudah dihitung", en: "One-click payday, tax already worked out" },
+    title: { id: "Hitung gaji dan PPh 21 sekali klik", en: "Run payroll and PPh 21 in one click" },
     benefits: [
       { id: "PPh 21 dan BPJS terhitung mengikuti aturan yang berlaku sekarang.", en: "Income tax and social security follow the rules in force today." },
       { id: "Slip gaji tiap karyawan siap dicetak atau dikirim.", en: "Each employee's payslip is ready to print or send." },
@@ -145,7 +145,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     label: { id: "Stok", en: "Stock" },
     icon: Boxes,
     peragaan: "stok-tepercaya",
-    title: { id: "Stok yang angkanya bisa dipercaya", en: "Stock figures you can trust" },
+    title: { id: "Pantau stok tanpa selisih", en: "Track stock without discrepancies" },
     benefits: [
       { id: "Beberapa gudang sekaligus, dan modal barang terhitung tiap kali ada penjualan.", en: "Several warehouses at once, with cost of goods computed on every sale." },
       { id: "Barang yang paling dekat kedaluwarsa keluar lebih dulu.", en: "Whatever is closest to expiry goes out first." },
@@ -158,7 +158,7 @@ export const COMPARISON: { topic: Dual; manual: Dual; erpindo: Dual }[] = [
   {
     topic: { id: "Mencatat penjualan", en: "Recording a sale" },
     manual: { id: "Menulis nota, menyalinnya ke buku, lalu menghitung ulang di Excel", en: "Write a note, copy it into a book, recompute in Excel" },
-    erpindo: { id: "Cukup mencatat sekali; stok dan tagihan ikut terisi sendiri.", en: "Record once. Stock and receivables fill themselves in." },
+    erpindo: { id: "Cukup mencatat sekali. Stok dan tagihan pelanggan ikut terisi.", en: "Record once. Stock and receivables fill themselves in." },
   },
   {
     topic: { id: "Menghitung PPN", en: "Working out VAT" },
@@ -172,7 +172,7 @@ export const COMPARISON: { topic: Dual; manual: Dual; erpindo: Dual }[] = [
   },
   {
     topic: { id: "Menjaga stok", en: "Keeping stock straight" },
-    manual: { id: "Sering selisih, dan modal barang hanya ditebak", en: "Often mismatched, cost of goods is guesswork" },
+    manual: { id: "Sering selisih, dan modal barang hanya dikira-kira", en: "Often mismatched, cost of goods is guesswork" },
     erpindo: { id: "Modal barang terhitung otomatis, dan barang yang mendekati kedaluwarsa keluar lebih dulu.", en: "Cost of goods is calculated automatically. Stock nearest to expiry goes out first." },
   },
   {
@@ -182,8 +182,8 @@ export const COMPARISON: { topic: Dual; manual: Dual; erpindo: Dual }[] = [
   },
   {
     topic: { id: "Menagih pelanggan", en: "Chasing payment" },
-    manual: { id: "Baru menyadari keterlambatannya saat kas menipis", en: "You notice only when cash runs low" },
-    erpindo: { id: "Tagihan yang telah jatuh tempo muncul sendiri di halaman depan.", en: "Overdue invoices surface on your home screen by themselves." },
+    manual: { id: "Keterlambatan baru diketahui saat kas menipis", en: "You notice only when cash runs low" },
+    erpindo: { id: "Faktur yang jatuh tempo langsung tampil di halaman depan.", en: "Overdue invoices appear on your home screen straight away." },
   },
 ];
 
