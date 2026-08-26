@@ -94,7 +94,7 @@ function jsonLd(base: string, jalur: string): string {
     areaServed: { "@type": "Country", name: "Indonesia" },
     knowsLanguage: ["id", "en"],
     description:
-      "ERP multi-tenant untuk perusahaan Indonesia — akuntansi, POS, stok, penggajian, dan pajak dalam satu aplikasi, tanpa proyek implementasi.",
+      "ERP untuk perusahaan Indonesia. Akuntansi, kasir, stok, penggajian, dan pajak dalam satu aplikasi, siap dipakai tanpa proyek pemasangan berbulan-bulan.",
   };
 
   const situs = {

@@ -3347,7 +3347,7 @@ try {
     "F15 toggle EN menerjemahkan hero + harga ke Inggris",
     // "Most popular" hilang bersama kartu bertingkat (Fase 30) — lencana kartu
     // tunggal kini menyatakan bahwa paketnya memang cuma satu.
-    enText.includes("without the implementation project") && enText.includes("One plan for everything") && enText.includes("/month"),
+    enText.includes("with no rollout project") && enText.includes("One plan for everything") && enText.includes("/month"),
     `→ EN tidak lengkap`,
   );
   // Fase 14f: seluruh seksi landing (Showcase/Comparison/Security/FAQ) kini dwibahasa.
@@ -3366,7 +3366,10 @@ try {
   await page.waitForTimeout(300);
   // Fase 35a — judul hero diganti; asersi ikut menyebut bunyi barunya, bukan
   // dilonggarkan menjadi pencocokan sebagian.
-  check("F15 toggle kembali ke ID", (await page.innerText("body")).includes("tanpa proyek implementasi"));
+  //
+  // Fase 40a: judul diganti lagi. Bunyi lama ("tanpa proyek implementasi")
+  // adalah alih-kata dari Inggris; penggantinya berbentuk Indonesia.
+  check("F15 toggle kembali ke ID", (await page.innerText("body")).includes("tanpa proyek pemasangan"));
   // --- Fase 27b: formulir "Jadwalkan demo" DIHAPUS ----------------------------
   //
   // Cek lama di sini mengisi & mengirim formulir itu. Fiturnya dihapus karena
