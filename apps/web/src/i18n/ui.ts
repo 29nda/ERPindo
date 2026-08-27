@@ -314,7 +314,7 @@ export const UI = {
     en: "Current assets divided by liabilities. Above 1 means short-term obligations are covered.",
   },
   descPerputaran: {
-    id: "HPP tahun berjalan dibagi persediaan akhir — bukan rata-rata, karena neraca hanya satu titik waktu.",
+    id: "HPP tahun berjalan dibagi persediaan akhir, bukan rata-rata, karena neraca hanya satu titik waktu.",
     en: "Year-to-date COGS divided by ending inventory — not an average, because the balance sheet is a single point in time.",
   },
   kaliSetahun: { id: "kali", en: "×" },
@@ -491,7 +491,7 @@ export const UI = {
   belumAdaLogo: { id: "Belum ada logo. Unggah logo agar ikut tercetak di faktur, struk, dan slip gaji.", en: "No logo yet. Upload one so it appears on invoices, receipts, and payslips." },
   gantiLogo: { id: "Ganti logo", en: "Replace logo" },
   descLogo: {
-    id: "PNG/JPEG/WebP/SVG — otomatis dikecilkan; tampil di kop faktur cetak & struk POS.",
+    id: "Berkas PNG, JPEG, WebP, atau SVG. Ukurannya dikecilkan otomatis, lalu tampil di kop faktur cetak dan struk kasir.",
     en: "PNG/JPEG/WebP/SVG — resized automatically; shown on printed invoice headers & POS receipts.",
   },
   perusahaanLain: { id: "Perusahaan lain", en: "Other companies" },
@@ -559,7 +559,7 @@ export const UI = {
   postingJurnalPenutup: { id: "Posting jurnal penutup", en: "Post closing entry" },
   konfirmJurnalPenutup: { id: "Posting jurnal penutup per", en: "Post closing entry as of" },
   descKonfirmJurnalPenutup: {
-    id: "Semua saldo pendapatan dan beban sampai tanggal itu dinolkan; laba/rugi bersihnya dipindahkan ke Laba Ditahan.",
+    id: "Semua saldo pendapatan dan beban sampai tanggal itu dinolkan, lalu laba rugi bersihnya dipindahkan ke Laba Ditahan.",
     en: "All revenue and expense balances up to that date are zeroed; the net profit/loss moves to Retained Earnings.",
   },
   yaPostingJurnalPenutup: { id: "Ya, posting jurnal penutup", en: "Yes, post the closing entry" },
@@ -664,7 +664,7 @@ export const UI = {
   // Peramalan stok (Fase 20h)
   peramalanStok: { id: "Peramalan stok", en: "Stock forecast" },
   descPeramalanStok: {
-    id: "Perkiraan kebutuhan dari kecepatan jual 90 hari terakhir. Hitungannya rata-rata bergerak biasa — bukan AI — jadi angkanya bisa Anda telusuri sendiri.",
+    id: "Perkiraan kebutuhan dari kecepatan jual 90 hari terakhir. Hitungannya rata-rata bergerak biasa, bukan AI, jadi angkanya dapat Anda telusuri sendiri.",
     en: "Demand estimate from the last 90 days of sales velocity. Plain moving average — not AI — so you can retrace every number yourself.",
   },
   rataJualHarian: { id: "Rata-rata/hari", en: "Avg/day" },
@@ -685,7 +685,7 @@ export const UI = {
     en: "No sales in this period, so there is nothing to forecast yet. Forecasting needs at least one month of history.",
   },
   hintKeyakinanRendah: {
-    id: "Baris berkeyakinan rendah dihitung dari penjualan yang terlalu jarang; perlakukan sebagai perkiraan kasar.",
+    id: "Baris berkeyakinan rendah dihitung dari penjualan yang terlalu jarang, jadi perlakukan angkanya sebagai perkiraan kasar.",
     en: "Low-confidence rows come from sales that are too infrequent; treat them as rough estimates.",
   },
   // Laporan — Fase 16e
@@ -898,7 +898,7 @@ export const UI = {
     en: "Doesn't affect stock or your books yet — it only commits when converted to an invoice.",
   },
   descBelumAdaPenawaran: {
-    id: "Buat penawaran untuk calon pembeli; sekali klik ia bisa menjadi faktur.",
+    id: "Buat penawaran untuk calon pembeli. Sekali klik, ia dapat menjadi faktur.",
     en: "Create a quotation for a prospect — one click turns it into an invoice.",
   },
   buatPermintaanPembelian: { id: "Buat permintaan pembelian", en: "Create purchase request" },
@@ -1139,7 +1139,7 @@ export const UI = {
     en: "The acquisition entry (Debit Fixed Assets / Credit cash-bank) is posted automatically.",
   },
   descPenyusutanBulanan: {
-    id: "Otomatis tiap awal bulan; bisa juga dipicu manual. Aman diulang (tak dobel per periode).",
+    id: "Berjalan otomatis tiap awal bulan, dan dapat juga dipicu manual. Aman diulang, karena tidak dobel per periode.",
     en: "Runs automatically each month; can also be triggered manually. Safe to repeat (never doubles a period).",
   },
   descBelumAdaAset: {
@@ -1241,7 +1241,7 @@ export const UI = {
   tambahGudang: { id: "Tambah gudang", en: "Add warehouse" },
   ubahGudang: { id: "Ubah gudang", en: "Edit warehouse" },
   descUbahProduk: {
-    id: "Perubahan hanya memengaruhi data master; transaksi lama tetap memakai nilai saat diposting.",
+    id: "Perubahan hanya memengaruhi data master. Transaksi lama tetap memakai nilai saat diposting.",
     en: "Changes affect master data only; past transactions keep the values they were posted with.",
   },
   descTambahProduk: {
@@ -1269,7 +1269,7 @@ export const UI = {
     en: "Track lots & expiry dates (F&B/pharma) — the exp date is required on purchase, issued automatically by FEFO",
   },
   jasaTanpaStok: {
-    id: "Jasa (tanpa stok) — faktur tidak menggerakkan stok/HPP; cocok untuk layanan, sewa, langganan",
+    id: "Jasa tanpa stok. Fakturnya tidak menggerakkan stok maupun HPP, jadi cocok untuk layanan, sewa, dan langganan",
     en: "Service (no stock) — invoices do not move stock/COGS; suited to services, rentals, subscriptions",
   },
   lacakNomorSeri: {
@@ -1356,7 +1356,7 @@ export const UI = {
     id: "Tidak ada jurnal yang cocok. Coba kata kunci lain, atau lebarkan rentang tanggalnya.",
     en: "No entries match. Try another keyword, or widen the date range.",
   },
-  belumAdaJurnal: { id: "Belum ada jurnal. Jurnal terbentuk sendiri dari faktur, pembelian, dan kasir — atau catat manual di sini.", en: "No entries yet. Entries are created automatically by invoices, purchases, and the cashier — or record one manually here." },
+  belumAdaJurnal: { id: "Belum ada jurnal. Jurnal terbentuk sendiri dari faktur, pembelian, dan kasir, atau dapat Anda catat manual di sini.", en: "No entries yet. Entries are created automatically by invoices, purchases, and the cashier — or record one manually here." },
   dibalikLabel: { id: "DIBALIK", en: "REVERSED" },
   pembalikLabel: { id: "PEMBALIK", en: "REVERSING" },
   periodeTerkunciBalik: {
@@ -1678,7 +1678,7 @@ export const UI = {
   // Fase 21e — form lead publik.
   formLeadPublik: { id: "Form lead publik", en: "Public lead form" },
   descFormLeadPublik: {
-    id: "Tempel potongan HTML ini di landing page atau bio media sosial Anda. Kiriman masuk langsung ke daftar Lead di bawah. Tokennya ikut terlihat di halaman publik — itu wajar; bila ada yang menyalahgunakan, tekan Putar Ulang Token dan pasang potongan yang baru.",
+    id: "Tempel potongan HTML ini di landing page atau bio media sosial Anda. Kiriman masuk langsung ke daftar Lead di bawah. Tokennya ikut terlihat di halaman publik, dan itu wajar. Bila ada yang menyalahgunakannya, tekan Putar Ulang Token lalu pasang potongan yang baru.",
     en: "Paste this HTML snippet on your landing page or social media bio. Submissions land straight in the Leads list below. The token is visible on the public page — that is expected; if anyone abuses it, hit Rotate token and paste the new snippet.",
   },
   terbitkanFormLead: { id: "Terbitkan form", en: "Publish form" },
@@ -1950,7 +1950,7 @@ export const UI = {
     en: "Requisition note (optional)",
   },
   barisAksi: { id: "Baris", en: "Line" },
-  belumAdaPermintaan: { id: "Belum ada permintaan pembelian. Ajukan permintaan; setelah disetujui ia menjadi pesanan ke pemasok.", en: "No purchase requisitions yet. Raise one — once approved it becomes a supplier order." },
+  belumAdaPermintaan: { id: "Belum ada permintaan pembelian. Ajukan permintaannya, dan setelah disetujui ia menjadi pesanan ke pemasok.", en: "No purchase requisitions yet. Raise one — once approved it becomes a supplier order." },
   poJudul: { id: "2. Pesanan pembelian (PO)", en: "2. Purchase order (PO)" },
   descPo: {
     id: "Buat pesanan ke pemasok — pilih pemasok, gudang tujuan, harga per barang. Bisa menarik dari permintaan yang disetujui.",
@@ -2227,7 +2227,7 @@ export const UI = {
 
   // Kontrak Berulang (Fase 19j).
   descKontrakBerulang: {
-    id: "Faktur diterbitkan otomatis pada tanggal tagih; gunakan produk 'jasa' agar tak butuh stok.",
+    id: "Faktur diterbitkan otomatis pada tanggal tagih. Gunakan produk berjenis jasa agar tidak membutuhkan stok.",
     en: "Invoices are issued automatically on the billing date; use a 'service' product so no stock is needed.",
   },
   namaKontrak: { id: "Nama kontrak", en: "Contract name" },
@@ -2370,7 +2370,7 @@ export const UI = {
 
   // Anggaran (Fase 19l).
   descAnggaranRealisasi: {
-    id: "Tetapkan target pendapatan & beban per bulan; realisasi dihitung otomatis dari jurnal. Selisih hijau = menguntungkan (pendapatan di atas target atau beban di bawah target).",
+    id: "Tetapkan target pendapatan dan beban per bulan, lalu realisasinya dihitung otomatis dari jurnal. Selisih hijau = menguntungkan (pendapatan di atas target atau beban di bawah target).",
     en: "Set monthly income and expense targets; actuals are computed automatically from the journal. A green variance is favourable (income above target, or expense below target).",
   },
   // `periodeBulan` sudah ada sejak Fase 16 — dipakai ulang.
@@ -2433,7 +2433,7 @@ export const UI = {
     en: "order_no, date(YYYY-MM-DD), SKU, qty, unit_price, discount%(optional)",
   },
   descSatuBarisPerItem: {
-    id: ". Satu baris per item; item dari pesanan yang sama digabung menjadi satu faktur.",
+    id: ". Satu baris per item, dan item dari pesanan yang sama digabung menjadi satu faktur.",
     en: ". One row per item; items from the same order are merged into a single invoice.",
   },
   barisDilewati: {
@@ -2663,7 +2663,7 @@ export const UI = {
     en: "A separate database per company — your data really is isolated",
   },
   authManfaat4: {
-    id: "1.300+ uji otomatis menjaga setiap rilis; angka pembukuan selalu seimbang",
+    id: "1.300+ uji otomatis menjaga setiap rilis, dan angka pembukuan selalu seimbang",
     en: "1,300+ automated tests guard every release; the books always balance",
   },
   authGoogleDibatalkan: { id: "Masuk via Google dibatalkan.", en: "Google sign-in was cancelled." },
@@ -3224,7 +3224,7 @@ export const UI = {
   // — Kas kecil sistem dana tetap (Fase 22c) —
   kkJudul: { id: "Kas kecil (dana tetap)", en: "Petty cash (imprest fund)" },
   kkDesc: {
-    id: "Kotak uang tunai untuk belanja kecil. Setiap bon dicatat seperti pengeluaran biasa; saat kotaknya menipis, sistem menghitung sendiri berapa yang perlu diisikan supaya kembali ke dana tetap.",
+    id: "Kotak uang tunai untuk belanja kecil. Setiap bon dicatat seperti pengeluaran biasa. Saat kotaknya menipis, sistem menghitung sendiri berapa yang perlu diisikan supaya kembali ke dana tetap.",
     en: "A cash box for small purchases. Each receipt is recorded like any other expense; when the box runs low, the system works out for itself how much to top up to reach the fund amount.",
   },
   kkDanaTetap: { id: "Dana tetap", en: "Fund amount" },
@@ -3279,7 +3279,7 @@ export const UI = {
   kpTabKalender: { id: "Kalender pajak", en: "Tax calendar" },
   kpProfilJudul: { id: "Profil pajak perusahaan", en: "Company tax profile" },
   kpProfilDesc: {
-    id: "Menentukan kewajiban mana yang muncul di kalender. Kalender yang memuat kewajiban yang tidak berlaku akan cepat diabaikan — dan pengingat yang diabaikan sama saja tidak ada.",
+    id: "Menentukan kewajiban mana yang muncul di kalender. Kalender yang memuat kewajiban yang tidak berlaku akan cepat diabaikan, dan pengingat yang diabaikan sama saja tidak ada.",
     en: "Determines which obligations appear in the calendar. A calendar full of obligations that don't apply gets ignored — and a reminder that is ignored is no reminder at all.",
   },
   kpPkp: { id: "Pengusaha Kena Pajak (PKP)", en: "VAT-registered (PKP)" },
@@ -3314,12 +3314,12 @@ export const UI = {
     en: "invoices are already overdue and are still counted as incoming. This projection will be wrong if they are never collected.",
   },
   pkAsumsi: {
-    id: "Asumsinya setiap tagihan dibayar tepat pada tanggal jatuh temponya, dan hanya satu faktur kontrak berikutnya yang diperhitungkan — bukan seluruh sisa masa kontrak.",
+    id: "Asumsinya setiap tagihan dibayar tepat pada tanggal jatuh temponya, dan hanya satu faktur kontrak berikutnya yang diperhitungkan, bukan seluruh sisa masa kontrak.",
     en: "It assumes every invoice is paid exactly on its due date, and counts only the next contract invoice — not the rest of the contract term.",
   },
   kpJudul: { id: "Tenggat lapor & setor", en: "Filing and payment deadlines" },
   kpDesc: {
-    id: "Tenggat menurut UU KUP: PPh 21/23 setor tanggal 10 & lapor tanggal 20 bulan berikutnya; PPh 25 dan PPh Final tanggal 15; SPT Masa PPN akhir bulan berikutnya.",
+    id: "Tenggat menurut UU KUP. PPh 21 dan PPh 23 disetor tanggal 10 lalu dilaporkan tanggal 20 bulan berikutnya. PPh 25 dan PPh Final tanggal 15. SPT Masa PPN akhir bulan berikutnya.",
     en: "Statutory deadlines: PPh 21/23 paid by the 10th and filed by the 20th of the following month; PPh 25 and final tax by the 15th; the monthly VAT return by the end of the following month.",
   },
   kpKewajiban: { id: "Kewajiban", en: "Obligation" },

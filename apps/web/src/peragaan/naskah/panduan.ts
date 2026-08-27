@@ -73,7 +73,7 @@ export const PRODUK_INDUK: Naskah = {
       id: "catatan",
       nada: "netral",
       teks: {
-        id: "Barcode boleh dikosongkan; ia dapat dipindai dan diisikan belakangan dari layar kasir. Harga per grup pelanggan diatur terpisah di Grup Harga.",
+        id: "Barcode boleh dikosongkan, lalu dipindai dan diisikan belakangan dari layar kasir. Harga per grup pelanggan diatur terpisah di Grup Harga.",
         en: "The barcode may be left blank; it can be scanned in later from the till. Per-customer-group pricing is set separately under Price Groups.",
       },
     },

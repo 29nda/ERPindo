@@ -208,7 +208,7 @@ export const PPN_CORETAX: Naskah = {
       aksi: "sorot",
       sasaran: { panel: "rekap" },
       narasi: {
-        id: "Masa pajak dipilih; fakturnya dikumpulkan dari yang sudah diposting.",
+        id: "Masa pajak dipilih, lalu fakturnya dikumpulkan dari yang sudah diposting.",
         en: "A tax period is selected; its invoices are gathered from what has been posted.",
       },
     },
@@ -341,7 +341,7 @@ export const KONSOLIDASI_ENTITAS: Naskah = {
       aksi: "isi",
       sasaran: { panel: "sifat" },
       narasi: {
-        id: "Penggabungan berlaku pada laporan; datanya sendiri tetap terpisah.",
+        id: "Penggabungan berlaku pada laporannya saja. Datanya sendiri tetap terpisah.",
         en: "The combining happens in the report; the data itself stays separate.",
       },
     },

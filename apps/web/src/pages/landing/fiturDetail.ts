@@ -77,7 +77,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     },
     cara: [
       {
-        id: "Setiap transaksi — faktur, kasir, gaji, penyusutan aset — otomatis membuat jurnal dua sisi yang selalu seimbang (double-entry) saat disimpan. Tidak ada langkah 'posting ke akuntansi' yang bisa terlupa.",
+        id: "Setiap transaksi otomatis membuat jurnal dua sisi yang selalu seimbang saat disimpan, baik itu faktur, penjualan kasir, gaji, maupun penyusutan aset. Tidak ada langkah 'posting ke akuntansi' yang bisa terlupa.",
         en: "Every transaction — invoice, POS sale, payroll, depreciation — automatically creates a double-entry journal on save. There is no separate 'post to accounting' step to forget.",
       },
       {
@@ -94,7 +94,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       },
     ],
     hasil: {
-      id: "Neraca Saldo selalu seimbang — dan bila tidak, sistem menolak menyimpannya. Laporan dibaca dari satu sumber: jurnal.",
+      id: "Neraca Saldo selalu seimbang, dan bila tidak, sistem menolak menyimpannya. Laporan dibaca dari satu sumber, yaitu jurnal.",
       en: "The trial balance always balances — and if it wouldn't, the system refuses to save. Reports read from a single source: the journal.",
     },
     peragaan: "jurnal-pembalik",
@@ -154,7 +154,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       },
     ],
     hasil: {
-      id: "Penjualan hari ini sudah masuk laporan keuangan hari ini — bukan besok, dan bukan setelah diketik ulang.",
+      id: "Penjualan hari ini sudah masuk laporan keuangan hari ini juga, bukan besok, dan bukan setelah diketik ulang.",
       en: "Today's sales are in today's financial reports — not tomorrow, and not after being retyped.",
     },
     peragaan: "kasir-shift",
@@ -186,7 +186,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       },
     ],
     hasil: {
-      id: "Nilai persediaan di neraca berasal dari perhitungan, bukan perkiraan — dan lot yang mau kedaluwarsa muncul sebelum jadi kerugian.",
+      id: "Nilai persediaan di neraca berasal dari perhitungan, bukan perkiraan. Lot yang mendekati kedaluwarsa muncul sebelum menjadi kerugian.",
       en: "Inventory value on the balance sheet comes from calculation, not estimation — and lots nearing expiry surface before they become a loss.",
     },
     peragaan: "stok-tepercaya",
@@ -359,7 +359,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Satu layar memuat penjualan, laba bulan berjalan, kas & bank, piutang, utang, dan nilai persediaan — semuanya dihitung dari jurnal Anda sendiri.", en: "One screen holds sales, current-month profit, cash and bank, receivables, payables and inventory value — all computed from your own journals." },
       { id: "Tiap kartu bisa diklik menuju laporan sumbernya, jadi angka yang mengejutkan bisa langsung ditelusuri.", en: "Every card links through to the report behind it, so a surprising number can be traced immediately." },
       { id: "Widget peringatan aktif: faktur lewat jatuh tempo, stok menipis, dan beban yang melonjak dibanding kebiasaan tiga bulan terakhir.", en: "Active warning widgets: overdue invoices, low stock, and expenses that spiked against the last three months' pattern." },
-      { id: "Checklist \"Mulai cepat\" menuntun pengisian awal; contoh produk & kontak bisa diisikan sekali klik sesuai jenis usaha.", en: "A quick-start checklist guides initial setup; sample products and contacts can be filled in with one click per business type." },
+      { id: "Checklist \"Mulai cepat\" menuntun pengisian awal. Contoh produk dan kontak dapat diisikan sekali klik sesuai jenis usaha.", en: "A quick-start checklist guides initial setup; sample products and contacts can be filled in with one click per business type." },
     ],
     hasil: { id: "Kondisi bisnis terbaca dalam hitungan detik setelah masuk, bukan setelah menyusun laporan.", en: "You read the state of the business seconds after signing in, not after assembling a report." },
     peragaan: "dasbor-harian",
@@ -407,7 +407,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     },
     cara: [
       { id: "Saldo tiap dompet (kas, bank, kas kecil) tampil di satu halaman lengkap dengan mutasi saldo berjalan.", en: "Every wallet balance (cash, bank, petty cash) sits on one page with a running-balance ledger." },
-      { id: "Rekening koran diimpor dari CSV — format BCA, Mandiri, dan BRI sudah dikenali — lalu dicocokkan otomatis berdasarkan nominal dan tanggal (toleransi ±3 hari).", en: "Bank statements import from CSV — BCA, Mandiri and BRI formats are recognised — then auto-match on amount and date (±3 days tolerance)." },
+      { id: "Rekening koran diimpor dari berkas CSV, dan format BCA, Mandiri, serta BRI sudah dikenali. Mutasinya lalu dicocokkan otomatis berdasarkan nominal dan tanggal, dengan toleransi tiga hari.", en: "Bank statements import from CSV — BCA, Mandiri and BRI formats are recognised — then auto-match on amount and date (±3 days tolerance)." },
       { id: "Aturan pencocokan bisa disimpan (kata kunci + toleransi), jadi mutasi yang berulang tiap bulan cocok sendiri.", en: "Matching rules can be saved (keyword + tolerance), so recurring monthly entries match themselves." },
       { id: "Kas kecil memakai sistem dana tetap: sistem menghitung sendiri berapa yang perlu diisikan, jadi angkanya tidak diketik dan tidak bisa salah ketik.", en: "Petty cash uses an imprest system: the app computes the top-up itself, so the figure is never typed and never mistyped." },
     ],
@@ -423,7 +423,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       en: "Depreciation lives in a separate spreadsheet and is often booked late, making profit look bigger than it is.",
     },
     cara: [
-      { id: "Register aset dengan nilai perolehan, umur manfaat, dan nilai residu; penyusutan dibukukan otomatis tiap bulan lewat jurnal.", en: "An asset register with cost, useful life and residual value; depreciation is journalled automatically every month." },
+      { id: "Register aset memuat nilai perolehan, umur manfaat, dan nilai residu. Penyusutannya dibukukan otomatis tiap bulan lewat jurnal.", en: "An asset register with cost, useful life and residual value; depreciation is journalled automatically every month." },
       { id: "Metode garis lurus maupun saldo menurun, dan penyusutan fiskal berdampingan bila umur menurut pajak berbeda dari pembukuan.", en: "Straight-line or declining-balance, plus a side-by-side tax depreciation when the fiscal life differs from the book life." },
       { id: "Pelepasan aset (dijual atau dibuang) menghitung laba/rugi sendiri dan menaruhnya di akun yang benar.", en: "Disposal (sold or scrapped) computes the gain or loss itself and posts it to the right account." },
       { id: "Revaluasi ke nilai wajar: kenaikan masuk ke Ekuitas sebagai Surplus Revaluasi, bukan menggelembungkan laba.", en: "Revaluation to fair value: increases go to Equity as a revaluation surplus, never inflating profit." },
@@ -442,7 +442,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     cara: [
       { id: "Papan kanban funnel: kartu lead digeser antar tahap, dari baru sampai menang atau kalah.", en: "A kanban funnel: lead cards move between stages, from new through won or lost." },
       { id: "Aktivitas follow-up bertenggat masuk ke lonceng notifikasi saat jatuh tempo, dan lead yang terbengkalai lebih dari 7 hari ditandai.", en: "Follow-up activities carry due dates that ring the notification bell, and leads idle more than 7 days get flagged." },
-      { id: "Penawaran punya masa berlaku dan halaman cetak berlogo; sekali klik ia berubah menjadi faktur tanpa mengetik ulang.", en: "Quotes carry a validity period and a branded print page; one click turns one into an invoice with no retyping." },
+      { id: "Penawaran punya masa berlaku dan halaman cetak berlogo. Sekali klik, ia berubah menjadi faktur tanpa diketik ulang.", en: "Quotes carry a validity period and a branded print page; one click turns one into an invoice with no retyping." },
       { id: "Form penangkap lead publik bisa ditempel di web atau bio media sosial — pengisinya langsung masuk pipeline, ditandai asalnya.", en: "A public lead form can be embedded on your site or social bio — submissions land straight in the pipeline, tagged by source." },
       { id: "Laporan konversi per sumber menunjukkan kanal mana yang benar-benar menghasilkan, bukan yang paling ramai.", en: "Conversion-by-source reporting shows which channel actually closes, not which is loudest." },
     ],
@@ -476,7 +476,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     cara: [
       { id: "Pendapatan dan biaya bisa ditandai per proyek langsung dari faktur maupun jurnal.", en: "Revenue and cost can be tagged per project straight from invoices or journals." },
       { id: "RAB per kategori dibandingkan dengan realisasi jurnal ber-tag, lengkap dengan progress bar.", en: "A cost plan per category is compared against tagged journal actuals, with progress bars." },
-      { id: "Papan tugas kanban dengan penanggung jawab, prioritas, tenggat, dan beban kerja per orang; progres proyek dihitung dari tugasnya.", en: "A kanban task board with assignee, priority, due date and per-person workload; project progress derives from the tasks." },
+      { id: "Papan tugas kanban memuat penanggung jawab, prioritas, tenggat, dan beban kerja per orang. Progres proyeknya dihitung dari tugas-tugas itu.", en: "A kanban task board with assignee, priority, due date and per-person workload; project progress derives from the tasks." },
       { id: "Gantt dengan dependensi \"setelah…\" serta baseline rencana vs aktual.", en: "A Gantt chart with \"after…\" dependencies plus planned-vs-actual baselines." },
       { id: "Timesheet (jam × tarif) memunculkan biaya tenaga kerja, dan termin penagihan menjadi faktur jasa yang tertaut ke proyeknya.", en: "Timesheets (hours × rate) surface labour cost, and billing milestones become service invoices linked to the project." },
     ],
@@ -509,7 +509,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     },
     cara: [
       { id: "Resep produk (BoM) dan perintah produksi mengubah bahan menjadi barang jadi dengan biaya gabungan.", en: "Bills of materials and production orders turn inputs into finished goods at a combined cost." },
-      { id: "Upah dan overhead diisi per batch dan dibagi otomatis per unit — dan sisi lawannya membatalkan beban yang sudah tercatat di gaji, jadi biayanya tidak terhitung dua kali.", en: "Labour and overhead are entered per batch and split per unit — and the contra side reverses the expense already booked in payroll, so nothing is counted twice." },
+      { id: "Upah dan overhead diisi per batch lalu dibagi otomatis per unit. Sisi lawannya membatalkan beban yang sudah tercatat di gaji, jadi biayanya tidak terhitung dua kali.", en: "Labour and overhead are entered per batch and split per unit — and the contra side reverses the expense already booked in payroll, so nothing is counted twice." },
       { id: "Work center dengan tarif per jam dan routing per produksi, lengkap dengan biaya standar vs aktual dan variannya.", en: "Work centres with hourly rates and per-order routing, with standard-vs-actual cost and variances." },
       { id: "Inspeksi QC memisahkan hasil yang lulus dari yang dikarantina.", en: "QC inspection separates passed output from quarantined output." },
     ],
@@ -525,7 +525,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
       en: "Scheduled servicing slips until the machine stops, and the repair cost is never recorded against that asset.",
     },
     cara: [
-      { id: "Jadwal servis berkala per aset; tugas terjadwal menerbitkan work order sendiri saat tiba waktunya.", en: "Per-asset service schedules; a scheduled job raises the work order itself when due." },
+      { id: "Jadwal servis berkala diatur per aset. Tugas yang terjadwal menerbitkan perintah kerja sendiri saat tiba waktunya.", en: "Per-asset service schedules; a scheduled job raises the work order itself when due." },
       { id: "Work order ad-hoc untuk kerusakan mendadak, dengan riwayat lengkap per aset.", en: "Ad-hoc work orders for sudden breakdowns, with full per-asset history." },
       { id: "Biaya tiap perbaikan dijurnal dan menempel pada asetnya.", en: "Each repair cost is journalled and sticks to its asset." },
     ],
@@ -537,7 +537,7 @@ export const MODUL_DETAIL: ModulDetail[] = [
     icon: LifeBuoy,
     nama: { id: "Helpdesk", en: "Helpdesk" },
     masalah: {
-      id: "Keluhan pelanggan masuk lewat berbagai kanal dan hilang di antaranya; tidak ada yang tahu mana yang sudah dibalas.",
+      id: "Keluhan pelanggan masuk lewat berbagai saluran lalu hilang di antaranya, dan tidak ada yang tahu mana yang sudah dibalas.",
       en: "Customer complaints arrive across channels and vanish between them; nobody knows which have been answered.",
     },
     cara: [
@@ -557,8 +557,8 @@ export const MODUL_DETAIL: ModulDetail[] = [
       en: "Accounting jargon blocks people who understand their business but not double-entry.",
     },
     cara: [
-      { id: "Tanya cara pakai dengan bahasa sehari-hari; jawabannya berpijak pada panduan aplikasi, bukan karangan.", en: "Ask how to do things in plain language; answers are grounded in the app's own guide, not invented." },
-      { id: "Mode Laporan menjawab dari buku Anda sendiri — \"berapa laba bulan ini?\", \"bandingkan dengan bulan lalu\" — bersifat baca-saja dan tidak pernah mengubah data.", en: "Report mode answers from your own books — \"what is this month's profit?\", \"compare with last month\" — read-only, never changing data." },
+      { id: "Tanya cara pakai dengan bahasa sehari-hari. Jawabannya berpijak pada panduan aplikasi, bukan karangan.", en: "Ask how to do things in plain language; answers are grounded in the app's own guide, not invented." },
+      { id: "Mode Laporan menjawab dari buku Anda sendiri, misalnya \"berapa laba bulan ini?\" atau \"bandingkan dengan bulan lalu\". Mode ini bersifat baca-saja dan tidak pernah mengubah data.", en: "Report mode answers from your own books — \"what is this month's profit?\", \"compare with last month\" — read-only, never changing data." },
       { id: "Draf jurnal dari kalimat biasa: usulannya selalu seimbang, dan manusia yang memutuskan untuk memposting.", en: "Journal drafts from ordinary sentences: the suggestion is always balanced, and a human decides to post it." },
       { id: "Ringkasan mingguan berbahasa Indonesia dihitung dari jurnal Anda, bukan ditebak model.", en: "A weekly narrative summary is computed from your journals, not guessed by a model." },
     ],

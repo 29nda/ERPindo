@@ -35,10 +35,10 @@ export const SUREL_KONTAK = "halo@erpindo.id";
 export const BULAN_TIGA_TAHUN = 36;
 
 export const T_HARGA = {
-  judul: { id: "Satu harga, dan tidak ada baris kedua", en: "One price, and no second line item" },
+  judul: { id: "Satu harga, tanpa biaya tambahan", en: "One price, no extra charges" },
   pengantar: {
-    id: "Harga perangkat lunak perusahaan biasanya baru diketahui setelah tiga kali rapat. Halaman ini menyebutnya di baris pertama, beserta seluruh hal yang tidak ditagihkan terpisah.",
-    en: "Enterprise software pricing is usually revealed after three meetings. This page states it in the first line, along with everything that is not billed separately.",
+    id: "Biayanya satu angka, dan halaman ini menyebutkannya di baris pertama. Di bawahnya tertulis apa saja yang sudah termasuk, dan satu-satunya hal yang dibatasi.",
+    en: "The cost is a single figure, and this page states it in the first line. Below it you will find what is already included, and the one thing that is limited.",
   },
 
   kartuJudul: { id: "Berlangganan ERPindo", en: "ERPindo subscription" },
@@ -51,7 +51,7 @@ export const T_HARGA = {
   termasukJudul: { id: "Yang termasuk", en: "What is included" },
   termasuk: [
     {
-      id: "Pengguna tak terbatas. Menambah orang tidak menaikkan tagihan, jadi melatih seluruh tim tidak dihukum biaya.",
+      id: "Pengguna tak terbatas. Menambah orang tidak menaikkan tagihan, jadi melatih seluruh tim tidak menambah biaya.",
       en: "Unlimited users. Adding people does not raise the bill, so training the whole team is not penalised.",
     },
     {
@@ -63,7 +63,7 @@ export const T_HARGA = {
       en: "Multiple legal entities, each with its own database, plus consolidation and intercompany elimination.",
     },
     {
-      id: "Kepatuhan pajak Indonesia bawaan: PPN, PPh 21 dengan tarif efektif rata-rata, BPJS, bukti potong 1721-A1, dan ekspor XML Coretax.",
+      id: "Pajak Indonesia sudah terhitung di dalamnya: PPN, PPh 21 dengan tarif efektif rata-rata, BPJS, bukti potong 1721-A1, dan ekspor XML Coretax.",
       en: "Indonesian tax compliance built in: VAT, income tax on average effective rates, social security, 1721-A1 slips, and Coretax XML export.",
     },
     {
@@ -76,9 +76,9 @@ export const T_HARGA = {
     },
   ],
 
-  batasJudul: { id: "Yang memang dibatasi", en: "What is genuinely limited" },
+  batasJudul: { id: "Yang dibatasi", en: "What is limited" },
   batasPengantar: {
-    id: "Hanya satu, dan disebutkan di sini supaya tidak ditemukan sendiri di bulan kedua.",
+    id: "Hanya ada satu, dan kami sebutkan di sini supaya Anda tidak menemukannya sendiri di bulan kedua.",
     en: "There is only one, and it is stated here so it is not discovered in month two.",
   },
   batasAi: {
@@ -88,7 +88,7 @@ export const T_HARGA = {
 
   tigaTahunJudul: { id: "Biaya kepemilikan tiga tahun", en: "Three-year cost of ownership" },
   tigaTahunPengantar: {
-    id: "Angka yang biasanya diminta bagian pengadaan. Tidak ada baris implementasi, tidak ada biaya lisensi per kepala, tidak ada biaya peningkatan versi — jadi seluruh kolomnya hanya perkalian.",
+    id: "Angka yang biasanya diminta bagian pengadaan. Tidak ada baris pemasangan, tidak ada biaya lisensi per orang, dan tidak ada biaya naik versi, jadi seluruh kolomnya hanya perkalian.",
     en: "The figure procurement usually asks for. There is no implementation line, no per-seat licence, and no upgrade fee — so the whole column is a multiplication.",
   },
   tigaTahunBaris: { id: "36 bulan × Rp 499.000", en: "36 months × Rp 499,000" },
@@ -121,10 +121,10 @@ export const T_HARGA = {
 } satisfies Record<string, Dual | Dual[] | unknown>;
 
 export const T_KEAMANAN = {
-  judul: { id: "Keamanan yang bisa diperiksa, bukan dijanjikan", en: "Security you can inspect, not just be promised" },
+  judul: { id: "Bagaimana data perusahaan Anda dijaga", en: "How your company data is protected" },
   pengantar: {
-    id: "Halaman ini ditulis untuk manajer TI yang sedang menilai vendor. Ia menyebut apa yang benar-benar diterapkan di kode dan operasi, dan menyebut juga apa yang belum ada.",
-    en: "This page is written for the IT manager assessing a vendor. It states what is genuinely implemented in the code and operations, and states what is not there yet.",
+    id: "Halaman ini menyebutkan apa yang benar-benar diterapkan di aplikasi dan operasinya, lengkap dengan cara memeriksanya. Di bagian akhir tertulis juga apa yang belum ada.",
+    en: "This page states what is genuinely in place in the application and its operations, along with how to verify it. The final section states what is not there yet.",
   },
 
   isolasiJudul: { id: "Isolasi data antar-perusahaan", en: "Data isolation between companies" },
@@ -319,7 +319,7 @@ export const T_KONTAK = {
 export const T_TAMPILAN = {
   judul: { id: "Seperti apa layarnya", en: "What the screens look like" },
   pengantar: {
-    id: "Sepuluh layar aplikasi yang sedang berjalan di atas data demo — bukan gambar rancangan, dan bukan mockup. Ditangkap otomatis dari aplikasi yang sama dengan yang Anda pakai setelah berlangganan.",
+    id: "Sepuluh layar aplikasi yang sedang berjalan di atas data demo. Bukan gambar rancangan, dan bukan tiruan. Semuanya ditangkap otomatis dari aplikasi yang sama dengan yang Anda pakai setelah berlangganan.",
     en: "Ten screens of the application running on demo data — not design mockups, and not renderings. Captured automatically from the same application you use once you subscribe.",
   },
 
