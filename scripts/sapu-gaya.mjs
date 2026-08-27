@@ -35,6 +35,11 @@ const AMBANG = {
   "angka-tanpa-pemisah": 0,
   "klaim-tanpa-bukti": 0,
   merendahkan: 0,
+  // Fase 40d — dua kelas baru, keduanya lahir dari keluhan pemilik bahwa
+  // naskahnya "terdengar aneh untuk orang Indonesia". Sebabnya struktural:
+  // tanda baca Inggris yang terbawa ke kalimat Indonesia.
+  "tanda-pisah-inggris": 0,
+  "titik-koma": 0,
 };
 
 /**
@@ -167,6 +172,56 @@ for (const e of SEMUA) {
   // (tahun, nomor peraturan, kode) memang tidak berpemisah ribuan.
   if (/\b(mis\.|e\.g\.)/i.test(e.id) && /\b\d{4,}\b/.test(e.id)) {
     catat("angka-tanpa-pemisah", e, e.id);
+  }
+
+  // --- Fase 40d: tanda baca Inggris yang terbawa ke kalimat Indonesia -------
+  //
+  // Keluhan pemilik pada Fase 40: naskahnya terbaca seperti ditulis dalam
+  // bahasa Inggris lalu dialihbahasakan. Setelah diperiksa, salah satu
+  // sebabnya bukan pilihan kata melainkan TANDA BACA.
+  //
+  // Dua bentuk yang dipakai berulang, dan keduanya bentuk Inggris:
+  //
+  // 1. Tanda pisah sebagai sisipan atau renungan susulan — "…terisi sendiri —
+  //    dan jurnalnya seimbang", "…satu per satu — sehingga selisihnya jelas".
+  //    Dalam bahasa Indonesia tempatnya koma, atau kalimat baru. Ditemukan di
+  //    tujuh dari sembilan jawaban FAQ.
+  //
+  // 2. Titik koma. Praktis tidak dipakai naskah jualan Indonesia; yang
+  //    dimaksudkan penulisnya hampir selalu titik atau "lalu"/"dan".
+  //
+  // Yang SENGAJA tidak ditangkap: tanda pisah yang memisahkan label dari
+  // nilainya ("Di bawah Rp 10.000.000 — langsung diposting"). Itu pemakaian
+  // yang sah, dan melarangnya akan merusak yang sudah benar. Karena itu
+  // polanya menuntut tanda pisah diikuti KONJUNGSI atau kata ganti, bukan
+  // sembarang tanda pisah.
+  if (/ — (sehingga|jadi|dan|atau|tetapi|bukan|karena|lalu|ia|dia|itu)\b/.test(e.id)) {
+    catat("tanda-pisah-inggris", e, e.id);
+  }
+  // Tanda pisah BERPASANGAN sebagai kurung: "Setiap transaksi — faktur, kasir,
+  // gaji — otomatis membuat jurnal". Bentuk Inggris; Indonesia memakai kurung
+  // atau menyusun ulang kalimatnya.
+  //
+  // DIKECUALIKAN: placeholder daftar pilihan yang seluruh isinya dibungkus
+  // tanda pisah — "— pilih akun —", "— belum ditugaskan —". Di situ tanda
+  // pisah berfungsi sebagai kurung visual penanda "belum memilih", dan itu
+  // idiomatis di antarmuka berbahasa Indonesia. Ada 20 di kamus, semuanya
+  // benar; menangkapnya berarti penyapu ini memerah selamanya karena hal yang
+  // benar — dan cek yang selalu merah akan dimatikan orang, bukan diperbaiki.
+  const pembungkusPilihan = /^—[^—]*—$/.test(e.id.trim());
+  if (!pembungkusPilihan && /—[^—]*—/.test(e.id)) {
+    catat("tanda-pisah-inggris", e, e.id);
+  }
+  // DIKECUALIKAN: titik koma sebagai PEMISAH KOLOM berkas, bukan tanda baca
+  // prosa — "kolom: tanggal; keterangan; jumlah", "tanggal;keterangan;jumlah".
+  // Di situ titik koma adalah bagian dari format datanya, dan menggantinya
+  // justru membuat petunjuknya salah.
+  // Titik koma yang mengapit kata TANPA SPASI ("tanggal;keterangan") selalu
+  // pemisah data, tidak pernah tanda baca prosa — prosa selalu memberi spasi
+  // sesudahnya.
+  const pemisahBerkas = /\bCSV\b|kolom:/i.test(e.id) || /\w;\w/.test(e.id);
+  if (!pemisahBerkas && /;/.test(e.id)) {
+    catat("titik-koma", e, e.id);
   }
 }
 

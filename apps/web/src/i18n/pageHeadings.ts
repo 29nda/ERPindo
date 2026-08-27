@@ -25,7 +25,7 @@ export const PAGE_HEADINGS = {
   alatBantu: {
     title: { id: "Alat Bantu", en: "Tools" },
     desc: {
-      id: "Kalkulator cepat untuk keputusan harga, pajak, dan gaji. Hitungan bantu perencanaan — bukan pencatatan resmi.",
+      id: "Kalkulator cepat untuk keputusan harga, pajak, dan gaji. Hitungannya membantu perencanaan, bukan menggantikan pencatatan resmi.",
       en: "Quick calculators for pricing, tax, and payroll decisions. Planning aids — not official records.",
     },
   },
@@ -85,7 +85,7 @@ export const PAGE_HEADINGS = {
   grupHarga: {
     title: { id: "Grup Harga", en: "Price Groups" },
     desc: {
-      id: "Buat grup pelanggan (mis. Grosir, Ecer, Distributor) lalu isi harga khusus per produk. Saat pelanggan yang bergrup dipilih di faktur penjualan, harganya terisi sendiri — dan tetap bisa Anda ubah bila harganya nego.",
+      id: "Buat grup pelanggan (mis. Grosir, Ecer, Distributor) lalu isi harga khusus per produk. Saat pelanggan yang bergrup dipilih di faktur penjualan, harganya terisi sendiri, dan tetap dapat Anda ubah bila harganya dinegosiasikan.",
       en: "Create customer groups (e.g. Wholesale, Retail, Distributor) then set a special price per product. When a grouped customer is picked on a sales invoice the price fills itself in — and you can still change it when the price is negotiated.",
     },
   },
