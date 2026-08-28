@@ -2,12 +2,15 @@ import {
   attendanceSchema,
   calculatePayslip,
   decideLeaveSchema,
+  hitungPph21Thr,
+  hitungThr,
   employeeLoanSchema,
   employeeSchema,
   leaveRequestSchema,
   payrollAdjustmentSchema,
   reverseJournalSchema,
   runPayrollSchema,
+  runThrSchema,
   type ApiAttendance,
   type ApiAttendanceRecap,
   type ApiEmployee,
@@ -16,7 +19,10 @@ import {
   type ApiPayrollAdjustment,
   type ApiPayrollRun,
   type ApiPayslip,
+  type ApiThrRun,
+  type ApiThrSlip,
   type AttendanceStatus,
+  type HariRaya,
   type LeaveType,
   type PtkpStatus,
 } from "@erpindo/shared";
@@ -45,6 +51,16 @@ import { clientIp } from "./auth";
  */
 
 const BEBAN_GAJI = "5-2000";
+/**
+ * THR memakai akun bebannya sendiri, bukan Beban Gaji.
+ *
+ * Bukan kerapian belaka: THR adalah biaya musiman yang muncul sekali atau dua
+ * kali setahun. Mencampurnya ke Beban Gaji membuat bulan hari raya terlihat
+ * seperti lonjakan biaya tenaga kerja yang tidak pernah terjadi, dan
+ * perbandingan antarbulan di laporan laba rugi menjadi menyesatkan justru pada
+ * bulan yang paling sering diperiksa pemilik.
+ */
+const BEBAN_THR = "5-2010";
 const HUTANG_GAJI = "2-1200";
 const PIUTANG_KARYAWAN = "1-1210";
 
@@ -614,6 +630,367 @@ export const payrollRoutes = new Hono<AppEnv>()
       userId: c.get("user").id,
       tenantId: tenant.id,
       detail: { runNo: run.run_no, period: run.period, reversalEntryNo: reversal.entryNo, loansRestored: cuts.length },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, runNo: run.run_no, reversalEntryNo: reversal.entryNo });
+  })
+
+  // ---------------------------------------------------------------------------
+  // THR — Tunjangan Hari Raya (Fase 43a).
+  //
+  // Kewajiban hukum, bukan kebijakan: Permenaker 6/2016. Dipisahkan dari
+  // penggajian bulanan karena waktunya lain (paling lambat H-7 hari raya), BPJS
+  // tidak dipotong darinya, dan satu tahun bisa memuat beberapa hari raya.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Pratinjau: siapa berhak berapa, TANPA memposting apa pun.
+   *
+   * Ada karena THR adalah pembayaran besar yang tidak bisa ditarik kembali dari
+   * rekening karyawan. Bendahara harus bisa melihat daftarnya — termasuk siapa
+   * yang belum berhak dan siapa yang tanggal masuknya kosong — sebelum uangnya
+   * berpindah, bukan sesudah.
+   */
+  .get("/:tenantId/thr-preview", requireAuth, requireTenantRole("viewer"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const payDate = c.req.query("payDate") ?? "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(payDate)) return c.json({ error: "Tanggal bayar tidak valid" }, 400);
+
+    const { results: emps } = await db
+      .prepare(
+        `SELECT id, name, position, ptkp_status, base_salary, allowances, join_date
+         FROM employees WHERE is_active = 1 ORDER BY name`,
+      )
+      .all<{
+        id: string;
+        name: string;
+        position: string | null;
+        ptkp_status: PtkpStatus;
+        base_salary: number;
+        allowances: number;
+        join_date: string | null;
+      }>();
+
+    const baris = emps.map((e) => {
+      const t = hitungThr({
+        baseSalary: e.base_salary,
+        allowances: e.allowances,
+        joinDate: e.join_date,
+        payDate,
+      });
+      const pajak = hitungPph21Thr(e.base_salary + e.allowances, t.amount, e.ptkp_status);
+      return {
+        employeeId: e.id,
+        employeeName: e.name,
+        position: e.position,
+        joinDate: e.join_date,
+        masaKerjaBulan: t.masaKerjaBulan,
+        berhak: t.berhak,
+        proporsional: t.proporsional,
+        upahSebulan: t.upahSebulan,
+        thr: t.amount,
+        pph21: pajak.pph21Thr,
+        net: t.amount - pajak.pph21Thr,
+        // Dibedakan dari "belum genap sebulan": yang ini bukan keputusan
+        // aturan, melainkan data yang belum diisi. Layarnya harus bisa
+        // mengatakan hal yang berbeda untuk keduanya.
+        tanpaTanggalMasuk: !e.join_date,
+      };
+    });
+
+    return c.json({
+      payDate,
+      baris,
+      totalThr: baris.reduce((a, b) => a + b.thr, 0),
+      totalPph21: baris.reduce((a, b) => a + b.pph21, 0),
+      totalNet: baris.reduce((a, b) => a + b.net, 0),
+      berhak: baris.filter((b) => b.berhak).length,
+      tanpaTanggalMasuk: baris.filter((b) => b.tanpaTanggalMasuk).length,
+    });
+  })
+
+  .get("/:tenantId/thr-runs", requireAuth, requireTenantRole("viewer"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const { results: runs } = await db
+      .prepare(
+        `SELECT r.id, r.run_no, r.tahun, r.hari_raya, r.pay_date, r.total_thr, r.total_pph21, r.total_net,
+                r.created_at, r.voided_at, j.entry_no AS journal_no, vj.entry_no AS void_journal_no
+         FROM thr_runs r
+         LEFT JOIN journal_entries j ON j.id = r.journal_entry_id
+         LEFT JOIN journal_entries vj ON vj.id = r.void_journal_entry_id
+         ORDER BY r.tahun DESC, r.created_at DESC`,
+      )
+      .all<{
+        id: string;
+        run_no: string;
+        tahun: number;
+        hari_raya: HariRaya;
+        pay_date: string;
+        total_thr: number;
+        total_pph21: number;
+        total_net: number;
+        created_at: string;
+        voided_at: string | null;
+        journal_no: string | null;
+        void_journal_no: string | null;
+      }>();
+
+    const { results: slips } = await db
+      .prepare(
+        `SELECT s.id, s.run_id, s.employee_id, s.masa_kerja_bulan, s.proporsional, s.upah_sebulan,
+                s.thr, s.pph21, s.net, e.name, e.position
+         FROM thr_slips s JOIN employees e ON e.id = s.employee_id ORDER BY e.name`,
+      )
+      .all<{
+        id: string;
+        run_id: string;
+        employee_id: string;
+        masa_kerja_bulan: number;
+        proporsional: number;
+        upah_sebulan: number;
+        thr: number;
+        pph21: number;
+        net: number;
+        name: string;
+        position: string | null;
+      }>();
+
+    const perRun = new Map<string, ApiThrSlip[]>();
+    for (const s of slips) {
+      const list = perRun.get(s.run_id) ?? [];
+      list.push({
+        id: s.id,
+        employeeId: s.employee_id,
+        employeeName: s.name,
+        position: s.position,
+        masaKerjaBulan: s.masa_kerja_bulan,
+        proporsional: s.proporsional === 1,
+        upahSebulan: s.upah_sebulan,
+        thr: s.thr,
+        pph21: s.pph21,
+        net: s.net,
+      });
+      perRun.set(s.run_id, list);
+    }
+
+    const out: ApiThrRun[] = runs.map((r) => ({
+      id: r.id,
+      runNo: r.run_no,
+      tahun: r.tahun,
+      hariRaya: r.hari_raya,
+      payDate: r.pay_date,
+      status: "posted",
+      totalThr: r.total_thr,
+      totalPph21: r.total_pph21,
+      totalNet: r.total_net,
+      journalNo: r.journal_no,
+      createdAt: r.created_at,
+      slips: perRun.get(r.id) ?? [],
+      voidedAt: r.voided_at,
+      voidJournalNo: r.void_journal_no,
+    }));
+    return c.json({ runs: out });
+  })
+
+  .post("/:tenantId/thr-runs", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = runThrSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const input = parsed.data;
+
+    const { results: existing } = await db
+      .prepare(`SELECT id FROM thr_runs WHERE tahun = ? AND hari_raya = ? AND voided_at IS NULL`)
+      .bind(input.tahun, input.hariRaya)
+      .all<{ id: string }>();
+    if (existing[0]) return c.json({ error: `THR ${input.hariRaya} ${input.tahun} sudah dibayarkan.` }, 409);
+
+    const lockedBefore = await getLockedBefore(db);
+    if (lockedBefore && input.payDate <= lockedBefore) {
+      return c.json({ error: `Periode sampai ${lockedBefore} sudah ditutup — pembayaran THR ditolak.` }, 400);
+    }
+
+    const { results: accs } = await db
+      .prepare(`SELECT type FROM accounts WHERE id = ? AND is_archived = 0`)
+      .bind(input.cashAccountId)
+      .all<{ type: string }>();
+    if (!accs[0] || accs[0].type !== "asset") return c.json({ error: galatAkunKasBank("pembayar") }, 400);
+
+    const { results: emps } = await db
+      .prepare(`SELECT id, ptkp_status, base_salary, allowances, join_date FROM employees WHERE is_active = 1`)
+      .all<{
+        id: string;
+        ptkp_status: PtkpStatus;
+        base_salary: number;
+        allowances: number;
+        join_date: string | null;
+      }>();
+    if (emps.length === 0) return c.json({ error: "Tidak ada karyawan aktif yang berhak menerima THR." }, 400);
+
+    let totalThr = 0;
+    let totalPph21 = 0;
+    const slips: {
+      employeeId: string;
+      masaKerjaBulan: number;
+      proporsional: boolean;
+      upahSebulan: number;
+      thr: number;
+      pph21: number;
+    }[] = [];
+    for (const e of emps) {
+      const t = hitungThr({
+        baseSalary: e.base_salary,
+        allowances: e.allowances,
+        joinDate: e.join_date,
+        payDate: input.payDate,
+      });
+      // Karyawan yang belum berhak tidak diberi slip nol. Slip nol terbaca
+      // sebagai "sudah dibayar sebesar nol", padahal yang benar adalah haknya
+      // belum lahir — dan tahun depan ia berhak atas masa kerja penuhnya.
+      if (!t.berhak) continue;
+      const pajak = hitungPph21Thr(e.base_salary + e.allowances, t.amount, e.ptkp_status);
+      totalThr += t.amount;
+      totalPph21 += pajak.pph21Thr;
+      slips.push({
+        employeeId: e.id,
+        masaKerjaBulan: t.masaKerjaBulan,
+        proporsional: t.proporsional,
+        upahSebulan: t.upahSebulan,
+        thr: t.amount,
+        pph21: pajak.pph21Thr,
+      });
+    }
+    if (slips.length === 0) {
+      return c.json({ error: "Belum ada karyawan yang genap sebulan masa kerja pada tanggal itu." }, 400);
+    }
+
+    const totalNet = totalThr - totalPph21;
+    const [bebanThr, hutangGaji] = await Promise.all([
+      ensureAccountByCode(db, BEBAN_THR, "Beban THR", "expense"),
+      accountIdByCode(db, HUTANG_GAJI),
+    ]);
+
+    const runId = crypto.randomUUID();
+    const runNo = await nextDocNo(db, "thr_runs", "THR");
+    const label = `THR ${input.hariRaya} ${input.tahun}`;
+    const journal = await postJournal(db, {
+      entryDate: input.payDate,
+      memo: `${label} (${runNo})`,
+      createdBy: c.get("user").id,
+      lines: [
+        { accountId: bebanThr, description: `Beban ${label}`, debit: totalThr, credit: 0 },
+        { accountId: input.cashAccountId, description: `${label} netto`, debit: 0, credit: totalNet },
+        ...(totalPph21 > 0
+          ? [{ accountId: hutangGaji, description: `PPh 21 atas ${label}`, debit: 0, credit: totalPph21 }]
+          : []),
+      ],
+    });
+
+    await db
+      .prepare(
+        `INSERT INTO thr_runs (id, run_no, tahun, hari_raya, pay_date, status, total_thr, total_pph21, total_net,
+                               journal_entry_id, created_by)
+         VALUES (?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        runId,
+        runNo,
+        input.tahun,
+        input.hariRaya,
+        input.payDate,
+        totalThr,
+        totalPph21,
+        totalNet,
+        journal.id,
+        c.get("user").id,
+      )
+      .run();
+
+    for (const s of slips) {
+      await db
+        .prepare(
+          `INSERT INTO thr_slips (id, run_id, employee_id, masa_kerja_bulan, proporsional, upah_sebulan, thr, pph21, net)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .bind(
+          crypto.randomUUID(),
+          runId,
+          s.employeeId,
+          s.masaKerjaBulan,
+          s.proporsional ? 1 : 0,
+          s.upahSebulan,
+          s.thr,
+          s.pph21,
+          s.thr - s.pph21,
+        )
+        .run();
+    }
+
+    await audit(c.env, {
+      action: "hr.thr.run",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { runNo, tahun: input.tahun, hariRaya: input.hariRaya, totalThr, totalNet, penerima: slips.length },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, id: runId, runNo, totalThr, totalPph21, totalNet, penerima: slips.length }, 201);
+  })
+
+  .post("/:tenantId/thr-runs/:id/void", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = reverseJournalSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) return c.json({ error: "Data tidak valid" }, 400);
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const runId = c.req.param("id");
+
+    const { results: runs } = await db
+      .prepare(`SELECT id, run_no, tahun, hari_raya, journal_entry_id, voided_at FROM thr_runs WHERE id = ?`)
+      .bind(runId)
+      .all<{
+        id: string;
+        run_no: string;
+        tahun: number;
+        hari_raya: string;
+        journal_entry_id: string;
+        voided_at: string | null;
+      }>();
+    const run = runs[0];
+    if (!run) return c.json({ error: "Pembayaran THR tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
+    if (run.voided_at) return c.json({ error: "Pembayaran THR sudah dibatalkan sebelumnya." }, 400);
+
+    let reversal: { id: string; entryNo: string };
+    try {
+      reversal = await reverseJournal(db, run.journal_entry_id, {
+        date: parsed.data.date,
+        memo: `Pembatalan ${run.run_no}`,
+        userId: c.get("user").id,
+      });
+    } catch (err) {
+      if (err instanceof PeriodLockedError) {
+        return c.json({ error: `${err.message} Kirim tanggal hari ini untuk membalik di periode berjalan.` }, 400);
+      }
+      if (err instanceof AlreadyReversedError) return c.json({ error: err.message }, 400);
+      if (err instanceof Error && err.message === "Jurnal asal dokumen tidak ditemukan.") {
+        return c.json({ error: err.message }, 400);
+      }
+      throw err;
+    }
+
+    // Tidak perlu sufiks tombstone seperti payroll_runs: keunikan (tahun, hari
+    // raya) dijaga indeks parsial `WHERE voided_at IS NULL`, jadi menandai run
+    // batal sudah cukup membebaskan slotnya untuk run ulang.
+    await db
+      .prepare(`UPDATE thr_runs SET voided_at = datetime('now'), void_journal_entry_id = ? WHERE id = ?`)
+      .bind(reversal.id, runId)
+      .run();
+
+    await audit(c.env, {
+      action: "hr.thr.voided",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { runNo: run.run_no, tahun: run.tahun, hariRaya: run.hari_raya, reversalEntryNo: reversal.entryNo },
       ip: clientIp(c),
     });
     return c.json({ ok: true, runNo: run.run_no, reversalEntryNo: reversal.entryNo });

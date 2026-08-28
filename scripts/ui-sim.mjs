@@ -2499,6 +2499,30 @@ try {
   await page.waitForTimeout(400);
   check("F19 tab Kasbon menampilkan kartu pinjaman karyawan", (await page.innerText("body")).includes("Kasbon / pinjaman karyawan"));
 
+  // F55 — Fase 43a: THR. Yang diperiksa bukan sekadar "tabnya ada", melainkan
+  // bahwa pratinjaunya benar-benar menghitung: karyawan tenant ini dibuat tanpa
+  // tanggal masuk, jadi layarnya WAJIB mengatakan itu alih-alih diam-diam
+  // menampilkan nol seolah-olah mereka sudah dihitung dan tidak berhak.
+  await page.getByRole("tab", { name: "THR" }).click();
+  await page.waitForTimeout(600);
+  const thrBody = await page.innerText("body");
+  check("F55 tab THR memuat formulir bayar & pratinjau", thrBody.includes("Bayar THR") && thrBody.includes("Pratinjau THR"));
+  check(
+    "F55 THR menyebut dasar hukumnya (7 hari sebelum hari raya), bukan sekadar 'tunjangan'",
+    thrBody.includes("7 hari sebelum hari raya"),
+  );
+  check(
+    "F55 karyawan tanpa tanggal masuk ditandai, bukan diam-diam dihitung nol",
+    thrBody.includes("Tanggal masuk kosong"),
+  );
+  const thrRaya = await page.locator("#thr-raya option").allInnerTexts();
+  check(
+    "F55 pilihan hari raya memakai nama yang dibaca orang, bukan nilai enum",
+    thrRaya.includes("Idulfitri") && thrRaya.includes("Natal") && !thrRaya.includes("idulfitri"),
+    `→ ${JSON.stringify(thrRaya)}`,
+  );
+  check("F55 alur THR bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/app/alat", 700);
   const alatBody = await page.innerText("body");
   check("F19 kalkulator render (HPP + hasil Rupiah)", alatBody.includes("Harga Pokok Produksi") && /Rp\s?[1-9]/.test(alatBody.replace(/\u00A0/g, " ")));

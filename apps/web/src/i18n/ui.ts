@@ -3553,6 +3553,50 @@ export const UI = {
   surplusKata: { id: "surplus", en: "a surplus" },
   rugiPenurunanKata: { id: "rugi penurunan nilai", en: "an impairment loss" },
   toastJurnalSuffix: { id: " (jurnal {0})", en: " (entry {0})" },
+  // THR — Tunjangan Hari Raya (Fase 43a)
+  tabThr: { id: "THR", en: "Holiday allowance" },
+  bayarThr: { id: "Bayar THR", en: "Pay holiday allowance" },
+  descBayarThr: {
+    id: "THR wajib dibayar paling lambat 7 hari sebelum hari raya. Besarnya satu bulan upah untuk masa kerja 12 bulan ke atas, dan proporsional di bawah itu.",
+    en: "Religious holiday allowance is legally due at least 7 days before the holiday. It is one month's wage for 12 months of service or more, and pro-rated below that.",
+  },
+  hariRaya: { id: "Hari raya", en: "Religious holiday" },
+  tahunThr: { id: "Tahun", en: "Year" },
+  masaKerja: { id: "Masa kerja", en: "Length of service" },
+  upahSebulan: { id: "Upah sebulan", en: "Monthly wage" },
+  nilaiThr: { id: "THR", en: "Allowance" },
+  proporsionalLabel: { id: "Proporsional", en: "Pro-rated" },
+  penuhLabel: { id: "Penuh", en: "Full" },
+  belumBerhak: { id: "Belum berhak", en: "Not yet entitled" },
+  tanpaTanggalMasuk: { id: "Tanggal masuk kosong", en: "Join date missing" },
+  pratinjauThr: { id: "Pratinjau THR", en: "Preview allowance" },
+  riwayatThr: { id: "Riwayat pembayaran THR", en: "Holiday allowance history" },
+  belumAdaThr: { id: "Belum ada pembayaran THR", en: "No holiday allowance paid yet" },
+  descRiwayatThr: {
+    id: "Setiap pembayaran THR mencatat masa kerja dan upah yang dipakai saat itu, sehingga slip tahun lalu tetap benar meski gaji sudah naik.",
+    en: "Each payment records the length of service and wage used at the time, so last year's slip stays correct even after a raise.",
+  },
+  descPratinjauThr: {
+    id: "Daftar ini belum memindahkan uang. Periksa dulu siapa yang berhak dan berapa, lalu bayarkan.",
+    en: "This list moves no money yet. Check who is entitled and how much, then pay.",
+  },
+  peringatanTanggalMasuk: {
+    id: "{0} karyawan belum punya tanggal masuk, sehingga masa kerjanya tidak bisa dihitung dan mereka tidak ikut dibayar. Lengkapi di tab Karyawan lebih dulu.",
+    en: "{0} employees have no join date, so their length of service cannot be computed and they are left out. Fill it in under the Employees tab first.",
+  },
+  penerimaThr: { id: "Penerima", en: "Recipients" },
+  pph21Thr: { id: "PPh 21", en: "Income tax" },
+  tutupRincian: { id: "Tutup", en: "Close" },
+  lihatRincian: { id: "Rincian", en: "Details" },
+  toastThrDibayar: {
+    id: "THR {0} dibayarkan kepada {1} karyawan, total netto {2}.",
+    en: "Holiday allowance {0} paid to {1} employees, net total {2}.",
+  },
+  toastThrDibatalkan: {
+    id: "Pembayaran THR {0} dibatalkan — jurnal balik {1}.",
+    en: "Holiday allowance payment {0} cancelled — reversing entry {1}.",
+  },
+  bulanSatuan: { id: "bulan", en: "months" },
 } satisfies Record<string, Dual>;
 
 export type UiKey = keyof typeof UI;

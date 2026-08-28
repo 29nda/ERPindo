@@ -1907,6 +1907,59 @@ export const TENANT_MIGRATIONS: Migration[] = [
       `ALTER TABLE contacts ADD COLUMN payment_term_days INTEGER`,
     ],
   },
+  {
+    /**
+     * THR — Tunjangan Hari Raya Keagamaan (Fase 43a).
+     *
+     * Dibuat sebagai run tersendiri, bukan komponen di dalam `payroll_runs`,
+     * karena tiga hal membedakannya dari gaji bulanan dan ketiganya keras:
+     *
+     * 1. **Waktunya lain.** THR wajib dibayar paling lambat 7 hari sebelum hari
+     *    raya (Permenaker 6/2016 pasal 5), yang hampir tidak pernah jatuh pada
+     *    tanggal gajian.
+     * 2. **BPJS tidak dipotong.** Iuran dihitung dari upah sebulan, dan THR
+     *    bukan upah sebulan.
+     * 3. **Satu tahun bisa dua kali.** Perusahaan dengan karyawan lintas agama
+     *    membayar pada hari raya masing-masing, jadi kuncinya `(tahun,
+     *    hari_raya)` — bukan periode bulanan yang unik seperti `payroll_runs`.
+     *
+     * `masa_kerja_bulan` dan `upah_sebulan` disimpan di slipnya, bukan dihitung
+     * ulang saat dibaca. Gaji karyawan berubah, dan slip THR tahun lalu harus
+     * tetap menunjukkan angka yang benar-benar dibayarkan waktu itu.
+     */
+    id: "0049_thr",
+    statements: [
+      `CREATE TABLE thr_runs (
+        id TEXT PRIMARY KEY,
+        run_no TEXT NOT NULL UNIQUE,
+        tahun INTEGER NOT NULL,
+        hari_raya TEXT NOT NULL,
+        pay_date TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'posted',
+        total_thr INTEGER NOT NULL,
+        total_pph21 INTEGER NOT NULL,
+        total_net INTEGER NOT NULL,
+        journal_entry_id TEXT REFERENCES journal_entries(id),
+        voided_at TEXT,
+        void_journal_entry_id TEXT REFERENCES journal_entries(id),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE TABLE thr_slips (
+        id TEXT PRIMARY KEY,
+        run_id TEXT NOT NULL REFERENCES thr_runs(id),
+        employee_id TEXT NOT NULL REFERENCES employees(id),
+        masa_kerja_bulan INTEGER NOT NULL,
+        proporsional INTEGER NOT NULL DEFAULT 0,
+        upah_sebulan INTEGER NOT NULL,
+        thr INTEGER NOT NULL,
+        pph21 INTEGER NOT NULL DEFAULT 0,
+        net INTEGER NOT NULL
+      )`,
+      `CREATE INDEX thr_slips_run ON thr_slips (run_id)`,
+      `CREATE UNIQUE INDEX thr_runs_tahun_raya ON thr_runs (tahun, hari_raya) WHERE voided_at IS NULL`,
+    ],
+  },
 ];
 
 /** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */

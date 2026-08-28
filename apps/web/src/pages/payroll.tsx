@@ -3,12 +3,15 @@ import {
   type ApiEmployee,
   type ApiLeaveRequest,
   type ApiPayrollRun,
+  type ApiThrRun,
+  type HariRaya,
   type LeaveType,
+  HARI_RAYA,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { isi } from "../i18n";
+import { isi, namaHariRaya, useLang } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
-import { CalendarDays, HandCoins, UserPlus, Users } from "lucide-react";
+import { CalendarDays, Gift, HandCoins, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { api, formatIDR } from "../api/client";
 import { Lembar } from "../components/kerangka";
@@ -39,7 +42,7 @@ import { useWorkspace } from "./app";
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 const today = () => new Date().toISOString().slice(0, 10);
 type AccountRow = { id: string; code: string; name: string; type: string };
-type PayrollTab = "karyawan" | "gaji" | "komponen" | "kasbon" | "cuti" | "departemen";
+type PayrollTab = "karyawan" | "gaji" | "thr" | "komponen" | "kasbon" | "cuti" | "departemen";
 
 export function PayrollPage() {
   const u = useUi();
@@ -159,6 +162,7 @@ export function PayrollPage() {
         tabs={[
           { key: "karyawan", label: u("karyawan") },
           { key: "gaji", label: u("tabGaji") },
+          { key: "thr", label: u("tabThr") },
           { key: "komponen", label: u("komponen") },
           { key: "kasbon", label: u("tabKasbon") },
           { key: "cuti", label: u("tabCuti") },
@@ -437,6 +441,10 @@ export function PayrollPage() {
             </div>
           </CardBody>
         </Card>
+      ) : null}
+
+      {tab === "thr" ? (
+        <ThrCard tenantId={tenant.tenantId} isAdmin={isAdmin} cashAccounts={cashAccounts} />
       ) : null}
 
       {tab === "komponen" && isAdmin ? (
@@ -1388,6 +1396,307 @@ function RunRow({
             </tbody>
           </Table>
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * THR — Tunjangan Hari Raya (Fase 43a).
+ *
+ * Alurnya sengaja dua langkah: **pratinjau dulu, bayar kemudian**. THR adalah
+ * pembayaran besar yang tidak bisa ditarik kembali dari rekening karyawan, dan
+ * kesalahannya baru terlihat setelah uangnya pergi. Karena itu tombol bayar
+ * baru muncul setelah daftarnya dilihat.
+ */
+function ThrCard({
+  tenantId,
+  isAdmin,
+  cashAccounts,
+}: {
+  tenantId: string;
+  isAdmin: boolean;
+  cashAccounts: AccountRow[];
+}) {
+  const u = useUi();
+  const lang = useLang();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [tahun, setTahun] = useState(new Date().getFullYear());
+  const [hariRaya, setHariRaya] = useState<HariRaya>("idulfitri");
+  const [payDate, setPayDate] = useState(today());
+  const [cashAccountId, setCashAccountId] = useState("");
+  const [galat, setGalat] = useState<string | null>(null);
+
+  const preview = useQuery({
+    queryKey: ["thr-preview", tenantId, payDate],
+    queryFn: () => api.thrPreview(tenantId, payDate),
+    enabled: /^\d{4}-\d{2}-\d{2}$/.test(payDate),
+  });
+  const runsQuery = useQuery({
+    queryKey: ["thr-runs", tenantId],
+    queryFn: () => api.thrRuns(tenantId),
+  });
+
+  const akun = cashAccountId || cashAccounts[0]?.id;
+  const bayar = useMutation({
+    mutationFn: () => api.runThr(tenantId, { tahun, hariRaya, cashAccountId: akun ?? "", payDate }),
+    onSuccess: (res) => {
+      setGalat(null);
+      toast("success", isi(u("toastThrDibayar"), res.runNo, String(res.penerima), formatIDR(res.totalNet)));
+      queryClient.invalidateQueries({ queryKey: ["thr-runs", tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["thr-preview", tenantId] });
+    },
+    onError: (err) => setGalat((err as Error).message),
+  });
+
+  const p = preview.data;
+  return (
+    <div className="space-y-4">
+      {isAdmin ? (
+        <Card>
+          <CardHeader title={u("bayarThr")} description={u("descBayarThr")} />
+          <CardBody className="space-y-4">
+            {galat ? <Alert tone="error">{galat}</Alert> : null}
+            {p && p.tanpaTanggalMasuk > 0 ? (
+              <Alert tone="warning">{isi(u("peringatanTanggalMasuk"), String(p.tanpaTanggalMasuk))}</Alert>
+            ) : null}
+            <div className="grid gap-3 sm:grid-cols-4">
+              <div>
+                <Label htmlFor="thr-tahun">{u("tahunThr")}</Label>
+                <Input
+                  id="thr-tahun"
+                  type="number"
+                  value={String(tahun)}
+                  onChange={(e) => setTahun(Number(e.target.value))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="thr-raya">{u("hariRaya")}</Label>
+                <Select
+                  id="thr-raya"
+                  value={hariRaya}
+                  onChange={(e) => setHariRaya(e.target.value as HariRaya)}
+                >
+                  {HARI_RAYA.map((r) => (
+                    <option key={r} value={r}>
+                      {namaHariRaya(r, lang)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="thr-tanggal">{u("tanggalBayar")}</Label>
+                <Input
+                  id="thr-tanggal"
+                  type="date"
+                  value={payDate}
+                  onChange={(e) => setPayDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="thr-akun">{u("bayarDariAkun")}</Label>
+                <Select id="thr-akun" value={akun ?? ""} onChange={(e) => setCashAccountId(e.target.value)}>
+                  {cashAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.code} · {a.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                onClick={() => bayar.mutate()}
+                disabled={bayar.isPending || !akun || (p?.berhak ?? 0) === 0}
+              >
+                {bayar.isPending ? <Spinner /> : null} {u("bayarThr")}
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      <Card>
+        <CardHeader title={u("pratinjauThr")} description={u("descPratinjauThr")} />
+        <CardBody>
+          {preview.isLoading ? (
+            <Spinner />
+          ) : !p || p.baris.length === 0 ? (
+            <EmptyState
+              icon={<Gift className="size-6" aria-hidden />}
+              title={u("belumAdaKaryawan")}
+              description={u("descBelumAdaKaryawan")}
+            />
+          ) : (
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>{u("karyawan")}</Th>
+                  <Th>{u("masaKerja")}</Th>
+                  <Th numeric>{u("upahSebulan")}</Th>
+                  <Th numeric>{u("nilaiThr")}</Th>
+                  <Th numeric>{u("pph21Thr")}</Th>
+                  <Th numeric>{u("netto")}</Th>
+                </Tr>
+              </Thead>
+              <tbody>
+                {p.baris.map((b) => (
+                  <Tr key={b.employeeId}>
+                    <Td label={u("karyawan")}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{b.employeeName}</span>
+                        {b.tanpaTanggalMasuk ? (
+                          <Badge tone="red">{u("tanpaTanggalMasuk")}</Badge>
+                        ) : !b.berhak ? (
+                          <Badge tone="amber">{u("belumBerhak")}</Badge>
+                        ) : b.proporsional ? (
+                          <Badge tone="amber">{u("proporsionalLabel")}</Badge>
+                        ) : (
+                          <Badge tone="green">{u("penuhLabel")}</Badge>
+                        )}
+                      </div>
+                    </Td>
+                    <Td label={u("masaKerja")}>
+                      {b.tanpaTanggalMasuk ? "—" : `${b.masaKerjaBulan} ${u("bulanSatuan")}`}
+                    </Td>
+                    <Td label={u("upahSebulan")}  numeric>
+                      {formatIDR(b.upahSebulan)}
+                    </Td>
+                    <Td label={u("nilaiThr")}  numeric>
+                      {formatIDR(b.thr)}
+                    </Td>
+                    <Td label={u("pph21Thr")}  numeric>
+                      {formatIDR(b.pph21)}
+                    </Td>
+                    <Td label={u("netto")}  numeric>
+                      <strong>{formatIDR(b.net)}</strong>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader title={u("riwayatThr")} />
+        <CardBody>
+          {runsQuery.isLoading ? (
+            <Spinner />
+          ) : (runsQuery.data?.runs.length ?? 0) === 0 ? (
+            <EmptyState
+              icon={<Gift className="size-6" aria-hidden />}
+              title={u("belumAdaThr")}
+              description={u("descRiwayatThr")}
+            />
+          ) : (
+            <div className="space-y-3">
+              {runsQuery.data!.runs.map((r) => (
+                <ThrRunRow key={r.id} run={r} tenantId={tenantId} canVoid={isAdmin} />
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
+function ThrRunRow({ run, tenantId, canVoid }: { run: ApiThrRun; tenantId: string; canVoid: boolean }) {
+  const u = useUi();
+  const lang = useLang();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const isVoided = Boolean(run.voidedAt);
+  const doVoid = useMutation({
+    mutationFn: () => api.voidThrRun(tenantId, run.id),
+    onSuccess: (res) => {
+      toast("success", isi(u("toastThrDibatalkan"), res.runNo, res.reversalEntryNo));
+      queryClient.invalidateQueries({ queryKey: ["thr-runs", tenantId] });
+    },
+    onError: (err) => toast("error", (err as Error).message),
+  });
+
+  return (
+    <div className="rounded-lg border border-line p-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-mono text-sm">{run.runNo}</span>
+        <span className="font-medium">
+          {namaHariRaya(run.hariRaya, lang)} {run.tahun}
+        </span>
+        {isVoided ? (
+          <Badge tone="red">
+            {u("dibatalkan")}
+            {run.voidJournalNo ? ` · ${run.voidJournalNo}` : ""}
+          </Badge>
+        ) : run.journalNo ? (
+          <Badge tone="brand">
+            {u("jurnalKecil")} {run.journalNo}
+          </Badge>
+        ) : null}
+        <span className="text-xs text-ink-muted">
+          {run.slips.length} {u("penerimaThr")}
+        </span>
+        <span className="ml-auto text-sm">
+          {u("nilaiThr")} <strong className="tabular-nums">{formatIDR(run.totalThr)}</strong> · {u("netto")}{" "}
+          <strong className="tabular-nums">{formatIDR(run.totalNet)}</strong>
+        </span>
+        {canVoid && !isVoided ? (
+          <Button
+            variant="ghost"
+            className="h-8 text-galat-ink hover:bg-galat-surface"
+            onClick={() => doVoid.mutate()}
+          >
+            {u("batalkan")}
+          </Button>
+        ) : null}
+        <Button variant="ghost" className="h-8" onClick={() => setOpen((o) => !o)}>
+          {open ? u("tutupRincian") : u("lihatRincian")}
+        </Button>
+      </div>
+      {open ? (
+        <Table className="mt-3">
+          <Thead>
+            <Tr>
+              <Th>{u("karyawan")}</Th>
+              <Th>{u("masaKerja")}</Th>
+              <Th numeric>{u("upahSebulan")}</Th>
+              <Th numeric>{u("nilaiThr")}</Th>
+              <Th numeric>{u("pph21Thr")}</Th>
+              <Th numeric>{u("netto")}</Th>
+            </Tr>
+          </Thead>
+          <tbody>
+            {run.slips.map((s) => (
+              <Tr key={s.id}>
+                <Td label={u("karyawan")}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span>{s.employeeName}</span>
+                    {s.proporsional ? <Badge tone="amber">{u("proporsionalLabel")}</Badge> : null}
+                  </div>
+                </Td>
+                <Td label={u("masaKerja")}>
+                  {s.masaKerjaBulan} {u("bulanSatuan")}
+                </Td>
+                <Td label={u("upahSebulan")}  numeric>
+                  {formatIDR(s.upahSebulan)}
+                </Td>
+                <Td label={u("nilaiThr")}  numeric>
+                  {formatIDR(s.thr)}
+                </Td>
+                <Td label={u("pph21Thr")}  numeric>
+                  {formatIDR(s.pph21)}
+                </Td>
+                <Td label={u("netto")}  numeric>
+                  <strong>{formatIDR(s.net)}</strong>
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
       ) : null}
     </div>
   );

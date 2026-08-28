@@ -369,8 +369,33 @@ for (const file of process.argv.slice(2)) {
   for (const m of src.matchAll(/`((?:[^`\\]|\\.)*)`/gs))
     for (const seg of potonganStatis(m[1]))
       if (isID(seg)) add(jenisDari(m.index, m.index + m[0].length), seg, m.index);
+  /**
+   * Potongan yang jelas KODE, bukan teks JSX (Fase 43a).
+   *
+   * Pola `[>}]…[<{]` di bawah menangkap teks JSX di antara dua tag — tetapi ia
+   * juga menangkap pernyataan JavaScript biasa yang kebetulan duduk di antara
+   * `}` penutup dan `{` pembuka, misalnya:
+   *
+   *   });
+   *   const akun = cashAccountId || cashAccounts[0]?.id;
+   *   const bayar = useMutation({
+   *
+   * Karena repo ini menamai variabel dalam bahasa Indonesia (dan memang harus),
+   * potongan semacam itu mengandung kata penanda — `akun` — lalu terhitung
+   * sebagai utang teks layar. Akibatnya sama persis dengan yang sudah dicatat
+   * di Fase 21g: MENAMAI variabel dengan benar justru MENAIKKAN angka utang,
+   * dan angka yang bergerak ke arah salah berhenti berguna sebagai penanda
+   * kemajuan.
+   *
+   * Penandanya sintaksis, bukan kosakata: teks yang dibaca pengguna tidak
+   * pernah memuat titik koma yang disusul kata kunci deklarasi, panah fungsi,
+   * atau `?.`. Sengaja sesempit itu — kalimat layar yang memuat titik koma saja
+   * TETAP terhitung.
+   */
+  const jelasKode = (t) => /;\s*(const|let|var|return|await|if|for|function)\b/.test(t) || /=>/.test(t) || /\?\./.test(t);
+
   for (const m of src.matchAll(/[>}]([^<>{}]+)[<{]/gs))
-    if (isID(m[1])) add(jenisDari(m.index, m.index + m[0].length), m[1], m.index);
+    if (!jelasKode(m[1]) && isID(m[1])) add(jenisDari(m.index, m.index + m[0].length), m[1], m.index);
 
   /**
    * Kelas buta tersendiri (ditemukan Fase 19t): teks tampilan yang duduk di
