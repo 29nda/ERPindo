@@ -1,8 +1,11 @@
 import {
+  bpKePersen,
   CONTRACT_FREQUENCIES,
   CONTRACT_FREQUENCY_LABELS,
+  rencanaPerpanjangan,
   type ApiContract,
   type ContractFrequency,
+  type JenisAdendum,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, Plus, RefreshCw } from "lucide-react";
@@ -22,13 +25,26 @@ import {
   SearchSelect,
   Select,
   Spinner,
+  Table,
+  Td,
+  Th,
+  Thead,
+  Tr,
   useToast,
 } from "../components/ui";
+import { isi } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
 import { hargaBaris, useGrupHarga } from "../lib/hargaGrup";
 import { useWorkspace } from "./app";
 
 const STATUS_TONE = { active: "green", paused: "amber", ended: "neutral" } as const;
+/** Jenis adendum → kunci kamus (Fase 45), pola yang sama dengan status kontrak. */
+const ADENDUM_KEY: Record<JenisAdendum, UiKey> = {
+  perpanjangan: "adendumPerpanjangan",
+  harga: "adendumHarga",
+  lingkup: "adendumLingkup",
+};
+
 /** Status kontrak → kunci kamus (Fase 19j, pola 16u). */
 const STATUS_KEY = {
   active: "kontrakBerjalan",
@@ -104,6 +120,10 @@ export function ContractsPage() {
     taxRate: 11 as 0 | 11 | 12,
     startDate: today(),
     endDate: "",
+    // Fase 45 — eskalasi tahunan (persen di layar, basis poin di penyimpanan)
+    // dan perpanjangan otomatis.
+    eskalasiPersen: "0",
+    autoRenew: false,
   });
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
   const [error, setError] = useState<string | null>(null);
@@ -119,6 +139,8 @@ export function ContractsPage() {
         warehouseId: warehouses[0]?.id || "",
         startDate: form.startDate,
         endDate: form.endDate || undefined,
+        escalationBp: Math.round(Number(form.eskalasiPersen.replace(",", ".")) * 100) || 0,
+        autoRenew: form.autoRenew,
         lines: lines
           .filter((l) => l.productId)
           .map((l) => ({
@@ -138,6 +160,8 @@ export function ContractsPage() {
         taxRate: 11,
         startDate: today(),
         endDate: "",
+        eskalasiPersen: "0",
+        autoRenew: false,
       });
       setLines([emptyLine()]);
       setError(null);
@@ -299,6 +323,26 @@ export function ContractsPage() {
                 />
               </div>
               <div>
+                <Label htmlFor="ct-eskalasi">{u("eskalasiTahunan")}</Label>
+                <Input
+                  id="ct-eskalasi"
+                  value={form.eskalasiPersen}
+                  onChange={(e) => setForm({ ...form, eskalasiPersen: e.target.value })}
+                />
+                <p className="mt-1 text-xs text-ink-muted">{u("descEskalasi")}</p>
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 text-sm" htmlFor="ct-autorenew">
+                  <input
+                    id="ct-autorenew"
+                    type="checkbox"
+                    checked={form.autoRenew}
+                    onChange={(e) => setForm({ ...form, autoRenew: e.target.checked })}
+                  />
+                  {u("perpanjangOtomatis")}
+                </label>
+              </div>
+              <div>
                 <Label htmlFor="ct-tax">PPN</Label>
                 <Select
                   id="ct-tax"
@@ -413,6 +457,21 @@ function ContractRow({ contract, isAdmin }: { contract: ApiContract; isAdmin: bo
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  const [adendumBuka, setAdendumBuka] = useState(false);
+  // Ambang 60 hari mengikuti `rencanaPerpanjangan` di packages/shared —
+  // kontrak yang baru diberitahukan pada hari terakhirnya sudah terlambat
+  // untuk dinegosiasikan.
+  const rencana = rencanaPerpanjangan(contract.endDate, today());
+
+  const perpanjang = useMutation({
+    mutationFn: () => api.renewContract(tenant.tenantId, contract.id, { months: contract.renewMonths || 12 }),
+    onSuccess: (res) => {
+      toast("success", isi(u("toastKontrakDiperpanjang"), res.endDate));
+      queryClient.invalidateQueries({ queryKey: ["contracts", tenant.tenantId] });
+    },
+    onError: (err) => toast("error", (err as Error).message),
+  });
+
   const setStatus = useMutation({
     mutationFn: (status: string) => api.setContractStatus(tenant.tenantId, contract.id, status),
     onSuccess: () => {
@@ -428,6 +487,12 @@ function ContractRow({ contract, isAdmin }: { contract: ApiContract; isAdmin: bo
         <span className="font-mono text-sm">{contract.code}</span>
         <span className="font-medium">{contract.name}</span>
         <Badge tone={STATUS_TONE[contract.status]}>{u(STATUS_KEY[contract.status])}</Badge>
+        {rencana?.jatuhTempo && contract.status !== "ended" ? (
+          <Badge tone="amber">{u("segeraBerakhir")}</Badge>
+        ) : null}
+        {contract.escalationBp > 0 ? (
+          <Badge tone="brand">+{bpKePersen(contract.escalationBp)}%/{u("tahunSatuan")}</Badge>
+        ) : null}
         <span className="text-xs text-ink-muted">{contract.contactName}</span>
         <span className="ml-auto text-sm">
           {CONTRACT_FREQUENCY_LABELS[contract.frequency]} ·{" "}
@@ -454,7 +519,55 @@ function ContractRow({ contract, isAdmin }: { contract: ApiContract; isAdmin: bo
             {contract.status === "active" ? "jeda" : "aktifkan"}
           </button>
         ) : null}
+        {isAdmin && contract.endDate ? (
+          <button
+            onClick={() => perpanjang.mutate()}
+            disabled={perpanjang.isPending}
+            className="text-brand-ink hover:underline"
+          >
+            {u("perpanjangKontrak")}
+          </button>
+        ) : null}
+        <button onClick={() => setAdendumBuka((o) => !o)} className="text-brand-ink hover:underline">
+          {u("adendum")} ({contract.amendments.length})
+        </button>
       </div>
+
+      {adendumBuka ? (
+        <div className="mt-3">
+          <p className="mb-2 text-xs text-ink-muted">{u("descAdendum")}</p>
+          {contract.amendments.length === 0 ? (
+            <EmptyState
+              icon={<CalendarClock className="size-6" aria-hidden />}
+              title={u("belumAdaAdendum")}
+              description={u("descBelumAdaAdendum")}
+            />
+          ) : (
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>{u("jenisAdendum")}</Th>
+                  <Th>{u("berlakuSejak")}</Th>
+                  <Th>{u("sebelumnya")}</Th>
+                  <Th>{u("menjadi")}</Th>
+                  <Th>{u("keterangan")}</Th>
+                </Tr>
+              </Thead>
+              <tbody>
+                {contract.amendments.map((a) => (
+                  <Tr key={a.id}>
+                    <Td label={u("jenisAdendum")}>{u(ADENDUM_KEY[a.jenis])}</Td>
+                    <Td label={u("berlakuSejak")}>{a.effectiveDate}</Td>
+                    <Td label={u("sebelumnya")}>{a.sebelum ?? "—"}</Td>
+                    <Td label={u("menjadi")}>{a.sesudah ?? "—"}</Td>
+                    <Td label={u("keterangan")}>{a.note ?? "—"}</Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

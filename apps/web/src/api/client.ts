@@ -76,6 +76,8 @@ import type {
   ApiOvertime,
   ApiThrRun,
   CommissionSchemeInput,
+  ContractAmendmentInput,
+  RenewContractInput,
   SalesTargetInput,
   OvertimeInput,
   RunThrInput,
@@ -1078,9 +1080,18 @@ export const api = {
       warehouseId: string;
       startDate: string;
       endDate?: string;
+      /** Fase 45 — kenaikan tahunan dalam basis poin (500 = 5%). */
+      escalationBp?: number;
+      autoRenew?: boolean;
+      renewMonths?: number;
       lines: { productId: string; qty: number; unitPrice: number; description?: string }[];
     },
   ) => request<{ ok: true; id: string }>("POST", `/api/tenants/${tenantId}/contracts`, input),
+  /** Adendum kontrak (Fase 45) — perubahan wajib meninggalkan jejak. */
+  addContractAmendment: (tenantId: string, id: string, input: ContractAmendmentInput) =>
+    request<{ ok: true }>("POST", `/api/tenants/${tenantId}/contracts/${id}/amendments`, input),
+  renewContract: (tenantId: string, id: string, input: RenewContractInput) =>
+    request<{ ok: true; endDate: string }>("POST", `/api/tenants/${tenantId}/contracts/${id}/renew`, input),
   setContractStatus: (tenantId: string, id: string, status: string) =>
     request<{ ok: true; status: string }>("PATCH", `/api/tenants/${tenantId}/contracts/${id}/status`, { status }),
   runBilling: (tenantId: string) =>

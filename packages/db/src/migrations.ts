@@ -2064,6 +2064,46 @@ export const TENANT_MIGRATIONS: Migration[] = [
       `CREATE INDEX sales_targets_period ON sales_targets (period)`,
     ],
   },
+  {
+    /**
+     * Kontrak: eskalasi harga, perpanjangan, adendum (Fase 45).
+     *
+     * `start_date` ditambahkan sebagai **jangkar ulang-tahun** eskalasi. Kolom
+     * `next_invoice_date` tidak bisa dipakai untuk itu: ia bergerak maju tiap
+     * kali menagih, sehingga "sudah berapa tahun berjalan" akan selalu nol.
+     * Untuk kontrak yang sudah ada, jangkarnya diisi dari tanggal tagihan
+     * pertama yang tercatat — perkiraan terbaik yang tersedia, dan lebih baik
+     * daripada mengarang tanggal atau membiarkannya kosong.
+     *
+     * `escalation_bp` dalam basis poin, sama seperti komisi (Fase 44a): 500 =
+     * 5% per tahun.
+     *
+     * Adendum menyimpan `sebelum`/`sesudah` sebagai teks, bukan angka
+     * berkolom. Yang berubah bisa harga, bisa masa berlaku, bisa lingkup — dan
+     * memaksakan satu bentuk kolom untuk ketiganya akan membuat dua di
+     * antaranya kosong selamanya.
+     */
+    id: "0053_kontrak_eskalasi",
+    statements: [
+      `ALTER TABLE contracts ADD COLUMN start_date TEXT`,
+      `ALTER TABLE contracts ADD COLUMN escalation_bp INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE contracts ADD COLUMN auto_renew INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE contracts ADD COLUMN renew_months INTEGER NOT NULL DEFAULT 12`,
+      `UPDATE contracts SET start_date = next_invoice_date WHERE start_date IS NULL`,
+      `CREATE TABLE contract_amendments (
+        id TEXT PRIMARY KEY,
+        contract_id TEXT NOT NULL REFERENCES contracts(id),
+        jenis TEXT NOT NULL CHECK (jenis IN ('perpanjangan','harga','lingkup')),
+        effective_date TEXT NOT NULL,
+        sebelum TEXT,
+        sesudah TEXT,
+        note TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX contract_amendments_kontrak ON contract_amendments (contract_id)`,
+    ],
+  },
 ];
 
 /** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */
