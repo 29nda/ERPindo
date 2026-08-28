@@ -1,8 +1,13 @@
 import {
+  csvEBupot,
+  nilaiPungutan,
+  pph22Schema,
   pph23DepositSchema,
   pph23Schema,
   pphFinalSchema,
+  type ApiPph22,
   type ApiPph23,
+  type BarisEBupot,
   type ApiPphFinal,
   type ApiPphFinalPreview,
   type ApiSptPpn,
@@ -33,6 +38,11 @@ import { clientIp } from "./auth";
 
 const BEBAN_PPH_FINAL = "5-2100";
 const HUTANG_PPH23 = "2-1400";
+/**
+ * PPh 22 yang dipungut DARI kita adalah kredit pajak, bukan beban — karena itu
+ * akunnya bertipe aset. Lihat catatan panjang di migrasi `0054_pph22`.
+ */
+const UANG_MUKA_PPH22 = "1-1300";
 const PERIOD_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 async function ensureAccountByCode(db: SqlExecutor, code: string, name: string, type: "asset" | "liability" | "equity" | "income" | "expense"): Promise<string> {
@@ -183,6 +193,190 @@ export const taxRoutes = new Hono<AppEnv>()
       .run();
     await audit(c.env, { action: "tax.pph23.withheld", userId: c.get("user").id, tenantId: tenant.id, detail: { docNo, amount }, ip: clientIp(c) });
     return c.json({ ok: true, id, docNo, amount }, 201);
+  })
+
+  // ---------------------------------------------------------------------------
+  // PPh Pasal 22 dipungut pihak lain (Fase 46).
+  //
+  // Tidak punya alur "setor": yang menyetorkannya pemungutnya, bukan kita. Yang
+  // kita punya hanyalah bukti pungutnya, dan bukti itu menjadi kredit pajak
+  // akhir tahun.
+  // ---------------------------------------------------------------------------
+  .get("/:tenantId/tax/pph22", requireAuth, requireTenantRole("viewer"), requirePermission("pajak"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const { results } = await db
+      .prepare(
+        `SELECT p.id, p.doc_no, p.contact_id, k.name AS contact_name, k.npwp AS contact_npwp,
+                p.tax_date, p.object_type, p.gross, p.rate, p.amount, p.note, p.created_at
+         FROM tax_pph22 p JOIN contacts k ON k.id = p.contact_id
+         ORDER BY p.tax_date DESC, p.doc_no DESC`,
+      )
+      .all<{
+        id: string;
+        doc_no: string;
+        contact_id: string;
+        contact_name: string;
+        contact_npwp: string | null;
+        tax_date: string;
+        object_type: string;
+        gross: number;
+        rate: number;
+        amount: number;
+        note: string | null;
+        created_at: string;
+      }>();
+    const items: ApiPph22[] = results.map((r) => ({
+      id: r.id,
+      docNo: r.doc_no,
+      contactId: r.contact_id,
+      contactName: r.contact_name,
+      contactNpwp: r.contact_npwp,
+      taxDate: r.tax_date,
+      objectType: r.object_type,
+      gross: r.gross,
+      rate: r.rate,
+      amount: r.amount,
+      note: r.note,
+      createdAt: r.created_at,
+    }));
+    return c.json({ items, total: items.reduce((a, i) => a + i.amount, 0) });
+  })
+
+  .post("/:tenantId/tax/pph22", requireAuth, requireTenantRole("admin"), requirePermission("pajak"), async (c) => {
+    const parsed = pph22Schema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const input = parsed.data;
+
+    const rekanan = await db.prepare(`SELECT id FROM contacts WHERE id = ?`).bind(input.contactId).all<{ id: string }>();
+    if (!rekanan.results[0]) {
+      return c.json({ error: "Pemungut tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
+    }
+    const src = await db.prepare(`SELECT id FROM accounts WHERE id = ? AND is_archived = 0`).bind(input.sourceAccountId).all<{ id: string }>();
+    if (!src.results[0]) {
+      return c.json({ error: "Akun sumber tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
+    }
+    const lockedBefore = await getLockedBefore(db);
+    if (lockedBefore && input.taxDate <= lockedBefore) {
+      return c.json({ error: `Periode sampai ${lockedBefore} sudah ditutup.` }, 400);
+    }
+
+    const amount = nilaiPungutan(input.gross, input.rate);
+    if (amount <= 0) return c.json({ error: "Nilai PPh 22 nol — periksa dasar & tarif." }, 400);
+
+    const uangMuka = await ensureAccountByCode(db, UANG_MUKA_PPH22, "Uang Muka PPh 22", "asset");
+    const docNo = await nextDocNo(db, "tax_pph22", "BP22");
+    const memo = `Bukti pungut PPh 22 ${docNo}`;
+    // Dr Uang Muka PPh 22 (aset, kredit pajak) / Cr akun sumber (utang ke
+    // pemasok bertambah, atau kas berkurang).
+    const journal = await postJournal(db, {
+      entryDate: input.taxDate,
+      memo,
+      createdBy: c.get("user").id,
+      lines: [
+        { accountId: uangMuka, description: memo, debit: amount, credit: 0 },
+        { accountId: input.sourceAccountId, description: memo, debit: 0, credit: amount },
+      ],
+    });
+    const id = crypto.randomUUID();
+    await db
+      .prepare(
+        `INSERT INTO tax_pph22 (id, doc_no, contact_id, tax_date, object_type, gross, rate, amount,
+                                source_account_id, journal_entry_id, note, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        id,
+        docNo,
+        input.contactId,
+        input.taxDate,
+        input.objectType,
+        input.gross,
+        input.rate,
+        amount,
+        input.sourceAccountId,
+        journal.id,
+        input.note ? input.note : null,
+        c.get("user").id,
+      )
+      .run();
+    await audit(c.env, {
+      action: "tax.pph22.dipungut",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { docNo, amount },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, id, docNo, amount }, 201);
+  })
+
+  /**
+   * Bahan pengisian e-Bupot Unifikasi satu masa, sebagai CSV.
+   *
+   * BUKAN berkas impor resmi DJP: formatnya berubah mengikuti aturan dan tidak
+   * dijanjikan cocok. Yang dijamin berkas ini adalah seluruh angka yang diminta
+   * e-Bupot sudah terkumpul di satu tempat beserta NPWP lawan transaksinya.
+   */
+  .get("/:tenantId/tax/e-bupot", requireAuth, requireTenantRole("viewer"), requirePermission("pajak"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const period = c.req.query("period") ?? "";
+    if (!PERIOD_RE.test(period)) return c.json({ error: "Periode harus berformat YYYY-MM" }, 400);
+
+    const baris: BarisEBupot[] = [];
+
+    const { results: p23 } = await db
+      .prepare(
+        `SELECT p.doc_no, p.tax_date, p.object_type, p.gross, p.rate, p.amount, k.name, k.npwp
+         FROM tax_pph23 p JOIN contacts k ON k.id = p.contact_id
+         WHERE substr(p.tax_date, 1, 7) = ? ORDER BY p.tax_date, p.doc_no`,
+      )
+      .bind(period)
+      .all<{ doc_no: string; tax_date: string; object_type: string; gross: number; rate: number; amount: number; name: string; npwp: string | null }>();
+    for (const r of p23) {
+      baris.push({
+        masa: period,
+        jenis: "pph23",
+        noBukti: r.doc_no,
+        tanggal: r.tax_date,
+        npwp: r.npwp ?? "",
+        nama: r.name,
+        objek: r.object_type,
+        dpp: r.gross,
+        tarif: r.rate,
+        pph: r.amount,
+      });
+    }
+
+    const { results: p22 } = await db
+      .prepare(
+        `SELECT p.doc_no, p.tax_date, p.object_type, p.gross, p.rate, p.amount, k.name, k.npwp
+         FROM tax_pph22 p JOIN contacts k ON k.id = p.contact_id
+         WHERE substr(p.tax_date, 1, 7) = ? ORDER BY p.tax_date, p.doc_no`,
+      )
+      .bind(period)
+      .all<{ doc_no: string; tax_date: string; object_type: string; gross: number; rate: number; amount: number; name: string; npwp: string | null }>();
+    for (const r of p22) {
+      baris.push({
+        masa: period,
+        jenis: "pph22",
+        noBukti: r.doc_no,
+        tanggal: r.tax_date,
+        npwp: r.npwp ?? "",
+        nama: r.name,
+        objek: r.object_type,
+        dpp: r.gross,
+        tarif: r.rate,
+        pph: r.amount,
+      });
+    }
+
+    return new Response(csvEBupot(baris), {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": `attachment; filename="e-bupot-${period}.csv"`,
+      },
+    });
   })
 
   .post("/:tenantId/tax/pph23/:id/deposit", requireAuth, requireTenantRole("admin"), requirePermission("pajak"), async (c) => {

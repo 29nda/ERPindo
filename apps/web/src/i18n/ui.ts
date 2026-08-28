@@ -3725,6 +3725,36 @@ export const UI = {
   },
   segeraBerakhir: { id: "Segera berakhir", en: "Ending soon" },
   tahunSatuan: { id: "tahun", en: "year" },
+  // PPh 22 & bahan e-Bupot (Fase 46)
+  tabPph22: { id: "PPh 22", en: "Art. 22 tax" },
+  descPph22KreditPajak: {
+    id: "PPh 22 yang dipungut dari Anda adalah kredit pajak, bukan beban. Nilainya masuk akun Uang Muka PPh 22 dan mengurangi PPh badan akhir tahun, jadi jangan dicatat sebagai biaya.",
+    en: "Article 22 tax collected from you is a tax credit, not an expense. It goes to a prepaid tax asset account and reduces year-end corporate tax, so do not book it as a cost.",
+  },
+  catatPph22: { id: "Catat bukti pungut", en: "Record collection slip" },
+  descCatatPph22: {
+    id: "Isi dasar pengenaan dan tarif sesuai bukti pungut dari pemungutnya. Tarif ikut berubah saat objeknya diganti, tetapi tetap bisa disunting karena sebagian tarif bergantung status lawan transaksi.",
+    en: "Enter the taxable base and rate from the collector's slip. The rate follows the object you pick but stays editable, since some rates depend on the counterparty's status.",
+  },
+  pemungut: { id: "Pemungut", en: "Collector" },
+  dasarPengenaan: { id: "Dasar pengenaan", en: "Taxable base" },
+  nilaiPungutanLabel: { id: "Nilai pungutan", en: "Amount collected" },
+  daftarPph22: { id: "Bukti pungut PPh 22", en: "Article 22 collection slips" },
+  belumAdaPph22: { id: "Bukti pungut PPh 22 masih kosong", en: "No Article 22 slips recorded" },
+  descBelumAdaPph22: {
+    id: "Catat bukti pungut yang Anda terima dari pemasok berstatus pemungut. Nilainya akan tersimpan sebagai kredit pajak.",
+    en: "Record the collection slips you receive from suppliers acting as collectors. The amounts are kept as tax credits.",
+  },
+  tanpaNpwp: { id: "Tanpa NPWP", en: "No tax number" },
+  unduhBahanEbupot: { id: "Unduh bahan e-Bupot", en: "Download e-Bupot data" },
+  descBahanEbupot: {
+    id: "Berkas ini mengumpulkan seluruh angka yang diminta e-Bupot Unifikasi dalam satu masa, beserta NPWP lawan transaksinya. Bentuknya bahan pengisian, bukan berkas impor resmi DJP.",
+    en: "This file gathers every figure e-Bupot Unifikasi asks for in one period, along with counterparty tax numbers. It is source data for filling the form, not an official DJP import file.",
+  },
+  toastPph22Dicatat: {
+    id: "Bukti pungut {0} tercatat, nilai {1}.",
+    en: "Collection slip {0} recorded, amount {1}.",
+  },
 } satisfies Record<string, Dual>;
 
 export type UiKey = keyof typeof UI;

@@ -188,7 +188,11 @@ function makeClient() {
     } catch {
       /* respons bukan JSON (mis. XML) — tetap tersedia lewat .text */
     }
-    return { status: res.status, json, text };
+    // `headers` disertakan sejak Fase 46: berkas unduhan (CSV/XML/ZIP) hanya
+    // bisa diperiksa benar lewat content-type & content-disposition-nya, dan
+    // memeriksa isinya saja akan meloloskan berkas yang terkirim dengan tipe
+    // salah — peramban lalu menampilkannya alih-alih mengunduhnya.
+    return { status: res.status, json, text, headers: res.headers };
   };
 }
 
@@ -1361,6 +1365,90 @@ try {
   check("setor PPh 23 200", p23Deposit.status === 200);
   const p23Redeposit = await owner("POST", `/api/tenants/${tenantId}/tax/pph23/${p23.json.id}/deposit`, { accountId: kas.id, depositDate: "2026-10-08" });
   check("setor ulang PPh 23 DITOLAK 409", p23Redeposit.status === 409);
+
+  // --- PPh 22 & bahan e-Bupot (Fase 46) --------------------------------------
+  // Aman di tenant utama: PPh 22 memposting ke akun ASET baru (Uang Muka
+  // PPh 22) dan mengkredit kas, jadi tidak menyentuh pendapatan/piutang yang
+  // dihitung asersi lain. Neraca saldo tetap diperiksa di bawah.
+  console.log("7e2. PPh 22 dipungut & bahan e-Bupot");
+
+  const p22Viewer = await viewer("POST", `/api/tenants/${tenantId}/tax/pph22`, {
+    contactId: supplier.json.id, taxDate: "2026-10-09", objectType: "semen", gross: 400_000_000, rate: 0.25, sourceAccountId: kas.id,
+  });
+  check("46 viewer DITOLAK mencatat bukti pungut (403)", p22Viewer.status === 403);
+
+  const p22 = await owner("POST", `/api/tenants/${tenantId}/tax/pph22`, {
+    contactId: supplier.json.id, taxDate: "2026-10-09", objectType: "semen", gross: 400_000_000, rate: 0.25, sourceAccountId: kas.id,
+  });
+  check(
+    "46 bukti pungut PPh 22 (0,25% x 400jt = 1jt) — tarif pecahan dihitung benar",
+    p22.status === 201 && p22.json?.amount === 1_000_000 && Boolean(p22.json?.docNo),
+    `→ ${JSON.stringify(p22.json)}`,
+  );
+
+  // Inilah cek yang paling menentukan: PPh 22 harus mendarat di akun ASET.
+  // Mencatatnya sebagai beban membuat perusahaan membayar pajaknya dua kali.
+  const akunSetelahP22 = await owner("GET", `/api/tenants/${tenantId}/accounts`);
+  const uangMukaP22 = akunSetelahP22.json?.accounts?.find((a) => a.code === "1-1300");
+  check(
+    "46 PPh 22 masuk akun ASET Uang Muka PPh 22, bukan akun beban",
+    uangMukaP22?.type === "asset",
+    `→ ${JSON.stringify({ ada: Boolean(uangMukaP22), tipe: uangMukaP22?.type })}`,
+  );
+
+  const p22Nol = await owner("POST", `/api/tenants/${tenantId}/tax/pph22`, {
+    contactId: supplier.json.id, taxDate: "2026-10-09", objectType: "semen", gross: 100, rate: 0, sourceAccountId: kas.id,
+  });
+  check("46 tarif nol DITOLAK 400 — bukti pungut bernilai nol tidak bermakna", p22Nol.status === 400);
+
+  const p22Objek = await owner("POST", `/api/tenants/${tenantId}/tax/pph22`, {
+    contactId: supplier.json.id, taxDate: "2026-10-09", objectType: "kelapa-sawit", gross: 1_000_000, rate: 1, sourceAccountId: kas.id,
+  });
+  check("46 objek di luar daftar DITOLAK 400", p22Objek.status === 400);
+
+  const p22List = await owner("GET", `/api/tenants/${tenantId}/tax/pph22`);
+  check(
+    "46 daftar bukti pungut memuat NPWP pemungutnya",
+    p22List.status === 200 && p22List.json?.items?.length === 1 && "contactNpwp" in (p22List.json.items[0] ?? {}),
+    `→ ${JSON.stringify(p22List.json?.items?.[0])}`,
+  );
+  check("46 totalnya dijumlahkan server", p22List.json?.total === 1_000_000);
+
+  const ebupot = await owner("GET", `/api/tenants/${tenantId}/tax/e-bupot?period=2026-10`);
+  const ebupotBaris = (ebupot.text ?? "").trim().split("\n");
+  check(
+    "46 bahan e-Bupot memuat baris judul + PPh 23 + PPh 22",
+    ebupot.status === 200 && ebupotBaris.length === 3,
+    `→ ${ebupotBaris.length} baris`,
+  );
+  check(
+    "46 baris judulnya persis kolom yang dijanjikan",
+    ebupotBaris[0] === "masa,jenis,no_bukti,tanggal,npwp,nama,objek,dpp,tarif,pph",
+    `→ ${ebupotBaris[0]}`,
+  );
+  check(
+    "46 kedua jenis PPh ada di berkas yang sama",
+    ebupot.text.includes("pph23") && ebupot.text.includes("pph22"),
+  );
+  check(
+    "46 berkasnya diunduh sebagai CSV bernama masa",
+    /text\/csv/.test(ebupot.headers?.get?.("content-type") ?? "") &&
+      /e-bupot-2026-10\.csv/.test(ebupot.headers?.get?.("content-disposition") ?? ""),
+    `→ ${ebupot.headers?.get?.("content-type")}`,
+  );
+
+  const ebupotKosong = await owner("GET", `/api/tenants/${tenantId}/tax/e-bupot?period=2027-05`);
+  check(
+    "46 masa tanpa data tetap menghasilkan baris judul, bukan berkas kosong",
+    ebupotKosong.text.trim() === "masa,jenis,no_bukti,tanggal,npwp,nama,objek,dpp,tarif,pph",
+    `→ ${JSON.stringify(ebupotKosong.text)}`,
+  );
+
+  const ebupotNgawur = await owner("GET", `/api/tenants/${tenantId}/tax/e-bupot?period=2026-13`);
+  check("46 masa tak sah DITOLAK 400", ebupotNgawur.status === 400);
+
+  const tbP22 = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check("46 neraca saldo TETAP seimbang setelah bukti pungut PPh 22", tbP22.json?.balanced === true);
 
   // SPT Masa PPN 1111 (masa Oktober terisolasi).
   const spt = await owner("GET", `/api/tenants/${tenantId}/tax/spt-ppn?period=2026-10`);

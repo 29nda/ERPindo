@@ -2611,6 +2611,27 @@ try {
   );
   check("F59 alur kontrak bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
+  // F60 — Fase 46: PPh 22. Yang diperiksa adalah bahwa layarnya MENGATAKAN
+  // pungutan ini kredit pajak dan bukan beban. Salah mencatatnya membuat
+  // perusahaan membayar pajaknya dua kali, dan aplikasi yang diam soal itu
+  // ikut menyebabkannya.
+  await gotoRoute("/app/keuangan/pajak", 900);
+  await page.getByRole("button", { name: "PPh 22", exact: true }).click();
+  await page.waitForTimeout(600);
+  const p22Body = await page.innerText("body");
+  check(
+    "F60 layar PPh 22 menegaskan ini kredit pajak, BUKAN beban",
+    p22Body.includes("kredit pajak") && p22Body.includes("bukan beban"),
+  );
+  check("F60 formulir bukti pungut tersedia", (await page.locator("#p22-objek").count()) === 1);
+  const p22Objek = await page.locator("#p22-objek option").allInnerTexts();
+  check(
+    "F60 objek impor dibedakan punya API dan tanpa API",
+    p22Objek.some((t) => t.includes("punya API")) && p22Objek.some((t) => t.includes("tanpa API")),
+    `→ ${JSON.stringify(p22Objek)}`,
+  );
+  check("F60 alur PPh 22 bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/app/alat", 700);
   const alatBody = await page.innerText("body");
   check("F19 kalkulator render (HPP + hasil Rupiah)", alatBody.includes("Harga Pokok Produksi") && /Rp\s?[1-9]/.test(alatBody.replace(/\u00A0/g, " ")));
