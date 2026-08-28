@@ -206,3 +206,131 @@ export type ApiBudgetReport = {
   totalActualExpense: number;
 };
 
+
+/* ------------------------------------------------------------------ *
+ * Target & prakiraan penjualan (Fase 44b)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Peluang penutupan per tahap pipeline, dalam persen.
+ *
+ * Prakiraan penjualan yang menjumlahkan seluruh nilai pipeline apa adanya
+ * selalu terlalu besar, dan besarnya justru meyakinkan — itulah yang membuatnya
+ * berbahaya. Prospek yang baru masuk dan penawaran yang tinggal diteken tidak
+ * sama nilainya, dan menganggapnya sama membuat perusahaan berbelanja atas uang
+ * yang belum tentu datang.
+ *
+ * Angka di bawah adalah **nilai baku yang lazim**, bukan hasil pengukuran atas
+ * data perusahaan mana pun. Karena itu layarnya menampilkan peluang tiap tahap
+ * apa adanya — pemiliknya harus bisa melihat dasar prakiraannya, lalu menilai
+ * sendiri apakah angka itu cocok dengan pengalamannya.
+ *
+ * `won` bernilai 100 dan `lost` bernilai 0 bukan sebagai peluang, melainkan
+ * sebagai kepastian: keduanya sudah selesai. Prakiraan hanya menghitung yang
+ * masih berjalan, jadi keduanya dikeluarkan dari perhitungan — lihat
+ * `forecastTertimbang`.
+ */
+export const PELUANG_TAHAP: Record<LeadStage, number> = {
+  new: 10,
+  contacted: 20,
+  qualified: 40,
+  proposal: 60,
+  won: 100,
+  lost: 0,
+};
+
+/** Tahap yang masih berjalan — hanya ini yang masuk prakiraan. */
+export const TAHAP_BERJALAN: LeadStage[] = ["new", "contacted", "qualified", "proposal"];
+
+export type LeadForecast = { stage: LeadStage; estValue: number };
+
+export type ForecastBreakdown = {
+  /** Nilai pipeline apa adanya, tanpa pembobotan. Selalu >= tertimbang. */
+  kotor: number;
+  /** Jumlah setelah tiap nilai dikalikan peluang tahapnya. */
+  tertimbang: number;
+  perTahap: { stage: LeadStage; jumlah: number; kotor: number; tertimbang: number }[];
+};
+
+/**
+ * Prakiraan penjualan tertimbang dari pipeline yang masih berjalan.
+ *
+ * Prospek yang sudah `won` tidak ikut: nilainya sudah menjadi penjualan
+ * sungguhan dan akan terhitung dua kali bila dijumlahkan lagi di sini. Yang
+ * `lost` juga tidak ikut, dengan alasan yang jelas.
+ */
+export function forecastTertimbang(leads: LeadForecast[]): ForecastBreakdown {
+  const perTahap = TAHAP_BERJALAN.map((stage) => {
+    const milik = leads.filter((l) => l.stage === stage);
+    const kotor = milik.reduce((a, l) => a + l.estValue, 0);
+    return {
+      stage,
+      jumlah: milik.length,
+      kotor,
+      tertimbang: Math.round((kotor * PELUANG_TAHAP[stage]) / 100),
+    };
+  });
+  return {
+    kotor: perTahap.reduce((a, t) => a + t.kotor, 0),
+    tertimbang: perTahap.reduce((a, t) => a + t.tertimbang, 0),
+    perTahap,
+  };
+}
+
+export type PencapaianTarget = {
+  target: number;
+  realisasi: number;
+  /** Persentase pencapaian, dibulatkan. Tanpa target → 0. */
+  persen: number;
+  /** Kurang berapa lagi. Nol bila sudah tercapai atau terlampaui. */
+  kurang: number;
+  tercapai: boolean;
+};
+
+/**
+ * Pencapaian terhadap target.
+ *
+ * Target nol tidak menghasilkan pembagian dengan nol maupun "tercapai 100%":
+ * sales yang belum diberi target belum bisa dinilai, dan menampilkannya sebagai
+ * sudah tercapai adalah kebohongan yang menyenangkan.
+ */
+export function pencapaianTarget(target: number, realisasi: number): PencapaianTarget {
+  if (target <= 0) {
+    return { target: 0, realisasi, persen: 0, kurang: 0, tercapai: false };
+  }
+  return {
+    target,
+    realisasi,
+    persen: Math.round((realisasi / target) * 100),
+    kurang: Math.max(0, target - realisasi),
+    tercapai: realisasi >= target,
+  };
+}
+
+/** Tetapkan target penjualan satu sales untuk satu bulan (Fase 44b). */
+export const salesTargetSchema = z.object({
+  salespersonId: z.string().min(1, "Pilih sales lebih dulu."),
+  period: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Periode harus berformat YYYY-MM"),
+  targetAmount: z.number().int().min(0).max(1_000_000_000_000),
+});
+export type SalesTargetInput = z.infer<typeof salesTargetSchema>;
+
+export type ApiSalesTargetRow = {
+  salespersonId: string;
+  salespersonName: string;
+  target: number;
+  realisasi: number;
+  persen: number;
+  kurang: number;
+  tercapai: boolean;
+  /** Jumlah faktur yang membentuk realisasinya. */
+  faktur: number;
+};
+
+export type ApiSalesTargetReport = {
+  period: string;
+  rows: ApiSalesTargetRow[];
+  totalTarget: number;
+  totalRealisasi: number;
+  forecast: ForecastBreakdown;
+};

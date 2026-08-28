@@ -2036,6 +2036,34 @@ export const TENANT_MIGRATIONS: Migration[] = [
       `CREATE INDEX invoices_salesperson ON invoices (salesperson_id)`,
     ],
   },
+  {
+    /**
+     * Target penjualan per sales per bulan (Fase 44b).
+     *
+     * Hanya **targetnya** yang disimpan. Realisasinya dihitung dari faktur,
+     * mengikuti pola yang sama dengan anggaran (migrasi 0010): realisasi selalu
+     * dibaca dari data sungguhan, tidak pernah disimpan sebagai angka jadi —
+     * angka jadi akan basi begitu ada retur atau pembatalan faktur.
+     *
+     * Kuncinya `(salesperson_id, period)` supaya satu orang tidak bisa punya
+     * dua target untuk bulan yang sama. Tanpa itu, dua baris target akan
+     * membuat pencapaian bergantung pada baris mana yang kebetulan terbaca
+     * lebih dulu.
+     */
+    id: "0052_target_penjualan",
+    statements: [
+      `CREATE TABLE sales_targets (
+        id TEXT PRIMARY KEY,
+        salesperson_id TEXT NOT NULL REFERENCES employees(id),
+        period TEXT NOT NULL,
+        target_amount INTEGER NOT NULL CHECK (target_amount >= 0),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (salesperson_id, period)
+      )`,
+      `CREATE INDEX sales_targets_period ON sales_targets (period)`,
+    ],
+  },
 ];
 
 /** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */

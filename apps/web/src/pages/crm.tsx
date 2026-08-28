@@ -1,6 +1,7 @@
 import {
   LEAD_ACTIVITY_TYPES,
   LEAD_STAGES,
+  PELUANG_TAHAP,
   type ApiLead,
   type ApiQuotation,
   type LeadActivityType,
@@ -334,6 +335,7 @@ export function LeadsPage() {
       </Card>
 
       <SourceReportCard tenantId={tenant.tenantId} />
+      <TargetForecastCard tenantId={tenant.tenantId} isAdmin={isAdmin} />
     </Halaman>
   );
 }
@@ -1178,5 +1180,208 @@ function QuoteRow({ quote, isAdmin }: { quote: ApiQuotation; isAdmin: boolean })
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Target & prakiraan penjualan (Fase 44b).
+ *
+ * Duduk di halaman pipeline, bukan halaman tersendiri: prakiraannya DIHITUNG
+ * dari pipeline yang tepat di atasnya, dan memisahkan keduanya membuat pembaca
+ * tidak bisa melihat dari mana angka prakiraan itu berasal.
+ *
+ * Peluang tiap tahap ditampilkan apa adanya. Prakiraan yang tidak menunjukkan
+ * dasarnya hanyalah angka besar yang meyakinkan — dan itu bentuk paling
+ * berbahaya dari angka yang salah.
+ */
+function TargetForecastCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const u = useUi();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
+  const [salespersonId, setSalespersonId] = useState("");
+  const [target, setTarget] = useState("");
+  const [galat, setGalat] = useState<string | null>(null);
+
+  const periodeSah = /^\d{4}-(0[1-9]|1[0-2])$/.test(period);
+  const laporanQuery = useQuery({
+    queryKey: ["sales-targets", tenantId, period],
+    queryFn: () => api.salesTargets(tenantId, period),
+    enabled: periodeSah,
+  });
+  const employeesQuery = useQuery({
+    queryKey: ["employees", tenantId],
+    queryFn: () => api.employees(tenantId),
+  });
+  const aktif = (employeesQuery.data?.employees ?? []).filter((e) => e.isActive);
+
+  const simpan = useMutation({
+    mutationFn: () =>
+      api.setSalesTarget(tenantId, {
+        salespersonId: salespersonId || aktif[0]?.id || "",
+        period,
+        targetAmount: Number(target) || 0,
+      }),
+    onSuccess: () => {
+      setGalat(null);
+      toast("success", u("toastTargetDisimpan"));
+      setTarget("");
+      queryClient.invalidateQueries({ queryKey: ["sales-targets", tenantId] });
+    },
+    onError: (err) => setGalat((err as Error).message),
+  });
+
+  const lap = laporanQuery.data;
+
+  return (
+    <Card>
+      <CardHeader title={u("targetPenjualan")} description={u("descTargetPenjualan")} />
+      <CardBody className="space-y-4">
+        {galat ? <Alert tone="error">{galat}</Alert> : null}
+
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div>
+            <Label htmlFor="tg-periode">{u("periodeBulan")}</Label>
+            <Input id="tg-periode" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} />
+          </div>
+          {isAdmin ? (
+            <>
+              <div>
+                <Label htmlFor="tg-sales">{u("sales")}</Label>
+                <Select
+                  id="tg-sales"
+                  value={salespersonId || aktif[0]?.id || ""}
+                  onChange={(e) => setSalespersonId(e.target.value)}
+                >
+                  {aktif.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="tg-nilai">{u("targetBulanIni")}</Label>
+                <Input
+                  id="tg-nilai"
+                  type="number"
+                  min={0}
+                  value={target}
+                  onChange={(e) => setTarget(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  className="w-full"
+                  onClick={() => simpan.mutate()}
+                  disabled={simpan.isPending || aktif.length === 0 || target.trim() === ""}
+                >
+                  {simpan.isPending ? <Spinner /> : null} {u("simpanTarget")}
+                </Button>
+              </div>
+            </>
+          ) : null}
+        </div>
+
+        {laporanQuery.isLoading ? (
+          <Spinner />
+        ) : !lap ? null : (
+          <>
+            {lap.rows.length === 0 ? (
+              <EmptyState
+                icon={<Target className="size-6" aria-hidden />}
+                title={u("belumAdaTarget")}
+                description={u("descBelumAdaTarget")}
+              />
+            ) : (
+              <Table>
+                <Thead>
+                  <Tr>
+                    <Th>{u("sales")}</Th>
+                    <Th numeric>{u("targetKolom")}</Th>
+                    <Th numeric>{u("realisasi")}</Th>
+                    <Th numeric>{u("pencapaian")}</Th>
+                    <Th numeric>{u("kurang")}</Th>
+                  </Tr>
+                </Thead>
+                <tbody>
+                  {lap.rows.map((r) => (
+                    <Tr key={r.salespersonId}>
+                      <Td label={u("sales")}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span>{r.salespersonName}</span>
+                          {r.target === 0 ? (
+                            <Badge tone="amber">{u("belumBertarget")}</Badge>
+                          ) : r.tercapai ? (
+                            <Badge tone="green">{u("tercapai")}</Badge>
+                          ) : null}
+                        </div>
+                      </Td>
+                      <Td label={u("targetKolom")} numeric>
+                        {r.target === 0 ? "—" : formatIDR(r.target)}
+                      </Td>
+                      <Td label={u("realisasi")} numeric>
+                        {formatIDR(r.realisasi)}
+                      </Td>
+                      <Td label={u("pencapaian")} numeric>
+                        {r.target === 0 ? "—" : `${r.persen}%`}
+                      </Td>
+                      <Td label={u("kurang")} numeric>
+                        {r.target === 0 ? "—" : formatIDR(r.kurang)}
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+
+            <div className="rounded-lg border border-line p-3">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="font-medium">{u("prakiraanPipeline")}</span>
+                <span className="text-xs text-ink-muted">{u("descPrakiraan")}</span>
+                <span className="ml-auto text-sm">
+                  {u("tertimbang")}{" "}
+                  <strong className="tabular-nums">{formatIDR(lap.forecast.tertimbang)}</strong>
+                  <span className="text-ink-muted">
+                    {" "}
+                    {u("dariKotor")} {formatIDR(lap.forecast.kotor)}
+                  </span>
+                </span>
+              </div>
+              <Table className="mt-3">
+                <Thead>
+                  <Tr>
+                    <Th>{u("tahap")}</Th>
+                    <Th numeric>{u("jumlahProspek")}</Th>
+                    <Th numeric>{u("peluang")}</Th>
+                    <Th numeric>{u("nilaiKotor")}</Th>
+                    <Th numeric>{u("tertimbang")}</Th>
+                  </Tr>
+                </Thead>
+                <tbody>
+                  {lap.forecast.perTahap.map((t) => (
+                    <Tr key={t.stage}>
+                      <Td label={u("tahap")}>{u(LEAD_STAGE_KEY[t.stage])}</Td>
+                      <Td label={u("jumlahProspek")} numeric>
+                        {t.jumlah}
+                      </Td>
+                      <Td label={u("peluang")} numeric>
+                        {PELUANG_TAHAP[t.stage]}%
+                      </Td>
+                      <Td label={u("nilaiKotor")} numeric>
+                        {formatIDR(t.kotor)}
+                      </Td>
+                      <Td label={u("tertimbang")} numeric>
+                        <strong>{formatIDR(t.tertimbang)}</strong>
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          </>
+        )}
+      </CardBody>
+    </Card>
   );
 }

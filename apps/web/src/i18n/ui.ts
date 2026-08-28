@@ -3663,6 +3663,37 @@ export const UI = {
     en: "{0} invoices carry a salesperson who has no commission scheme yet, so they are not counted. Attach a scheme under the Employees tab.",
   },
   toastSkemaKomisiDibuat: { id: "Skema komisi {0} dibuat.", en: "Commission scheme {0} created." },
+  // Target & prakiraan penjualan (Fase 44b)
+  targetPenjualan: { id: "Target & prakiraan penjualan", en: "Sales target & forecast" },
+  descTargetPenjualan: {
+    id: "Target ditetapkan per sales per bulan. Realisasinya dihitung dari faktur dengan dasar yang sama seperti komisi, jadi kedua angka itu tidak pernah berselisih.",
+    en: "Targets are set per salesperson per month. Attainment is computed from invoices on the same basis as commission, so the two figures never disagree.",
+  },
+  sales: { id: "Sales", en: "Salesperson" },
+  targetBulanIni: { id: "Target bulan ini", en: "This month's target" },
+  simpanTarget: { id: "Simpan target", en: "Save target" },
+  targetKolom: { id: "Target", en: "Target" },
+  pencapaian: { id: "Pencapaian", en: "Attainment" },
+  kurang: { id: "Kurang", en: "Shortfall" },
+  belumBertarget: { id: "Belum bertarget", en: "No target set" },
+  tercapai: { id: "Tercapai", en: "Met" },
+  belumAdaTarget: { id: "Bulan ini masih kosong", en: "This month is still empty" },
+  descBelumAdaTarget: {
+    id: "Tetapkan target untuk seorang sales, atau catat faktur yang diberi nama sales. Keduanya akan memunculkan barisnya di sini.",
+    en: "Set a target for a salesperson, or record an invoice that names one. Either will make their row appear here.",
+  },
+  prakiraanPipeline: { id: "Prakiraan dari pipeline", en: "Forecast from pipeline" },
+  descPrakiraan: {
+    id: "Tiap tahap dikalikan peluangnya, jadi prospek baru tidak dihitung sebesar penawaran yang tinggal diteken.",
+    en: "Each stage is weighted by its probability, so a new lead is not counted the same as a proposal awaiting signature.",
+  },
+  tertimbang: { id: "Tertimbang", en: "Weighted" },
+  dariKotor: { id: "dari nilai kotor", en: "of gross value" },
+  tahap: { id: "Tahap", en: "Stage" },
+  jumlahProspek: { id: "Prospek", en: "Leads" },
+  peluang: { id: "Peluang", en: "Probability" },
+  nilaiKotor: { id: "Nilai kotor", en: "Gross value" },
+  toastTargetDisimpan: { id: "Target penjualan disimpan.", en: "Sales target saved." },
 } satisfies Record<string, Dual>;
 
 export type UiKey = keyof typeof UI;

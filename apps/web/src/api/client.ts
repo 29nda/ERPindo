@@ -71,10 +71,12 @@ import type {
   ApiPayrollAdjustment,
   ApiPayrollRun,
   ApiCommissionReport,
+  ApiSalesTargetReport,
   ApiCommissionScheme,
   ApiOvertime,
   ApiThrRun,
   CommissionSchemeInput,
+  SalesTargetInput,
   OvertimeInput,
   RunThrInput,
   ApiProject,
@@ -664,6 +666,11 @@ export const api = {
       `/api/tenants/${tenantId}/payroll-runs/${id}/void`,
       date ? { date } : {},
     ),
+  /** Target & prakiraan penjualan (Fase 44b). */
+  salesTargets: (tenantId: string, period: string) =>
+    request<ApiSalesTargetReport>("GET", `/api/tenants/${tenantId}/sales-targets?period=${period}`),
+  setSalesTarget: (tenantId: string, input: SalesTargetInput) =>
+    request<{ ok: true }>("POST", `/api/tenants/${tenantId}/sales-targets`, input),
   /** Komisi sales (Fase 44a). */
   commissionSchemes: (tenantId: string) =>
     request<{ schemes: ApiCommissionScheme[] }>("GET", `/api/tenants/${tenantId}/commission-schemes`),
