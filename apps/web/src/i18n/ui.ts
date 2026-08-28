@@ -3808,6 +3808,19 @@ export const UI = {
     id: "Perhitungan {0} tersimpan, total {1}.",
     en: "Calculation {0} saved, total {1}.",
   },
+  // Konsinyasi & dropship (Fase 48b)
+  dropship: { id: "Dropship", en: "Dropship" },
+  descDropship: {
+    id: "Pemasok mengirim langsung ke pelanggan, jadi stok tidak digerakkan. Harga pokok tetap diakui dari harga beli yang Anda isi per baris, dengan lawan Utang Usaha.",
+    en: "The supplier ships directly to the customer, so stock does not move. Cost of goods is still recognised from the purchase price you enter per line, offset against accounts payable.",
+  },
+  hargaPokokBaris: { id: "Harga pokok", en: "Unit cost" },
+  gudangKonsinyasi: { id: "Gudang konsinyasi", en: "Consignment warehouse" },
+  descGudangKonsinyasi: {
+    id: "Lokasi mitra tempat barang Anda dititipkan. Stoknya tetap milik Anda sampai terjual, jadi memindahkannya ke sana bukan penjualan.",
+    en: "A partner location where your goods are placed. The stock stays yours until sold, so moving it there is not a sale.",
+  },
+  mitraPenitipan: { id: "Mitra penitipan", en: "Consignment partner" },
 } satisfies Record<string, Dual>;
 
 export type UiKey = keyof typeof UI;

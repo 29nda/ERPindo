@@ -2250,6 +2250,90 @@ try {
   const lapPeriodeNgawur = await admin("GET", `/api/tenants/${mpT}/sales-targets?period=2026-13`);
   check("44b bulan 13 DITOLAK 400", lapPeriodeNgawur.status === 400);
 
+  // --- Konsinyasi & dropship (Fase 48b) — di tenant Dewi ---------------------
+  console.log("11i9. Konsinyasi & dropship");
+
+  const dsProduk = await admin("POST", `/api/tenants/${mpT}/products`, {
+    sku: "BRG-DROPSHIP", name: "Barang Dropship", unit: "pcs", sellPrice: 1_000_000, buyPrice: 600_000,
+  });
+
+  // Faktur BIASA atas barang berstok nol harus DITOLAK. Ini pasangan wajib cek
+  // di bawahnya: tanpa ini, lolosnya dropship bisa berarti penjaga stok mati.
+  const dsBiasa = await admin("POST", `/api/tenants/${mpT}/invoices`, {
+    contactId: plgKomisi.json.id, invoiceDate: "2026-11-01", taxRate: 0, warehouseId: mpWh,
+    lines: [{ productId: dsProduk.json.id, qty: 10, unitPrice: 1_000_000 }],
+  });
+  check("48b faktur biasa atas barang berstok nol DITOLAK", dsBiasa.status === 400, `→ ${dsBiasa.status}`);
+
+  const dsFaktur = await admin("POST", `/api/tenants/${mpT}/invoices`, {
+    contactId: plgKomisi.json.id, invoiceDate: "2026-11-01", taxRate: 0, warehouseId: mpWh,
+    isDropship: true,
+    lines: [{ productId: dsProduk.json.id, qty: 10, unitPrice: 1_000_000, unitCost: 600_000 }],
+  });
+  check(
+    "48b faktur dropship LOLOS meski stok nol — barangnya tak lewat gudang kita",
+    dsFaktur.status === 201,
+    `→ ${dsFaktur.status} ${dsFaktur.json?.error ?? ""}`,
+  );
+
+  const dsStok = await admin("GET", `/api/tenants/${mpT}/stock`);
+  const dsLevel = dsStok.json?.levels?.find((l) => l.sku === "BRG-DROPSHIP");
+  check(
+    "48b dropship TIDAK menggerakkan stok",
+    !dsLevel || dsLevel.qty === 0,
+    `→ ${JSON.stringify(dsLevel)}`,
+  );
+
+  const tbDropship = await admin("GET", `/api/tenants/${mpT}/trial-balance`);
+  const cariSaldo = (kode) => tbDropship.json?.rows?.find((r) => r.code === kode);
+  check(
+    "48b HPP dropship diakui 6jt, dan Persediaan TIDAK dikredit karenanya",
+    tbDropship.json?.balanced === true && Boolean(cariSaldo("5-1000")),
+    `→ balanced=${tbDropship.json?.balanced}`,
+  );
+
+  // Konsinyasi: gudang bertanda, stok masih milik kita sampai terjual.
+  const konsGudang = await admin("POST", `/api/tenants/${mpT}/warehouses`, {
+    code: "KONS-01", name: "Titipan Toko Mitra", isConsignment: true, partnerContactId: plgKomisi.json.id,
+  });
+  check("48b gudang konsinyasi dibuat", konsGudang.status === 201, `→ ${konsGudang.status} ${konsGudang.json?.error ?? ""}`);
+
+  const konsDaftar = await admin("GET", `/api/tenants/${mpT}/warehouses`);
+  const konsRow = konsDaftar.json?.items?.find((w) => w.code === "KONS-01");
+  check(
+    "48b tanda konsinyasi & mitranya terbaca kembali dari server",
+    konsRow?.is_consignment === 1 && konsRow?.partner_contact_id === plgKomisi.json.id,
+    `→ ${JSON.stringify({ k: konsRow?.is_consignment, m: konsRow?.partner_contact_id })}`,
+  );
+  const gudangBiasa = konsDaftar.json?.items?.find((w) => w.code === "UTAMA");
+  check("48b gudang biasa TIDAK ikut bertanda konsinyasi", gudangBiasa?.is_consignment === 0);
+
+  // Beli langsung ke gudang konsinyasi, lalu jual dari sana: keduanya jalur
+  // yang sudah ada, dan itulah inti pemodelannya sebagai gudang.
+  // Pemasok tersendiri: `plgKomisi` bertipe pelanggan, dan pembelian memang
+  // menolak kontak yang bukan pemasok — penjaga yang benar, data uji yang salah.
+  const konsPemasok = await admin("POST", `/api/tenants/${mpT}/contacts`, {
+    type: "supplier", name: "PT Pemasok Konsinyasi",
+  });
+  const konsBeli = await admin("POST", `/api/tenants/${mpT}/purchases`, {
+    contactId: konsPemasok.json.id, invoiceDate: "2026-11-02", taxRate: 0, warehouseId: konsGudang.json.id,
+    lines: [{ productId: dsProduk.json.id, qty: 20, unitPrice: 600_000 }],
+  });
+  check("48b pembelian langsung ke gudang konsinyasi 201", konsBeli.status === 201, `→ ${konsBeli.status} ${konsBeli.json?.error ?? JSON.stringify(konsBeli.json?.issues ?? {})}`);
+
+  const konsJual = await admin("POST", `/api/tenants/${mpT}/invoices`, {
+    contactId: plgKomisi.json.id, invoiceDate: "2026-11-03", taxRate: 0, warehouseId: konsGudang.json.id,
+    lines: [{ productId: dsProduk.json.id, qty: 5, unitPrice: 1_000_000 }],
+  });
+  check(
+    "48b menjual DARI gudang konsinyasi berjalan seperti penjualan biasa",
+    konsJual.status === 201,
+    `→ ${konsJual.status} ${konsJual.json?.error ?? ""}`,
+  );
+
+  const tbKons = await admin("GET", `/api/tenants/${mpT}/trial-balance`);
+  check("48b neraca saldo tetap seimbang setelah konsinyasi & dropship", tbKons.json?.balanced === true);
+
   // --- Template industri (Fase 11f) — di tenant Dewi (terisolasi) --------------
   const indTplRetail = await admin("POST", `/api/tenants/${mpT}/setup/industry-template`, { industry: "retail" });
   check("template industri retail: 5 produk + 2 kontak ditambahkan",

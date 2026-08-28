@@ -521,7 +521,15 @@ export async function executeInvoice(
   // Stok keluar dulu (bisa gagal karena stok kurang) — sebelum jurnal dibuat.
   // skipStock: barang sudah dikeluarkan & HPP sudah diakui di Surat Jalan (alur SO→DO→Faktur).
   let totalCogs = 0;
-  if (!opts?.skipStock) {
+  // Dropship (Fase 48b): barangnya tidak pernah masuk gudang kita, jadi stok
+  // TIDAK digerakkan. Menggerakkannya akan membuat stok minus, atau — lebih
+  // buruk — menolak faktur karena stok kurang padahal transaksinya sah.
+  const dropship = input.isDropship === true;
+  if (dropship) {
+    for (const line of idrLines) {
+      totalCogs += (line.unitCost ?? 0) * line.qtyDasar;
+    }
+  } else if (!opts?.skipStock) {
     try {
       for (const line of idrLines) {
         if (serviceIds.has(line.productId)) continue;
@@ -554,12 +562,13 @@ export async function executeInvoice(
     }
   }
 
-  const [piutang, pendapatan, ppnKeluaran, hpp, persediaan] = await Promise.all([
+  const [piutang, pendapatan, ppnKeluaran, hpp, persediaan, hutangUsaha] = await Promise.all([
     accountIdByCode(db, SYS_ACCOUNTS.PIUTANG),
     accountIdByCode(db, SYS_ACCOUNTS.PENDAPATAN),
     accountIdByCode(db, SYS_ACCOUNTS.PPN_KELUARAN),
     accountIdByCode(db, SYS_ACCOUNTS.HPP),
     accountIdByCode(db, SYS_ACCOUNTS.PERSEDIAAN),
+    accountIdByCode(db, SYS_ACCOUNTS.HUTANG),
   ]);
 
   const docNo = await nextDocNo(db, "invoices", "INV", { docType: "invoice", column: "invoice_no", date: input.invoiceDate });
@@ -575,7 +584,15 @@ export async function executeInvoice(
       ...(totalCogs > 0
         ? [
             { accountId: hpp, description: `HPP ${docNo}`, debit: totalCogs, credit: 0 },
-            { accountId: persediaan, description: `HPP ${docNo}`, debit: 0, credit: totalCogs },
+            // Pada dropship lawannya Utang Usaha, BUKAN Persediaan: kita tidak
+            // pernah punya persediaannya, dan mengkredit persediaan akan
+            // membuatnya minus atas barang yang tidak pernah kita simpan.
+            {
+              accountId: dropship ? hutangUsaha : persediaan,
+              description: `HPP ${docNo}`,
+              debit: 0,
+              credit: totalCogs,
+            },
           ]
         : []),
     ],
@@ -589,8 +606,8 @@ export async function executeInvoice(
       // dan rapuh — dan skema komisi berdasar laba membutuhkannya per faktur.
       `INSERT INTO invoices (id, invoice_no, contact_id, invoice_date, due_date, status, subtotal,
                              tax_rate, tax_amount, total, paid_amount, journal_entry_id, created_by,
-                             currency, exchange_rate, foreign_total, salesperson_id, cogs_amount)
-       VALUES (?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
+                             currency, exchange_rate, foreign_total, salesperson_id, cogs_amount, is_dropship)
+       VALUES (?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       invoiceId,
@@ -609,13 +626,14 @@ export async function executeInvoice(
       foreignTotal,
       input.salespersonId ?? null,
       totalCogs,
+      dropship ? 1 : 0,
     )
     .run();
   for (const line of idrLines) {
     await db
       .prepare(
-        `INSERT INTO invoice_lines (id, invoice_id, product_id, description, qty, unit_price, discount_pct, amount, uom_factor, uom_name)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO invoice_lines (id, invoice_id, product_id, description, qty, unit_price, discount_pct, amount, uom_factor, uom_name, unit_cost)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         crypto.randomUUID(),
@@ -628,6 +646,7 @@ export async function executeInvoice(
         line.amountIdr,
         line.faktor,
         line.uomName,
+        line.unitCost ?? 0,
       )
       .run();
   }

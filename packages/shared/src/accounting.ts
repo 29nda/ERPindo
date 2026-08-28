@@ -591,6 +591,14 @@ export const warehouseSchema = z.object({
   code: z.string().trim().min(1, "Kode wajib diisi").max(20).toUpperCase(),
   name: z.string().trim().min(2, "Nama minimal 2 karakter").max(100),
   address: z.string().trim().max(500).optional(),
+  /**
+   * Gudang konsinyasi (Fase 48b): lokasi mitra tempat barang kita dititipkan.
+   * Stoknya tetap milik kita sampai terjual, jadi ia gudang biasa yang diberi
+   * tanda — bukan mekanisme tersendiri.
+   */
+  isConsignment: z.boolean().optional(),
+  /** Mitra tempat menitipkan. Hanya bermakna bila `isConsignment`. */
+  partnerContactId: z.string().optional(),
 });
 export type WarehouseInput = z.infer<typeof warehouseSchema>;
 

@@ -2213,6 +2213,37 @@ export const TENANT_MIGRATIONS: Migration[] = [
        VALUES ('acc-1-1410', '1-1410', 'Uang Muka PPh 22', 'asset', 1)`,
     ],
   },
+  {
+    /**
+     * Konsinyasi & dropship (Fase 48b).
+     *
+     * **Konsinyasi** dimodelkan sebagai GUDANG bertanda, bukan mekanisme baru.
+     * Barang titipan di toko mitra masih milik kita sampai terjual, dan itu
+     * persis arti "stok kita yang berada di lokasi lain" — yaitu gudang.
+     * Konsekuensinya seluruh mesin yang sudah ada langsung berlaku: transfer
+     * antargudang memindahkannya tanpa mengakui penjualan, dan menjual dari
+     * gudang itu mengeluarkan stok serta mengakui HPP seperti biasa. Membuat
+     * mekanisme tersendiri akan menduplikasi semuanya tanpa alasan.
+     *
+     * **Dropship** kebalikannya: barangnya TIDAK PERNAH masuk gudang kita.
+     * Karena itu fakturnya tidak boleh menggerakkan stok — bila digerakkan,
+     * stok akan minus atau, lebih buruk, fakturnya ditolak karena stok kurang
+     * padahal transaksinya sah. Tetapi HPP-nya tetap harus diakui, dan
+     * lawannya BUKAN persediaan (kita tidak pernah punya persediaannya)
+     * melainkan Utang Usaha kepada pemasok yang mengirimkannya.
+     *
+     * `invoice_lines.unit_cost` menyimpan harga pokok per baris untuk dropship.
+     * Ia tidak bisa diambil dari harga rata-rata persediaan: barangnya tidak
+     * pernah ada di persediaan kita, jadi rata-ratanya tidak bermakna.
+     */
+    id: "0057_konsinyasi_dropship",
+    statements: [
+      `ALTER TABLE warehouses ADD COLUMN is_consignment INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE warehouses ADD COLUMN partner_contact_id TEXT REFERENCES contacts(id)`,
+      `ALTER TABLE invoices ADD COLUMN is_dropship INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE invoice_lines ADD COLUMN unit_cost INTEGER NOT NULL DEFAULT 0`,
+    ],
+  },
 ];
 
 /** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */

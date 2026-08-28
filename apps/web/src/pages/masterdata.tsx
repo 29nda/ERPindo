@@ -1242,7 +1242,15 @@ export function ContactsPage() {
 
 // ---------------------------------------------------------------------------
 
-type WarehouseRow = { id: string; code: string; name: string; address: string | null };
+type WarehouseRow = {
+  id: string;
+  code: string;
+  name: string;
+  address: string | null;
+  /** Fase 48b — gudang konsinyasi & mitra penitipannya. */
+  is_consignment?: number;
+  partner_contact_id?: string | null;
+};
 
 export function WarehousesPage() {
   const u = useUi();
@@ -1268,7 +1276,15 @@ export function WarehousesPage() {
     e.preventDefault();
     setIssues({});
     const form = e.currentTarget;
-    const parsed = warehouseSchema.safeParse(Object.fromEntries(new FormData(form)));
+    const data = Object.fromEntries(new FormData(form));
+    // FormData memberi "on" untuk kotak centang yang tercentang, dan tidak
+    // memberi apa pun bila tidak — keduanya bukan boolean. Dikonversi di sini
+    // supaya skema tetap menerima tipe yang sebenarnya (Fase 48b).
+    const parsed = warehouseSchema.safeParse({
+      ...data,
+      isConsignment: data.isConsignment === "on",
+      partnerContactId: data.partnerContactId || undefined,
+    });
     if (!parsed.success) {
       setIssues(parsed.error.flatten().fieldErrors as Record<string, string[]>);
       return;
@@ -1327,6 +1343,30 @@ export function WarehousesPage() {
                   name="address"
                   placeholder="opsional"
                   defaultValue={editing?.address ?? ""}
+                />
+              </div>
+              {/* Konsinyasi (Fase 48b): gudang bertanda, bukan mekanisme
+                  tersendiri. Barang yang dititipkan masih milik kita, jadi
+                  memindahkannya ke sana bukan penjualan. */}
+              <div className="sm:col-span-2">
+                <label className="flex items-center gap-2 text-sm" htmlFor="w-konsinyasi">
+                  <input
+                    id="w-konsinyasi"
+                    name="isConsignment"
+                    type="checkbox"
+                    defaultChecked={editing?.is_consignment === 1}
+                  />
+                  {u("gudangKonsinyasi")}
+                </label>
+                <p className="mt-1 text-xs text-ink-muted">{u("descGudangKonsinyasi")}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="w-mitra">{u("mitraPenitipan")}</Label>
+                <Input
+                  id="w-mitra"
+                  name="partnerContactId"
+                  placeholder="opsional"
+                  defaultValue={editing?.partner_contact_id ?? ""}
                 />
               </div>
               <div className="flex gap-2">
