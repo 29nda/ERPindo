@@ -35,15 +35,16 @@ export const PRODUK_INDUK: Naskah = {
       judul: { id: "Produk baru", en: "New product" },
       tombol: { id: "Simpan", en: "Save" },
       medan: [
-        { id: "nama", label: { id: "Nama", en: "Name" }, nilai: { id: "Kopi Arabika 1 kg", en: "Arabica coffee 1 kg" } },
-        { id: "sku", label: { id: "SKU", en: "SKU" }, nilai: { id: "KOP-ARB-1000", en: "KOP-ARB-1000" } },
+        { id: "nama", label: { id: "Nama", en: "Name" }, nilai: { id: "Kopi Arabika 1 kg", en: "Arabica coffee 1 kg" }, sumber: "products.name" },
+        { id: "sku", label: { id: "SKU", en: "SKU" }, nilai: { id: "KOP-ARB-1000", en: "KOP-ARB-1000" }, sumber: "products.sku" },
         {
           id: "harga",
           label: { id: "Harga jual", en: "Selling price" },
           nilai: { id: "Rp 150.000", en: "Rp 150,000" },
           num: true,
+          sumber: "products.sell_price",
         },
-        { id: "satuan", label: { id: "Satuan", en: "Unit" }, nilai: { id: "kg", en: "kg" } },
+        { id: "satuan", label: { id: "Satuan", en: "Unit" }, nilai: { id: "kg", en: "kg" }, sumber: "products.unit" },
       ],
     },
     {
@@ -120,14 +121,15 @@ export const KONTAK_INDUK: Naskah = {
       judul: { id: "Kontak baru", en: "New contact" },
       tombol: { id: "Simpan", en: "Save" },
       medan: [
-        { id: "nama", label: { id: "Nama", en: "Name" }, nilai: { id: "PT Berkah Jaya", en: "PT Berkah Jaya" } },
-        { id: "npwp", label: { id: "NPWP", en: "Tax number" }, nilai: { id: "01.234.567.8-901.000", en: "01.234.567.8-901.000" } },
-        { id: "termin", label: { id: "Termin pembayaran", en: "Payment term" }, nilai: { id: "30 hari", en: "30 days" } },
+        { id: "nama", label: { id: "Nama", en: "Name" }, nilai: { id: "PT Berkah Jaya", en: "PT Berkah Jaya" }, sumber: "contacts.name" },
+        { id: "npwp", label: { id: "NPWP", en: "Tax number" }, nilai: { id: "01.234.567.8-901.000", en: "01.234.567.8-901.000" }, sumber: "contacts.npwp" },
+        { id: "termin", label: { id: "Termin pembayaran", en: "Payment term" }, nilai: { id: "30 hari", en: "30 days" }, sumber: "contacts.payment_term_days" },
         {
           id: "kredit",
           label: { id: "Batas kredit", en: "Credit limit" },
           nilai: { id: "Rp 80.000.000", en: "Rp 80,000,000" },
           num: true,
+          sumber: "contacts.credit_limit",
         },
       ],
     },
@@ -215,8 +217,8 @@ export const BAGAN_AKUN: Naskah = {
       judul: { id: "Menambah akun sendiri", en: "Adding your own account" },
       tombol: { id: "Tambahkan", en: "Add" },
       medan: [
-        { id: "kode", label: { id: "Kode", en: "Code" }, nilai: { id: "6250", en: "6250" }, num: true },
-        { id: "nama", label: { id: "Nama akun", en: "Account name" }, nilai: { id: "Beban Sewa Gudang", en: "Warehouse rent expense" } },
+        { id: "kode", label: { id: "Kode", en: "Code" }, nilai: { id: "6250", en: "6250" }, num: true, sumber: "accounts.code" },
+        { id: "nama", label: { id: "Nama akun", en: "Account name" }, nilai: { id: "Beban Sewa Gudang", en: "Warehouse rent expense" }, sumber: "accounts.name" },
       ],
     },
     {
@@ -437,14 +439,15 @@ export const PENAWARAN_CETAK: Naskah = {
       judul: { id: "Penawaran QT-2026-0071", en: "Quotation QT-2026-0071" },
       tombol: { id: "Cetak & kirim", en: "Print & send" },
       medan: [
-        { id: "pelanggan", label: { id: "Pelanggan", en: "Customer" }, nilai: { id: "PT Sinar Abadi", en: "PT Sinar Abadi" } },
+        { id: "pelanggan", label: { id: "Pelanggan", en: "Customer" }, nilai: { id: "PT Sinar Abadi", en: "PT Sinar Abadi" }, sumber: "quotations.contact_id" },
         {
           id: "nilai",
           label: { id: "Nilai penawaran", en: "Quotation value" },
           nilai: { id: "Rp 148.000.000", en: "Rp 148,000,000" },
           num: true,
+          sumber: "quotations.total",
         },
-        { id: "berlaku", label: { id: "Berlaku sampai", en: "Valid until" }, nilai: { id: "31 Januari 2027", en: "31 January 2027" } },
+        { id: "berlaku", label: { id: "Berlaku sampai", en: "Valid until" }, nilai: { id: "31 Januari 2027", en: "31 January 2027" }, sumber: "quotations.valid_until" },
       ],
     },
     {
