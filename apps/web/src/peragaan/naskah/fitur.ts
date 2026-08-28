@@ -404,7 +404,7 @@ export const PERAN_AUDIT: Naskah = {
         [
           { id: "14:02", en: "14:02" },
           { id: "Sri Wahyuni", en: "Sri Wahyuni" },
-          { id: "Batas kredit PT Berkah Jaya: 50 juta → 80 juta", en: "PT Berkah Jaya credit limit: 50m → 80m" },
+          { id: "Grup harga PT Berkah Jaya: Ecer → Grosir", en: "PT Berkah Jaya price group: Retail → Wholesale" },
         ],
         [
           { id: "11:37", en: "11:37" },
@@ -973,7 +973,7 @@ export const PIPELINE_PENAWARAN: Naskah = {
           nada: "ok",
         },
         {
-          teks: { id: "Data pelanggan dan syarat pembayarannya", en: "Customer details and payment terms" },
+          teks: { id: "Data pelanggan beserta grup harganya", en: "Customer details along with their price group" },
           lencana: { id: "Terbawa", en: "Carried" },
           nada: "ok",
         },
