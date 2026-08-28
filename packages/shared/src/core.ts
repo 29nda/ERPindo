@@ -647,6 +647,8 @@ export const TENANT_ROUTE_ACCESS: Record<string, AksesRute> = {
   "overtime": { baca: "hr", tulis: "hr" },
   // Komisi sales (Fase 44a) — angkanya gaji, jadi tunduk pada modul yang sama.
   "commission-schemes": { baca: "hr", tulis: "hr" },
+  // Pesangon (Fase 47) — angkanya gaji, dan hanya admin yang boleh melihatnya.
+  "severance": { baca: "hr", tulis: "hr" },
   "commission-report": { baca: "hr", tulis: "hr" },
   // Target penjualan (Fase 44b) — modul CRM, bukan HR: yang dinilai penjualan.
   "sales-targets": { baca: "crm", tulis: "crm" },

@@ -3755,6 +3755,59 @@ export const UI = {
     id: "Bukti pungut {0} tercatat, nilai {1}.",
     en: "Collection slip {0} recorded, amount {1}.",
   },
+  // Pesangon & PKWT — PP 35/2021 (Fase 47)
+  tabPesangon: { id: "Pesangon", en: "Severance" },
+  descPesangonDasarHukum: {
+    id: "Perhitungan mengikuti PP 35/2021: tabel uang pesangon dan penghargaan masa kerja, dengan pengali yang berbeda-beda menurut alasan berakhirnya hubungan kerja. Karyawan yang pensiun berhak 1,75 kali, yang meninggal dunia 2 kali, dan yang mengundurkan diri tidak berhak sama sekali.",
+    en: "Calculated under PP 35/2021: the severance and service-appreciation tables, with multipliers that differ by reason for termination. Retirement earns 1.75 times, death 2 times, and resignation none at all.",
+  },
+  hitungPesangon: { id: "Hitung pesangon", en: "Calculate severance" },
+  descHitungPesangon: {
+    id: "Masa kerja dihitung dari tanggal masuk karyawan sampai tanggal berakhir yang Anda isi. Hasilnya disimpan apa adanya, sehingga kenaikan gaji sesudahnya tidak mengubah berkas yang sudah dibuat.",
+    en: "Length of service runs from the employee's join date to the end date you enter. The result is stored as computed, so later raises do not change a record already made.",
+  },
+  tanggalBerakhir: { id: "Tanggal berakhir", en: "End date" },
+  alasanBerakhir: { id: "Alasan berakhir", en: "Reason for ending" },
+  sisaCutiHari: { id: "Sisa cuti (hari)", en: "Unused leave (days)" },
+  uangPisahOpsional: { id: "Uang pisah (opsional)", en: "Separation pay (optional)" },
+  descUangPisahDiaturPerjanjian: {
+    id: "Besarnya uang pisah diatur perjanjian kerja, bukan peraturan, jadi aplikasi tidak mengisinya sendiri.",
+    en: "Separation pay is set by the employment agreement, not by regulation, so the app does not fill it in for you.",
+  },
+  pesangonTanpaTanggalMasuk: {
+    id: "{0} belum punya tanggal masuk, sehingga masa kerjanya tidak bisa dihitung. Lengkapi lebih dulu di tab Karyawan.",
+    en: "{0} has no join date, so length of service cannot be computed. Fill it in under the Employees tab first.",
+  },
+  riwayatPesangon: { id: "Riwayat perhitungan pesangon", en: "Severance calculation history" },
+  belumAdaPesangon: { id: "Riwayat pesangon masih kosong", en: "No severance records yet" },
+  descBelumAdaPesangon: {
+    id: "Perhitungan yang Anda buat tersimpan lengkap dengan rinciannya, sehingga bisa ditunjukkan kembali bila ditanyakan.",
+    en: "Calculations you make are stored with their full breakdown, so they can be shown again if questioned.",
+  },
+  dasarPerhitungan: { id: "Dasar perhitungan", en: "How it is computed" },
+  uangPesangon: { id: "Uang pesangon", en: "Severance pay" },
+  uangPenghargaan: { id: "Penghargaan masa kerja", en: "Service appreciation" },
+  uangPenggantianCuti: { id: "Penggantian cuti", en: "Leave compensation" },
+  uangPisah: { id: "Uang pisah", en: "Separation pay" },
+  diaturPerjanjian: { id: "Diatur perjanjian kerja", en: "Set by the agreement" },
+  kompensasiPkwtLabel: { id: "Kompensasi PKWT", en: "Fixed-term compensation" },
+  statusKerja: { id: "Status kerja", en: "Employment status" },
+  statusPkwtt: { id: "Karyawan tetap (PKWTT)", en: "Permanent (PKWTT)" },
+  statusPkwt: { id: "Karyawan kontrak (PKWT)", en: "Fixed-term (PKWT)" },
+  tanggalMasukKerja: { id: "Tanggal masuk kerja", en: "Join date" },
+  descTanggalMasukKerja: {
+    id: "Dipakai menghitung masa kerja untuk THR dan pesangon. Tanpa tanggal ini keduanya tidak bisa dihitung.",
+    en: "Used to compute length of service for holiday allowance and severance. Without it, neither can be calculated.",
+  },
+  kontrakPkwtBerakhir: { id: "Kontrak berakhir", en: "Contract ends" },
+  descKompensasiPkwt: {
+    id: "Karyawan kontrak berhak uang kompensasi saat kontraknya berakhir, sebesar masa kerja dibagi 12 dikali satu bulan upah.",
+    en: "Fixed-term employees are entitled to compensation when the contract ends, equal to months of service divided by 12 times one month's wage.",
+  },
+  toastPesangonDihitung: {
+    id: "Perhitungan {0} tersimpan, total {1}.",
+    en: "Calculation {0} saved, total {1}.",
+  },
 } satisfies Record<string, Dual>;
 
 export type UiKey = keyof typeof UI;
