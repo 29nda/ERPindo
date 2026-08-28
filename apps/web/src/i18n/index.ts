@@ -1,3 +1,4 @@
+import type { HariRaya } from "@erpindo/shared";
 import { useSyncExternalStore } from "react";
 
 /**
@@ -97,4 +98,28 @@ export function isi(kalimat: string, ...nilai: (string | number)[]): string {
     const v = nilai[Number(i)];
     return v === undefined ? utuh : String(v);
   });
+}
+
+/**
+ * Nama hari raya keagamaan untuk layar (Fase 43a).
+ *
+ * Nilai enumnya (`idulfitri`, `natal`, …) adalah bagian kontrak API dan
+ * karenanya dikecualikan dari penyapu istilah — tetapi yang DIBACA pengguna
+ * bukan nilai itu. Pemetaan ini yang menjaga keduanya tetap terpisah: kontrak
+ * boleh tetap ASCII kecil, layar tetap mengeja "Idulfitri" sebagaimana mestinya.
+ *
+ * Tinggal di lapisan i18n, bukan di halaman penggajian, karena isinya naskah
+ * yang dibaca pengguna — dan naskah semacam itu punya satu tempat di repo ini.
+ */
+export const NAMA_HARI_RAYA: Record<HariRaya, Dual> = {
+  idulfitri: { id: "Idulfitri", en: "Eid al-Fitr" },
+  natal: { id: "Natal", en: "Christmas" },
+  nyepi: { id: "Nyepi", en: "Nyepi" },
+  waisak: { id: "Waisak", en: "Vesak" },
+  imlek: { id: "Imlek", en: "Lunar New Year" },
+};
+
+/** Nama hari raya dalam bahasa yang sedang aktif. */
+export function namaHariRaya(raya: HariRaya, lang: Lang): string {
+  return NAMA_HARI_RAYA[raya][lang];
 }

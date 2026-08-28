@@ -70,6 +70,8 @@ import type {
   ApiLeaveRequest,
   ApiPayrollAdjustment,
   ApiPayrollRun,
+  ApiThrRun,
+  RunThrInput,
   ApiProject,
   ApiProjectDetail,
   ApiPosRecap,
@@ -655,6 +657,43 @@ export const api = {
     request<{ ok: true; runNo: string; reversalEntryNo: string }>(
       "POST",
       `/api/tenants/${tenantId}/payroll-runs/${id}/void`,
+      date ? { date } : {},
+    ),
+  /** THR — pratinjau hak tiap karyawan sebelum uangnya berpindah (Fase 43a). */
+  thrPreview: (tenantId: string, payDate: string) =>
+    request<{
+      payDate: string;
+      baris: {
+        employeeId: string;
+        employeeName: string;
+        position: string | null;
+        joinDate: string | null;
+        masaKerjaBulan: number;
+        berhak: boolean;
+        proporsional: boolean;
+        upahSebulan: number;
+        thr: number;
+        pph21: number;
+        net: number;
+        tanpaTanggalMasuk: boolean;
+      }[];
+      totalThr: number;
+      totalPph21: number;
+      totalNet: number;
+      berhak: number;
+      tanpaTanggalMasuk: number;
+    }>("GET", `/api/tenants/${tenantId}/thr-preview?payDate=${payDate}`),
+  thrRuns: (tenantId: string) => request<{ runs: ApiThrRun[] }>("GET", `/api/tenants/${tenantId}/thr-runs`),
+  runThr: (tenantId: string, input: RunThrInput) =>
+    request<{ ok: true; runNo: string; totalThr: number; totalPph21: number; totalNet: number; penerima: number }>(
+      "POST",
+      `/api/tenants/${tenantId}/thr-runs`,
+      input,
+    ),
+  voidThrRun: (tenantId: string, id: string, date?: string) =>
+    request<{ ok: true; runNo: string; reversalEntryNo: string }>(
+      "POST",
+      `/api/tenants/${tenantId}/thr-runs/${id}/void`,
       date ? { date } : {},
     ),
   payrollAdjustments: (tenantId: string, period?: string) =>

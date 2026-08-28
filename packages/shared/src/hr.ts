@@ -95,6 +95,55 @@ export type ApiPayslip = {
   loanDeduction: number;
 };
 
+/**
+ * Hari raya keagamaan yang diakui untuk THR.
+ *
+ * Daftarnya tertutup dan mengikuti enam agama yang diakui negara, karena
+ * kuncinya ikut menentukan keunikan run: satu tahun boleh punya beberapa run
+ * THR, tetapi tidak boleh dua kali untuk hari raya yang sama.
+ */
+export const HARI_RAYA = ["idulfitri", "natal", "nyepi", "waisak", "imlek"] as const;
+export type HariRaya = (typeof HARI_RAYA)[number];
+
+/** Jalankan pembayaran THR: satu hari raya dalam satu tahun + akun kas pembayar. */
+export const runThrSchema = z.object({
+  tahun: z.number().int().min(2020).max(2100),
+  hariRaya: z.enum(HARI_RAYA),
+  cashAccountId: z.string().min(1, "Pilih akun kas atau bank lebih dulu."),
+  payDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
+});
+export type RunThrInput = z.infer<typeof runThrSchema>;
+
+export type ApiThrSlip = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  position: string | null;
+  masaKerjaBulan: number;
+  proporsional: boolean;
+  upahSebulan: number;
+  thr: number;
+  pph21: number;
+  net: number;
+};
+
+export type ApiThrRun = {
+  id: string;
+  runNo: string;
+  tahun: number;
+  hariRaya: HariRaya;
+  payDate: string;
+  status: "posted";
+  totalThr: number;
+  totalPph21: number;
+  totalNet: number;
+  journalNo: string | null;
+  createdAt: string;
+  slips: ApiThrSlip[];
+  voidedAt?: string | null;
+  voidJournalNo?: string | null;
+};
+
 export type ApiPayrollRun = {
   id: string;
   runNo: string;

@@ -157,3 +157,139 @@ export function calculatePayslip(input: PayslipInput): PayslipBreakdown {
     net: gross - totalDeductions,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * THR — Tunjangan Hari Raya Keagamaan (Fase 43a)
+ * ------------------------------------------------------------------ */
+
+/**
+ * THR bukan kebijakan perusahaan, melainkan **kewajiban hukum**:
+ * Permenaker 6/2016 pasal 2–3. Perusahaan yang tidak membayarnya kena denda 5%
+ * dari total THR (PP 36/2021 pasal 62), dan denda itu tidak menggugurkan
+ * kewajiban membayarnya.
+ *
+ * Aturannya sendiri singkat:
+ *
+ * - masa kerja **12 bulan atau lebih** → satu bulan upah penuh;
+ * - masa kerja **1 sampai kurang dari 12 bulan** → proporsional,
+ *   `masa kerja ÷ 12 × satu bulan upah`;
+ * - masa kerja **kurang dari 1 bulan** → belum berhak.
+ *
+ * "Upah" di sini adalah upah pokok **ditambah tunjangan tetap** — bukan gaji
+ * bersih, dan bukan upah pokok saja. Perusahaan yang menghitungnya dari upah
+ * pokok saja membayar kurang, dan itu tetap pelanggaran meski selisihnya kecil.
+ */
+
+/** Ambang masa kerja (bulan) untuk THR penuh, menurut Permenaker 6/2016. */
+export const THR_BULAN_PENUH = 12;
+
+/**
+ * Masa kerja dalam bulan penuh antara dua tanggal `YYYY-MM-DD`.
+ *
+ * Menghitung bulan **penuh**, bukan selisih bulan kalender: karyawan yang masuk
+ * 15 Maret belum genap sebulan pada 1 April, meski nomor bulannya sudah
+ * berganti. Selisih kalender akan memberinya THR yang belum menjadi haknya —
+ * dan pada karyawan lain, mengurangi hak yang sudah ada.
+ *
+ * Mengembalikan 0 bila tanggalnya tak sah atau tanggal bayar mendahului tanggal
+ * masuk, bukan angka negatif: pemanggilnya membandingkan dengan ambang, dan
+ * angka negatif akan lolos sebagai "belum berhak" secara kebetulan saja.
+ */
+export function masaKerjaBulan(tanggalMasuk: string | null | undefined, tanggalBayar: string): number {
+  if (!tanggalMasuk) return 0;
+  const masuk = new Date(`${tanggalMasuk}T00:00:00Z`);
+  const bayar = new Date(`${tanggalBayar}T00:00:00Z`);
+  if (Number.isNaN(masuk.getTime()) || Number.isNaN(bayar.getTime())) return 0;
+  if (bayar < masuk) return 0;
+
+  let bulan =
+    (bayar.getUTCFullYear() - masuk.getUTCFullYear()) * 12 + (bayar.getUTCMonth() - masuk.getUTCMonth());
+  // Belum sampai tanggal yang sama di bulan berjalan → bulan terakhir belum genap.
+  if (bayar.getUTCDate() < masuk.getUTCDate()) bulan -= 1;
+  return Math.max(0, bulan);
+}
+
+export type ThrInput = {
+  /** Upah pokok sebulan. */
+  baseSalary: number;
+  /** Tunjangan tetap sebulan. Ikut dasar THR — bukan tunjangan tidak tetap. */
+  allowances: number;
+  /** Tanggal masuk kerja, `YYYY-MM-DD`. Kosong → dianggap belum berhak. */
+  joinDate: string | null | undefined;
+  /** Tanggal pembayaran THR, `YYYY-MM-DD`. */
+  payDate: string;
+};
+
+export type ThrBreakdown = {
+  berhak: boolean;
+  masaKerjaBulan: number;
+  /** Benar bila THR dihitung proporsional, bukan satu bulan upah penuh. */
+  proporsional: boolean;
+  /** Dasar perhitungan: upah pokok + tunjangan tetap. */
+  upahSebulan: number;
+  amount: number;
+};
+
+/** Hitung hak THR satu karyawan menurut Permenaker 6/2016. */
+export function hitungThr(input: ThrInput): ThrBreakdown {
+  const upahSebulan = input.baseSalary + input.allowances;
+  const bulan = masaKerjaBulan(input.joinDate, input.payDate);
+
+  if (bulan < 1) {
+    return { berhak: false, masaKerjaBulan: bulan, proporsional: false, upahSebulan, amount: 0 };
+  }
+  if (bulan >= THR_BULAN_PENUH) {
+    return { berhak: true, masaKerjaBulan: bulan, proporsional: false, upahSebulan, amount: upahSebulan };
+  }
+  return {
+    berhak: true,
+    masaKerjaBulan: bulan,
+    proporsional: true,
+    upahSebulan,
+    // Dibulatkan ke rupiah terdekat. Pembulatan ke bawah menghemat perusahaan
+    // dengan mengorbankan hak karyawan, dan itu keputusan yang tidak boleh
+    // diambil diam-diam oleh pembulatan.
+    amount: Math.round((bulan / THR_BULAN_PENUH) * upahSebulan),
+  };
+}
+
+export type Pph21ThrBreakdown = {
+  /** Tarif TER atas bruto gabungan (upah bulan itu + THR), dalam persen. */
+  terRateGabungan: number;
+  /** Pajak atas bruto gabungan. */
+  pph21Gabungan: number;
+  /** Pajak yang sudah/akan dipotong dari upah bulanannya sendiri. */
+  pph21Reguler: number;
+  /** Selisihnya — inilah pajak yang melekat pada THR. */
+  pph21Thr: number;
+};
+
+/**
+ * PPh 21 atas THR di bawah skema TER bulanan (PMK 168/2023).
+ *
+ * THR adalah penghasilan **tidak teratur**, tetapi TER tidak mengenal
+ * pemisahan itu: yang dikenai tarif adalah **seluruh bruto bulan** tempat THR
+ * dibayarkan. Karena itu pajak THR bukan `tarif × THR`, melainkan selisih
+ * antara pajak bruto gabungan dan pajak upah regulernya. Menghitungnya sebagai
+ * `tarif × THR` memakai tarif lapisan yang salah, dan selalu kurang potong —
+ * kekurangan yang baru muncul saat SPT tahunan, saat uangnya sudah lama pergi.
+ *
+ * BPJS **tidak** dipotong dari THR: iuran dihitung dari upah sebulan, dan THR
+ * bukan upah sebulan. Karena itu fungsi ini tidak mengembalikan komponen BPJS
+ * sama sekali — bukan lupa, melainkan memang tidak ada.
+ */
+export function hitungPph21Thr(brutoReguler: number, thr: number, ptkpStatus: PtkpStatus): Pph21ThrBreakdown {
+  const cat = terCategory(ptkpStatus);
+  const gabungan = brutoReguler + thr;
+  const rateGabungan = terRate(cat, gabungan);
+  const pph21Gabungan = pct(gabungan, rateGabungan);
+  const pph21Reguler = pct(brutoReguler, terRate(cat, brutoReguler));
+  return {
+    terRateGabungan: rateGabungan,
+    pph21Gabungan,
+    pph21Reguler,
+    // Tidak pernah negatif: tarif TER naik monoton terhadap bruto, tetapi
+    // pembulatan pada dua bruto berbeda secara teori bisa membalik urutannya.
+    pph21Thr: Math.max(0, pph21Gabungan - pph21Reguler),
+  };
+}

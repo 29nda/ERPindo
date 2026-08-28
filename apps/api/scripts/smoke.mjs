@@ -1640,6 +1640,122 @@ try {
     `→ status=${fakturLampau.status} pesan=${fakturLampau.json?.error}`,
   );
 
+  // --- THR — Tunjangan Hari Raya (Fase 43a) — di tenant Dewi ------------------
+  // Sengaja di tenant terisolasi dengan alasan yang sama seperti 42a: run THR
+  // memposting jurnal beban dan mengurangi kas, dan tenant utama punya belasan
+  // asersi angka yang menghitung keduanya.
+  console.log("11i5. THR (Permenaker 6/2016)");
+
+  const thrKasList = await admin("GET", `/api/tenants/${mpT}/accounts`);
+  const thrKas = thrKasList.json?.accounts?.find((a) => a.code === "1-1000");
+  const thrModal = thrKasList.json?.accounts?.find((a) => a.type === "equity");
+
+  // Tiga karyawan yang menutup ketiga cabang aturannya sekaligus.
+  const empPenuh = await admin("POST", `/api/tenants/${mpT}/employees`, {
+    name: "Sari Lama", position: "Staf", ptkpStatus: "TK/0", baseSalary: 8_000_000, allowances: 2_000_000,
+    joinDate: "2020-01-15",
+  });
+  const empProp = await admin("POST", `/api/tenants/${mpT}/employees`, {
+    name: "Rian Baru", position: "Staf", ptkpStatus: "TK/0", baseSalary: 6_000_000, allowances: 0,
+    joinDate: "2025-09-20",
+  });
+  await admin("POST", `/api/tenants/${mpT}/employees`, {
+    name: "Toni Sangat Baru", position: "Magang", ptkpStatus: "TK/0", baseSalary: 5_000_000, allowances: 0,
+    joinDate: "2026-03-10",
+  });
+  check("43a tiga karyawan THR dibuat", empPenuh.status === 201 && empProp.status === 201);
+
+  const thrPrev = await admin("GET", `/api/tenants/${mpT}/thr-preview?payDate=2026-03-20`);
+  const barisPenuh = thrPrev.json?.baris?.find((b) => b.employeeName === "Sari Lama");
+  const barisProp = thrPrev.json?.baris?.find((b) => b.employeeName === "Rian Baru");
+  const barisBelum = thrPrev.json?.baris?.find((b) => b.employeeName === "Toni Sangat Baru");
+  check(
+    "43a masa kerja >= 12 bulan: THR satu bulan upah PENUH termasuk tunjangan",
+    barisPenuh?.thr === 10_000_000 && barisPenuh?.proporsional === false,
+    `→ ${JSON.stringify(barisPenuh)}`,
+  );
+  check(
+    "43a masa kerja 6 bulan: THR proporsional setengah",
+    barisProp?.masaKerjaBulan === 6 && barisProp?.thr === 3_000_000 && barisProp?.proporsional === true,
+    `→ ${JSON.stringify(barisProp)}`,
+  );
+  check(
+    "43a masa kerja < 1 bulan: muncul di pratinjau tetapi belum berhak",
+    barisBelum?.berhak === false && barisBelum?.thr === 0,
+    `→ ${JSON.stringify(barisBelum)}`,
+  );
+  // Pratinjau tidak boleh memindahkan uang. Kalau ia diam-diam memposting,
+  // jumlah run di bawah tidak akan nol.
+  const thrKosong = await admin("GET", `/api/tenants/${mpT}/thr-runs`);
+  check("43a pratinjau TIDAK memposting apa pun", thrKosong.json?.runs?.length === 0);
+
+  const thrBadDate = await admin("GET", `/api/tenants/${mpT}/thr-preview?payDate=20-03-2026`);
+  check("43a tanggal bayar tak sah ditolak 400", thrBadDate.status === 400);
+
+  const thrBadAcc = await admin("POST", `/api/tenants/${mpT}/thr-runs`, {
+    tahun: 2026, hariRaya: "idulfitri", cashAccountId: thrModal?.id, payDate: "2026-03-20",
+  });
+  check("43a akun non-kas DITOLAK 400", thrBadAcc.status === 400, `→ ${thrBadAcc.status}`);
+
+  const thrBadRaya = await admin("POST", `/api/tenants/${mpT}/thr-runs`, {
+    tahun: 2026, hariRaya: "hari-kemerdekaan", cashAccountId: thrKas?.id, payDate: "2026-03-20",
+  });
+  check("43a hari raya di luar daftar DITOLAK 400", thrBadRaya.status === 400);
+
+  const thrRun = await admin("POST", `/api/tenants/${mpT}/thr-runs`, {
+    tahun: 2026, hariRaya: "idulfitri", cashAccountId: thrKas?.id, payDate: "2026-03-20",
+  });
+  check(
+    "43a bayar THR 201: 2 penerima, total 13jt (yang belum genap sebulan tidak ikut)",
+    thrRun.status === 201 && thrRun.json?.penerima === 2 && thrRun.json?.totalThr === 13_000_000,
+    `→ ${JSON.stringify(thrRun.json)}`,
+  );
+  check(
+    "43a bruto = netto + PPh 21 (identitas yang menjaga jurnalnya seimbang)",
+    thrRun.json?.totalNet + thrRun.json?.totalPph21 === thrRun.json?.totalThr,
+    `→ net=${thrRun.json?.totalNet} pph=${thrRun.json?.totalPph21} thr=${thrRun.json?.totalThr}`,
+  );
+
+  const thrTb = await admin("GET", `/api/tenants/${mpT}/trial-balance`);
+  check("43a neraca saldo TETAP seimbang setelah THR", thrTb.json?.balanced === true);
+
+  const thrDup = await admin("POST", `/api/tenants/${mpT}/thr-runs`, {
+    tahun: 2026, hariRaya: "idulfitri", cashAccountId: thrKas?.id, payDate: "2026-03-20",
+  });
+  check("43a THR ganda untuk hari raya sama DITOLAK 409", thrDup.status === 409, `→ ${thrDup.status}`);
+
+  // Hari raya lain di tahun yang sama harus tetap boleh — perusahaan dengan
+  // karyawan lintas agama membayar pada hari raya masing-masing.
+  const thrNatal = await admin("POST", `/api/tenants/${mpT}/thr-runs`, {
+    tahun: 2026, hariRaya: "natal", cashAccountId: thrKas?.id, payDate: "2026-12-18",
+  });
+  check("43a hari raya BERBEDA di tahun sama tetap boleh", thrNatal.status === 201, `→ ${thrNatal.status}`);
+
+  const thrList = await admin("GET", `/api/tenants/${mpT}/thr-runs`);
+  const runIdul = thrList.json?.runs?.find((r) => r.hariRaya === "idulfitri");
+  check(
+    "43a slip menyimpan masa kerja & upah yang dipakai saat itu",
+    runIdul?.slips?.length === 2 && runIdul.slips.some((s) => s.masaKerjaBulan === 6 && s.upahSebulan === 6_000_000),
+    `→ ${JSON.stringify(runIdul?.slips)}`,
+  );
+  check("43a setiap run THR punya nomor jurnal", Boolean(runIdul?.journalNo));
+
+  const thrVoid = await admin("POST", `/api/tenants/${mpT}/thr-runs/${runIdul?.id}/void`, {});
+  check("43a pembatalan THR memposting jurnal balik", thrVoid.status === 200 && Boolean(thrVoid.json?.reversalEntryNo), `→ ${JSON.stringify(thrVoid.json)}`);
+
+  const thrVoidLagi = await admin("POST", `/api/tenants/${mpT}/thr-runs/${runIdul?.id}/void`, {});
+  check("43a pembatalan dua kali DITOLAK 400", thrVoidLagi.status === 400);
+
+  // Slot hari rayanya bebas lagi — indeks uniknya parsial, jadi tidak perlu
+  // sufiks tombstone seperti payroll_runs.
+  const thrUlang = await admin("POST", `/api/tenants/${mpT}/thr-runs`, {
+    tahun: 2026, hariRaya: "idulfitri", cashAccountId: thrKas?.id, payDate: "2026-03-20",
+  });
+  check("43a setelah dibatalkan, hari raya itu boleh dibayar ulang", thrUlang.status === 201, `→ ${thrUlang.status}`);
+
+  const thrTb2 = await admin("GET", `/api/tenants/${mpT}/trial-balance`);
+  check("43a neraca saldo tetap seimbang setelah batal & bayar ulang", thrTb2.json?.balanced === true);
+
   // --- Template industri (Fase 11f) — di tenant Dewi (terisolasi) --------------
   const indTplRetail = await admin("POST", `/api/tenants/${mpT}/setup/industry-template`, { industry: "retail" });
   check("template industri retail: 5 produk + 2 kontak ditambahkan",
@@ -2488,6 +2604,16 @@ try {
 
   const badAccRun = await owner("POST", `/api/tenants/${tenantId}/payroll-runs`, { period: "2026-09", cashAccountId: modal.id, paymentDate: "2026-09-15" });
   check("penggajian dengan akun non-kas DITOLAK 400", badAccRun.status === 400);
+
+  // THR (Fase 43a) — penjagaan peran diuji DI SINI, bukan di tenant Dewi:
+  // `viewer` benar-benar berperan viewer di tenant ini, sedangkan di tenant Dewi
+  // ia bukan anggota sama sekali, sehingga 403-nya akan lolos karena alasan yang
+  // salah. Permintaan yang ditolak tidak memposting jurnal, jadi angka tenant
+  // utama tetap utuh.
+  const thrViewerTolak = await viewer("POST", `/api/tenants/${tenantId}/thr-runs`, {
+    tahun: 2026, hariRaya: "idulfitri", cashAccountId: kas.id, payDate: "2026-03-20",
+  });
+  check("43a viewer DITOLAK membayar THR (403)", thrViewerTolak.status === 403, `→ ${thrViewerTolak.status}`);
 
   const tbAfterPayroll = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
   check("neraca saldo TETAP seimbang setelah penggajian", tbAfterPayroll.json?.balanced === true);

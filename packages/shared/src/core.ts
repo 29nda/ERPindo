@@ -639,6 +639,10 @@ export const TENANT_ROUTE_ACCESS: Record<string, AksesRute> = {
   employees: { baca: "hr", tulis: "hr" },
   "employee-loans": { baca: "hr", tulis: "hr" },
   "payroll-runs": { baca: "hr", tulis: "hr" },
+  // THR (Fase 43a) — modul yang sama dengan penggajian: siapa boleh melihat
+  // gaji orang, boleh melihat THR-nya juga; dan sebaliknya.
+  "thr-runs": { baca: "hr", tulis: "hr" },
+  "thr-preview": { baca: "hr", tulis: "hr" },
   "payroll-adjustments": { baca: "hr", tulis: "hr" },
   "leave-requests": { baca: "hr", tulis: "hr" },
   attendance: { baca: "hr", tulis: "hr" },
