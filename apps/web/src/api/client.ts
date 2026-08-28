@@ -70,8 +70,11 @@ import type {
   ApiLeaveRequest,
   ApiPayrollAdjustment,
   ApiPayrollRun,
+  ApiCommissionReport,
+  ApiCommissionScheme,
   ApiOvertime,
   ApiThrRun,
+  CommissionSchemeInput,
   OvertimeInput,
   RunThrInput,
   ApiProject,
@@ -661,6 +664,13 @@ export const api = {
       `/api/tenants/${tenantId}/payroll-runs/${id}/void`,
       date ? { date } : {},
     ),
+  /** Komisi sales (Fase 44a). */
+  commissionSchemes: (tenantId: string) =>
+    request<{ schemes: ApiCommissionScheme[] }>("GET", `/api/tenants/${tenantId}/commission-schemes`),
+  createCommissionScheme: (tenantId: string, input: CommissionSchemeInput) =>
+    request<{ ok: true; id: string }>("POST", `/api/tenants/${tenantId}/commission-schemes`, input),
+  commissionReport: (tenantId: string, from: string, to: string) =>
+    request<ApiCommissionReport>("GET", `/api/tenants/${tenantId}/commission-report?from=${from}&to=${to}`),
   /** Lembur berumus (Fase 43b) — server yang menghitung, bukan pengetik. */
   overtime: (tenantId: string, period?: string) =>
     request<{ overtime: ApiOvertime[] }>(

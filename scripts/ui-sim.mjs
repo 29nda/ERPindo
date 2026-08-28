@@ -2546,6 +2546,35 @@ try {
   );
   check("F56 alur lembur bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
+  // F57 — Fase 44a: komisi sales. Yang diperiksa adalah bahwa layarnya
+  // menawarkan DUA keputusan yang menentukan uang: dasarnya (omzet sebelum PPN
+  // vs laba kotor) dan pemicunya (saat faktur vs saat pelanggan membayar).
+  // Skema komisi tanpa kedua pilihan itu hanyalah satu angka persen, dan itulah
+  // bentuk yang membuat perusahaan membayar komisi atas faktur tak tertagih.
+  await page.getByRole("tab", { name: "Komisi" }).click();
+  await page.waitForTimeout(600);
+  const komisiBody = await page.innerText("body");
+  check("F57 tab Komisi memuat skema & laporan", komisiBody.includes("Skema komisi") && komisiBody.includes("Laporan komisi"));
+  const dasarOpsi = await page.locator("#ks-dasar option").allInnerTexts();
+  check(
+    "F57 dasar komisi menyebut 'sebelum PPN' secara eksplisit",
+    dasarOpsi.some((t) => t.includes("sebelum PPN")) && dasarOpsi.some((t) => t.includes("Laba kotor")),
+    `→ ${JSON.stringify(dasarOpsi)}`,
+  );
+  const pemicuOpsi = await page.locator("#ks-pemicu option").allInnerTexts();
+  check(
+    "F57 pemicu komisi bisa menunggu pelanggan membayar, bukan hanya saat faktur",
+    pemicuOpsi.length === 2 && pemicuOpsi.some((t) => t.includes("membayar")),
+    `→ ${JSON.stringify(pemicuOpsi)}`,
+  );
+  const pemicuBaku = await page.locator("#ks-pemicu").inputValue();
+  check(
+    "F57 pilihan bakunya 'pelunasan' — yang aman, bukan yang optimistis",
+    pemicuBaku === "pelunasan",
+    `→ ${pemicuBaku}`,
+  );
+  check("F57 alur komisi bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/app/alat", 700);
   const alatBody = await page.innerText("body");
   check("F19 kalkulator render (HPP + hasil Rupiah)", alatBody.includes("Harga Pokok Produksi") && /Rp\s?[1-9]/.test(alatBody.replace(/\u00A0/g, " ")));

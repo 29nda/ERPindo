@@ -2,6 +2,8 @@ import {
   attendanceSchema,
   calculatePayslip,
   decideLeaveSchema,
+  commissionSchemeSchema,
+  hitungKomisi,
   hitungLembur,
   hitungPph21Thr,
   hitungThr,
@@ -20,6 +22,9 @@ import {
   type ApiLeaveRequest,
   type ApiPayrollAdjustment,
   type ApiPayrollRun,
+  type ApiCommissionLine,
+  type ApiCommissionReport,
+  type ApiCommissionScheme,
   type ApiOvertime,
   type ApiPayslip,
   type ApiThrRun,
@@ -27,6 +32,8 @@ import {
   type AttendanceStatus,
   type HariRaya,
   type JenisHariLembur,
+  type KomisiDasar,
+  type KomisiPemicu,
   type LeaveType,
   type PtkpStatus,
 } from "@erpindo/shared";
@@ -156,10 +163,12 @@ export const payrollRoutes = new Hono<AppEnv>()
       .prepare(
         `SELECT e.id, e.name, e.position, e.ptkp_status, e.base_salary, e.allowances, e.bank_account,
                 e.join_date, e.is_active, e.leave_balance, e.department_id, e.manager_id,
-                d.name AS department_name, m.name AS manager_name
+                e.commission_scheme_id, d.name AS department_name, m.name AS manager_name,
+                cs.name AS commission_scheme_name
          FROM employees e
          LEFT JOIN departments d ON d.id = e.department_id
          LEFT JOIN employees m ON m.id = e.manager_id
+         LEFT JOIN commission_schemes cs ON cs.id = e.commission_scheme_id
          ORDER BY e.is_active DESC, e.name`,
       )
       .all<{
@@ -177,6 +186,8 @@ export const payrollRoutes = new Hono<AppEnv>()
         manager_id: string | null;
         department_name: string | null;
         manager_name: string | null;
+        commission_scheme_id: string | null;
+        commission_scheme_name: string | null;
       }>();
     const employees: ApiEmployee[] = results.map((r) => ({
       id: r.id,
@@ -193,6 +204,8 @@ export const payrollRoutes = new Hono<AppEnv>()
       departmentName: r.department_name,
       managerId: r.manager_id,
       managerName: r.manager_name,
+      commissionSchemeId: r.commission_scheme_id,
+      commissionSchemeName: r.commission_scheme_name,
     }));
     return c.json({ employees });
   })
@@ -258,9 +271,9 @@ export const payrollRoutes = new Hono<AppEnv>()
       if (orgErr) return c.json({ error: orgErr }, 400);
       await db
         .prepare(
-          `UPDATE employees SET name=?, position=?, ptkp_status=?, base_salary=?, allowances=?, bank_account=?, join_date=?, department_id=?, manager_id=? WHERE id=?`,
+          `UPDATE employees SET name=?, position=?, ptkp_status=?, base_salary=?, allowances=?, bank_account=?, join_date=?, department_id=?, manager_id=?, commission_scheme_id=? WHERE id=?`,
         )
-        .bind(i.name, i.position ?? null, i.ptkpStatus, i.baseSalary, i.allowances, i.bankAccount ?? null, i.joinDate ?? null, i.departmentId ?? null, i.managerId ?? null, id)
+        .bind(i.name, i.position ?? null, i.ptkpStatus, i.baseSalary, i.allowances, i.bankAccount ?? null, i.joinDate ?? null, i.departmentId ?? null, i.managerId ?? null, i.commissionSchemeId ?? null, id)
         .run();
     }
     await audit(c.env, {
@@ -654,6 +667,174 @@ export const payrollRoutes = new Hono<AppEnv>()
       ip: clientIp(c),
     });
     return c.json({ ok: true, runNo: run.run_no, reversalEntryNo: reversal.entryNo });
+  })
+
+  // ---------------------------------------------------------------------------
+  // Komisi sales (Fase 44a).
+  //
+  // Laporannya DIHITUNG saat dibaca, bukan disimpan sebagai angka jadi. Itu
+  // disengaja: retur, pelunasan, dan pembatalan faktur terus mengubah komisi
+  // yang layak dibayar, dan angka jadi akan langsung basi begitu salah satunya
+  // terjadi. Yang disimpan hanya skemanya — aturan mainnya, bukan hasilnya.
+  // ---------------------------------------------------------------------------
+  .get("/:tenantId/commission-schemes", requireAuth, requireTenantRole("viewer"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const { results } = await db
+      .prepare(
+        `SELECT s.id, s.name, s.dasar, s.pemicu, s.rate_bp, s.is_active,
+                (SELECT COUNT(*) FROM employees e WHERE e.commission_scheme_id = s.id) AS dipakai
+         FROM commission_schemes s ORDER BY s.name`,
+      )
+      .all<{
+        id: string;
+        name: string;
+        dasar: KomisiDasar;
+        pemicu: KomisiPemicu;
+        rate_bp: number;
+        is_active: number;
+        dipakai: number;
+      }>();
+    const schemes: ApiCommissionScheme[] = results.map((r) => ({
+      id: r.id,
+      name: r.name,
+      dasar: r.dasar,
+      pemicu: r.pemicu,
+      rateBp: r.rate_bp,
+      isActive: r.is_active === 1,
+      dipakai: r.dipakai,
+    }));
+    return c.json({ schemes });
+  })
+
+  .post("/:tenantId/commission-schemes", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = commissionSchemeSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const input = parsed.data;
+    const id = crypto.randomUUID();
+    await db
+      .prepare(`INSERT INTO commission_schemes (id, name, dasar, pemicu, rate_bp) VALUES (?, ?, ?, ?, ?)`)
+      .bind(id, input.name, input.dasar, input.pemicu, input.rateBp)
+      .run();
+    await audit(c.env, {
+      action: "hr.komisi.skema",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { name: input.name, dasar: input.dasar, pemicu: input.pemicu, rateBp: input.rateBp },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, id }, 201);
+  })
+
+  .get("/:tenantId/commission-report", requireAuth, requireTenantRole("viewer"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const from = c.req.query("from") ?? "";
+    const to = c.req.query("to") ?? "";
+    const tanggalSah = /^\d{4}-\d{2}-\d{2}$/;
+    if (!tanggalSah.test(from) || !tanggalSah.test(to)) {
+      return c.json({ error: "Rentang tanggal tidak valid" }, 400);
+    }
+    if (from > to) return c.json({ error: "Tanggal awal melewati tanggal akhir." }, 400);
+
+    const { results: rows } = await db
+      .prepare(
+        `SELECT i.id, i.invoice_no, i.invoice_date, i.subtotal, i.cogs_amount, i.total, i.paid_amount,
+                i.returned_amount, i.voided_at, i.salesperson_id,
+                k.name AS contact_name, e.name AS sales_name,
+                s.id AS scheme_id, s.name AS scheme_name, s.dasar, s.pemicu, s.rate_bp
+         FROM invoices i
+         JOIN employees e ON e.id = i.salesperson_id
+         JOIN contacts k ON k.id = i.contact_id
+         LEFT JOIN commission_schemes s ON s.id = e.commission_scheme_id AND s.is_active = 1
+         WHERE i.invoice_date BETWEEN ? AND ?
+         ORDER BY e.name, i.invoice_date, i.invoice_no`,
+      )
+      .bind(from, to)
+      .all<{
+        id: string;
+        invoice_no: string;
+        invoice_date: string;
+        subtotal: number;
+        cogs_amount: number;
+        total: number;
+        paid_amount: number;
+        returned_amount: number;
+        voided_at: string | null;
+        salesperson_id: string;
+        contact_name: string;
+        sales_name: string;
+        scheme_id: string | null;
+        scheme_name: string | null;
+        dasar: KomisiDasar | null;
+        pemicu: KomisiPemicu | null;
+        rate_bp: number | null;
+      }>();
+
+    const perSales = new Map<string, ApiCommissionReport["rows"][number]>();
+    let tanpaSkema = 0;
+    for (const r of rows) {
+      // Sales tanpa skema aktif tidak berkomisi, dan itu DILAPORKAN sebagai
+      // jumlah tersendiri. Menghilangkannya diam-diam membuat laporan terlihat
+      // benar padahal ada penjualan yang tak pernah dihitung siapa pun.
+      if (!r.scheme_id || !r.dasar || !r.pemicu) {
+        tanpaSkema += 1;
+        continue;
+      }
+      const k = hitungKomisi(
+        {
+          subtotal: r.subtotal,
+          cogs: r.cogs_amount,
+          paidAmount: r.paid_amount,
+          total: r.total,
+          returnedAmount: r.returned_amount,
+          voidedAt: r.voided_at,
+        },
+        { dasar: r.dasar, pemicu: r.pemicu, tarifBp: r.rate_bp ?? 0 },
+      );
+      const line: ApiCommissionLine = {
+        invoiceId: r.id,
+        invoiceNo: r.invoice_no,
+        invoiceDate: r.invoice_date,
+        contactName: r.contact_name,
+        subtotal: r.subtotal,
+        cogs: r.cogs_amount,
+        total: r.total,
+        paidAmount: r.paid_amount,
+        returnedAmount: r.returned_amount,
+        voidedAt: r.voided_at,
+        dasarNilai: k.dasarNilai,
+        porsi: k.porsi,
+        amount: k.amount,
+      };
+      const ada = perSales.get(r.salesperson_id);
+      if (ada) {
+        ada.lines.push(line);
+        ada.total += k.amount;
+      } else {
+        perSales.set(r.salesperson_id, {
+          salespersonId: r.salesperson_id,
+          salespersonName: r.sales_name,
+          schemeName: r.scheme_name,
+          dasar: r.dasar,
+          pemicu: r.pemicu,
+          rateBp: r.rate_bp ?? 0,
+          total: k.amount,
+          lines: [line],
+        });
+      }
+    }
+
+    const out: ApiCommissionReport = {
+      from,
+      to,
+      rows: [...perSales.values()],
+      total: [...perSales.values()].reduce((a, r) => a + r.total, 0),
+      tanpaSkema,
+    };
+    return c.json(out);
   })
 
   // ---------------------------------------------------------------------------

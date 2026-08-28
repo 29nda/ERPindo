@@ -1858,6 +1858,124 @@ try {
   const tbLembur = await admin("GET", `/api/tenants/${mpT}/trial-balance`);
   check("43b neraca saldo tetap seimbang setelah penggajian berlembur", tbLembur.json?.balanced === true);
 
+  // --- Komisi sales (Fase 44a) — di tenant Dewi ------------------------------
+  console.log("11i6. Komisi sales");
+
+  const skemaOmzet = await admin("POST", `/api/tenants/${mpT}/commission-schemes`, {
+    name: "Omzet 2,5% saat lunas", dasar: "omzet", pemicu: "pelunasan", rateBp: 250,
+  });
+  check("44a skema komisi dibuat 201", skemaOmzet.status === 201, `→ ${skemaOmzet.status}`);
+
+  const skemaTarifNgawur = await admin("POST", `/api/tenants/${mpT}/commission-schemes`, {
+    name: "Ngawur", dasar: "omzet", pemicu: "faktur", rateBp: 20_000,
+  });
+  check("44a tarif di atas 100% DITOLAK 400", skemaTarifNgawur.status === 400);
+
+  const skemaDasarNgawur = await admin("POST", `/api/tenants/${mpT}/commission-schemes`, {
+    name: "Ngawur2", dasar: "peruntungan", pemicu: "faktur", rateBp: 100,
+  });
+  check("44a dasar di luar daftar DITOLAK 400", skemaDasarNgawur.status === 400);
+
+  // Sales dengan skema, dan satu lagi TANPA skema — yang kedua harus terhitung
+  // sebagai "tanpa skema", bukan hilang diam-diam dari laporan.
+  const salesA = await admin("POST", `/api/tenants/${mpT}/employees`, {
+    name: "Rina Sales", position: "Sales", ptkpStatus: "TK/0", baseSalary: 6_000_000, joinDate: "2024-02-01",
+  });
+  await admin("PATCH", `/api/tenants/${mpT}/employees/${salesA.json.id}`, {
+    name: "Rina Sales", position: "Sales", ptkpStatus: "TK/0", baseSalary: 6_000_000, allowances: 0,
+    joinDate: "2024-02-01", commissionSchemeId: skemaOmzet.json.id,
+  });
+  const salesB = await admin("POST", `/api/tenants/${mpT}/employees`, {
+    name: "Doni Belum Berskema", position: "Sales", ptkpStatus: "TK/0", baseSalary: 6_000_000, joinDate: "2024-02-01",
+  });
+
+  const empCek = await admin("GET", `/api/tenants/${mpT}/employees`);
+  const rina = empCek.json?.employees?.find((e) => e.name === "Rina Sales");
+  check("44a skema komisi menempel pada karyawan", rina?.commissionSchemeId === skemaOmzet.json.id, `→ ${rina?.commissionSchemeId}`);
+
+  // Pelanggan TERSENDIRI, tanpa batas kredit. Percobaan pertama memakai
+  // `plgKredit` dari Fase 42a — dan penjaga batas kredit fase itu menolak
+  // fakturnya (batas 1 juta, faktur 11,1 juta). Gerbang yang benar, uji yang
+  // salah: pelanggan berbatas kredit ketat bukan tempat menguji komisi.
+  const plgKomisi = await admin("POST", `/api/tenants/${mpT}/contacts`, {
+    type: "customer", name: "PT Pembeli Komisi",
+  });
+  check("44a pelanggan uji komisi dibuat", plgKomisi.status === 201);
+
+  // Produk jasa: tidak menggerakkan stok, jadi asersi stok tenant ini aman.
+  const jasaKomisi = await admin("POST", `/api/tenants/${mpT}/products`, {
+    sku: "JASA-KOMISI", name: "Jasa Uji Komisi", unit: "jasa", sellPrice: 10_000_000, buyPrice: 0, isService: true,
+  });
+
+  // Faktur berPPN 11%: subtotal 10 juta, total 11,1 juta. Komisi 2,5% harus
+  // dihitung dari 10 juta, bukan 11,1 juta.
+  const fkKomisi = await admin("POST", `/api/tenants/${mpT}/invoices`, {
+    contactId: plgKomisi.json.id, invoiceDate: "2026-10-05", taxRate: 11, warehouseId: mpWh,
+    salespersonId: salesA.json.id,
+    lines: [{ productId: jasaKomisi.json.id, qty: 1, unitPrice: 10_000_000 }],
+  });
+  check("44a faktur bersales dibuat", fkKomisi.status === 201, `→ ${fkKomisi.status} ${fkKomisi.json?.error ?? ""}`);
+
+  const fkTanpaSkema = await admin("POST", `/api/tenants/${mpT}/invoices`, {
+    contactId: plgKomisi.json.id, invoiceDate: "2026-10-06", taxRate: 0, warehouseId: mpWh,
+    salespersonId: salesB.json.id,
+    lines: [{ productId: jasaKomisi.json.id, qty: 1, unitPrice: 5_000_000 }],
+  });
+  check("44a faktur milik sales tanpa skema tetap boleh dibuat", fkTanpaSkema.status === 201);
+
+  const lap1 = await admin("GET", `/api/tenants/${mpT}/commission-report?from=2026-10-01&to=2026-10-31`);
+  const barisRina = lap1.json?.rows?.find((r) => r.salespersonName === "Rina Sales");
+  check(
+    "44a pemicu pelunasan: faktur belum dibayar berkomisi NOL",
+    lap1.status === 200 && barisRina?.total === 0,
+    `→ ${JSON.stringify(barisRina?.total)}`,
+  );
+  check(
+    "44a sales tanpa skema DILAPORKAN, bukan hilang diam-diam",
+    lap1.json?.tanpaSkema === 1,
+    `→ tanpaSkema=${lap1.json?.tanpaSkema}`,
+  );
+
+  // Bayar separuh: 5.550.000 dari 11.100.000.
+  const bayarSeparuh = await admin("POST", `/api/tenants/${mpT}/payments`, {
+    refType: "invoice", refId: fkKomisi.json.id,
+    accountId: thrKas?.id, amount: 5_550_000, paymentDate: "2026-10-10",
+  });
+  check("44a pelunasan separuh tercatat", bayarSeparuh.status === 201, `→ ${bayarSeparuh.status} ${bayarSeparuh.json?.error ?? ""}`);
+
+  const lap2 = await admin("GET", `/api/tenants/${mpT}/commission-report?from=2026-10-01&to=2026-10-31`);
+  const rina2 = lap2.json?.rows?.find((r) => r.salespersonName === "Rina Sales");
+  check(
+    "44a bayar separuh = komisi separuh (2,5% x 10jt x 50% = 125.000)",
+    rina2?.total === 125_000,
+    `→ ${rina2?.total}`,
+  );
+  check(
+    "44a dasarnya SUBTOTAL 10jt, bukan total 11,1jt berPPN",
+    rina2?.lines?.[0]?.dasarNilai === 10_000_000,
+    `→ ${rina2?.lines?.[0]?.dasarNilai}`,
+  );
+
+  // Lunasi sisanya.
+  const bayarSisa = await admin("POST", `/api/tenants/${mpT}/payments`, {
+    refType: "invoice", refId: fkKomisi.json.id,
+    accountId: thrKas?.id, amount: 5_550_000, paymentDate: "2026-10-12",
+  });
+  check("44a pelunasan sisa tercatat", bayarSisa.status === 201);
+
+  const lap3 = await admin("GET", `/api/tenants/${mpT}/commission-report?from=2026-10-01&to=2026-10-31`);
+  const rina3 = lap3.json?.rows?.find((r) => r.salespersonName === "Rina Sales");
+  check("44a lunas = komisi penuh 250.000", rina3?.total === 250_000, `→ ${rina3?.total}`);
+
+  const lapSempit = await admin("GET", `/api/tenants/${mpT}/commission-report?from=2026-11-01&to=2026-11-30`);
+  check("44a rentang tanpa faktur menghasilkan laporan kosong, bukan galat", lapSempit.status === 200 && lapSempit.json?.rows?.length === 0);
+
+  const lapTerbalik = await admin("GET", `/api/tenants/${mpT}/commission-report?from=2026-11-30&to=2026-11-01`);
+  check("44a tanggal terbalik DITOLAK 400", lapTerbalik.status === 400);
+
+  const lapTanggalNgawur = await admin("GET", `/api/tenants/${mpT}/commission-report?from=kemarin&to=besok`);
+  check("44a tanggal tak sah DITOLAK 400", lapTanggalNgawur.status === 400);
+
   // --- Template industri (Fase 11f) — di tenant Dewi (terisolasi) --------------
   const indTplRetail = await admin("POST", `/api/tenants/${mpT}/setup/industry-template`, { industry: "retail" });
   check("template industri retail: 5 produk + 2 kontak ditambahkan",

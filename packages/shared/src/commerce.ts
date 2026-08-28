@@ -66,6 +66,12 @@ export const createInvoiceSchema = z.object({
     .default(0),
   warehouseId: z.string().min(1, "Gudang wajib dipilih"),
   projectId: z.string().optional(),
+  /**
+   * Sales pemilik penjualan ini (Fase 44a). Opsional: faktur lama dan
+   * penjualan kasir memang tidak punya pemilik, dan mewajibkannya akan
+   * menolak transaksi yang sah.
+   */
+  salespersonId: z.string().optional(),
   /** Mata uang faktur (default IDR). Bila valas, nilai baris dalam mata uang itu. */
   currency: z.string().trim().length(3).toUpperCase().optional(),
   /** Kurs ke IDR saat posting (IDR per 1 unit valas). Wajib > 0 bila valas. */

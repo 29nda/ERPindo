@@ -2001,6 +2001,41 @@ export const TENANT_MIGRATIONS: Migration[] = [
       `CREATE INDEX overtime_period ON overtime_records (period)`,
     ],
   },
+  {
+    /**
+     * Komisi sales (Fase 44a).
+     *
+     * Dua kolom baru di `invoices` yang keduanya syarat, bukan kenyamanan:
+     *
+     * - `salesperson_id` — tanpa ini komisi tidak bisa dihitung sama sekali,
+     *   karena tidak ada yang tahu penjualan itu milik siapa. Nullable supaya
+     *   faktur lama dan penjualan kasir tetap sah tanpa pemilik.
+     * - `cogs_amount` — HPP faktur sudah lama masuk jurnal, tetapi hanya
+     *   sebagai baris jurnal. Membacanya kembali dari jurnal untuk tiap faktur
+     *   lambat dan rapuh; skema komisi berdasar laba butuh angkanya melekat
+     *   pada fakturnya.
+     *
+     * Tarif disimpan **basis poin bilangan bulat** (250 = 2,5%). Persen pecahan
+     * menyeret aritmetika uang ke bilangan pecahan, dan selisih satu rupiah
+     * pada komisi adalah selisih yang diperdebatkan orang.
+     */
+    id: "0051_komisi_sales",
+    statements: [
+      `ALTER TABLE invoices ADD COLUMN salesperson_id TEXT REFERENCES employees(id)`,
+      `ALTER TABLE invoices ADD COLUMN cogs_amount INTEGER NOT NULL DEFAULT 0`,
+      `CREATE TABLE commission_schemes (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        dasar TEXT NOT NULL CHECK (dasar IN ('omzet','laba')),
+        pemicu TEXT NOT NULL CHECK (pemicu IN ('faktur','pelunasan')),
+        rate_bp INTEGER NOT NULL CHECK (rate_bp >= 0 AND rate_bp <= 10000),
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `ALTER TABLE employees ADD COLUMN commission_scheme_id TEXT REFERENCES commission_schemes(id)`,
+      `CREATE INDEX invoices_salesperson ON invoices (salesperson_id)`,
+    ],
+  },
 ];
 
 /** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */
