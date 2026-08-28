@@ -2104,6 +2104,43 @@ export const TENANT_MIGRATIONS: Migration[] = [
       `CREATE INDEX contract_amendments_kontrak ON contract_amendments (contract_id)`,
     ],
   },
+  {
+    /**
+     * PPh Pasal 22 dipungut pihak lain (Fase 46).
+     *
+     * Berbeda dari `tax_pph23`, tabel ini TIDAK punya kolom `deposited`.
+     * Alasannya bukan kelupaan: PPh 23 adalah pajak yang KITA potong dari
+     * rekanan lalu wajib kita setorkan — jadi ia punya utang dan punya status
+     * setor. PPh 22 di sini adalah pajak yang DIPUNGUT DARI KITA; yang
+     * menyetorkannya pemungutnya, bukan kita. Yang kita punya hanyalah bukti
+     * pungutnya, dan bukti itu menjadi kredit pajak akhir tahun.
+     *
+     * Karena itu jurnalnya membebani akun ASET (Uang Muka PPh 22), bukan akun
+     * beban. Mencatatnya sebagai beban membuat perusahaan membayar pajaknya
+     * dua kali: sekali saat dipungut, sekali lagi saat menghitung PPh badan
+     * tanpa mengurangkannya.
+     */
+    id: "0054_pph22",
+    statements: [
+      `CREATE TABLE tax_pph22 (
+        id TEXT PRIMARY KEY,
+        doc_no TEXT NOT NULL,
+        contact_id TEXT NOT NULL REFERENCES contacts(id),
+        tax_date TEXT NOT NULL,
+        object_type TEXT NOT NULL,
+        gross INTEGER NOT NULL,
+        rate REAL NOT NULL,
+        amount INTEGER NOT NULL,
+        source_account_id TEXT NOT NULL REFERENCES accounts(id),
+        journal_entry_id TEXT REFERENCES journal_entries(id),
+        note TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX pph22_contact ON tax_pph22 (contact_id)`,
+      `CREATE INDEX pph22_tanggal ON tax_pph22 (tax_date)`,
+    ],
+  },
 ];
 
 /** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */

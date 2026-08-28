@@ -1197,3 +1197,136 @@ export function hitungKomisi(
 export function bpKePersen(bp: number): string {
   return (bp / 100).toLocaleString("id-ID", { maximumFractionDigits: 2 });
 }
+
+/* ------------------------------------------------------------------ *
+ * PPh 22 & bahan pengisian e-Bupot (Fase 46)
+ * ------------------------------------------------------------------ */
+
+/**
+ * PPh Pasal 22 yang **dipungut pihak lain dari kita** saat membeli.
+ *
+ * Ini kasus yang sebenarnya dialami UKM: membeli semen, baja, kertas, atau
+ * otomotif dari distributor berstatus pemungut, lalu dipungut PPh 22 di atas
+ * harga barangnya. Uang itu **bukan beban** — ia kredit pajak yang mengurangi
+ * PPh badan akhir tahun. Mencatatnya sebagai beban adalah kesalahan yang
+ * mahal: perusahaan membayar pajaknya dua kali, sekali saat dipungut dan
+ * sekali lagi saat menghitung PPh badan tanpa mengurangkannya.
+ *
+ * Karena itu ia diposting ke akun **aset** (Uang Muka PPh 22), bukan akun
+ * beban.
+ *
+ * Tarifnya bergantung objeknya dan diatur PMK 34/2017 beserta perubahannya.
+ * Angka di bawah adalah tarif lazim; medannya tetap bisa disunting karena
+ * tarif dapat berubah dan sebagian bergantung status lawan transaksi
+ * (mis. tanpa NPWP dikenai 100% lebih tinggi).
+ */
+export const PPH22_OBJECTS = [
+  { code: "impor-api", label: "Impor (punya API)", rate: 2.5 },
+  { code: "impor-nonapi", label: "Impor (tanpa API)", rate: 7.5 },
+  { code: "semen", label: "Pembelian semen", rate: 0.25 },
+  { code: "kertas", label: "Pembelian kertas", rate: 0.1 },
+  { code: "baja", label: "Pembelian baja", rate: 0.3 },
+  { code: "otomotif", label: "Pembelian otomotif", rate: 0.45 },
+  { code: "lainnya", label: "Objek lain", rate: 1.5 },
+] as const;
+export type Pph22ObjectCode = (typeof PPH22_OBJECTS)[number]["code"];
+export const PPH22_OBJECT_LABELS: Record<string, string> = Object.fromEntries(
+  PPH22_OBJECTS.map((o) => [o.code, o.label]),
+);
+
+export const pph22Schema = z.object({
+  contactId: z.string().min(1, "Pilih pemungut"),
+  taxDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal wajib diisi"),
+  objectType: z.enum(PPH22_OBJECTS.map((o) => o.code) as [string, ...string[]]),
+  gross: amountSchema.refine((n) => n >= 1, "Dasar pengenaan minimal 1"),
+  rate: z.number().min(0).max(100),
+  /** Akun lawan: utang ke pemasok, atau kas/bank bila dibayar tunai. */
+  sourceAccountId: z.string().min(1, "Pilih akun sumber lebih dulu — bisa utang, kas, atau bank."),
+  note: z.string().trim().max(200).optional().or(z.literal("")),
+});
+export type Pph22Input = z.infer<typeof pph22Schema>;
+
+export type ApiPph22 = {
+  id: string;
+  docNo: string;
+  contactId: string;
+  contactName: string;
+  contactNpwp: string | null;
+  taxDate: string;
+  objectType: string;
+  gross: number;
+  rate: number;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+};
+
+/**
+ * Hitung nilai pungutan dari dasar dan tarif.
+ *
+ * Dibulatkan ke rupiah terdekat. Tarif pecahan seperti 0,25% memang lazim di
+ * PPh 22, jadi `rate` sengaja `number` dan bukan basis poin bilangan bulat
+ * seperti komisi — di sini yang dipakai orang adalah persen sebagaimana
+ * tertulis di peraturannya, dan memaksanya ke basis poin justru menjauhkan
+ * angka di layar dari angka di PMK.
+ */
+export function nilaiPungutan(gross: number, rate: number): number {
+  return Math.round((gross * rate) / 100);
+}
+
+/**
+ * Satu baris bahan pengisian e-Bupot Unifikasi (Fase 46).
+ *
+ * **Ini bahan pengisian, bukan berkas impor resmi DJP.** Format impor e-Bupot
+ * berubah mengikuti aturan DJP dan tidak dijanjikan cocok di sini; yang
+ * dijamin berkas ini adalah bahwa seluruh angka yang diminta e-Bupot sudah
+ * terkumpul di satu tempat, lengkap dengan NPWP lawan transaksinya. Menjanjikan
+ * lebih dari itu akan menjadi janji yang tidak bisa ditunjuk buktinya.
+ */
+export type BarisEBupot = {
+  masa: string;
+  jenis: PphJenis | "pph22";
+  noBukti: string;
+  tanggal: string;
+  npwp: string;
+  nama: string;
+  objek: string;
+  dpp: number;
+  tarif: number;
+  pph: number;
+};
+
+/** Kolom berkas bahan e-Bupot, berurutan. */
+export const KOLOM_EBUPOT = [
+  "masa",
+  "jenis",
+  "no_bukti",
+  "tanggal",
+  "npwp",
+  "nama",
+  "objek",
+  "dpp",
+  "tarif",
+  "pph",
+] as const;
+
+/**
+ * Susun berkas CSV bahan e-Bupot.
+ *
+ * NPWP yang kosong ditulis apa adanya sebagai kosong, **tidak** diisi
+ * `00.000.000.0-000.000`. Menuliskan NPWP palsu supaya kolomnya terisi akan
+ * membuat berkasnya terlihat lengkap padahal datanya belum ada — dan yang
+ * memeriksanya baru tahu setelah ditolak DJP.
+ */
+export function csvEBupot(baris: BarisEBupot[]): string {
+  const escape = (v: string | number) => {
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = baris.map((b) =>
+    [b.masa, b.jenis, b.noBukti, b.tanggal, b.npwp, b.nama, b.objek, b.dpp, b.tarif, b.pph]
+      .map(escape)
+      .join(","),
+  );
+  return [KOLOM_EBUPOT.join(","), ...rows].join("\n");
+}

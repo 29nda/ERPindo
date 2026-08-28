@@ -71,6 +71,7 @@ import type {
   ApiPayrollAdjustment,
   ApiPayrollRun,
   ApiCommissionReport,
+  ApiPph22,
   ApiSalesTargetReport,
   ApiCommissionScheme,
   ApiOvertime,
@@ -78,6 +79,7 @@ import type {
   CommissionSchemeInput,
   ContractAmendmentInput,
   RenewContractInput,
+  Pph22Input,
   SalesTargetInput,
   OvertimeInput,
   RunThrInput,
@@ -667,6 +669,15 @@ export const api = {
       "POST",
       `/api/tenants/${tenantId}/payroll-runs/${id}/void`,
       date ? { date } : {},
+    ),
+  /** PPh 22 dipungut pihak lain (Fase 46) — kredit pajak, bukan beban. */
+  pph22List: (tenantId: string) =>
+    request<{ items: ApiPph22[]; total: number }>("GET", `/api/tenants/${tenantId}/tax/pph22`),
+  createPph22: (tenantId: string, input: Pph22Input) =>
+    request<{ ok: true; id: string; docNo: string; amount: number }>(
+      "POST",
+      `/api/tenants/${tenantId}/tax/pph22`,
+      input,
     ),
   /** Target & prakiraan penjualan (Fase 44b). */
   salesTargets: (tenantId: string, period: string) =>

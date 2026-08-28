@@ -1,6 +1,14 @@
-import { PPH23_OBJECTS, PPH23_OBJECT_LABELS, type Pph23ObjectCode, type PphJenis } from "@erpindo/shared";
+import {
+  nilaiPungutan,
+  PPH22_OBJECTS,
+  PPH22_OBJECT_LABELS,
+  PPH23_OBJECTS,
+  PPH23_OBJECT_LABELS,
+  type Pph23ObjectCode,
+  type PphJenis,
+} from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Download, Receipt } from "lucide-react";
 import { useMemo, useState } from "react";
 import { api, downloadCsv, formatDate, formatIDR } from "../api/client";
 import {
@@ -10,6 +18,7 @@ import {
   Card,
   CardBody,
   CardHeader,
+  EmptyState,
   Input,
   Label,
   PageHeading,
@@ -29,7 +38,7 @@ import { useWorkspace } from "./app";
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
-type Tab = "pph-final" | "pph23" | "spt-ppn" | "pph-unifikasi" | "kalender";
+type Tab = "pph-final" | "pph23" | "pph22" | "spt-ppn" | "pph-unifikasi" | "kalender";
 
 /**
  * Peta kode objek PPh 23 → kunci kamus web (pola Fase 16t).
@@ -66,6 +75,7 @@ export function PajakPage() {
   const tabs = [
     { key: "pph-final", label: u("tabPphFinal") },
     { key: "pph23", label: u("tabPph23") },
+    { key: "pph22", label: u("tabPph22") },
     { key: "spt-ppn", label: u("tabSptPpn") },
     { key: "pph-unifikasi", label: u("tabPphUnifikasi") },
     { key: "kalender", label: u("kpTabKalender") },
@@ -93,6 +103,7 @@ export function PajakPage() {
       </div>
       {tab === "pph-final" ? <PphFinalSection isAdmin={isAdmin} /> : null}
       {tab === "pph23" ? <Pph23Section isAdmin={isAdmin} /> : null}
+      {tab === "pph22" ? <Pph22Section isAdmin={isAdmin} /> : null}
       {tab === "spt-ppn" ? <SptPpnSection /> : null}
       {tab === "pph-unifikasi" ? <PphUnifikasiSection /> : null}
       {tab === "kalender" ? <KalenderPajakSection isAdmin={isAdmin} /> : null}
@@ -785,7 +796,20 @@ function PphUnifikasiSection() {
         description={u("descPphUnifikasi")}
         action={
           data && data.rows.length > 0 ? (
-            <Button
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                className="h-9"
+                onClick={() => {
+                  // Berkasnya disusun server (termasuk PPh 22 yang tidak ikut
+                  // rekap unifikasi ini), jadi tombolnya membuka rutenya
+                  // langsung alih-alih menyusun ulang baris di peramban.
+                  window.location.href = `/api/tenants/${tenant.tenantId}/tax/e-bupot?period=${period}`;
+                }}
+              >
+                <Download className="size-4" aria-hidden /> {u("unduhBahanEbupot")}
+              </Button>
+              <Button
               variant="secondary"
               className="h-9"
               onClick={() =>
@@ -805,13 +829,15 @@ function PphUnifikasiSection() {
                   ]),
                 )
               }
-            >
-              {u("eksporCsv")}
-            </Button>
+              >
+                {u("eksporCsv")}
+              </Button>
+            </div>
           ) : null
         }
       />
       <CardBody className="space-y-4">
+        <p className="text-xs text-ink-muted">{u("descBahanEbupot")}</p>
         <div className="max-w-xs">
           <Label htmlFor="pphu-period">{u("masaPajak")}</Label>
           <Input id="pphu-period" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} />
@@ -1020,6 +1046,227 @@ function KalenderPajakSection({ isAdmin }: { isAdmin: boolean }) {
           <p className="mt-3 text-sm text-ink-muted" data-uji="kp-catatan-libur">
             {u("kpCatatanLibur")}
           </p>
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
+/**
+ * PPh Pasal 22 dipungut pihak lain (Fase 46).
+ *
+ * Sengaja TIDAK punya tombol "setor" seperti PPh 23. Bukan kelupaan: PPh 23
+ * adalah pajak yang kita potong dari rekanan lalu wajib kita setorkan; PPh 22
+ * di sini dipungut DARI kita, dan yang menyetorkannya pemungutnya. Yang kita
+ * punya hanyalah bukti pungutnya, dan bukti itu menjadi kredit pajak akhir
+ * tahun — karena itu ia masuk akun aset, bukan beban.
+ */
+function Pph22Section({ isAdmin }: { isAdmin: boolean }) {
+  const u = useUi();
+  const { tenant } = useWorkspace();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [galat, setGalat] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    contactId: "",
+    taxDate: todayStr(),
+    objectType: PPH22_OBJECTS[0].code as string,
+    gross: "",
+    rate: String(PPH22_OBJECTS[0].rate),
+    sourceAccountId: "",
+    note: "",
+  });
+
+  const listQuery = useQuery({
+    queryKey: ["pph22", tenant.tenantId],
+    queryFn: () => api.pph22List(tenant.tenantId),
+  });
+  const contactsQuery = useQuery({
+    queryKey: ["contacts", tenant.tenantId],
+    queryFn: () => api.listItems<{ id: string; name: string }>(tenant.tenantId, "contacts"),
+  });
+  const accountsQuery = useQuery({
+    queryKey: ["accounts", tenant.tenantId],
+    queryFn: () => api.accounts(tenant.tenantId),
+  });
+  const kontak = contactsQuery.data?.items ?? [];
+  const akun = (accountsQuery.data?.accounts ?? []).filter((a) => !a.isArchived);
+
+  const buat = useMutation({
+    mutationFn: () =>
+      api.createPph22(tenant.tenantId, {
+        contactId: form.contactId || kontak[0]?.id || "",
+        taxDate: form.taxDate,
+        objectType: form.objectType,
+        gross: Number(form.gross) || 0,
+        rate: Number(form.rate.replace(",", ".")) || 0,
+        sourceAccountId: form.sourceAccountId || akun[0]?.id || "",
+        note: form.note || undefined,
+      }),
+    onSuccess: (res) => {
+      setGalat(null);
+      toast("success", isi(u("toastPph22Dicatat"), res.docNo, formatIDR(res.amount)));
+      setForm((f) => ({ ...f, gross: "", note: "" }));
+      queryClient.invalidateQueries({ queryKey: ["pph22", tenant.tenantId] });
+    },
+    onError: (err) => setGalat((err as Error).message),
+  });
+
+  const items = listQuery.data?.items ?? [];
+
+  return (
+    <div className="space-y-4">
+      <Alert tone="info">{u("descPph22KreditPajak")}</Alert>
+
+      {isAdmin ? (
+        <Card>
+          <CardHeader title={u("catatPph22")} description={u("descCatatPph22")} />
+          <CardBody className="space-y-4">
+            {galat ? <Alert tone="error">{galat}</Alert> : null}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <Label htmlFor="p22-kontak">{u("pemungut")}</Label>
+                <Select
+                  id="p22-kontak"
+                  value={form.contactId || kontak[0]?.id || ""}
+                  onChange={(e) => setForm({ ...form, contactId: e.target.value })}
+                >
+                  {kontak.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="p22-tanggal">{u("tanggal")}</Label>
+                <Input
+                  id="p22-tanggal"
+                  type="date"
+                  value={form.taxDate}
+                  onChange={(e) => setForm({ ...form, taxDate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="p22-objek">{u("objekPajak")}</Label>
+                <Select
+                  id="p22-objek"
+                  value={form.objectType}
+                  onChange={(e) => {
+                    const o = PPH22_OBJECTS.find((x) => x.code === e.target.value);
+                    // Tarifnya ikut berubah mengikuti objeknya, tetapi tetap
+                    // bisa disunting: sebagian tarif bergantung status lawan
+                    // transaksi, dan aturannya berubah dari waktu ke waktu.
+                    setForm({ ...form, objectType: e.target.value, rate: String(o?.rate ?? 0) });
+                  }}
+                >
+                  {PPH22_OBJECTS.map((o) => (
+                    <option key={o.code} value={o.code}>
+                      {o.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="p22-bruto">{u("dasarPengenaan")}</Label>
+                <Input
+                  id="p22-bruto"
+                  type="number"
+                  min={0}
+                  value={form.gross}
+                  onChange={(e) => setForm({ ...form, gross: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="p22-tarif">{u("tarifPersen")}</Label>
+                <Input
+                  id="p22-tarif"
+                  value={form.rate}
+                  onChange={(e) => setForm({ ...form, rate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="p22-akun">{u("akunSumber")}</Label>
+                <Select
+                  id="p22-akun"
+                  value={form.sourceAccountId || akun[0]?.id || ""}
+                  onChange={(e) => setForm({ ...form, sourceAccountId: e.target.value })}
+                >
+                  {akun.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.code} · {a.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <span className="text-sm text-ink-muted">
+                {u("nilaiPungutanLabel")}{" "}
+                <strong className="tabular-nums">
+                  {formatIDR(nilaiPungutan(Number(form.gross) || 0, Number(form.rate.replace(",", ".")) || 0))}
+                </strong>
+              </span>
+              <Button onClick={() => buat.mutate()} disabled={buat.isPending || !form.gross}>
+                {buat.isPending ? <Spinner /> : null} {u("catatPph22")}
+              </Button>
+            </div>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      <Card>
+        <CardHeader title={u("daftarPph22")} />
+        <CardBody>
+          {listQuery.isLoading ? (
+            <Spinner />
+          ) : items.length === 0 ? (
+            <EmptyState
+              icon={<Receipt className="size-6" aria-hidden />}
+              title={u("belumAdaPph22")}
+              description={u("descBelumAdaPph22")}
+            />
+          ) : (
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>{u("nomor")}</Th>
+                  <Th>{u("tanggal")}</Th>
+                  <Th>{u("pemungut")}</Th>
+                  <Th>{u("objekPajak")}</Th>
+                  <Th numeric>{u("dasarPengenaan")}</Th>
+                  <Th numeric>{u("tarifPersen")}</Th>
+                  <Th numeric>{u("nilaiPungutanLabel")}</Th>
+                </Tr>
+              </Thead>
+              <tbody>
+                {items.map((p) => (
+                  <Tr key={p.id}>
+                    <Td label={u("nomor")}>
+                      <span className="font-mono text-sm">{p.docNo}</span>
+                    </Td>
+                    <Td label={u("tanggal")}>{p.taxDate}</Td>
+                    <Td label={u("pemungut")}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{p.contactName}</span>
+                        {p.contactNpwp ? null : <Badge tone="amber">{u("tanpaNpwp")}</Badge>}
+                      </div>
+                    </Td>
+                    <Td label={u("objekPajak")}>{PPH22_OBJECT_LABELS[p.objectType] ?? p.objectType}</Td>
+                    <Td label={u("dasarPengenaan")} numeric>
+                      {formatIDR(p.gross)}
+                    </Td>
+                    <Td label={u("tarifPersen")} numeric>
+                      {p.rate}%
+                    </Td>
+                    <Td label={u("nilaiPungutanLabel")} numeric>
+                      <strong>{formatIDR(p.amount)}</strong>
+                    </Td>
+                  </Tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
         </CardBody>
       </Card>
     </div>
