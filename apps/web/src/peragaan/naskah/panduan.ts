@@ -110,8 +110,8 @@ export const KONTAK_INDUK: Naskah = {
   jalur: "/app/master/kontak",
   judul: { id: "Satu kontak untuk pelanggan sekaligus pemasok", en: "One contact record for customer and supplier alike" },
   ringkas: {
-    id: "Kontak menyimpan NPWP, alamat, dan grup harganya. Faktur mengambil datanya, umur piutang mengelompokkannya, dan ekspor pajak memakai NPWP yang sama.",
-    en: "A contact holds the tax number, address, and price group. Invoices draw on it, ageing groups by it, and tax exports use the same tax number.",
+    id: "Kontak menyimpan NPWP, termin pembayaran, dan batas kreditnya. Faktur mengambil datanya, umur piutang mengelompokkannya, dan ekspor pajak memakai NPWP yang sama.",
+    en: "A contact holds the tax number, payment term, and credit limit. Invoices draw on it, ageing groups by it, and tax exports use the same tax number."
   },
   panel: [
     {
@@ -122,8 +122,13 @@ export const KONTAK_INDUK: Naskah = {
       medan: [
         { id: "nama", label: { id: "Nama", en: "Name" }, nilai: { id: "PT Berkah Jaya", en: "PT Berkah Jaya" } },
         { id: "npwp", label: { id: "NPWP", en: "Tax number" }, nilai: { id: "01.234.567.8-901.000", en: "01.234.567.8-901.000" } },
-        { id: "alamat", label: { id: "Alamat", en: "Address" }, nilai: { id: "Jl. Merdeka 12, Bandung", en: "Jl. Merdeka 12, Bandung" } },
-        { id: "grupHarga", label: { id: "Grup harga", en: "Price group" }, nilai: { id: "Grosir", en: "Wholesale" } },
+        { id: "termin", label: { id: "Termin pembayaran", en: "Payment term" }, nilai: { id: "30 hari", en: "30 days" } },
+        {
+          id: "kredit",
+          label: { id: "Batas kredit", en: "Credit limit" },
+          nilai: { id: "Rp 80.000.000", en: "Rp 80,000,000" },
+          num: true,
+        },
       ],
     },
     {
@@ -132,14 +137,14 @@ export const KONTAK_INDUK: Naskah = {
       judul: { id: "Yang mengikutinya", en: "What follows from it" },
       butir: [
         {
-          teks: { id: "Jatuh tempo faktur dipakai umur piutang untuk mengelompokkannya", en: "The invoice due date is what ageing groups by" },
+          teks: { id: "Jatuh tempo faktur terisi sendiri dari terminnya", en: "The invoice due date fills itself in from the term" },
           lencana: { id: "Otomatis", en: "Automatic" },
           nada: "ok",
         },
         {
-          teks: { id: "Faktur berikutnya memakai harga dari grup pelanggan ini", en: "The next invoice uses the price from this customer group" },
-          lencana: { id: "Otomatis", en: "Automatic" },
-          nada: "ok",
+          teks: { id: "Faktur yang melampaui batas kredit ditolak sebelum diposting", en: "An invoice past the credit limit is refused before posting" },
+          lencana: { id: "Peringatan", en: "Warning" },
+          nada: "awas",
         },
         {
           teks: { id: "NPWP terbawa ke ekspor e-Faktur dan Coretax", en: "The tax number carries into e-Faktur and Coretax exports" },
@@ -172,8 +177,8 @@ export const KONTAK_INDUK: Naskah = {
       aksi: "isi",
       sasaran: { panel: "akibat" },
       narasi: {
-        id: "Grup harganya langsung berlaku pada faktur berikutnya.",
-        en: "Its price group applies to the next invoice immediately.",
+        id: "Termin dan batas kreditnya langsung berlaku pada faktur berikutnya.",
+        en: "Its payment term and credit limit apply to the next invoice immediately.",
       },
     },
   ],

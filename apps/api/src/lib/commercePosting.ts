@@ -1,5 +1,11 @@
 import type { ApiCommerceDoc, ApiCommerceLine, CreateInvoiceInput, CreatePurchaseInput, SatuanBaris } from "@erpindo/shared";
-import { konversiSatuanBaris, periksaSatuanBaris } from "@erpindo/shared";
+import {
+  formatRupiah,
+  jatuhTempoDariTermin,
+  konversiSatuanBaris,
+  melampauiBatasKredit,
+  periksaSatuanBaris,
+} from "@erpindo/shared";
 import type { SqlExecutor } from "@erpindo/db";
 import {
   accountIdByCode,
@@ -434,7 +440,7 @@ export async function executeInvoice(
   input: CreateInvoiceInput,
   userId: string,
   opts?: { skipStock?: boolean },
-): Promise<{ invoiceId: string; docNo: string; total: number } | { error: string }> {
+): Promise<{ invoiceId: string; docNo: string; total: number; dueDate: string | null } | { error: string }> {
   const refError = (await validateRefs(db, INVOICE_CFG, input)) ?? (await checkProject(db, input.projectId));
   if (refError) return { error: refError };
   const lockError = await checkPeriodOpen(db, input.invoiceDate);
@@ -465,6 +471,42 @@ export async function executeInvoice(
   const taxAmount = Math.round((subtotal * input.taxRate) / 100);
   const total = subtotal + taxAmount;
   if (total === 0) return { error: "Total faktur tidak boleh nol." };
+
+  // --- Fase 42a: batas kredit & termin pembayaran pelanggan -----------------
+  //
+  // Diperiksa DI SINI, setelah totalnya diketahui tetapi SEBELUM stok bergerak
+  // dan jurnal terbentuk. Menaruhnya lebih ke bawah berarti faktur yang ditolak
+  // tetap meninggalkan mutasi stok yang harus dibatalkan.
+  const pelanggan = await db
+    .prepare(`SELECT credit_limit, payment_term_days FROM contacts WHERE id = ?`)
+    .bind(input.contactId)
+    .first<{ credit_limit: number | null; payment_term_days: number | null }>();
+
+  if (pelanggan?.credit_limit !== null && pelanggan?.credit_limit !== undefined) {
+    // Piutang berjalan = seluruh faktur terposting yang belum lunas. Dokumen
+    // batal tidak dihitung, karena piutangnya sudah dibalik jurnalnya.
+    const piutang = await db
+      .prepare(
+        `SELECT COALESCE(SUM(total - paid_amount), 0) AS sisa
+           FROM invoices WHERE contact_id = ? AND status = 'posted'`,
+      )
+      .bind(input.contactId)
+      .first<{ sisa: number }>();
+    const berjalan = piutang?.sisa ?? 0;
+    if (melampauiBatasKredit(berjalan, total, pelanggan.credit_limit)) {
+      return {
+        error:
+          `Faktur ini melampaui batas kredit pelanggan. ` +
+          `Piutang berjalan ${formatRupiah(berjalan)}, faktur ini ${formatRupiah(total)}, ` +
+          `batas ${formatRupiah(pelanggan.credit_limit)}.`,
+      };
+    }
+  }
+
+  // Jatuh tempo diturunkan dari termin HANYA bila penggunanya tidak mengisinya.
+  // Yang diketik pengguna selalu menang — termin adalah nilai baku, bukan
+  // aturan yang memaksa.
+  const dueDate = input.dueDate ?? jatuhTempoDariTermin(input.invoiceDate, pelanggan?.payment_term_days) ?? null;
 
   const invoiceId = crypto.randomUUID();
 
@@ -551,7 +593,7 @@ export async function executeInvoice(
       docNo,
       input.contactId,
       input.invoiceDate,
-      input.dueDate ?? null,
+      dueDate,
       subtotal,
       input.taxRate,
       taxAmount,
@@ -583,7 +625,7 @@ export async function executeInvoice(
       )
       .run();
   }
-  return { invoiceId, docNo, total };
+  return { invoiceId, docNo, total, dueDate };
 }
 
 /** Validasi rujukan bersama: kontak (jenis sesuai), gudang, produk aktif. */

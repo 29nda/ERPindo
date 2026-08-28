@@ -3470,6 +3470,26 @@ export const UI = {
   prFakturTakDitemukan: { id: "Faktur tidak ditemukan, atau Anda tidak punya akses ke perusahaannya.", en: "Invoice not found, or you do not have access to its company." },
   stokUsulanCatatan: { id: "Usulan otomatis dari titik pesan (stok menipis)", en: "Suggested automatically from the reorder point (stock is low)" },
 
+  // --- Fase 42a: batas kredit & termin pembayaran pelanggan -----------------
+  //
+  // Keterangan di bawah tiap medan menyebutkan selisih antara KOSONG dan NOL,
+  // karena selisih itu mustahil ditebak dari nama medannya: kosong berarti
+  // tanpa batas, sedangkan nol berarti pelanggan tidak boleh berutang sama
+  // sekali. Medan angka yang salah dipahami di sini langsung memblokir
+  // penjualan, jadi keterangannya bukan hiasan.
+  mdTerminPembayaran: { id: "Termin pembayaran (hari)", en: "Payment term (days)" },
+  mdTerminPlaceholder: { id: "mis. 30", en: "e.g. 30" },
+  mdTerminBantuan: {
+    id: "Dipakai mengisi jatuh tempo faktur. Kosongkan bila jatuh temponya selalu diisi manual.",
+    en: "Used to fill in invoice due dates. Leave empty if due dates are always entered by hand.",
+  },
+  mdBatasKredit: { id: "Batas kredit (Rp)", en: "Credit limit (Rp)" },
+  mdBatasKreditPlaceholder: { id: "kosong = tanpa batas", en: "empty = no limit" },
+  mdBatasKreditBantuan: {
+    id: "Faktur yang membuat piutang pelanggan melampaui batas ini ditolak sebelum diposting. Isi 0 bila pelanggan tidak boleh berutang sama sekali.",
+    en: "An invoice that pushes this customer's receivables past the limit is refused before posting. Enter 0 if the customer may not carry any debt.",
+  },
+
   // --- Fase 39c: dokumen cetak (apps/web/src/pages/print.tsx) ----------------
   //
   // Empat halaman cetak — faktur, penawaran, slip gaji, dan rekap 1721-A1 —

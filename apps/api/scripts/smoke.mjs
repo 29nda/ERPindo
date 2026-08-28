@@ -652,6 +652,7 @@ try {
   });
   check("jual melebihi stok DITOLAK 400", sellTooMany.status === 400);
 
+
   stock = await owner("GET", `/api/tenants/${tenantId}/stock`);
   level = stock.json?.levels?.find((l) => l.sku === "BRG-002");
   check("stok berkurang menjadi 7 pcs (nilai 700.000)", level?.qty === 7 && level?.value === 700_000);
@@ -1581,6 +1582,63 @@ try {
   check("daftar pesanan marketplace memuat SHP-9001 dengan nomor faktur",
     mpOrders.status === 200 && mpOrders.json?.orders?.some((o) => o.externalOrderNo === "SHP-9001" && o.invoiceNo),
     `→ ${JSON.stringify(mpOrders.json?.orders?.slice(0, 2))}`);
+
+  // --- Fase 42a: batas kredit & termin pembayaran — di tenant Dewi -----------
+  //
+  // Sengaja di tenant Dewi, bukan tenant utama: faktur uji di bawah menambah
+  // piutang dan pendapatan, dan tenant utama punya belasan asersi angka yang
+  // menghitung keduanya. Percobaan pertama menaruhnya di tenant utama dan
+  // menggagalkan delapan cek yang tidak ada hubungannya.
+  const plgKredit = await admin("POST", `/api/tenants/${mpT}/contacts`, {
+    type: "customer",
+    name: "PT Kredit Terbatas",
+    paymentTermDays: 30,
+    creditLimit: 1_000_000,
+  });
+  check("42a kontak tersimpan dengan termin & batas kredit", plgKredit.status === 201, `→ ${plgKredit.status}`);
+
+  const daftarKredit = await admin("GET", `/api/tenants/${mpT}/contacts`);
+  const tersimpan = daftarKredit.json?.items?.find((k) => k.id === plgKredit.json?.id);
+  check(
+    "42a kedua kolom benar-benar kembali dari server",
+    tersimpan?.payment_term_days === 30 && tersimpan?.credit_limit === 1_000_000,
+    `→ ${JSON.stringify({ t: tersimpan?.payment_term_days, k: tersimpan?.credit_limit })}`,
+  );
+
+  // Produk jasa: tidak menggerakkan stok, jadi asersi stok tenant ini pun aman.
+  const jasaKredit = await admin("POST", `/api/tenants/${mpT}/products`, {
+    sku: "JASA-KREDIT", name: "Jasa Uji Kredit", unit: "jasa", sellPrice: 300_000, buyPrice: 0, isService: true,
+  });
+  check("42a produk jasa untuk uji kredit dibuat", jasaKredit.status === 201, `→ ${jasaKredit.status}`);
+
+  const fakturKredit = await admin("POST", `/api/tenants/${mpT}/invoices`, {
+    contactId: plgKredit.json.id,
+    invoiceDate: "2026-07-04",
+    taxRate: 0,
+    warehouseId: mpWh,
+    lines: [{ productId: jasaKredit.json.id, qty: 1, unitPrice: 300_000 }],
+  });
+  check(
+    "42a faktur di bawah batas lolos, jatuh tempo terisi dari termin",
+    fakturKredit.status === 201 && fakturKredit.json?.dueDate === "2026-08-03",
+    `→ status=${fakturKredit.status} due=${fakturKredit.json?.dueDate}`,
+  );
+
+  // Faktur kedua 900.000 sendirian masih di bawah batas 1.000.000, tetapi
+  // piutang berjalan sudah 300.000. Inilah yang membedakan penjaga ini dari
+  // sekadar membandingkan nilai satu faktur terhadap batasnya.
+  const fakturLampau = await admin("POST", `/api/tenants/${mpT}/invoices`, {
+    contactId: plgKredit.json.id,
+    invoiceDate: "2026-07-05",
+    taxRate: 0,
+    warehouseId: mpWh,
+    lines: [{ productId: jasaKredit.json.id, qty: 3, unitPrice: 300_000 }],
+  });
+  check(
+    "42a faktur yang melampaui batas ditolak 400 berpesan",
+    fakturLampau.status === 400 && /batas kredit/i.test(fakturLampau.json?.error ?? ""),
+    `→ status=${fakturLampau.status} pesan=${fakturLampau.json?.error}`,
+  );
 
   // --- Template industri (Fase 11f) — di tenant Dewi (terisolasi) --------------
   const indTplRetail = await admin("POST", `/api/tenants/${mpT}/setup/industry-template`, { industry: "retail" });

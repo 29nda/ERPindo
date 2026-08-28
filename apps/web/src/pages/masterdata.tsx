@@ -886,6 +886,10 @@ type ContactRow = {
   npwp: string | null;
   /** Grup harga pelanggan (Fase 23a); null = pakai harga dasar produk. */
   price_group_id: string | null;
+  /** Batas kredit (Fase 42a); null = tanpa batas, 0 = tidak boleh berutang. */
+  credit_limit: number | null;
+  /** Termin pembayaran dalam hari (Fase 42a); null = tidak ada termin baku. */
+  payment_term_days: number | null;
 };
 
 // Konstanta tingkat modul tidak boleh memanggil hook, jadi yang disimpan
@@ -929,7 +933,20 @@ export function ContactsPage() {
     e.preventDefault();
     setIssues({});
     const form = e.currentTarget;
-    const parsed = contactSchema.safeParse(Object.fromEntries(new FormData(form)));
+    const raw = Object.fromEntries(new FormData(form)) as Record<string, string>;
+    // Fase 42a — dua medan angka yang KOSONGNYA bermakna.
+    //
+    // Pola `Number(x) || 0` yang dipakai formulir produk di berkas ini tidak
+    // bisa dipakai di sini: ia mengubah medan kosong menjadi 0, dan 0 pada
+    // kedua kolom ini berarti kebalikan dari kosong — "tidak boleh berutang
+    // sama sekali" dan "jatuh tempo hari itu juga". Kosong harus tetap
+    // `undefined` supaya tersimpan NULL.
+    const angkaOpsional = (v: string | undefined) => (v === undefined || v.trim() === "" ? undefined : Number(v));
+    const parsed = contactSchema.safeParse({
+      ...raw,
+      creditLimit: angkaOpsional(raw.creditLimit),
+      paymentTermDays: angkaOpsional(raw.paymentTermDays),
+    });
     if (!parsed.success) {
       setIssues(parsed.error.flatten().fieldErrors as Record<string, string[]>);
       return;
@@ -1080,6 +1097,35 @@ export function ContactsPage() {
                       placeholder="opsional"
                       defaultValue={editing.npwp ?? ""}
                     />
+                  </div>
+                  {/* Fase 42a — keduanya opsional, dan kosong BERBEDA dari nol.
+                      Kosong pada batas kredit berarti tanpa batas; nol berarti
+                      pelanggan tidak boleh berutang sama sekali. Placeholder-nya
+                      menyebutkan itu, karena selisih ini mustahil ditebak. */}
+                  <div>
+                    <Label htmlFor="k-termin">{u("mdTerminPembayaran")}</Label>
+                    <Input
+                      id="k-termin"
+                      name="paymentTermDays"
+                      type="number"
+                      min={0}
+                      max={365}
+                      placeholder={u("mdTerminPlaceholder")}
+                      defaultValue={editing.payment_term_days ?? ""}
+                    />
+                    <p className="mt-1 text-xs text-ink-muted">{u("mdTerminBantuan")}</p>
+                  </div>
+                  <div>
+                    <Label htmlFor="k-kredit">{u("mdBatasKredit")}</Label>
+                    <Input
+                      id="k-kredit"
+                      name="creditLimit"
+                      type="number"
+                      min={0}
+                      placeholder={u("mdBatasKreditPlaceholder")}
+                      defaultValue={editing.credit_limit ?? ""}
+                    />
+                    <p className="mt-1 text-xs text-ink-muted">{u("mdBatasKreditBantuan")}</p>
                   </div>
                 </>
               ) : null}
