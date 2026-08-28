@@ -36,13 +36,35 @@ import { clientIp } from "./auth";
  * - SPT Masa PPN 1111: rekap keluaran (faktur ber-PPN) vs masukan (pembelian ber-PPN).
  */
 
-const BEBAN_PPH_FINAL = "5-2100";
+/**
+ * Beban PPh Final UMKM.
+ *
+ * Kodenya `5-2200` sejak Fase 48. Sebelumnya `5-2100` — dan itu KELIRU sejak
+ * Fase 21f: migrasi fase itu menyisipkan `5-2100 Beban Produksi Diserap`, akun
+ * KONTRA-BEBAN yang dikredit saat biaya produksi dikapitalisasi. Karena
+ * `ensureAccountByCode` mengembalikan akun yang sudah ada, beban PPh Final
+ * mendarat di sana: beban pajak tidak pernah tampil sebagai beban pajak, dan
+ * angka penyerapan produksi ikut terdistorsi.
+ *
+ * Tabrakan ini juga berbahaya ke arah sebaliknya. Kolom `accounts.code` ber-UNIQUE,
+ * jadi tenant yang sempat mencatat PPh Final SEBELUM migrasi 21f berjalan akan
+ * membuat `5-2100` bernama "Beban PPh Final UMKM" lebih dulu — dan migrasi 21f
+ * kemudian GAGAL menyisipkannya. Satu tabrakan kode bisa menghentikan migrasi
+ * seluruh tenant.
+ */
+const BEBAN_PPH_FINAL = "5-2200";
 const HUTANG_PPH23 = "2-1400";
 /**
  * PPh 22 yang dipungut DARI kita adalah kredit pajak, bukan beban — karena itu
  * akunnya bertipe aset. Lihat catatan panjang di migrasi `0054_pph22`.
+ *
+ * Kodenya `1-1410`, bersebelahan dengan PPN Masukan (1-1400) karena keduanya
+ * sama-sama pajak dibayar di muka. Fase 46 semula memakai `1-1300` — dan itu
+ * KELIRU: kode itu sudah dipakai "Persediaan Barang" di COA bawaan, sehingga
+ * `ensureAccountByCode` menemukan akun yang sudah ada dan pungutan PPh 22
+ * mendarat di persediaan. Diperbaiki di Fase 48 (lihat log fase itu).
  */
-const UANG_MUKA_PPH22 = "1-1300";
+const UANG_MUKA_PPH22 = "1-1410";
 const PERIOD_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 async function ensureAccountByCode(db: SqlExecutor, code: string, name: string, type: "asset" | "liability" | "equity" | "income" | "expense"): Promise<string> {

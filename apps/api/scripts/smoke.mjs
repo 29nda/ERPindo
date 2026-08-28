@@ -432,7 +432,10 @@ try {
   // bukan karena asersinya dilonggarkan — pola yang sama dengan 0011 yang dulu
   // menambahkan "5-5000 Beban Penyusutan".
   // 26 sejak migrasi 0044 (Fase 22c) menambah `1-1050 Kas Kecil` & `5-4900 Selisih Kas`.
-  check("COA template Indonesia tersemai (26 akun)", accountsRes.status === 200 && accounts.length === 26, `→ ${accounts.length}`);
+  // 28 sejak migrasi 0056 (Fase 48) menambah `5-2200 Beban PPh Final UMKM` &
+  // `1-1410 Uang Muka PPh 22` — keduanya memperbaiki kode yang sebelumnya
+  // menabrak akun lain, bukan akun baru yang ditambah karena ingin.
+  check("COA template Indonesia tersemai (28 akun)", accountsRes.status === 200 && accounts.length === 28, `→ ${accounts.length}`);
   const kas = accounts.find((a) => a.code === "1-1000");
   const modal = accounts.find((a) => a.code === "3-1000");
   const penjualan = accounts.find((a) => a.code === "4-1000");
@@ -1388,12 +1391,22 @@ try {
 
   // Inilah cek yang paling menentukan: PPh 22 harus mendarat di akun ASET.
   // Mencatatnya sebagai beban membuat perusahaan membayar pajaknya dua kali.
+  // Diperiksa lewat NAMA akunnya, bukan sekadar tipenya. Versi pertama cek ini
+  // hanya menuntut `type === "asset"` — dan lolos padahal kodenya menabrak
+  // "Persediaan Barang" yang juga aset. Tipe yang benar bukan bukti akun yang
+  // benar.
   const akunSetelahP22 = await owner("GET", `/api/tenants/${tenantId}/accounts`);
-  const uangMukaP22 = akunSetelahP22.json?.accounts?.find((a) => a.code === "1-1300");
+  const uangMukaP22 = akunSetelahP22.json?.accounts?.find((a) => a.code === "1-1410");
   check(
     "46 PPh 22 masuk akun ASET Uang Muka PPh 22, bukan akun beban",
-    uangMukaP22?.type === "asset",
-    `→ ${JSON.stringify({ ada: Boolean(uangMukaP22), tipe: uangMukaP22?.type })}`,
+    uangMukaP22?.type === "asset" && uangMukaP22?.name === "Uang Muka PPh 22",
+    `→ ${JSON.stringify({ ada: Boolean(uangMukaP22), tipe: uangMukaP22?.type, nama: uangMukaP22?.name })}`,
+  );
+  const persediaanUtuh = akunSetelahP22.json?.accounts?.find((a) => a.code === "1-1300");
+  check(
+    "46 akun Persediaan TIDAK tersentuh PPh 22 — kodenya tidak boleh bertabrakan",
+    persediaanUtuh?.name === "Persediaan Barang",
+    `→ ${persediaanUtuh?.name}`,
   );
 
   const p22Nol = await owner("POST", `/api/tenants/${tenantId}/tax/pph22`, {
@@ -4713,7 +4726,7 @@ try {
   const modal2 = acc2.find((a) => a.code === "3-1000");
   const pend2 = acc2.find((a) => a.code === "4-1000");
   const beban2 = acc2.find((a) => a.code === "5-2000");
-  check("perusahaan kedua tersemai COA (26 akun)", acc2.length === 26 && Boolean(kas2 && modal2 && pend2 && beban2), `→ ${acc2.length}`);
+  check("perusahaan kedua tersemai COA (28 akun)", acc2.length === 28 && Boolean(kas2 && modal2 && pend2 && beban2), `→ ${acc2.length}`);
 
   // Pembukuan perusahaan kedua (tanpa tutup buku): modal 30jt, pendapatan 20jt, beban 8jt.
   await owner("POST", `/api/tenants/${tenant2}/journal-entries`, {
