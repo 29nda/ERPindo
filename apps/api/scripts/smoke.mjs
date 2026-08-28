@@ -1946,6 +1946,99 @@ try {
   const tbLembur = await admin("GET", `/api/tenants/${mpT}/trial-balance`);
   check("43b neraca saldo tetap seimbang setelah penggajian berlembur", tbLembur.json?.balanced === true);
 
+  // --- Pesangon & PKWT — PP 35/2021 (Fase 47) — di tenant Dewi ---------------
+  console.log("11i8. Pesangon & kompensasi PKWT");
+
+  // Masa kerja 6 tahun tepat: UP 7 bulan, UPMK 3 bulan.
+  const psgTetap = await admin("POST", `/api/tenants/${mpT}/employees`, {
+    name: "Hendra Tetap", position: "Supervisor", ptkpStatus: "TK/0", baseSalary: 10_000_000,
+    joinDate: "2020-08-01", employmentType: "pkwtt",
+  });
+  check("47 karyawan tetap dibuat", psgTetap.status === 201);
+
+  const psgKontrak = await admin("POST", `/api/tenants/${mpT}/employees`, {
+    name: "Wati Kontrak", position: "Staf", ptkpStatus: "TK/0", baseSalary: 10_000_000,
+    joinDate: "2025-08-01", employmentType: "pkwt", contractEndDate: "2026-08-01",
+  });
+  check("47 karyawan kontrak dibuat dengan status PKWT", psgKontrak.status === 201);
+
+  const psgTanpaTanggal = await admin("POST", `/api/tenants/${mpT}/employees`, {
+    name: "Tanpa Tanggal Masuk", ptkpStatus: "TK/0", baseSalary: 5_000_000,
+  });
+  check("47 karyawan tanpa tanggal masuk tetap boleh dibuat", psgTanpaTanggal.status === 201);
+
+  const empList47 = await admin("GET", `/api/tenants/${mpT}/employees`);
+  const wati = empList47.json?.employees?.find((e) => e.name === "Wati Kontrak");
+  check("47 status kerja terbaca kembali dari server", wati?.employmentType === "pkwt", `→ ${wati?.employmentType}`);
+  const hendra = empList47.json?.employees?.find((e) => e.name === "Hendra Tetap");
+  check("47 karyawan lain tetap PKWTT, bukan ikut berubah", hendra?.employmentType === "pkwtt");
+
+  const psgEfisiensi = await admin("POST", `/api/tenants/${mpT}/severance`, {
+    employeeId: psgTetap.json.id, endDate: "2026-08-01", alasan: "efisiensi", sisaCutiHari: 0,
+  });
+  check(
+    "47 masa kerja 6 tahun: UP 7 bulan x 1 = 70jt, UPMK 3 bulan x 1 = 30jt",
+    psgEfisiensi.status === 201 && psgEfisiensi.json?.up === 70_000_000 && psgEfisiensi.json?.upmk === 30_000_000,
+    `→ ${JSON.stringify({ up: psgEfisiensi.json?.up, upmk: psgEfisiensi.json?.upmk })}`,
+  );
+  check("47 karyawan tetap TIDAK dapat kompensasi PKWT", psgEfisiensi.json?.kompensasiPkwt === 0);
+
+  // Pengali per alasan — inilah yang paling sering diabaikan.
+  const psgPensiun = await admin("POST", `/api/tenants/${mpT}/severance`, {
+    employeeId: psgTetap.json.id, endDate: "2026-08-01", alasan: "pensiun", sisaCutiHari: 0,
+  });
+  check(
+    "47 pensiun berhak 1,75x UP — bukan 1x seperti efisiensi",
+    psgPensiun.json?.up === Math.round(7 * 1.75 * 10_000_000),
+    `→ ${psgPensiun.json?.up}`,
+  );
+
+  const psgResign = await admin("POST", `/api/tenants/${mpT}/severance`, {
+    employeeId: psgTetap.json.id, endDate: "2026-08-01", alasan: "mengundurkan-diri", sisaCutiHari: 5,
+  });
+  check(
+    "47 mengundurkan diri: tanpa UP & UPMK, tetapi UPH cuti TETAP dibayar",
+    psgResign.json?.up === 0 && psgResign.json?.upmk === 0 && psgResign.json?.uphCuti === 2_000_000,
+    `→ ${JSON.stringify({ up: psgResign.json?.up, uph: psgResign.json?.uphCuti })}`,
+  );
+
+  const psgPkwt = await admin("POST", `/api/tenants/${mpT}/severance`, {
+    employeeId: psgKontrak.json.id, endDate: "2026-08-01", alasan: "efisiensi", sisaCutiHari: 0,
+  });
+  check(
+    "47 karyawan kontrak 12 bulan dapat kompensasi PKWT satu bulan upah",
+    psgPkwt.json?.kompensasiPkwt === 10_000_000,
+    `→ ${psgPkwt.json?.kompensasiPkwt}`,
+  );
+
+  const psgTanpaJoin = await admin("POST", `/api/tenants/${mpT}/severance`, {
+    employeeId: psgTanpaTanggal.json.id, endDate: "2026-08-01", alasan: "efisiensi",
+  });
+  check(
+    "47 tanpa tanggal masuk DITOLAK 400 — pesangon dari masa kerja karangan akan diperselisihkan",
+    psgTanpaJoin.status === 400 && /tanggal masuk/i.test(psgTanpaJoin.json?.error ?? ""),
+    `→ ${psgTanpaJoin.status} ${psgTanpaJoin.json?.error}`,
+  );
+
+  const psgAlasanNgawur = await admin("POST", `/api/tenants/${mpT}/severance`, {
+    employeeId: psgTetap.json.id, endDate: "2026-08-01", alasan: "bosan",
+  });
+  check("47 alasan di luar daftar DITOLAK 400", psgAlasanNgawur.status === 400);
+
+  const psgViewer = await viewer("POST", `/api/tenants/${tenantId}/severance`, {
+    employeeId: "x", endDate: "2026-08-01", alasan: "efisiensi",
+  });
+  check("47 viewer DITOLAK menghitung pesangon (403)", psgViewer.status === 403);
+
+  const psgList = await admin("GET", `/api/tenants/${mpT}/severance`);
+  check("47 riwayat memuat 4 perhitungan dengan rinciannya", psgList.json?.items?.length === 4, `→ ${psgList.json?.items?.length}`);
+  const psgSatu = psgList.json?.items?.find((i) => i.id === psgEfisiensi.json.id);
+  check(
+    "47 rincian tersimpan: bulan, pengali, dan upah yang dipakai saat itu",
+    psgSatu?.bulanUp === 7 && psgSatu?.pengaliUp === 1 && psgSatu?.upahSebulan === 10_000_000,
+    `→ ${JSON.stringify(psgSatu)}`,
+  );
+
   // --- Komisi sales (Fase 44a) — di tenant Dewi ------------------------------
   console.log("11i6. Komisi sales");
 

@@ -4,6 +4,9 @@ import {
   decideLeaveSchema,
   commissionSchemeSchema,
   hitungKomisi,
+  hitungPesangon,
+  kompensasiPkwt,
+  masaKerjaBulan,
   hitungLembur,
   hitungPph21Thr,
   hitungThr,
@@ -14,6 +17,7 @@ import {
   reverseJournalSchema,
   overtimeSchema,
   runPayrollSchema,
+  severanceSchema,
   runThrSchema,
   type ApiAttendance,
   type ApiAttendanceRecap,
@@ -27,12 +31,15 @@ import {
   type ApiCommissionScheme,
   type ApiOvertime,
   type ApiPayslip,
+  type ApiSeverance,
   type ApiThrRun,
   type ApiThrSlip,
   type AttendanceStatus,
   type HariRaya,
   type JenisHariLembur,
   type KomisiDasar,
+  type AlasanPhkCode,
+  type EmploymentType,
   type KomisiPemicu,
   type LeaveType,
   type PtkpStatus,
@@ -163,7 +170,8 @@ export const payrollRoutes = new Hono<AppEnv>()
       .prepare(
         `SELECT e.id, e.name, e.position, e.ptkp_status, e.base_salary, e.allowances, e.bank_account,
                 e.join_date, e.is_active, e.leave_balance, e.department_id, e.manager_id,
-                e.commission_scheme_id, d.name AS department_name, m.name AS manager_name,
+                e.commission_scheme_id, e.employment_type, e.contract_end_date,
+                d.name AS department_name, m.name AS manager_name,
                 cs.name AS commission_scheme_name
          FROM employees e
          LEFT JOIN departments d ON d.id = e.department_id
@@ -188,6 +196,8 @@ export const payrollRoutes = new Hono<AppEnv>()
         manager_name: string | null;
         commission_scheme_id: string | null;
         commission_scheme_name: string | null;
+        employment_type: EmploymentType;
+        contract_end_date: string | null;
       }>();
     const employees: ApiEmployee[] = results.map((r) => ({
       id: r.id,
@@ -206,6 +216,8 @@ export const payrollRoutes = new Hono<AppEnv>()
       managerName: r.manager_name,
       commissionSchemeId: r.commission_scheme_id,
       commissionSchemeName: r.commission_scheme_name,
+      employmentType: r.employment_type,
+      contractEndDate: r.contract_end_date,
     }));
     return c.json({ employees });
   })
@@ -223,8 +235,9 @@ export const payrollRoutes = new Hono<AppEnv>()
     if (orgErr) return c.json({ error: orgErr }, 400);
     await db
       .prepare(
-        `INSERT INTO employees (id, name, position, ptkp_status, base_salary, allowances, bank_account, join_date, department_id, manager_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO employees (id, name, position, ptkp_status, base_salary, allowances, bank_account, join_date, department_id, manager_id,
+                                employment_type, contract_end_date)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         id,
@@ -237,6 +250,8 @@ export const payrollRoutes = new Hono<AppEnv>()
         input.joinDate ?? null,
         input.departmentId ?? null,
         input.managerId ?? null,
+        input.employmentType ?? "pkwtt",
+        input.contractEndDate ?? null,
       )
       .run();
     await audit(c.env, {
@@ -271,9 +286,9 @@ export const payrollRoutes = new Hono<AppEnv>()
       if (orgErr) return c.json({ error: orgErr }, 400);
       await db
         .prepare(
-          `UPDATE employees SET name=?, position=?, ptkp_status=?, base_salary=?, allowances=?, bank_account=?, join_date=?, department_id=?, manager_id=?, commission_scheme_id=? WHERE id=?`,
+          `UPDATE employees SET name=?, position=?, ptkp_status=?, base_salary=?, allowances=?, bank_account=?, join_date=?, department_id=?, manager_id=?, commission_scheme_id=?, employment_type=?, contract_end_date=? WHERE id=?`,
         )
-        .bind(i.name, i.position ?? null, i.ptkpStatus, i.baseSalary, i.allowances, i.bankAccount ?? null, i.joinDate ?? null, i.departmentId ?? null, i.managerId ?? null, i.commissionSchemeId ?? null, id)
+        .bind(i.name, i.position ?? null, i.ptkpStatus, i.baseSalary, i.allowances, i.bankAccount ?? null, i.joinDate ?? null, i.departmentId ?? null, i.managerId ?? null, i.commissionSchemeId ?? null, i.employmentType ?? "pkwtt", i.contractEndDate ?? null, id)
         .run();
     }
     await audit(c.env, {
@@ -667,6 +682,164 @@ export const payrollRoutes = new Hono<AppEnv>()
       ip: clientIp(c),
     });
     return c.json({ ok: true, runNo: run.run_no, reversalEntryNo: reversal.entryNo });
+  })
+
+  // ---------------------------------------------------------------------------
+  // Pesangon & kompensasi PKWT — PP 35/2021 (Fase 47).
+  //
+  // Hasilnya DISIMPAN, bukan dihitung ulang saat dibaca: upah karyawan berubah,
+  // dan berkas pesangon tahun lalu harus tetap menunjukkan angka yang
+  // benar-benar dibayarkan waktu itu.
+  // ---------------------------------------------------------------------------
+  .get("/:tenantId/severance", requireAuth, requireTenantRole("admin"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const { results } = await db
+      .prepare(
+        `SELECT s.*, e.name AS employee_name
+         FROM severance_records s JOIN employees e ON e.id = s.employee_id
+         ORDER BY s.end_date DESC, s.doc_no DESC`,
+      )
+      .all<Record<string, never> & {
+        id: string;
+        doc_no: string;
+        employee_id: string;
+        employee_name: string;
+        end_date: string;
+        alasan: string;
+        upah_sebulan: number;
+        masa_kerja_tahun: number;
+        bulan_up: number;
+        pengali_up: number;
+        up: number;
+        bulan_upmk: number;
+        pengali_upmk: number;
+        upmk: number;
+        sisa_cuti_hari: number;
+        uph_cuti: number;
+        uang_pisah: number;
+        kompensasi_pkwt: number;
+        total: number;
+        note: string | null;
+        created_at: string;
+      }>();
+    const items: ApiSeverance[] = results.map((r) => ({
+      id: r.id,
+      docNo: r.doc_no,
+      employeeId: r.employee_id,
+      employeeName: r.employee_name,
+      endDate: r.end_date,
+      alasan: r.alasan,
+      upahSebulan: r.upah_sebulan,
+      masaKerjaTahun: r.masa_kerja_tahun,
+      bulanUp: r.bulan_up,
+      pengaliUp: r.pengali_up,
+      up: r.up,
+      bulanUpmk: r.bulan_upmk,
+      pengaliUpmk: r.pengali_upmk,
+      upmk: r.upmk,
+      sisaCutiHari: r.sisa_cuti_hari,
+      uphCuti: r.uph_cuti,
+      uangPisah: r.uang_pisah,
+      kompensasiPkwt: r.kompensasi_pkwt,
+      total: r.total,
+      note: r.note,
+      createdAt: r.created_at,
+    }));
+    return c.json({ items });
+  })
+
+  .post("/:tenantId/severance", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = severanceSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const input = parsed.data;
+
+    const emp = await db
+      .prepare(
+        `SELECT id, name, base_salary, allowances, join_date, employment_type, leave_balance
+         FROM employees WHERE id = ?`,
+      )
+      .bind(input.employeeId)
+      .first<{
+        id: string;
+        name: string;
+        base_salary: number;
+        allowances: number;
+        join_date: string | null;
+        employment_type: EmploymentType;
+        leave_balance: number;
+      }>();
+    if (!emp) {
+      return c.json({ error: "Karyawan tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
+    }
+    // Tanpa tanggal masuk, masa kerjanya tidak bisa dihitung — dan pesangon
+    // yang dihitung dari masa kerja karangan adalah angka yang akan
+    // diperselisihkan. Lebih baik menolak dan meminta datanya dilengkapi.
+    if (!emp.join_date) {
+      return c.json(
+        { error: `${emp.name} belum punya tanggal masuk, jadi masa kerjanya tidak bisa dihitung. Lengkapi lebih dulu di tab Karyawan.` },
+        400,
+      );
+    }
+
+    const bulanKerja = masaKerjaBulan(emp.join_date, input.endDate);
+    const tahunKerja = bulanKerja / 12;
+    const upahSebulan = emp.base_salary + emp.allowances;
+    const b = hitungPesangon({
+      upahSebulan,
+      masaKerjaTahun: tahunKerja,
+      alasan: input.alasan as AlasanPhkCode,
+      sisaCutiHari: input.sisaCutiHari ?? emp.leave_balance,
+      uangPisah: input.uangPisah,
+    });
+    // Uang kompensasi PKWT berdiri sendiri di luar pesangon, dan hanya berlaku
+    // bagi karyawan kontrak.
+    const kompensasi = emp.employment_type === "pkwt" ? kompensasiPkwt(upahSebulan, bulanKerja) : 0;
+
+    const id = crypto.randomUUID();
+    const docNo = await nextDocNo(db, "severance_records", "PSG");
+    await db
+      .prepare(
+        `INSERT INTO severance_records (id, doc_no, employee_id, end_date, alasan, upah_sebulan, masa_kerja_tahun,
+                                        bulan_up, pengali_up, up, bulan_upmk, pengali_upmk, upmk,
+                                        sisa_cuti_hari, uph_cuti, uang_pisah, kompensasi_pkwt, total, note, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        id,
+        docNo,
+        input.employeeId,
+        input.endDate,
+        input.alasan,
+        upahSebulan,
+        tahunKerja,
+        b.bulanUp,
+        b.pengaliUp,
+        b.up,
+        b.bulanUpmk,
+        b.pengaliUpmk,
+        b.upmk,
+        input.sisaCutiHari ?? emp.leave_balance,
+        b.uphCuti,
+        b.uangPisah,
+        kompensasi,
+        b.total + kompensasi,
+        input.note ?? null,
+        c.get("user").id,
+      )
+      .run();
+
+    await audit(c.env, {
+      action: "hr.pesangon.hitung",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { docNo, karyawan: emp.name, alasan: input.alasan, total: b.total + kompensasi },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, id, docNo, ...b, kompensasiPkwt: kompensasi, total: b.total + kompensasi }, 201);
   })
 
   // ---------------------------------------------------------------------------

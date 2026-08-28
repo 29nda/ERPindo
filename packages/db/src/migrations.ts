@@ -2141,6 +2141,51 @@ export const TENANT_MIGRATIONS: Migration[] = [
       `CREATE INDEX pph22_tanggal ON tax_pph22 (tax_date)`,
     ],
   },
+  {
+    /**
+     * SDM lanjutan: status PKWT & catatan pesangon (Fase 47).
+     *
+     * `employment_type` membedakan karyawan tetap (PKWTT) dari kontrak (PKWT).
+     * Bukan label belaka: karyawan PKWT berhak **uang kompensasi** saat
+     * kontraknya berakhir (PP 35/2021 pasal 15), kewajiban yang paling sering
+     * terlewat karena tidak ada yang mengingatkannya. Baku `pkwtt` supaya data
+     * karyawan lama tidak berubah artinya.
+     *
+     * Perhitungan pesangon disimpan sebagai catatan, bukan dihitung ulang saat
+     * dibaca. Upah berubah, dan berkas pesangon tahun lalu harus tetap
+     * menunjukkan angka yang benar-benar dibayarkan waktu itu — alasan yang
+     * sama seperti slip THR dan lembur.
+     */
+    id: "0055_sdm_lanjutan",
+    statements: [
+      `ALTER TABLE employees ADD COLUMN employment_type TEXT NOT NULL DEFAULT 'pkwtt'`,
+      `ALTER TABLE employees ADD COLUMN contract_end_date TEXT`,
+      `CREATE TABLE severance_records (
+        id TEXT PRIMARY KEY,
+        doc_no TEXT NOT NULL UNIQUE,
+        employee_id TEXT NOT NULL REFERENCES employees(id),
+        end_date TEXT NOT NULL,
+        alasan TEXT NOT NULL,
+        upah_sebulan INTEGER NOT NULL,
+        masa_kerja_tahun REAL NOT NULL,
+        bulan_up INTEGER NOT NULL,
+        pengali_up REAL NOT NULL,
+        up INTEGER NOT NULL,
+        bulan_upmk INTEGER NOT NULL,
+        pengali_upmk REAL NOT NULL,
+        upmk INTEGER NOT NULL,
+        sisa_cuti_hari INTEGER NOT NULL DEFAULT 0,
+        uph_cuti INTEGER NOT NULL DEFAULT 0,
+        uang_pisah INTEGER NOT NULL DEFAULT 0,
+        kompensasi_pkwt INTEGER NOT NULL DEFAULT 0,
+        total INTEGER NOT NULL,
+        note TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX severance_employee ON severance_records (employee_id)`,
+    ],
+  },
 ];
 
 /** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */

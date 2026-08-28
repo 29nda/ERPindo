@@ -436,3 +436,180 @@ export function hitungLembur(input: {
     batasJam,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Pesangon & kompensasi PKWT — PP 35/2021 (Fase 47)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Pesangon adalah kewajiban hukum yang paling mahal bila salah hitung, dan
+ * paling sering salah karena bentuknya berlapis: uang pesangon (UP), uang
+ * penghargaan masa kerja (UPMK), dan uang penggantian hak (UPH) — masing-masing
+ * punya tabel sendiri, lalu UP dan UPMK **dikalikan pengali yang bergantung
+ * ALASAN berakhirnya hubungan kerja**.
+ *
+ * Pengali itulah yang paling sering diabaikan. Karyawan yang pensiun berhak
+ * 1,75 kali UP; yang meninggal dunia 2 kali; yang mengundurkan diri tidak
+ * berhak UP sama sekali. Memakai satu angka untuk semuanya membuat perusahaan
+ * membayar terlalu banyak pada sebagian orang dan terlalu sedikit pada sebagian
+ * yang lain — dan yang kedua berujung perselisihan hubungan industrial.
+ *
+ * Dasar: PP 35/2021 pasal 40 (tabel UP & UPMK) dan pasal 41–57 (pengali per
+ * alasan). Daftar alasan di bawah memuat hal-hal yang lazim ditemui perusahaan
+ * kecil dan menengah; ia **tertutup**, bukan lengkap — alasan di luar daftar
+ * harus dihitung manual dengan mengacu peraturannya, bukan ditebak sistem.
+ */
+
+/** Tabel uang pesangon (UP), PP 35/2021 pasal 40 ayat (2). Nilai = bulan upah. */
+export function bulanPesangon(masaKerjaTahun: number): number {
+  if (masaKerjaTahun < 1) return 1;
+  if (masaKerjaTahun < 2) return 2;
+  if (masaKerjaTahun < 3) return 3;
+  if (masaKerjaTahun < 4) return 4;
+  if (masaKerjaTahun < 5) return 5;
+  if (masaKerjaTahun < 6) return 6;
+  if (masaKerjaTahun < 7) return 7;
+  if (masaKerjaTahun < 8) return 8;
+  return 9;
+}
+
+/**
+ * Tabel uang penghargaan masa kerja (UPMK), PP 35/2021 pasal 40 ayat (3).
+ *
+ * Masa kerja di bawah 3 tahun **tidak** berhak UPMK. Ini bukan pembulatan ke
+ * bawah, melainkan batas yang ditulis peraturannya.
+ */
+export function bulanPenghargaan(masaKerjaTahun: number): number {
+  if (masaKerjaTahun < 3) return 0;
+  if (masaKerjaTahun < 6) return 2;
+  if (masaKerjaTahun < 9) return 3;
+  if (masaKerjaTahun < 12) return 4;
+  if (masaKerjaTahun < 15) return 5;
+  if (masaKerjaTahun < 18) return 6;
+  if (masaKerjaTahun < 21) return 7;
+  if (masaKerjaTahun < 24) return 8;
+  return 10;
+}
+
+/**
+ * Alasan berakhirnya hubungan kerja beserta pengali UP dan UPMK.
+ *
+ * Angkanya langsung dari PP 35/2021. `up` dan `upmk` adalah pengali terhadap
+ * tabel di atas; `uangPisah` menandai alasan yang tidak berhak UP/UPMK tetapi
+ * berhak uang pisah — besarnya diatur perjanjian kerja, bukan peraturan, jadi
+ * sistem TIDAK mengarangnya dan menyerahkannya sebagai isian.
+ */
+export const ALASAN_PHK = [
+  { code: "efisiensi-rugi", label: "Efisiensi karena perusahaan rugi", up: 0.5, upmk: 1, uangPisah: false },
+  { code: "efisiensi", label: "Efisiensi tanpa kerugian", up: 1, upmk: 1, uangPisah: false },
+  { code: "tutup-rugi", label: "Perusahaan tutup karena rugi", up: 0.5, upmk: 1, uangPisah: false },
+  { code: "tutup", label: "Perusahaan tutup bukan karena rugi", up: 1, upmk: 1, uangPisah: false },
+  { code: "pailit", label: "Perusahaan pailit", up: 0.5, upmk: 1, uangPisah: false },
+  { code: "pensiun", label: "Memasuki usia pensiun", up: 1.75, upmk: 1, uangPisah: false },
+  { code: "meninggal", label: "Karyawan meninggal dunia", up: 2, upmk: 1, uangPisah: false },
+  { code: "sakit-lama", label: "Sakit berkepanjangan atau cacat kerja", up: 2, upmk: 2, uangPisah: false },
+  { code: "mengundurkan-diri", label: "Mengundurkan diri", up: 0, upmk: 0, uangPisah: true },
+] as const;
+export type AlasanPhkCode = (typeof ALASAN_PHK)[number]["code"];
+
+/**
+ * Pembagi upah sebulan menjadi upah sehari untuk komponen UPH cuti.
+ *
+ * 25 adalah pembagi yang lazim dipakai untuk pekan 6 hari kerja. Peraturannya
+ * tidak mematoknya, jadi angkanya ditulis sebagai konstanta bernama dan
+ * ditampilkan di layar — bukan disembunyikan di tengah rumus, supaya yang
+ * memakainya tahu asumsi apa yang sedang dipakai atas namanya.
+ */
+export const PEMBAGI_UPAH_HARIAN = 25;
+
+export type PesangonInput = {
+  /** Upah sebulan: upah pokok + tunjangan tetap. */
+  upahSebulan: number;
+  masaKerjaTahun: number;
+  alasan: AlasanPhkCode;
+  /** Sisa cuti tahunan yang belum diambil, dalam hari. */
+  sisaCutiHari?: number;
+  /** Uang pisah, bila diatur perjanjian kerja. Sistem tidak mengarangnya. */
+  uangPisah?: number;
+};
+
+export type PesangonBreakdown = {
+  bulanUp: number;
+  pengaliUp: number;
+  up: number;
+  bulanUpmk: number;
+  pengaliUpmk: number;
+  upmk: number;
+  /** UPH: penggantian cuti tahunan yang belum diambil. */
+  uphCuti: number;
+  uangPisah: number;
+  total: number;
+  /** Benar bila alasannya tidak berhak UP/UPMK. */
+  tanpaPesangon: boolean;
+};
+
+/** Hitung pesangon menurut PP 35/2021. */
+export function hitungPesangon(input: PesangonInput): PesangonBreakdown {
+  const alasan = ALASAN_PHK.find((a) => a.code === input.alasan) ?? ALASAN_PHK[0];
+  const tahun = Math.max(0, input.masaKerjaTahun);
+
+  const bulanUp = bulanPesangon(tahun);
+  const bulanUpmk = bulanPenghargaan(tahun);
+  const up = Math.round(bulanUp * alasan.up * input.upahSebulan);
+  const upmk = Math.round(bulanUpmk * alasan.upmk * input.upahSebulan);
+  const uphCuti = Math.round(
+    ((input.sisaCutiHari ?? 0) * input.upahSebulan) / PEMBAGI_UPAH_HARIAN,
+  );
+  const uangPisah = input.uangPisah ?? 0;
+
+  return {
+    bulanUp,
+    pengaliUp: alasan.up,
+    up,
+    bulanUpmk,
+    pengaliUpmk: alasan.upmk,
+    upmk,
+    uphCuti,
+    uangPisah,
+    total: up + upmk + uphCuti + uangPisah,
+    tanpaPesangon: alasan.up === 0 && alasan.upmk === 0,
+  };
+}
+
+/**
+ * Uang kompensasi PKWT, PP 35/2021 pasal 15–17.
+ *
+ * Kewajiban yang paling sering terlewat: karyawan kontrak berhak uang
+ * kompensasi saat kontraknya berakhir, sebesar `masa kerja ÷ 12 × satu bulan
+ * upah`. Berlaku untuk masa kerja **paling singkat satu bulan** secara terus
+ * menerus; di bawah itu belum lahir haknya.
+ *
+ * Berbeda dari pesangon, kompensasi ini tidak bergantung alasan berakhirnya —
+ * ia melekat pada berakhirnya kontrak itu sendiri.
+ */
+export function kompensasiPkwt(upahSebulan: number, masaKerjaBulanKerja: number): number {
+  if (masaKerjaBulanKerja < 1) return 0;
+  return Math.round((masaKerjaBulanKerja / 12) * upahSebulan);
+}
+
+/**
+ * Hak cuti tahunan menurut masa kerja.
+ *
+ * UU 13/2003 pasal 79: 12 hari kerja setelah bekerja 12 bulan terus menerus.
+ * Karyawan yang belum genap setahun **belum berhak** menurut undang-undang;
+ * banyak perusahaan memberikannya proporsional sebagai kebijakan, dan itu
+ * dibolehkan karena lebih menguntungkan karyawan. Fungsi ini mengembalikan
+ * keduanya supaya perusahaan tahu mana yang wajib dan mana yang kebijakan.
+ */
+export function hakCutiTahunan(masaKerjaBulanKerja: number): {
+  wajib: number;
+  proporsional: number;
+  sudahSetahun: boolean;
+} {
+  const sudahSetahun = masaKerjaBulanKerja >= 12;
+  return {
+    wajib: sudahSetahun ? 12 : 0,
+    proporsional: Math.min(12, Math.floor((Math.max(0, masaKerjaBulanKerja) / 12) * 12)),
+    sudahSetahun,
+  };
+}

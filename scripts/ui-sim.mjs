@@ -2632,6 +2632,38 @@ try {
   );
   check("F60 alur PPh 22 bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
+  // F61 — Fase 47: pesangon. Yang diperiksa adalah bahwa layarnya menawarkan
+  // ALASAN berakhirnya hubungan kerja, bukan satu tombol hitung. Pengali per
+  // alasan itulah yang paling sering diabaikan, dan layar tanpa pilihan alasan
+  // memastikan ia diabaikan.
+  await gotoRoute("/app/hr/penggajian", 900);
+  await page.getByRole("tab", { name: "Pesangon" }).click();
+  await page.waitForTimeout(600);
+  const psgBody = await page.innerText("body");
+  check("F61 tab Pesangon menyebut dasar hukumnya", psgBody.includes("PP 35/2021"));
+  const psgAlasan = await page.locator("#psg-alasan option").allInnerTexts();
+  check(
+    "F61 alasan PHK ditawarkan lengkap, termasuk pensiun & mengundurkan diri",
+    psgAlasan.length >= 8 &&
+      psgAlasan.some((t) => t.includes("pensiun")) &&
+      psgAlasan.some((t) => t.includes("Mengundurkan diri")),
+    `→ ${psgAlasan.length}`,
+  );
+  check(
+    "F61 layar mengatakan uang pisah diatur perjanjian, bukan dikarang aplikasi",
+    psgBody.includes("diatur perjanjian kerja"),
+  );
+  // Medan tanggal masuk baru ada sejak fase ini: sebelumnya hanya bisa diisi
+  // lewat API, padahal THR dan pesangon sama-sama membutuhkannya.
+  await page.getByRole("tab", { name: "Karyawan" }).click();
+  await page.waitForTimeout(400);
+  await bukaLembar(page, "Tambah karyawan");
+  check("F61 formulir karyawan kini punya medan tanggal masuk", (await page.locator("#emp-join").count()) === 1);
+  check("F61 formulir karyawan kini punya status PKWT/PKWTT", (await page.locator("#emp-tipe").count()) === 1);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  check("F61 alur pesangon bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/app/alat", 700);
   const alatBody = await page.innerText("body");
   check("F19 kalkulator render (HPP + hasil Rupiah)", alatBody.includes("Harga Pokok Produksi") && /Rp\s?[1-9]/.test(alatBody.replace(/\u00A0/g, " ")));

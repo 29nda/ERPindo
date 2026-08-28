@@ -1,10 +1,20 @@
 import { z } from "zod";
-import { JENIS_HARI_LEMBUR, PTKP_STATUSES, type JenisHariLembur, type PtkpStatus } from "./payroll";
+import {
+  ALASAN_PHK,
+  JENIS_HARI_LEMBUR,
+  PTKP_STATUSES,
+  type JenisHariLembur,
+  type PtkpStatus,
+} from "./payroll";
 import { amountSchema, KOMISI_DASAR, KOMISI_PEMICU, type KomisiDasar, type KomisiPemicu } from "./accounting";
 
 // ---------------------------------------------------------------------------
 // HR & Payroll (Fase 2o): karyawan, penggajian bulanan (PPh 21 TER + BPJS)
 // ---------------------------------------------------------------------------
+
+/** Status hubungan kerja (Fase 47). PKWT berhak uang kompensasi saat berakhir. */
+export const EMPLOYMENT_TYPES = ["pkwtt", "pkwt"] as const;
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
 
 export const employeeSchema = z.object({
   name: z.string().trim().min(2, "Nama minimal 2 karakter").max(150),
@@ -23,6 +33,9 @@ export const employeeSchema = z.object({
    * menjual apa pun.
    */
   commissionSchemeId: z.string().optional(),
+  /** Fase 47 — PKWT/PKWTT dan tanggal berakhirnya kontrak bila PKWT. */
+  employmentType: z.enum(EMPLOYMENT_TYPES).optional(),
+  contractEndDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 export type EmployeeInput = z.infer<typeof employeeSchema>;
 
@@ -80,6 +93,9 @@ export type ApiEmployee = {
   /** Skema komisi (Fase 44a) — kosong berarti tidak berkomisi. */
   commissionSchemeId: string | null;
   commissionSchemeName: string | null;
+  /** Fase 47 — status hubungan kerja. */
+  employmentType: EmploymentType;
+  contractEndDate: string | null;
 };
 
 export type ApiPayslip = {
@@ -151,6 +167,43 @@ export type ApiThrRun = {
   slips: ApiThrSlip[];
   voidedAt?: string | null;
   voidJournalNo?: string | null;
+};
+
+/** Hitung & catat pesangon satu karyawan (Fase 47). */
+export const severanceSchema = z.object({
+  employeeId: z.string().min(1, "Pilih karyawan lebih dulu."),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
+  alasan: z.enum(ALASAN_PHK.map((a) => a.code) as [string, ...string[]]),
+  sisaCutiHari: z.number().int().min(0).max(365).optional(),
+  /** Diatur perjanjian kerja, bukan peraturan — sistem tidak mengarangnya. */
+  uangPisah: z.number().int().min(0).max(1_000_000_000_000).optional(),
+  note: z.string().trim().max(300).optional(),
+});
+export type SeveranceInput = z.infer<typeof severanceSchema>;
+
+export type ApiSeverance = {
+  id: string;
+  docNo: string;
+  employeeId: string;
+  employeeName: string;
+  endDate: string;
+  alasan: string;
+  upahSebulan: number;
+  masaKerjaTahun: number;
+  bulanUp: number;
+  pengaliUp: number;
+  up: number;
+  bulanUpmk: number;
+  pengaliUpmk: number;
+  upmk: number;
+  sisaCutiHari: number;
+  uphCuti: number;
+  uangPisah: number;
+  /** Uang kompensasi PKWT — nol untuk karyawan tetap. */
+  kompensasiPkwt: number;
+  total: number;
+  note: string | null;
+  createdAt: string;
 };
 
 /** Skema komisi sales (Fase 44a). Tarif dalam basis poin: 250 = 2,5%. */

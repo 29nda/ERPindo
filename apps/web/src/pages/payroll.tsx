@@ -4,7 +4,9 @@ import {
   type ApiLeaveRequest,
   type ApiPayrollRun,
   bpKePersen,
+  ALASAN_PHK,
   type ApiCommissionScheme,
+  type ApiSeverance,
   type ApiOvertime,
   type ApiThrRun,
   type HariRaya,
@@ -17,7 +19,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isi, namaHariRaya, useLang } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
-import { CalendarDays, Clock, Gift, HandCoins, Percent, UserPlus, Users } from "lucide-react";
+import { CalendarDays, Clock, Gift, HandCoins, Percent, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { api, formatIDR } from "../api/client";
 import { Lembar } from "../components/kerangka";
@@ -46,11 +48,16 @@ import {
 import { useWorkspace } from "./app";
 
 const thisMonth = () => new Date().toISOString().slice(0, 7);
+/**
+ * Label alasan PHK. Diambil dari daftar tertutup di `packages/shared` supaya
+ * tidak ada alasan yang bisa muncul di layar tanpa punya pengali resminya.
+ */
+const ALASAN_LABEL: Record<string, string> = Object.fromEntries(ALASAN_PHK.map((a) => [a.code, a.label]));
 /** Tanggal ISO `YYYY-MM-DD` yang berbentuk sah — dipakai menahan kueri rentang. */
 const tanggalSah = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 const today = () => new Date().toISOString().slice(0, 10);
 type AccountRow = { id: string; code: string; name: string; type: string };
-type PayrollTab = "karyawan" | "gaji" | "thr" | "komisi" | "komponen" | "kasbon" | "cuti" | "departemen";
+type PayrollTab = "karyawan" | "gaji" | "thr" | "komisi" | "komponen" | "kasbon" | "cuti" | "pesangon" | "departemen";
 
 export function PayrollPage() {
   const u = useUi();
@@ -90,6 +97,12 @@ export function PayrollPage() {
     allowances: "",
     departmentId: "",
     managerId: "",
+    // Fase 47 — tanggal masuk dan status kerja. Tanggal masuk sebenarnya sudah
+    // dipakai sejak Fase 43a (THR) dan wajib untuk pesangon, tetapi belum
+    // pernah bisa diisi dari layar ini: satu-satunya jalan adalah lewat API.
+    joinDate: "",
+    employmentType: "pkwtt" as "pkwtt" | "pkwt",
+    contractEndDate: "",
   });
   const [empError, setEmpError] = useState<string | null>(null);
   const [empLembar, setEmpLembar] = useState(false);
@@ -109,6 +122,9 @@ export function PayrollPage() {
         allowances: Number(emp.allowances) || 0,
         departmentId: emp.departmentId || undefined,
         managerId: emp.managerId || undefined,
+        joinDate: emp.joinDate || undefined,
+        employmentType: emp.employmentType,
+        contractEndDate: emp.employmentType === "pkwt" ? emp.contractEndDate || undefined : undefined,
       }),
     onSuccess: () => {
       toast("success", u("toastKaryawanDitambah"));
@@ -120,6 +136,9 @@ export function PayrollPage() {
         allowances: "",
         departmentId: "",
         managerId: "",
+        joinDate: "",
+        employmentType: "pkwtt",
+        contractEndDate: "",
       });
       setEmpError(null);
       setEmpLembar(false);
@@ -175,6 +194,7 @@ export function PayrollPage() {
           { key: "komponen", label: u("komponen") },
           { key: "kasbon", label: u("tabKasbon") },
           { key: "cuti", label: u("tabCuti") },
+          { key: "pesangon", label: u("tabPesangon") },
           { key: "departemen", label: u("departemen") },
         ]}
         active={tab}
@@ -278,6 +298,39 @@ export function PayrollPage() {
                   onChange={(e) => setEmp({ ...emp, allowances: e.target.value })}
                 />
               </div>
+              <div>
+                <Label htmlFor="emp-join">{u("tanggalMasukKerja")}</Label>
+                <Input
+                  id="emp-join"
+                  type="date"
+                  value={emp.joinDate}
+                  onChange={(e) => setEmp({ ...emp, joinDate: e.target.value })}
+                />
+                <p className="mt-1 text-xs text-ink-muted">{u("descTanggalMasukKerja")}</p>
+              </div>
+              <div>
+                <Label htmlFor="emp-tipe">{u("statusKerja")}</Label>
+                <Select
+                  id="emp-tipe"
+                  value={emp.employmentType}
+                  onChange={(e) => setEmp({ ...emp, employmentType: e.target.value as "pkwtt" | "pkwt" })}
+                >
+                  <option value="pkwtt">{u("statusPkwtt")}</option>
+                  <option value="pkwt">{u("statusPkwt")}</option>
+                </Select>
+              </div>
+              {emp.employmentType === "pkwt" ? (
+                <div>
+                  <Label htmlFor="emp-kontrak">{u("kontrakPkwtBerakhir")}</Label>
+                  <Input
+                    id="emp-kontrak"
+                    type="date"
+                    value={emp.contractEndDate}
+                    onChange={(e) => setEmp({ ...emp, contractEndDate: e.target.value })}
+                  />
+                  <p className="mt-1 text-xs text-ink-muted">{u("descKompensasiPkwt")}</p>
+                </div>
+              ) : null}
               <div>
                 <Label htmlFor="emp-dept">{u("departemen")}</Label>
                 <Select
@@ -457,6 +510,10 @@ export function PayrollPage() {
       ) : null}
 
       {tab === "komisi" ? <CommissionCard tenantId={tenant.tenantId} isAdmin={isAdmin} /> : null}
+
+      {tab === "pesangon" && isAdmin ? (
+        <SeveranceCard tenantId={tenant.tenantId} employees={employees} />
+      ) : null}
 
       {tab === "komponen" && isAdmin ? (
         <div className="space-y-4">
@@ -2144,6 +2201,242 @@ function CommissionCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: bool
               <div className="flex justify-end border-t border-line pt-3 text-sm">
                 {u("total")} <strong className="ml-2 tabular-nums">{formatIDR(laporan.total)}</strong>
               </div>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
+/**
+ * Pesangon & kompensasi PKWT — PP 35/2021 (Fase 47).
+ *
+ * Layarnya sengaja menampilkan **rinciannya**, bukan satu angka total. Pesangon
+ * adalah angka yang diperselisihkan orang, dan yang menyelesaikan perselisihan
+ * bukan totalnya melainkan cara sampainya: berapa bulan upah, dikali berapa,
+ * karena alasan apa. Total tanpa rincian tidak bisa dibantah maupun dibenarkan.
+ */
+function SeveranceCard({ tenantId, employees }: { tenantId: string; employees: ApiEmployee[] }) {
+  const u = useUi();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [galat, setGalat] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    employeeId: "",
+    endDate: today(),
+    alasan: ALASAN_PHK[0].code as string,
+    sisaCutiHari: "",
+    uangPisah: "",
+    note: "",
+  });
+
+  const listQuery = useQuery({
+    queryKey: ["severance", tenantId],
+    queryFn: () => api.severanceList(tenantId),
+  });
+  const aktif = employees.filter((e) => e.isActive);
+
+  const hitung = useMutation({
+    mutationFn: () =>
+      api.createSeverance(tenantId, {
+        employeeId: form.employeeId || aktif[0]?.id || "",
+        endDate: form.endDate,
+        alasan: form.alasan,
+        sisaCutiHari: form.sisaCutiHari === "" ? undefined : Number(form.sisaCutiHari),
+        uangPisah: form.uangPisah === "" ? undefined : Number(form.uangPisah),
+        note: form.note || undefined,
+      }),
+    onSuccess: (res) => {
+      setGalat(null);
+      toast("success", isi(u("toastPesangonDihitung"), res.docNo, formatIDR(res.total)));
+      setForm((f) => ({ ...f, sisaCutiHari: "", uangPisah: "", note: "" }));
+      queryClient.invalidateQueries({ queryKey: ["severance", tenantId] });
+    },
+    onError: (err) => setGalat((err as Error).message),
+  });
+
+  const items: ApiSeverance[] = listQuery.data?.items ?? [];
+  const dipilih = aktif.find((e) => e.id === (form.employeeId || aktif[0]?.id));
+
+  return (
+    <div className="space-y-4">
+      <Alert tone="info">{u("descPesangonDasarHukum")}</Alert>
+
+      <Card>
+        <CardHeader title={u("hitungPesangon")} description={u("descHitungPesangon")} />
+        <CardBody className="space-y-4">
+          {galat ? <Alert tone="error">{galat}</Alert> : null}
+          {dipilih && !dipilih.joinDate ? (
+            <Alert tone="warning">{isi(u("pesangonTanpaTanggalMasuk"), dipilih.name)}</Alert>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <Label htmlFor="psg-karyawan">{u("karyawan")}</Label>
+              <Select
+                id="psg-karyawan"
+                value={form.employeeId || aktif[0]?.id || ""}
+                onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+              >
+                {aktif.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                    {e.employmentType === "pkwt" ? " · PKWT" : ""}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="psg-tanggal">{u("tanggalBerakhir")}</Label>
+              <Input
+                id="psg-tanggal"
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="psg-alasan">{u("alasanBerakhir")}</Label>
+              <Select
+                id="psg-alasan"
+                value={form.alasan}
+                onChange={(e) => setForm({ ...form, alasan: e.target.value })}
+              >
+                {ALASAN_PHK.map((a) => (
+                  <option key={a.code} value={a.code}>
+                    {a.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="psg-cuti">{u("sisaCutiHari")}</Label>
+              <Input
+                id="psg-cuti"
+                type="number"
+                min={0}
+                value={form.sisaCutiHari}
+                onChange={(e) => setForm({ ...form, sisaCutiHari: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="psg-pisah">{u("uangPisahOpsional")}</Label>
+              <Input
+                id="psg-pisah"
+                type="number"
+                min={0}
+                value={form.uangPisah}
+                onChange={(e) => setForm({ ...form, uangPisah: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="psg-catatan">{u("keterangan")}</Label>
+              <Input
+                id="psg-catatan"
+                value={form.note}
+                onChange={(e) => setForm({ ...form, note: e.target.value })}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-ink-muted">{u("descUangPisahDiaturPerjanjian")}</p>
+          <div className="flex justify-end">
+            <Button onClick={() => hitung.mutate()} disabled={hitung.isPending || aktif.length === 0}>
+              {hitung.isPending ? <Spinner /> : null} {u("hitungPesangon")}
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader title={u("riwayatPesangon")} />
+        <CardBody>
+          {listQuery.isLoading ? (
+            <Spinner />
+          ) : items.length === 0 ? (
+            <EmptyState
+              icon={<ShieldCheck className="size-6" aria-hidden />}
+              title={u("belumAdaPesangon")}
+              description={u("descBelumAdaPesangon")}
+            />
+          ) : (
+            <div className="space-y-3">
+              {items.map((s) => (
+                <div key={s.id} className="rounded-lg border border-line p-3">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-mono text-sm">{s.docNo}</span>
+                    <span className="font-medium">{s.employeeName}</span>
+                    <Badge tone="brand">{ALASAN_LABEL[s.alasan] ?? s.alasan}</Badge>
+                    {s.kompensasiPkwt > 0 ? <Badge tone="amber">PKWT</Badge> : null}
+                    <span className="text-xs text-ink-muted">
+                      {s.endDate} · {s.masaKerjaTahun.toFixed(1)} {u("tahunSatuan")}
+                    </span>
+                    <span className="ml-auto text-sm">
+                      <strong className="tabular-nums">{formatIDR(s.total)}</strong>
+                    </span>
+                  </div>
+                  {/* Rinciannya selalu terbuka: pesangon adalah angka yang
+                      diperselisihkan, dan yang menyelesaikan perselisihan
+                      adalah cara sampainya, bukan totalnya. */}
+                  <Table className="mt-3">
+                    <Thead>
+                      <Tr>
+                        <Th>{u("komponen")}</Th>
+                        <Th>{u("dasarPerhitungan")}</Th>
+                        <Th numeric>{u("jumlah")}</Th>
+                      </Tr>
+                    </Thead>
+                    <tbody>
+                      <Tr>
+                        <Td label={u("komponen")}>{u("uangPesangon")}</Td>
+                        <Td label={u("dasarPerhitungan")}>
+                          {s.bulanUp} × {s.pengaliUp} × {formatIDR(s.upahSebulan)}
+                        </Td>
+                        <Td label={u("jumlah")} numeric>
+                          {formatIDR(s.up)}
+                        </Td>
+                      </Tr>
+                      <Tr>
+                        <Td label={u("komponen")}>{u("uangPenghargaan")}</Td>
+                        <Td label={u("dasarPerhitungan")}>
+                          {s.bulanUpmk} × {s.pengaliUpmk} × {formatIDR(s.upahSebulan)}
+                        </Td>
+                        <Td label={u("jumlah")} numeric>
+                          {formatIDR(s.upmk)}
+                        </Td>
+                      </Tr>
+                      <Tr>
+                        <Td label={u("komponen")}>{u("uangPenggantianCuti")}</Td>
+                        <Td label={u("dasarPerhitungan")}>
+                          {s.sisaCutiHari} {u("hariSatuan")} × {formatIDR(Math.round(s.upahSebulan / 25))}
+                        </Td>
+                        <Td label={u("jumlah")} numeric>
+                          {formatIDR(s.uphCuti)}
+                        </Td>
+                      </Tr>
+                      {s.uangPisah > 0 ? (
+                        <Tr>
+                          <Td label={u("komponen")}>{u("uangPisah")}</Td>
+                          <Td label={u("dasarPerhitungan")}>{u("diaturPerjanjian")}</Td>
+                          <Td label={u("jumlah")} numeric>
+                            {formatIDR(s.uangPisah)}
+                          </Td>
+                        </Tr>
+                      ) : null}
+                      {s.kompensasiPkwt > 0 ? (
+                        <Tr>
+                          <Td label={u("komponen")}>{u("kompensasiPkwtLabel")}</Td>
+                          <Td label={u("dasarPerhitungan")}>
+                            {s.masaKerjaTahun.toFixed(2)} × {formatIDR(s.upahSebulan)}
+                          </Td>
+                          <Td label={u("jumlah")} numeric>
+                            {formatIDR(s.kompensasiPkwt)}
+                          </Td>
+                        </Tr>
+                      ) : null}
+                    </tbody>
+                  </Table>
+                </div>
+              ))}
             </div>
           )}
         </CardBody>

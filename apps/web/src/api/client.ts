@@ -72,6 +72,7 @@ import type {
   ApiPayrollRun,
   ApiCommissionReport,
   ApiPph22,
+  ApiSeverance,
   ApiSalesTargetReport,
   ApiCommissionScheme,
   ApiOvertime,
@@ -80,6 +81,7 @@ import type {
   ContractAmendmentInput,
   RenewContractInput,
   Pph22Input,
+  SeveranceInput,
   SalesTargetInput,
   OvertimeInput,
   RunThrInput,
@@ -652,6 +654,9 @@ export const api = {
       joinDate?: string;
       departmentId?: string;
       managerId?: string;
+      /** Fase 47 — PKWT/PKWTT dan tanggal berakhirnya kontrak bila PKWT. */
+      employmentType?: "pkwtt" | "pkwt";
+      contractEndDate?: string;
     },
   ) => request<{ ok: true; id: string }>("POST", `/api/tenants/${tenantId}/employees`, input),
   updateEmployee: (tenantId: string, id: string, input: Record<string, unknown>) =>
@@ -669,6 +674,15 @@ export const api = {
       "POST",
       `/api/tenants/${tenantId}/payroll-runs/${id}/void`,
       date ? { date } : {},
+    ),
+  /** Pesangon & kompensasi PKWT (Fase 47). */
+  severanceList: (tenantId: string) =>
+    request<{ items: ApiSeverance[] }>("GET", `/api/tenants/${tenantId}/severance`),
+  createSeverance: (tenantId: string, input: SeveranceInput) =>
+    request<{ ok: true; id: string; docNo: string; total: number; kompensasiPkwt: number }>(
+      "POST",
+      `/api/tenants/${tenantId}/severance`,
+      input,
     ),
   /** PPh 22 dipungut pihak lain (Fase 46) — kredit pajak, bukan beban. */
   pph22List: (tenantId: string) =>
