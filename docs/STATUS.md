@@ -3,9 +3,111 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 25 Agustus 2026
+**Terakhir diperbarui:** 28 Agustus 2026
 
-## Yang baru saja selesai — Fase 39: situs dibaca mesin, dan layarnya bisa dilihat
+## Yang baru saja selesai — Fase 42–48: ERPindo berhenti berat sebelah ke keuangan
+
+Anda menyampaikan satu hal yang tepat: aplikasi ini terlalu condong ke sisi
+keuangan, padahal ruang lingkup ERP jauh lebih luas. Sepuluh pekerjaan berikut
+menutup jarak itu, dan semuanya sudah masuk ke aplikasi.
+
+### Dua kewajiban hukum yang sebelumnya TIDAK ADA sama sekali
+
+Ini bagian yang paling perlu Anda ketahui, karena keduanya bukan pilihan.
+
+**THR (Tunjangan Hari Raya).** Kewajiban menurut Permenaker 6/2016, dan
+perusahaan yang tidak membayarnya kena denda 5% yang **tidak menggugurkan
+kewajiban pokoknya**. Sebelum ini ERPindo tidak bisa menghitungnya. Sekarang
+bisa, lengkap dengan hal-hal yang paling sering salah: dasarnya upah pokok
+**ditambah tunjangan tetap** (bukan upah pokok saja), masa kerja dihitung
+dalam bulan penuh, dan pajaknya dihitung sebagai selisih — bukan tarif dikali
+THR, yang selalu kurang potong.
+
+**Lembur berumus (PP 35/2021).** Sebelumnya lembur hanyalah angka rupiah yang
+diketik tangan; rumusnya hidup di kepala orang yang mengetik, dan kesalahannya
+tidak bisa diperiksa siapa pun — termasuk oleh karyawan yang dirugikan.
+Sekarang Anda mengisi **jam dan jenis hari**, dan aplikasi yang menghitung
+memakai tangga pengali peraturannya.
+
+**Pesangon & kompensasi PKWT.** Pesangon adalah kewajiban yang paling mahal
+bila salah hitung. Pengalinya berbeda menurut alasan berakhirnya hubungan
+kerja: pensiun 1,75 kali, meninggal dunia 2 kali, mengundurkan diri tidak
+berhak sama sekali. Layarnya menampilkan **rinciannya**, bukan satu angka
+total — karena yang menyelesaikan perselisihan bukan totalnya, melainkan cara
+sampainya.
+
+### Sisi penjualan yang selama ini kosong
+
+- **Komisi sales.** Faktur sekarang menyimpan milik siapa penjualan itu. Anda
+  menentukan dasarnya (omzet sebelum PPN atau laba kotor) dan kapan komisinya
+  lahir. Bakunya menunggu **pelanggan benar-benar membayar** — membayar komisi
+  atas faktur yang belum tentu tertagih adalah cara klasik kehilangan uang.
+- **Target & prakiraan penjualan.** Target per sales per bulan, dengan
+  realisasi yang dihitung dari faktur memakai dasar yang **sama persis** dengan
+  komisi, supaya dua angka di layar yang sama tidak pernah berselisih.
+  Prakiraannya ditimbang per tahap, dan peluang tiap tahap ditampilkan apa
+  adanya supaya Anda bisa menilai sendiri apakah cocok dengan pengalaman Anda.
+
+### Kontrak yang berjalan bertahun-tahun
+
+Kenaikan harga tahunan kini otomatis dan **berbunga majemuk** (5% dari harga
+tahun sebelumnya, sebagaimana kontrak Indonesia lazim ditulis), dihitung sejak
+ulang tahun kontrak. Harga yang disepakati awal tetap tersimpan apa adanya,
+sehingga pelanggan bisa memeriksa sendiri kenaikannya. Kontrak yang habis masa
+berlakunya tidak lagi berhenti diam-diam, dan setiap perubahan meninggalkan
+jejak adendum.
+
+### Pajak & rantai pasok
+
+- **PPh 22** yang dipungut dari Anda kini tercatat sebagai **kredit pajak**,
+  bukan beban. Salah mencatatnya membuat perusahaan membayar pajaknya dua kali.
+- **Bahan pengisian e-Bupot** bisa diunduh per masa. Perlu ditegaskan: itu
+  **bahan pengisian, bukan berkas impor resmi DJP** — format impornya berubah
+  mengikuti aturan dan tidak bisa dijamin dari sini.
+- **Konsinyasi** kini didukung sebagai gudang bertanda: barang yang dititipkan
+  di toko mitra tetap milik Anda sampai terjual.
+- **Dropship** kini bisa: pemasok mengirim langsung ke pelanggan, stok tidak
+  digerakkan, tetapi harga pokoknya tetap tercatat.
+
+### Dua kesalahan akuntansi yang ditemukan di jalan
+
+Yang ini perlu Anda ketahui apa adanya. Saat menyiapkan pekerjaan terakhir,
+ditemukan **dua kode akun yang bertabrakan** — dua modul memakai kode yang sama
+untuk maksud berbeda, sehingga angkanya mendarat di akun milik modul lain:
+
+- pungutan PPh 22 masuk ke **Persediaan** (kesalahan yang dibuat pada pekerjaan
+  ini juga, dan sudah diperbaiki);
+- beban PPh Final masuk ke akun **penyerapan produksi** — kesalahan yang sudah
+  ada sejak lama dan tidak pernah terlihat.
+
+Yang kedua juga bisa **menghentikan pembaruan basis data** bagi perusahaan yang
+sempat memakai PPh Final lebih dulu. Keduanya sudah diperbaiki, dan sekarang
+ada pemeriksaan otomatis yang menutup seluruh kelasnya.
+
+Satu hal yang **sengaja tidak** dilakukan: jurnal yang sudah diposting tidak
+ditulis ulang. Itu catatan sejarah, dan memindahkannya diam-diam akan mengubah
+laporan periode yang mungkin sudah Anda tutup. Bila perusahaan Anda sempat
+mencatat PPh Final, angkanya perlu direklasifikasi lewat Jurnal Umum sebagai
+keputusan sadar Anda.
+
+### Angka pemeriksaan
+
+Seluruh pekerjaan di atas dijaga pemeriksaan otomatis yang jumlahnya hanya
+boleh naik:
+
+| Pemeriksaan | Sebelum | Sekarang |
+| --- | --- | --- |
+| Uji unit | 923 | **1.113** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.299** |
+| Simulasi klik di peramban nyata | 431 | **474** |
+
+Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
+ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
+kode program yang salah dibaca oleh alat pemeriksanya. Utang sesungguhnya 53.
+Angka yang salah selama berbulan-bulan membuat pekerjaan terlihat lebih
+tertinggal daripada keadaannya.
+
+## Sebelumnya — Fase 39: situs dibaca mesin, dan layarnya bisa dilihat
 
 Empat pekerjaan, semuanya berangkat dari permintaan Anda.
 

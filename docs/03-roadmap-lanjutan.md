@@ -149,7 +149,8 @@ notifikasi, kartu stok.
 | ✅ **Picking multi-gudang** — satu faktur mengambil stok dari beberapa gudang sekaligus (Fase 20g; HPP dihitung per gudang asal) | S | S | – |
 | ✅ **Satuan ganda** — beli per dus, jual per pcs, konversi otomatis saat transaksi (Fase 21c: `konversiSatuanBaris()` di `packages/shared/src/commerce.ts`, `resolveUom()` di `lib/commercePosting.ts`, migrasi `0042_uom_baris_transaksi`). **Belum** di POS (kasir memindai per satuan dasar) dan **belum** di penawaran CRM | T | T | – |
 | ✅ **Reorder point otomatis** — ambang dihitung dari kecepatan jual, bukan angka statis (Fase 20h: `titikPesan = rata-rata harian × (lead time + cadangan)`) | S | S | – |
-| Stok konsinyasi (barang titipan terpisah dari milik sendiri) | R | T | – |
+| ✅ **Stok konsinyasi** — Fase 48b: gudang bertanda `is_consignment` + mitra penitipan. Dimodelkan sebagai GUDANG, bukan mekanisme baru: barang titipan masih milik kita sampai terjual, jadi seluruh mesin yang ada (beli ke sana, pindah ke sana, jual dari sana) langsung berlaku | R | T | – |
+| ✅ **Dropship** — Fase 48b: `invoices.is_dropship`; stok TIDAK digerakkan karena barangnya tak pernah lewat gudang kita, tetapi HPP tetap diakui dari `invoice_lines.unit_cost` dengan lawan **Utang Usaha**, bukan Persediaan | S | S | – |
 
 ## 6. Akuntansi
 
@@ -225,6 +226,8 @@ otomatis), PPh 21 TER di payroll.
 | ✅ **PPh unifikasi** — rekap PPh 21/23/4(2) yang dipotong per masa + bukti potong sederhana  — Fase 20d, `routes/tax.ts` `pph-unifikasi` | T | T | – |
 | **Integrasi Coretax API langsung** (lapor tanpa unduh-unggah) — menunggu DJP membuka API publik & regulasinya; pantau | T | T | – |
 | ✅ **Pengingat kalender pajak Indonesia via notifikasi** — Fase 22e: `tenggatMasaPajak()`, `tenggatSptTahunan()`, `geserAkhirPekan()` di `packages/shared/src/accounting.ts`; `GET /tax/calendar` (baca-saja) di `apps/api/src/routes/tax.ts` + tab **Kalender pajak** di `apps/web/src/pages/pajak.tsx`; tenggatnya juga masuk lonceng notifikasi (`routes/tenants.ts`). Hanya kewajiban yang **berlaku** bagi tenant yang ditampilkan (profil PKP/UMKM/badan; 'punya karyawan' dibaca dari data). **Hari libur nasional belum diperhitungkan** — dinyatakan di layar, dan arah pergeserannya dijaga supaya tenggat yang tertera tidak pernah lebih lambat dari yang sebenarnya | S | R | – |
+| ✅ **PPh 22 dipungut pihak lain** — Fase 46: `tax_pph22`, diposting ke akun ASET `1-1410 Uang Muka PPh 22` (kredit pajak, bukan beban). Tidak punya alur "setor": yang menyetorkannya pemungutnya | S | S | – |
+| ✅ **Bahan pengisian e-Bupot Unifikasi (CSV per masa)** — Fase 46, `GET /tax/e-bupot`. **Bahan pengisian, bukan berkas impor resmi DJP** — formatnya berubah mengikuti aturan dan tidak dijanjikan cocok | S | S | – |
 | Penjelasan aturan pajak kontekstual di Asisten AI (mis. "kapan pakai kode 04?") — perluas grounding | S | R | ✓ |
 
 ## 10. HR & Penggajian
@@ -243,6 +246,9 @@ PPh 21 TER + BPJS (batas upah JP 2026), slip gaji, jurnal beban gaji otomatis.
 | ✅ **Bukti potong 1721-A1 tahunan per karyawan** — `routes/tax.ts` (form 1721-A1) | T | S | – |
 | ✅ **Absensi sederhana (hadir/izin/cuti) yang memengaruhi komponen gaji** — `routes/payroll.ts` `/attendance` (Fase 12b) | S | T | – |
 | ✅ **Kasbon/pinjaman karyawan dengan cicilan otomatis memotong gaji** — `routes/payroll.ts` (kasbon + cicilan potong gaji) | S | S | – |
+| ✅ **THR (Permenaker 6/2016)** — proporsional, dasar upah + tunjangan tetap, PPh 21 sebagai selisih (Fase 43a) | T | S | – |
+| ✅ **Lembur berumus (PP 35/2021)** — jam & jenis hari, tangga pengali, masuk bruto (Fase 43b) | T | S | – |
+| ✅ **Pesangon & kompensasi PKWT (PP 35/2021)** — tabel UP & UPMK, pengali per alasan PHK (Fase 47) | T | S | – |
 | Portal karyawan read-only (lihat slip sendiri) — peran baru "employee" | S | T | – |
 
 ## 11. Aset Tetap
@@ -276,6 +282,8 @@ pelanggan, quotation → faktur sekali klik.
 | Ide | Dampak | Usaha | AI |
 |---|:---:|:---:|:---:|
 | ✅ **Papan kanban funnel drag-and-drop** — `pages/crm.tsx` (`draggable` + `onDrop`) | S | S | – |
+| ✅ **Target penjualan per sales + prakiraan tertimbang dari pipeline** — `routes/crm.ts` `/sales-targets`, `forecastTertimbang()` di `packages/shared/src/crm.ts` (Fase 44b). Realisasi memakai dasar yang sama dengan komisi supaya dua angka di layar tidak berselisih | T | S | – |
+| ✅ **Komisi sales berskema** — `invoices.salesperson_id` + `commission_schemes`, dasar omzet/laba dan pemicu faktur/pelunasan (Fase 44a) | T | S | – |
 | Skor prioritas lead (AI dari nilai, umur, aktivitas) | S | S | ✓ |
 | Draf pesan follow-up WA/email dihasilkan AI dari riwayat aktivitas | S | R | ✓ |
 | ✅ **Form penangkap lead publik** (embed di landing/IG bio) langsung masuk CRM — `routes/leadForm.ts` (`POST /api/form/lead/:slug`), token per tenant di Pengaturan CRM, cuplikan HTML siap salin di `pages/crm.tsx` (Fase 21e). **Koreksi**: baris ini dulu menunjuk `routes/demo.ts`, padahal itu form ERPindo sendiri di control-plane — bukan form milik tenant | T | S | – |
@@ -333,7 +341,7 @@ selisih kurs otomatis saat pelunasan.
 pengingat, produk jasa tanpa stok.
 
 **Quick wins (≤ 1 hari):**
-- Kenaikan harga terjadwal pada kontrak (efektif periode berikutnya).
+- ✅ Kenaikan harga terjadwal pada kontrak — Fase 45, eskalasi tahunan berbunga majemuk.
 - Rekap MRR (pendapatan berulang bulanan) di halaman kontrak.
 
 **Pengembangan lanjutan:**
@@ -341,6 +349,7 @@ pengingat, produk jasa tanpa stok.
 | Ide | Dampak | Usaha | AI |
 |---|:---:|:---:|:---:|
 | ✅ **Prorata saat mulai/berhenti di tengah periode** — Fase 20k, `hitungProrata()` di `packages/shared/src/core.ts` | S | S | – |
+| ✅ **Eskalasi harga tahunan, perpanjangan otomatis & adendum** — Fase 45: `hargaTereskalasi()` berbunga majemuk berjangkar ulang tahun kontrak, `contract_amendments` mencatat tiap perubahan. Harga dasar TIDAK pernah ditimpa, jadi kesepakatan awal tetap terbaca | T | S | – |
 | Email/WA faktur otomatis ke pelanggan saat kontrak menerbitkan faktur | T | S | – |
 | Analisis churn kontrak (kontrak berhenti per bulan + alasannya) | R | S | – |
 
