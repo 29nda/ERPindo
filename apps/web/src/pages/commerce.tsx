@@ -65,6 +65,8 @@ type DraftLine = {
   trackExpiry: boolean;
   qty: string;
   unitPrice: string;
+  /** Harga pokok per satuan — hanya dipakai pada faktur dropship (Fase 48b). */
+  unitCost: string;
   discountPct: string;
   lotNo: string;
   expiryDate: string;
@@ -100,6 +102,7 @@ const emptyLine = (): DraftLine => ({
   trackExpiry: false,
   qty: "1",
   unitPrice: "",
+  unitCost: "",
   discountPct: "",
   lotNo: "",
   expiryDate: "",
@@ -219,6 +222,9 @@ export function CommercePage({ mode }: { mode: Mode }) {
   // Sales pemilik penjualan (Fase 44a). Hanya untuk faktur penjualan: pembelian
   // tidak berkomisi, dan kasir memang tidak punya pemilik penjualan.
   const [salespersonId, setSalespersonId] = useState("");
+  // Dropship (Fase 48b): barangnya dikirim pemasok langsung ke pelanggan, jadi
+  // stok tidak digerakkan. Hanya untuk faktur penjualan.
+  const [dropship, setDropship] = useState(false);
   const [currency, setCurrency] = useState("IDR");
   const [exchangeRate, setExchangeRate] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
@@ -420,6 +426,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
           trackExpiry: false,
           qty: String(l.qty / faktor),
           unitPrice: String(l.unitPrice),
+          unitCost: "",
           discountPct: l.discountPct > 0 ? String(l.discountPct) : "",
           lotNo: "",
           expiryDate: "",
@@ -452,6 +459,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
       warehouseId: warehouseId || warehouses[0]?.id || "",
       ...(projectId ? { projectId } : {}),
       ...(mode === "sale" && salespersonId ? { salespersonId } : {}),
+      ...(mode === "sale" && dropship ? { isDropship: true } : {}),
       ...(isForeign ? { currency, exchangeRate: Number(exchangeRate) || 0 } : {}),
       ...(mode === "sale" ? kustom.payload() : {}),
       lines: lines
@@ -460,6 +468,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
           productId: l.productId,
           qty: Number(l.qty) || 0,
           unitPrice: Number(l.unitPrice) || 0,
+          ...(mode === "sale" && dropship ? { unitCost: Number(l.unitCost) || 0 } : {}),
           ...(l.uom === "besar" ? { uom: "besar" as const } : {}),
           ...(Number(l.discountPct) > 0 ? { discountPct: Number(l.discountPct) } : {}),
           ...(mode === "purchase" && l.lotNo ? { lotNo: l.lotNo } : {}),
@@ -583,6 +592,22 @@ export function CommercePage({ mode }: { mode: Mode }) {
                   </Select>
                 </div>
               ) : null}
+              {mode === "sale" ? (
+                <div className="flex items-end">
+                  <label className="flex items-center gap-2 text-sm" htmlFor="doc-dropship">
+                    <input
+                      id="doc-dropship"
+                      type="checkbox"
+                      checked={dropship}
+                      onChange={(e) => setDropship(e.target.checked)}
+                    />
+                    {u("dropship")}
+                  </label>
+                </div>
+              ) : null}
+              {mode === "sale" && dropship ? (
+                <p className="text-xs text-ink-muted sm:col-span-2">{u("descDropship")}</p>
+              ) : null}
               {mode === "sale" && salesPeople.length > 0 ? (
                 <div>
                   <Label htmlFor="doc-sales">{u("salesOpsional")}</Label>
@@ -685,6 +710,21 @@ export function CommercePage({ mode }: { mode: Mode }) {
                             setLine(i, { unitPrice: e.target.value, hargaDisentuh: true })
                           }
                         />
+                        {/* Dropship (Fase 48b): harga pokoknya diisi tangan
+                            karena barangnya tidak pernah masuk persediaan
+                            kita — harga rata-rata persediaan tidak bermakna
+                            untuk barang yang tidak pernah kita simpan. */}
+                        {mode === "sale" && dropship ? (
+                          <Input
+                            className="mt-1"
+                            aria-label={`Harga pokok baris ${i + 1}`}
+                            type="number"
+                            min={0}
+                            placeholder={u("hargaPokokBaris")}
+                            value={line.unitCost}
+                            onChange={(e) => setLine(i, { unitCost: e.target.value })}
+                          />
+                        ) : null}
                         {/* Fase 23a: tanpa lencana ini, harga yang terisi
                             sendiri terlihat seperti harga dasar yang salah —
                             tak ada apa pun di layar yang menjelaskan asalnya. */}

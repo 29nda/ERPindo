@@ -2664,6 +2664,30 @@ try {
   await page.waitForTimeout(200);
   check("F61 alur pesangon bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
+  // F62 — Fase 48b: dropship. Yang diperiksa adalah bahwa medan HARGA POKOK
+  // baru muncul setelah dropship dicentang. Tanpa harga pokok, HPP-nya nol dan
+  // penjualan itu terlihat berlaba 100% — angka yang meyakinkan dan salah.
+  await gotoRoute("/app/penjualan", 900);
+  // Editor faktur hidup di dalam Lembar sejak Fase 38t — isinya baru ada di DOM
+  // setelah lembarnya dibuka.
+  await bukaLembar(page, "Faktur penjualan baru");
+  check("F62 penanda dropship tersedia di faktur penjualan", (await page.locator("#doc-dropship").count()) === 1);
+  check(
+    "F62 medan harga pokok BELUM tampil sebelum dropship dicentang",
+    (await page.locator('[aria-label="Harga pokok baris 1"]').count()) === 0,
+  );
+  await page.locator("#doc-dropship").check();
+  await page.waitForTimeout(400);
+  check(
+    "F62 medan harga pokok muncul setelah dropship dicentang",
+    (await page.locator('[aria-label="Harga pokok baris 1"]').count()) === 1,
+  );
+  await page.locator("#doc-dropship").uncheck();
+  await page.waitForTimeout(300);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  check("F62 alur dropship bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/app/alat", 700);
   const alatBody = await page.innerText("body");
   check("F19 kalkulator render (HPP + hasil Rupiah)", alatBody.includes("Harga Pokok Produksi") && /Rp\s?[1-9]/.test(alatBody.replace(/\u00A0/g, " ")));

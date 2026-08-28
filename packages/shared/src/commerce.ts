@@ -24,6 +24,13 @@ export const commerceLineSchema = z.object({
   unitPrice: commerceAmountSchema,
   /** Diskon per baris dalam persen (0–100); nilai baris = qty × harga × (1 − diskon/100). */
   discountPct: z.number().min(0, "Diskon minimal 0%").max(100, "Diskon maksimal 100%").optional(),
+  /**
+   * Harga pokok per satuan (Fase 48b) — hanya dibaca pada faktur dropship.
+   *
+   * Tidak bisa diambil dari harga rata-rata persediaan: pada dropship barangnya
+   * tidak pernah masuk persediaan kita, jadi rata-ratanya tidak bermakna.
+   */
+  unitCost: z.number().int().min(0).max(1_000_000_000_000).optional(),
   /** Untuk produk berpelacakan kedaluwarsa (pembelian): nomor lot & tanggal exp. */
   lotNo: z.string().trim().max(50).optional(),
   expiryDate: z
@@ -72,6 +79,12 @@ export const createInvoiceSchema = z.object({
    * menolak transaksi yang sah.
    */
   salespersonId: z.string().optional(),
+  /**
+   * Dropship (Fase 48b): pemasok mengirim langsung ke pelanggan, barangnya
+   * tidak pernah melewati gudang kita. Stok TIDAK digerakkan; HPP tetap diakui
+   * dari `unitCost` tiap baris, dengan lawan Utang Usaha alih-alih Persediaan.
+   */
+  isDropship: z.boolean().optional(),
   /** Mata uang faktur (default IDR). Bila valas, nilai baris dalam mata uang itu. */
   currency: z.string().trim().length(3).toUpperCase().optional(),
   /** Kurs ke IDR saat posting (IDR per 1 unit valas). Wajib > 0 bila valas. */

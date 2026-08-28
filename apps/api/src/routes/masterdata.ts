@@ -334,6 +334,15 @@ export const masterDataRoutes = new Hono<AppEnv>()
       schema: warehouseSchema,
       uniqueField: { column: "code", input: "Kode" },
       searchColumns: ["code", "name"],
-      toRow: (w) => ({ code: w.code, name: w.name, address: w.address || null }),
+      toRow: (w) => ({
+        code: w.code,
+        name: w.name,
+        address: w.address || null,
+        is_consignment: w.isConsignment ? 1 : 0,
+        // `?? null` bukan `|| null`: string kosong dan undefined sama-sama
+        // berarti tanpa mitra, tetapi menuliskannya eksplisit menjaga niatnya
+        // terbaca (pelajaran yang sama seperti batas kredit di Fase 42a).
+        partner_contact_id: w.partnerContactId ?? null,
+      }),
     }),
   );
