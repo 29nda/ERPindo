@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { JENIS_HARI_LEMBUR, PTKP_STATUSES, type JenisHariLembur, type PtkpStatus } from "./payroll";
-import { amountSchema } from "./accounting";
+import { amountSchema, KOMISI_DASAR, KOMISI_PEMICU, type KomisiDasar, type KomisiPemicu } from "./accounting";
 
 // ---------------------------------------------------------------------------
 // HR & Payroll (Fase 2o): karyawan, penggajian bulanan (PPh 21 TER + BPJS)
@@ -17,6 +17,12 @@ export const employeeSchema = z.object({
   /** Struktur organisasi (Fase 8c) — opsional, kompatibel mundur. */
   departmentId: z.string().optional(),
   managerId: z.string().optional(),
+  /**
+   * Skema komisi (Fase 44a) — opsional. Karyawan non-sales memang tidak punya,
+   * dan mewajibkannya akan memaksa memberi skema kepada orang yang tidak
+   * menjual apa pun.
+   */
+  commissionSchemeId: z.string().optional(),
 });
 export type EmployeeInput = z.infer<typeof employeeSchema>;
 
@@ -71,6 +77,9 @@ export type ApiEmployee = {
   departmentName: string | null;
   managerId: string | null;
   managerName: string | null;
+  /** Skema komisi (Fase 44a) — kosong berarti tidak berkomisi. */
+  commissionSchemeId: string | null;
+  commissionSchemeName: string | null;
 };
 
 export type ApiPayslip = {
@@ -142,6 +151,61 @@ export type ApiThrRun = {
   slips: ApiThrSlip[];
   voidedAt?: string | null;
   voidJournalNo?: string | null;
+};
+
+/** Skema komisi sales (Fase 44a). Tarif dalam basis poin: 250 = 2,5%. */
+export const commissionSchemeSchema = z.object({
+  name: z.string().trim().min(2, "Nama skema minimal 2 karakter").max(80),
+  dasar: z.enum(KOMISI_DASAR),
+  pemicu: z.enum(KOMISI_PEMICU),
+  rateBp: z.number().int().min(0).max(10_000),
+});
+export type CommissionSchemeInput = z.infer<typeof commissionSchemeSchema>;
+
+export type ApiCommissionScheme = {
+  id: string;
+  name: string;
+  dasar: KomisiDasar;
+  pemicu: KomisiPemicu;
+  rateBp: number;
+  isActive: boolean;
+  /** Jumlah karyawan yang memakai skema ini. */
+  dipakai: number;
+};
+
+/** Satu baris laporan komisi: satu faktur milik satu sales. */
+export type ApiCommissionLine = {
+  invoiceId: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  contactName: string;
+  subtotal: number;
+  cogs: number;
+  total: number;
+  paidAmount: number;
+  returnedAmount: number;
+  voidedAt: string | null;
+  dasarNilai: number;
+  porsi: number;
+  amount: number;
+};
+
+export type ApiCommissionReport = {
+  from: string;
+  to: string;
+  rows: {
+    salespersonId: string;
+    salespersonName: string;
+    schemeName: string | null;
+    dasar: KomisiDasar | null;
+    pemicu: KomisiPemicu | null;
+    rateBp: number;
+    total: number;
+    lines: ApiCommissionLine[];
+  }[];
+  total: number;
+  /** Faktur berpenjual tetapi salesnya belum punya skema — tidak berkomisi. */
+  tanpaSkema: number;
 };
 
 /** Catat lembur satu karyawan pada satu tanggal (Fase 43b). */

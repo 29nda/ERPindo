@@ -583,10 +583,14 @@ export async function executeInvoice(
 
   await db
     .prepare(
+      // `salesperson_id` & `cogs_amount` (Fase 44a): keduanya melekat pada
+      // fakturnya, bukan dihitung ulang belakangan. HPP memang sudah masuk
+      // jurnal, tetapi membacanya kembali dari jurnal untuk tiap faktur lambat
+      // dan rapuh — dan skema komisi berdasar laba membutuhkannya per faktur.
       `INSERT INTO invoices (id, invoice_no, contact_id, invoice_date, due_date, status, subtotal,
                              tax_rate, tax_amount, total, paid_amount, journal_entry_id, created_by,
-                             currency, exchange_rate, foreign_total)
-       VALUES (?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+                             currency, exchange_rate, foreign_total, salesperson_id, cogs_amount)
+       VALUES (?, ?, ?, ?, ?, 'posted', ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       invoiceId,
@@ -603,6 +607,8 @@ export async function executeInvoice(
       cur.currency,
       cur.rate,
       foreignTotal,
+      input.salespersonId ?? null,
+      totalCogs,
     )
     .run();
   for (const line of idrLines) {

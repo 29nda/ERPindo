@@ -193,6 +193,17 @@ export function CommercePage({ mode }: { mode: Mode }) {
   const activeProjects = (projectsQuery.data?.projects ?? []).filter(
     (p) => p.status !== "completed"
   );
+  // Hanya karyawan aktif BERSKEMA KOMISI yang ditawarkan (Fase 44a). Menawarkan
+  // seluruh karyawan akan membuat faktur bisa dimiliki orang yang tidak
+  // berkomisi — datanya tersimpan, laporannya tidak pernah menghitungnya, dan
+  // tidak ada yang tahu kenapa.
+  const employeesQuery = useQuery({
+    queryKey: ["employees", tenant.tenantId],
+    queryFn: () => api.employees(tenant.tenantId),
+  });
+  const salesPeople = (employeesQuery.data?.employees ?? []).filter(
+    (e) => e.isActive && e.commissionSchemeId,
+  );
   const currenciesQuery = useQuery({
     queryKey: ["currencies", tenant.tenantId],
     queryFn: () => api.currencies(tenant.tenantId),
@@ -205,6 +216,9 @@ export function CommercePage({ mode }: { mode: Mode }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [taxRate, setTaxRate] = useState<0 | 11 | 12>(11);
   const [projectId, setProjectId] = useState("");
+  // Sales pemilik penjualan (Fase 44a). Hanya untuk faktur penjualan: pembelian
+  // tidak berkomisi, dan kasir memang tidak punya pemilik penjualan.
+  const [salespersonId, setSalespersonId] = useState("");
   const [currency, setCurrency] = useState("IDR");
   const [exchangeRate, setExchangeRate] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
@@ -437,6 +451,7 @@ export function CommercePage({ mode }: { mode: Mode }) {
       taxRate,
       warehouseId: warehouseId || warehouses[0]?.id || "",
       ...(projectId ? { projectId } : {}),
+      ...(mode === "sale" && salespersonId ? { salespersonId } : {}),
       ...(isForeign ? { currency, exchangeRate: Number(exchangeRate) || 0 } : {}),
       ...(mode === "sale" ? kustom.payload() : {}),
       lines: lines
@@ -563,6 +578,23 @@ export function CommercePage({ mode }: { mode: Mode }) {
                     {activeProjects.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.code} · {p.name}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ) : null}
+              {mode === "sale" && salesPeople.length > 0 ? (
+                <div>
+                  <Label htmlFor="doc-sales">{u("salesOpsional")}</Label>
+                  <Select
+                    id="doc-sales"
+                    value={salespersonId}
+                    onChange={(e) => setSalespersonId(e.target.value)}
+                  >
+                    <option value="">{u("tanpaSales")}</option>
+                    {salesPeople.map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.name}
                       </option>
                     ))}
                   </Select>

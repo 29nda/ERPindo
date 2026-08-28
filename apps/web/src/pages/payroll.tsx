@@ -3,17 +3,21 @@ import {
   type ApiEmployee,
   type ApiLeaveRequest,
   type ApiPayrollRun,
+  bpKePersen,
+  type ApiCommissionScheme,
   type ApiOvertime,
   type ApiThrRun,
   type HariRaya,
   type JenisHariLembur,
+  type KomisiDasar,
+  type KomisiPemicu,
   type LeaveType,
   HARI_RAYA,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isi, namaHariRaya, useLang } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
-import { CalendarDays, Clock, Gift, HandCoins, UserPlus, Users } from "lucide-react";
+import { CalendarDays, Clock, Gift, HandCoins, Percent, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { api, formatIDR } from "../api/client";
 import { Lembar } from "../components/kerangka";
@@ -42,9 +46,11 @@ import {
 import { useWorkspace } from "./app";
 
 const thisMonth = () => new Date().toISOString().slice(0, 7);
+/** Tanggal ISO `YYYY-MM-DD` yang berbentuk sah — dipakai menahan kueri rentang. */
+const tanggalSah = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 const today = () => new Date().toISOString().slice(0, 10);
 type AccountRow = { id: string; code: string; name: string; type: string };
-type PayrollTab = "karyawan" | "gaji" | "thr" | "komponen" | "kasbon" | "cuti" | "departemen";
+type PayrollTab = "karyawan" | "gaji" | "thr" | "komisi" | "komponen" | "kasbon" | "cuti" | "departemen";
 
 export function PayrollPage() {
   const u = useUi();
@@ -165,6 +171,7 @@ export function PayrollPage() {
           { key: "karyawan", label: u("karyawan") },
           { key: "gaji", label: u("tabGaji") },
           { key: "thr", label: u("tabThr") },
+          { key: "komisi", label: u("komisi") },
           { key: "komponen", label: u("komponen") },
           { key: "kasbon", label: u("tabKasbon") },
           { key: "cuti", label: u("tabCuti") },
@@ -448,6 +455,8 @@ export function PayrollPage() {
       {tab === "thr" ? (
         <ThrCard tenantId={tenant.tenantId} isAdmin={isAdmin} cashAccounts={cashAccounts} />
       ) : null}
+
+      {tab === "komisi" ? <CommissionCard tenantId={tenant.tenantId} isAdmin={isAdmin} /> : null}
 
       {tab === "komponen" && isAdmin ? (
         <div className="space-y-4">
@@ -1436,7 +1445,7 @@ function ThrCard({
   const preview = useQuery({
     queryKey: ["thr-preview", tenantId, payDate],
     queryFn: () => api.thrPreview(tenantId, payDate),
-    enabled: /^\d{4}-\d{2}-\d{2}$/.test(payDate),
+    enabled: tanggalSah(payDate),
   });
   const runsQuery = useQuery({
     queryKey: ["thr-runs", tenantId],
@@ -1896,5 +1905,249 @@ function OvertimeCard({
         )}
       </CardBody>
     </Card>
+  );
+}
+
+/**
+ * Komisi sales (Fase 44a).
+ *
+ * Laporannya dihitung saat dibaca, bukan disimpan sebagai angka jadi: retur,
+ * pelunasan, dan pembatalan faktur terus mengubah komisi yang layak dibayar,
+ * dan angka jadi akan basi begitu salah satunya terjadi.
+ */
+function CommissionCard({ tenantId, isAdmin }: { tenantId: string; isAdmin: boolean }) {
+  const u = useUi();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    name: "",
+    dasar: "omzet" as KomisiDasar,
+    pemicu: "pelunasan" as KomisiPemicu,
+    persen: "2,5",
+  });
+  const [galat, setGalat] = useState<string | null>(null);
+  const awalBulan = `${thisMonth()}-01`;
+  const [dari, setDari] = useState(awalBulan);
+  const [sampai, setSampai] = useState(today());
+
+  const schemesQuery = useQuery({
+    queryKey: ["commission-schemes", tenantId],
+    queryFn: () => api.commissionSchemes(tenantId),
+  });
+  // Rentang diperiksa sebagai nilai bernama, bukan di dalam `enabled:` —
+  // syaratnya ada tiga, dan tiga syarat yang berdesakan di satu baris adalah
+  // tempat orang berikutnya salah membaca.
+  const rentangSah = tanggalSah(dari) && tanggalSah(sampai) && dari <= sampai;
+  const reportQuery = useQuery({
+    queryKey: ["commission-report", tenantId, dari, sampai],
+    queryFn: () => api.commissionReport(tenantId, dari, sampai),
+    enabled: rentangSah,
+  });
+
+  const buat = useMutation({
+    mutationFn: () =>
+      api.createCommissionScheme(tenantId, {
+        name: form.name,
+        dasar: form.dasar,
+        pemicu: form.pemicu,
+        // Persen di layar, basis poin di penyimpanan. Koma desimal Indonesia
+        // diterima apa adanya — memaksa titik akan menolak angka yang benar.
+        rateBp: Math.round(Number(form.persen.replace(",", ".")) * 100),
+      }),
+    onSuccess: () => {
+      setGalat(null);
+      toast("success", isi(u("toastSkemaKomisiDibuat"), form.name));
+      setForm((f) => ({ ...f, name: "" }));
+      queryClient.invalidateQueries({ queryKey: ["commission-schemes", tenantId] });
+      queryClient.invalidateQueries({ queryKey: ["commission-report", tenantId] });
+    },
+    onError: (err) => setGalat((err as Error).message),
+  });
+
+  const schemes: ApiCommissionScheme[] = schemesQuery.data?.schemes ?? [];
+  const laporan = reportQuery.data;
+
+  return (
+    <div className="space-y-4">
+      {isAdmin ? (
+        <Card>
+          <CardHeader title={u("skemaKomisi")} description={u("descSkemaKomisi")} />
+          <CardBody className="space-y-4">
+            {galat ? <Alert tone="error">{galat}</Alert> : null}
+            <div className="grid gap-3 sm:grid-cols-4">
+              <div>
+                <Label htmlFor="ks-nama">{u("namaSkema")}</Label>
+                <Input
+                  id="ks-nama"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="ks-dasar">{u("dasarKomisiLabel")}</Label>
+                <Select
+                  id="ks-dasar"
+                  value={form.dasar}
+                  onChange={(e) => setForm((f) => ({ ...f, dasar: e.target.value as KomisiDasar }))}
+                >
+                  <option value="omzet">{u("dasarOmzet")}</option>
+                  <option value="laba">{u("dasarLaba")}</option>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="ks-pemicu">{u("pemicuKomisi")}</Label>
+                <Select
+                  id="ks-pemicu"
+                  value={form.pemicu}
+                  onChange={(e) => setForm((f) => ({ ...f, pemicu: e.target.value as KomisiPemicu }))}
+                >
+                  <option value="pelunasan">{u("pemicuPelunasan")}</option>
+                  <option value="faktur">{u("pemicuFaktur")}</option>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="ks-tarif">{u("tarifPersen")}</Label>
+                <Input
+                  id="ks-tarif"
+                  value={form.persen}
+                  onChange={(e) => setForm((f) => ({ ...f, persen: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={() => buat.mutate()} disabled={buat.isPending || form.name.trim().length < 2}>
+                {buat.isPending ? <Spinner /> : null} {u("buatSkema")}
+              </Button>
+            </div>
+
+            {schemesQuery.isLoading ? (
+              <Spinner />
+            ) : schemes.length === 0 ? (
+              <EmptyState
+                icon={<Percent className="size-6" aria-hidden />}
+                title={u("belumAdaSkemaKomisi")}
+                description={u("descBelumAdaSkemaKomisi")}
+              />
+            ) : (
+              <Table>
+                <Thead>
+                  <Tr>
+                    <Th>{u("namaSkema")}</Th>
+                    <Th>{u("dasarKomisiLabel")}</Th>
+                    <Th>{u("pemicuKomisi")}</Th>
+                    <Th numeric>{u("tarifPersen")}</Th>
+                    <Th numeric>{u("dipakaiOleh")}</Th>
+                  </Tr>
+                </Thead>
+                <tbody>
+                  {schemes.map((s) => (
+                    <Tr key={s.id}>
+                      <Td label={u("namaSkema")}>{s.name}</Td>
+                      <Td label={u("dasarKomisiLabel")}>{s.dasar === "omzet" ? u("dasarOmzet") : u("dasarLaba")}</Td>
+                      <Td label={u("pemicuKomisi")}>
+                        {s.pemicu === "faktur" ? u("pemicuFaktur") : u("pemicuPelunasan")}
+                      </Td>
+                      <Td label={u("tarifPersen")} numeric>
+                        {bpKePersen(s.rateBp)}%
+                      </Td>
+                      <Td label={u("dipakaiOleh")} numeric>
+                        {s.dipakai}
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </CardBody>
+        </Card>
+      ) : null}
+
+      <Card>
+        <CardHeader title={u("laporanKomisi")} />
+        <CardBody className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="kr-dari">{u("dari")}</Label>
+              <Input id="kr-dari" type="date" value={dari} onChange={(e) => setDari(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="kr-sampai">{u("sampai")}</Label>
+              <Input id="kr-sampai" type="date" value={sampai} onChange={(e) => setSampai(e.target.value)} />
+            </div>
+          </div>
+
+          {laporan && laporan.tanpaSkema > 0 ? (
+            <Alert tone="warning">{isi(u("fakturTanpaSkema"), String(laporan.tanpaSkema))}</Alert>
+          ) : null}
+
+          {reportQuery.isLoading ? (
+            <Spinner />
+          ) : !laporan || laporan.rows.length === 0 ? (
+            <EmptyState
+              icon={<Percent className="size-6" aria-hidden />}
+              title={u("belumAdaKomisi")}
+              description={u("descBelumAdaKomisi")}
+            />
+          ) : (
+            <div className="space-y-3">
+              {laporan.rows.map((r) => (
+                <div key={r.salespersonId} className="rounded-lg border border-line p-3">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-medium">{r.salespersonName}</span>
+                    <Badge tone="brand">
+                      {r.schemeName} · {bpKePersen(r.rateBp)}%
+                    </Badge>
+                    <span className="text-xs text-ink-muted">
+                      {r.dasar === "omzet" ? u("dasarOmzet") : u("dasarLaba")} ·{" "}
+                      {r.pemicu === "faktur" ? u("pemicuFaktur") : u("pemicuPelunasan")}
+                    </span>
+                    <span className="ml-auto text-sm">
+                      {u("komisi")} <strong className="tabular-nums">{formatIDR(r.total)}</strong>
+                    </span>
+                  </div>
+                  <Table className="mt-3">
+                    <Thead>
+                      <Tr>
+                        <Th>{u("faktur")}</Th>
+                        <Th>{u("pelanggan")}</Th>
+                        <Th numeric>{u("dasarKomisiLabel")}</Th>
+                        <Th numeric>{u("porsiTerbayar")}</Th>
+                        <Th numeric>{u("komisi")}</Th>
+                      </Tr>
+                    </Thead>
+                    <tbody>
+                      {r.lines.map((l) => (
+                        <Tr key={l.invoiceId}>
+                          <Td label={u("faktur")}>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-mono text-sm">{l.invoiceNo}</span>
+                              {l.voidedAt ? <Badge tone="red">{u("dibatalkan")}</Badge> : null}
+                              {l.returnedAmount > 0 ? <Badge tone="amber">{u("retur")}</Badge> : null}
+                            </div>
+                          </Td>
+                          <Td label={u("pelanggan")}>{l.contactName}</Td>
+                          <Td label={u("dasarKomisiLabel")} numeric>
+                            {formatIDR(l.dasarNilai)}
+                          </Td>
+                          <Td label={u("porsiTerbayar")} numeric>
+                            {Math.round(l.porsi * 100)}%
+                          </Td>
+                          <Td label={u("komisi")} numeric>
+                            <strong>{formatIDR(l.amount)}</strong>
+                          </Td>
+                        </Tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              ))}
+              <div className="flex justify-end border-t border-line pt-3 text-sm">
+                {u("total")} <strong className="ml-2 tabular-nums">{formatIDR(laporan.total)}</strong>
+              </div>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+    </div>
   );
 }

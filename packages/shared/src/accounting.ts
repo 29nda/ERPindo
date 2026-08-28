@@ -1091,3 +1091,109 @@ export function proyeksikanArusKas(
     jumlahTerlambat: arus.filter((a) => a.terlambat).length,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Komisi sales (Fase 44a)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Komisi penjualan.
+ *
+ * Tiga keputusan di bawah menentukan benar-salahnya angka yang dibayarkan, dan
+ * ketiganya lebih sering salah daripada benar di sistem buatan sendiri:
+ *
+ * 1. **Dasar omzet adalah subtotal, bukan total.** Total memuat PPN — uang yang
+ *    dititipkan negara, bukan hasil penjualan. Membayar komisi atasnya berarti
+ *    membayar sales dari kas pajak.
+ * 2. **Tarif disimpan sebagai basis poin bilangan bulat**, bukan persen pecahan.
+ *    2,5% menjadi 250. Persen pecahan menyeret aritmetika uang ke `Number`
+ *    pecahan, dan selisih satu rupiah pada komisi adalah selisih yang
+ *    diperdebatkan orang.
+ * 3. **Pemicunya bisa pelunasan, bukan hanya faktur.** Membayar komisi atas
+ *    faktur yang belum tentu tertagih adalah cara klasik kehilangan uang: sales
+ *    sudah dibayar, pelanggannya kabur.
+ */
+
+/** Dasar perhitungan komisi. */
+export const KOMISI_DASAR = ["omzet", "laba"] as const;
+export type KomisiDasar = (typeof KOMISI_DASAR)[number];
+
+/** Kapan komisi lahir. */
+export const KOMISI_PEMICU = ["faktur", "pelunasan"] as const;
+export type KomisiPemicu = (typeof KOMISI_PEMICU)[number];
+
+/** Satu basis poin = 0,01%. 250 bp = 2,5%. */
+export const BASIS_POIN_PENUH = 10_000;
+
+export type FakturKomisi = {
+  /** Nilai barang/jasa sebelum PPN. */
+  subtotal: number;
+  /** Harga pokok penjualan faktur ini. Nol untuk penjualan jasa murni. */
+  cogs: number;
+  /** Yang benar-benar sudah dibayar pelanggan. */
+  paidAmount: number;
+  /** Nilai faktur termasuk PPN — pembanding `paidAmount`. */
+  total: number;
+  /** Nilai retur yang sudah dikembalikan. */
+  returnedAmount: number;
+  /** Terisi bila fakturnya dibatalkan. */
+  voidedAt?: string | null;
+};
+
+/**
+ * Dasar komisi sebuah faktur, sebelum tarif dikenakan.
+ *
+ * Retur dikurangkan lebih dulu: barang yang kembali bukan penjualan, dan
+ * membiarkannya menghasilkan komisi berarti membayar sales atas transaksi yang
+ * dibatalkan pelanggannya sendiri.
+ */
+export function dasarKomisi(faktur: FakturKomisi, dasar: KomisiDasar): number {
+  if (faktur.voidedAt) return 0;
+  const bersih = Math.max(0, faktur.subtotal - faktur.returnedAmount);
+  if (dasar === "omzet") return bersih;
+  // Laba kotor tidak boleh negatif menjadi komisi negatif: menjual rugi adalah
+  // persoalan harga, dan memotong gaji sales lewat komisi minus bukan
+  // penyelesaiannya — itu keputusan yang harus diambil orang, bukan rumus.
+  return Math.max(0, bersih - faktur.cogs);
+}
+
+/**
+ * Bagian faktur yang sudah menghasilkan komisi menurut pemicunya.
+ *
+ * Untuk pemicu `pelunasan`, pembayaran sebagian menghasilkan komisi sebagian —
+ * proporsional terhadap yang sudah masuk. Membayar penuh atas pelunasan
+ * pertama akan menyamakan cicilan pertama dengan lunas.
+ */
+export function porsiTerpicu(faktur: FakturKomisi, pemicu: KomisiPemicu): number {
+  if (faktur.voidedAt) return 0;
+  if (pemicu === "faktur") return 1;
+  if (faktur.total <= 0) return 0;
+  return Math.min(1, Math.max(0, faktur.paidAmount / faktur.total));
+}
+
+export type KomisiBreakdown = {
+  dasarNilai: number;
+  porsi: number;
+  tarifBp: number;
+  amount: number;
+};
+
+/** Hitung komisi satu faktur. */
+export function hitungKomisi(
+  faktur: FakturKomisi,
+  opts: { dasar: KomisiDasar; pemicu: KomisiPemicu; tarifBp: number },
+): KomisiBreakdown {
+  const dasarNilai = dasarKomisi(faktur, opts.dasar);
+  const porsi = porsiTerpicu(faktur, opts.pemicu);
+  return {
+    dasarNilai,
+    porsi,
+    tarifBp: opts.tarifBp,
+    amount: Math.round((dasarNilai * porsi * opts.tarifBp) / BASIS_POIN_PENUH),
+  };
+}
+
+/** Tampilkan basis poin sebagai persen untuk layar: 250 → "2,5". */
+export function bpKePersen(bp: number): string {
+  return (bp / 100).toLocaleString("id-ID", { maximumFractionDigits: 2 });
+}

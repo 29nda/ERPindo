@@ -3627,6 +3627,42 @@ export const UI = {
     en: "{0} hours of overtime recorded, pay {1}.",
   },
   toastLemburDihapus: { id: "Catatan lembur dihapus.", en: "Overtime record deleted." },
+  // Komisi sales (Fase 44a)
+  komisi: { id: "Komisi", en: "Commission" },
+  salesOpsional: { id: "Sales (opsional)", en: "Salesperson (optional)" },
+  tanpaSales: { id: "Tanpa sales", en: "No salesperson" },
+  skemaKomisi: { id: "Skema komisi", en: "Commission scheme" },
+  descSkemaKomisi: {
+    id: "Tarif dihitung dari omzet sebelum PPN atau dari laba kotor. Komisi bisa lahir saat faktur diposting, atau menunggu pelanggan benar-benar membayar.",
+    en: "The rate applies to revenue before VAT or to gross profit. Commission can arise when the invoice posts, or wait until the customer actually pays.",
+  },
+  namaSkema: { id: "Nama skema", en: "Scheme name" },
+  dasarKomisiLabel: { id: "Dasar", en: "Basis" },
+  dasarOmzet: { id: "Omzet sebelum PPN", en: "Revenue before VAT" },
+  dasarLaba: { id: "Laba kotor", en: "Gross profit" },
+  pemicuKomisi: { id: "Komisi lahir saat", en: "Commission arises on" },
+  pemicuFaktur: { id: "Faktur diposting", en: "Invoice posted" },
+  pemicuPelunasan: { id: "Pelanggan membayar", en: "Customer pays" },
+  tarifPersen: { id: "Tarif (%)", en: "Rate (%)" },
+  buatSkema: { id: "Buat skema", en: "Create scheme" },
+  belumAdaSkemaKomisi: { id: "Belum ada skema komisi", en: "No commission schemes yet" },
+  descBelumAdaSkemaKomisi: {
+    id: "Buat skema lebih dulu, lalu pasangkan ke karyawan lewat tab Karyawan. Faktur baru akan menawarkan nama mereka sebagai sales.",
+    en: "Create a scheme first, then attach it to employees under the Employees tab. New invoices will then offer their names as salesperson.",
+  },
+  laporanKomisi: { id: "Laporan komisi", en: "Commission report" },
+  belumAdaKomisi: { id: "Belum ada komisi pada rentang ini", en: "No commission in this range" },
+  descBelumAdaKomisi: {
+    id: "Komisi muncul setelah ada faktur yang diberi nama sales, dan sales itu punya skema aktif.",
+    en: "Commission appears once invoices carry a salesperson and that person has an active scheme.",
+  },
+  dipakaiOleh: { id: "Dipakai", en: "In use by" },
+  porsiTerbayar: { id: "Porsi terbayar", en: "Paid portion" },
+  fakturTanpaSkema: {
+    id: "{0} faktur punya nama sales tetapi salesnya belum berskema komisi, jadi tidak ikut terhitung. Pasangkan skemanya di tab Karyawan.",
+    en: "{0} invoices carry a salesperson who has no commission scheme yet, so they are not counted. Attach a scheme under the Employees tab.",
+  },
+  toastSkemaKomisiDibuat: { id: "Skema komisi {0} dibuat.", en: "Commission scheme {0} created." },
 } satisfies Record<string, Dual>;
 
 export type UiKey = keyof typeof UI;
