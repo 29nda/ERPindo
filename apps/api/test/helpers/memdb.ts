@@ -129,12 +129,19 @@ export const WH_UTAMA = "wh-utama";
 /** Seed satu kontak; kembalikan id. */
 export async function seedContact(
   db: SqlExecutor,
-  opts: { type?: "customer" | "supplier" | "both"; name?: string } = {},
+  opts: {
+    type?: "customer" | "supplier" | "both";
+    name?: string;
+    /** Fase 42a — batas kredit; `undefined` berarti tanpa batas. */
+    creditLimit?: number;
+    /** Fase 42a — termin pembayaran dalam hari. */
+    paymentTermDays?: number;
+  } = {},
 ): Promise<string> {
   const id = crypto.randomUUID();
   await db
-    .prepare(`INSERT INTO contacts (id, type, name) VALUES (?, ?, ?)`)
-    .bind(id, opts.type ?? "customer", opts.name ?? "Kontak Uji")
+    .prepare(`INSERT INTO contacts (id, type, name, credit_limit, payment_term_days) VALUES (?, ?, ?, ?, ?)`)
+    .bind(id, opts.type ?? "customer", opts.name ?? "Kontak Uji", opts.creditLimit ?? null, opts.paymentTermDays ?? null)
     .run();
   return id;
 }

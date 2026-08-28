@@ -209,8 +209,59 @@ export const contactSchema = z.object({
    * membedakan keduanya hanya akan menghasilkan dua cara menulis "tanpa grup".
    */
   priceGroupId: z.string().trim().max(64).optional(),
+  /**
+   * Batas kredit pelanggan dalam rupiah penuh (Fase 42a).
+   *
+   * `undefined` berarti TANPA BATAS; `0` berarti pelanggan tidak boleh
+   * berutang sama sekali. Keduanya keadaan yang sah dan berbeda, jadi bidang
+   * ini sengaja opsional alih-alih berdefault nol — default nol akan diam-diam
+   * memblokir setiap pelanggan lama yang belum pernah disetel.
+   */
+  creditLimit: z.number().int().min(0).max(1_000_000_000_000).optional(),
+  /**
+   * Termin pembayaran dalam hari (mis. 30 untuk TOP 30 hari).
+   *
+   * Dipakai menurunkan tanggal jatuh tempo faktur bila penggunanya tidak
+   * mengisinya sendiri. `undefined` berarti tidak ada termin baku, dan jatuh
+   * tempo tetap diisi manual seperti sebelum fase ini.
+   */
+  paymentTermDays: z.number().int().min(0).max(365).optional(),
 });
 export type ContactInput = z.infer<typeof contactSchema>;
+
+/**
+ * Tanggal jatuh tempo faktur dari tanggal dokumen + termin pelanggan.
+ *
+ * Dipisah menjadi fungsi murni supaya bisa diuji tanpa basis data, dan supaya
+ * sisi server maupun sisi layar memakai perhitungan yang sama persis.
+ *
+ * Mengembalikan `undefined` bila tidak ada termin — pemanggil lalu memakai
+ * tanggal yang diketik pengguna, atau membiarkannya kosong.
+ */
+export function jatuhTempoDariTermin(tanggalDokumen: string, terminHari: number | null | undefined): string | undefined {
+  if (terminHari === null || terminHari === undefined) return undefined;
+  const d = new Date(`${tanggalDokumen}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return undefined;
+  d.setUTCDate(d.getUTCDate() + terminHari);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Apakah faktur baru membuat piutang pelanggan melampaui batas kreditnya.
+ *
+ * Fungsi murni: pemanggil yang mengambil angka piutang berjalan dari basis
+ * data, supaya aturannya bisa diuji tanpa menyiapkan tenant.
+ *
+ * `batas` `null`/`undefined` berarti tanpa batas, jadi selalu lolos.
+ */
+export function melampauiBatasKredit(
+  piutangBerjalan: number,
+  nilaiFakturBaru: number,
+  batas: number | null | undefined,
+): boolean {
+  if (batas === null || batas === undefined) return false;
+  return piutangBerjalan + nilaiFakturBaru > batas;
+}
 
 export const productSchema = z.object({
   sku: z.string().trim().min(1, "SKU wajib diisi").max(50),

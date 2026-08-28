@@ -1488,6 +1488,61 @@ try {
   await contactPost;
   await page.getByText("Pelanggan Uji Simulasi").first().waitFor();
   check("F2 kontak: form → 201 → muncul di tabel", true);
+
+  // --- F54 Batas kredit & termin pembayaran (Fase 42a) -----------------------
+  //
+  // Diperiksa lewat SUNTING, bukan tambah. Formulir kontak di berkas ini
+  // sengaja memakai bentuk pendek saat menambah — alamat dan NPWP pun hanya
+  // muncul saat menyunting (`{editing ? …}`), dan dua medan baru mengikuti
+  // konvensi yang sama alih-alih memperpanjang formulir tambah.
+  //
+  // Yang hanya bisa diperiksa di peramban: medan yang DIKOSONGKAN tersimpan
+  // sebagai "tanpa batas", bukan nol. Selisih itu hidup di penangan submit
+  // (`angkaOpsional`), bukan di skema, jadi uji unit tidak melihatnya — dan
+  // salah di situ langsung memblokir penjualan ke seluruh pelanggan lama.
+  // Lembar "Tambah kontak" masih terbuka setelah simpan dan menutupi tabelnya,
+  // jadi ia ditutup dulu alih-alih diklik menembus lapisan.
+  const tutupLembar = async () => {
+    if ((await page.locator("[data-lembar]").isVisible().catch(() => false))) {
+      await page.keyboard.press("Escape");
+      await page.locator("[data-lembar]").waitFor({ state: "hidden", timeout: 5_000 }).catch(() => {});
+    }
+  };
+  await tutupLembar();
+  const barisKontak = page.locator("tr", { hasText: "Pelanggan Uji Simulasi" }).first();
+  await barisKontak.getByRole("button", { name: "Ubah", exact: true }).click();
+  await page.locator("#k-termin").waitFor({ state: "visible", timeout: 10_000 });
+  const adaTermin = await page.locator("#k-termin").count();
+  const adaKredit = await page.locator("#k-kredit").count();
+  check("F54 formulir sunting kontak memuat termin pembayaran & batas kredit",
+    adaTermin === 1 && adaKredit === 1, `→ termin=${adaTermin} kredit=${adaKredit}`);
+
+  await page.fill("#k-termin", "30");
+  await page.fill("#k-kredit", "5000000");
+  const kreditPatch = page.waitForResponse((r) => r.url().includes("/contacts/") && r.request().method() === "PUT" && r.ok());
+  await page.locator("form", { has: page.locator("#k-termin") }).getByRole("button", { name: "Simpan", exact: true }).click();
+  await kreditPatch;
+  check("F54 termin & batas kredit tersimpan lewat formulir", true);
+
+  // Dikosongkan lagi: harus kembali "tanpa batas", bukan nol. Nol berarti
+  // pelanggan tidak boleh berutang sama sekali — kebalikan dari yang dimaksud.
+  await tutupLembar();
+  await barisKontak.getByRole("button", { name: "Ubah", exact: true }).click();
+  await page.locator("#k-kredit").waitFor({ state: "visible", timeout: 10_000 });
+  await page.fill("#k-kredit", "");
+  const kosongPatch = page.waitForResponse((r) => r.url().includes("/contacts/") && r.request().method() === "PUT" && r.ok());
+  await page.locator("form", { has: page.locator("#k-kredit") }).getByRole("button", { name: "Simpan", exact: true }).click();
+  await kosongPatch;
+  const kontakJson = await page.evaluate(async () => {
+    const tid = localStorage.getItem("erpindo-tenant");
+    const r = await fetch(`/api/tenants/${tid}/contacts`);
+    return r.json();
+  });
+  const uji = kontakJson?.items?.find((k) => k.name === "Pelanggan Uji Simulasi");
+  check("F54 batas kredit dikosongkan tersimpan NULL (tanpa batas), bukan 0",
+    uji?.credit_limit === null && uji?.payment_term_days === 30,
+    `→ kredit=${JSON.stringify(uji?.credit_limit)} termin=${JSON.stringify(uji?.payment_term_days)}`);
+
   check("F2 kontak bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
   // F3 — Catat Transaksi (wizard pemula): uang keluar berkategori.

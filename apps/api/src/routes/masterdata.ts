@@ -304,6 +304,14 @@ export const masterDataRoutes = new Hono<AppEnv>()
         // Fase 23a: string kosong dari <select> disimpan sebagai NULL, supaya
         // "tanpa grup" hanya punya satu bentuk di database.
         price_group_id: k.priceGroupId || null,
+        // Fase 42a — `?? null`, BUKAN `|| null`.
+        //
+        // Nol adalah nilai yang bermakna di kedua kolom ini: batas kredit 0
+        // berarti pelanggan tidak boleh berutang sama sekali, dan termin 0 hari
+        // berarti tunai. `||` akan mengubah keduanya menjadi NULL, yang justru
+        // berarti kebalikannya — tanpa batas, dan tanpa termin.
+        credit_limit: k.creditLimit ?? null,
+        payment_term_days: k.paymentTermDays ?? null,
       }),
     }),
   )

@@ -1885,6 +1885,28 @@ export const TENANT_MIGRATIONS: Migration[] = [
       `UPDATE accounts SET name = 'Utang PPh 23' WHERE code = '2-1400' AND name = 'Hutang PPh 23'`,
     ],
   },
+  {
+    /**
+     * Batas kredit & termin pembayaran per pelanggan (Fase 42a).
+     *
+     * Keduanya sempat DIJANJIKAN peragaan di `/panduan` dan `/fitur` selama
+     * beberapa fase padahal kolomnya tidak pernah ada; klaimnya dicabut pada
+     * Fase 41a. Migrasi ini yang membuat janji itu benar, bukan sebaliknya.
+     *
+     * `credit_limit` NULL berarti tanpa batas — dibedakan dari 0 yang berarti
+     * pelanggan tidak boleh berutang sama sekali. Keduanya keadaan yang sah dan
+     * berbeda, jadi kolomnya sengaja nullable alih-alih DEFAULT 0.
+     *
+     * `payment_term_days` NULL berarti tidak ada termin baku, dan tanggal jatuh
+     * tempo tetap diisi manual seperti sebelumnya. Itu membuat migrasi ini tidak
+     * mengubah perilaku satu pun faktur yang sudah ada.
+     */
+    id: "0048_batas_kredit_termin",
+    statements: [
+      `ALTER TABLE contacts ADD COLUMN credit_limit INTEGER`,
+      `ALTER TABLE contacts ADD COLUMN payment_term_days INTEGER`,
+    ],
+  },
 ];
 
 /** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */

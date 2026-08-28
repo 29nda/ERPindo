@@ -125,7 +125,7 @@ export const commerceRoutes = new Hono<AppEnv>()
     });
     // Webhook keluar (Fase 13h): notifikasi faktur baru ke integrator.
     await emitWebhook(c.env, tenant.id, "invoice.created", { id: result.invoiceId, invoiceNo: result.docNo, total: result.total });
-    return c.json({ ok: true, id: result.invoiceId, docNo: result.docNo, total: result.total }, 201);
+    return c.json({ ok: true, id: result.invoiceId, docNo: result.docNo, total: result.total, dueDate: result.dueDate }, 201);
   })
 
   .post("/:tenantId/invoices/:id/void", requireAuth, requireTenantRole("admin"), async (c) => {
