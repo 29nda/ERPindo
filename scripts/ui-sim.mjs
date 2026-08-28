@@ -2575,6 +2575,27 @@ try {
   );
   check("F57 alur komisi bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
+  // F58 — Fase 44b: target & prakiraan. Yang diperiksa adalah bahwa layarnya
+  // MENUNJUKKAN DASAR prakiraannya — peluang tiap tahap terpampang. Prakiraan
+  // yang hanya menampilkan satu angka besar tanpa dasarnya adalah bentuk paling
+  // meyakinkan dari angka yang salah.
+  await gotoRoute("/app/crm/leads", 1000);
+  const targetBody = await page.innerText("body");
+  check(
+    "F58 kartu target & prakiraan tampil di halaman pipeline",
+    targetBody.includes("Target & prakiraan penjualan") && targetBody.includes("Prakiraan dari pipeline"),
+  );
+  check(
+    "F58 peluang tiap tahap terpampang, bukan cuma satu angka prakiraan",
+    /\b10%/.test(targetBody) && /\b60%/.test(targetBody),
+  );
+  check(
+    "F58 nilai kotor DAN tertimbang keduanya ditampilkan",
+    targetBody.includes("Nilai kotor") && targetBody.includes("Tertimbang"),
+  );
+  check("F58 medan penetapan target tersedia bagi admin", (await page.locator("#tg-nilai").count()) === 1);
+  check("F58 alur target bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/app/alat", 700);
   const alatBody = await page.innerText("body");
   check("F19 kalkulator render (HPP + hasil Rupiah)", alatBody.includes("Harga Pokok Produksi") && /Rp\s?[1-9]/.test(alatBody.replace(/\u00A0/g, " ")));

@@ -648,6 +648,8 @@ export const TENANT_ROUTE_ACCESS: Record<string, AksesRute> = {
   // Komisi sales (Fase 44a) — angkanya gaji, jadi tunduk pada modul yang sama.
   "commission-schemes": { baca: "hr", tulis: "hr" },
   "commission-report": { baca: "hr", tulis: "hr" },
+  // Target penjualan (Fase 44b) — modul CRM, bukan HR: yang dinilai penjualan.
+  "sales-targets": { baca: "crm", tulis: "crm" },
   "payroll-adjustments": { baca: "hr", tulis: "hr" },
   "leave-requests": { baca: "hr", tulis: "hr" },
   attendance: { baca: "hr", tulis: "hr" },

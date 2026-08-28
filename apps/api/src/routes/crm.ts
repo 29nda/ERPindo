@@ -1,12 +1,19 @@
 import {
   convertQuotationSchema,
   createQuotationSchema,
+  dasarKomisi,
+  forecastTertimbang,
+  pencapaianTarget,
+  salesTargetSchema,
   leadActivitySchema,
   leadSchema,
   quotationStatusSchema,
   updateLeadSchema,
   type ApiCommerceLine,
   type ApiLead,
+  type ApiSalesTargetReport,
+  type ApiSalesTargetRow,
+  type LeadStage,
   type ApiLeadActivity,
   type ApiQuotation,
   type CreateInvoiceInput,
@@ -607,6 +614,142 @@ export const crmRoutes = new Hono<AppEnv>()
       ip: clientIp(c),
     });
     return c.json({ ok: true, token, slug: tenant.slug }, 201);
+  })
+
+  // ---------------------------------------------------------------------------
+  // Target & prakiraan penjualan (Fase 44b).
+  //
+  // Hanya targetnya yang disimpan; realisasi selalu dihitung dari faktur.
+  // Dasarnya SENGAJA memakai `dasarKomisi(..., "omzet")` yang sama dengan
+  // Fase 44a: kalau target memakai total berPPN sedangkan komisi memakai
+  // subtotal, dua angka di layar yang sama akan mengukur hal berbeda tanpa
+  // seorang pun tahu mana yang benar.
+  // ---------------------------------------------------------------------------
+  .post("/:tenantId/sales-targets", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = salesTargetSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const input = parsed.data;
+
+    const emp = await db
+      .prepare(`SELECT id, name FROM employees WHERE id = ? AND is_active = 1`)
+      .bind(input.salespersonId)
+      .first<{ id: string; name: string }>();
+    if (!emp) return c.json({ error: "Karyawan tidak ditemukan atau sudah tidak aktif." }, 404);
+
+    // Menyetel ulang target bulan yang sama adalah hal wajar — target direvisi
+    // di tengah jalan. Yang tidak boleh adalah DUA baris untuk bulan yang sama.
+    await db
+      .prepare(
+        `INSERT INTO sales_targets (id, salesperson_id, period, target_amount, created_by)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (salesperson_id, period)
+         DO UPDATE SET target_amount = excluded.target_amount`,
+      )
+      .bind(crypto.randomUUID(), input.salespersonId, input.period, input.targetAmount, c.get("user").id)
+      .run();
+
+    await audit(c.env, {
+      action: "crm.target.setel",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { sales: emp.name, period: input.period, target: input.targetAmount },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true }, 201);
+  })
+
+  .get("/:tenantId/sales-targets", requireAuth, requireTenantRole("viewer"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const period = c.req.query("period") ?? "";
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) {
+      return c.json({ error: "Periode harus berformat YYYY-MM" }, 400);
+    }
+
+    // Sales = karyawan aktif yang punya target bulan ini ATAU punya faktur
+    // bulan ini. Keduanya perlu: yang bertarget tanpa penjualan harus terlihat
+    // sebagai 0%, dan yang menjual tanpa target harus terlihat sebagai belum
+    // bertarget — keduanya informasi, bukan baris yang boleh hilang.
+    const { results: rows } = await db
+      .prepare(
+        `SELECT e.id, e.name,
+                (SELECT target_amount FROM sales_targets t
+                  WHERE t.salesperson_id = e.id AND t.period = ?) AS target
+         FROM employees e
+         WHERE e.is_active = 1
+           AND (EXISTS (SELECT 1 FROM sales_targets t2 WHERE t2.salesperson_id = e.id AND t2.period = ?)
+             OR EXISTS (SELECT 1 FROM invoices i WHERE i.salesperson_id = e.id AND substr(i.invoice_date, 1, 7) = ?))
+         ORDER BY e.name`,
+      )
+      .bind(period, period, period)
+      .all<{ id: string; name: string; target: number | null }>();
+
+    const { results: fakturs } = await db
+      .prepare(
+        `SELECT salesperson_id, subtotal, returned_amount, voided_at
+         FROM invoices
+         WHERE salesperson_id IS NOT NULL AND substr(invoice_date, 1, 7) = ?`,
+      )
+      .bind(period)
+      .all<{ salesperson_id: string; subtotal: number; returned_amount: number; voided_at: string | null }>();
+
+    const realisasiPer = new Map<string, { nilai: number; faktur: number }>();
+    for (const f of fakturs) {
+      // `dasarKomisi` yang sama dengan Fase 44a: subtotal dikurangi retur,
+      // faktur batal bernilai nol. HPP tidak relevan pada dasar "omzet".
+      const nilai = dasarKomisi(
+        {
+          subtotal: f.subtotal,
+          cogs: 0,
+          paidAmount: 0,
+          total: 0,
+          returnedAmount: f.returned_amount,
+          voidedAt: f.voided_at,
+        },
+        "omzet",
+      );
+      const ada = realisasiPer.get(f.salesperson_id) ?? { nilai: 0, faktur: 0 };
+      // Faktur batal tidak ikut dihitung sebagai jumlah faktur juga — kalau
+      // ikut, "12 faktur" akan berbeda dari jumlah yang menghasilkan angkanya.
+      realisasiPer.set(f.salesperson_id, {
+        nilai: ada.nilai + nilai,
+        faktur: ada.faktur + (f.voided_at ? 0 : 1),
+      });
+    }
+
+    const out: ApiSalesTargetRow[] = rows.map((r) => {
+      const real = realisasiPer.get(r.id) ?? { nilai: 0, faktur: 0 };
+      const p = pencapaianTarget(r.target ?? 0, real.nilai);
+      return {
+        salespersonId: r.id,
+        salespersonName: r.name,
+        target: p.target,
+        realisasi: p.realisasi,
+        persen: p.persen,
+        kurang: p.kurang,
+        tercapai: p.tercapai,
+        faktur: real.faktur,
+      };
+    });
+
+    // Prakiraan dari pipeline yang masih berjalan — tidak disaring per bulan:
+    // prospek tidak punya bulan penutupan sampai ia benar-benar ditutup, dan
+    // memaksakan bulan padanya akan mengarang data yang tidak ada.
+    const { results: leads } = await db
+      .prepare(`SELECT stage, est_value FROM leads WHERE status = 'open'`)
+      .all<{ stage: LeadStage; est_value: number }>();
+
+    const laporan: ApiSalesTargetReport = {
+      period,
+      rows: out,
+      totalTarget: out.reduce((a, r) => a + r.target, 0),
+      totalRealisasi: out.reduce((a, r) => a + r.realisasi, 0),
+      forecast: forecastTertimbang(leads.map((l) => ({ stage: l.stage, estValue: l.est_value }))),
+    };
+    return c.json(laporan);
   })
 
   /** Matikan form: token dihapus, kiriman berikutnya ditolak 403. */

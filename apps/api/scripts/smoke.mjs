@@ -1976,6 +1976,86 @@ try {
   const lapTanggalNgawur = await admin("GET", `/api/tenants/${mpT}/commission-report?from=kemarin&to=besok`);
   check("44a tanggal tak sah DITOLAK 400", lapTanggalNgawur.status === 400);
 
+  // --- Target & prakiraan penjualan (Fase 44b) — di tenant Dewi --------------
+  console.log("11i7. Target & prakiraan penjualan");
+
+  const tgSet = await admin("POST", `/api/tenants/${mpT}/sales-targets`, {
+    salespersonId: salesA.json.id, period: "2026-10", targetAmount: 20_000_000,
+  });
+  check("44b target penjualan disimpan 201", tgSet.status === 201, `→ ${tgSet.status} ${tgSet.json?.error ?? ""}`);
+
+  const tgRevisi = await admin("POST", `/api/tenants/${mpT}/sales-targets`, {
+    salespersonId: salesA.json.id, period: "2026-10", targetAmount: 40_000_000,
+  });
+  check("44b target boleh direvisi, tidak menjadi baris kedua", tgRevisi.status === 201);
+
+  const tgPeriodeNgawur = await admin("POST", `/api/tenants/${mpT}/sales-targets`, {
+    salespersonId: salesA.json.id, period: "Oktober", targetAmount: 1_000_000,
+  });
+  check("44b periode bukan YYYY-MM DITOLAK 400", tgPeriodeNgawur.status === 400);
+
+  const tgOrangHilang = await admin("POST", `/api/tenants/${mpT}/sales-targets`, {
+    salespersonId: "tidak-ada", period: "2026-10", targetAmount: 1_000_000,
+  });
+  check("44b sales tidak dikenal DITOLAK 404", tgOrangHilang.status === 404, `→ ${tgOrangHilang.status}`);
+
+  const lapT = await admin("GET", `/api/tenants/${mpT}/sales-targets?period=2026-10`);
+  const barisT = lapT.json?.rows?.find((r) => r.salespersonName === "Rina Sales");
+  check(
+    "44b target terbaru yang dipakai (40jt), bukan yang pertama",
+    barisT?.target === 40_000_000,
+    `→ ${barisT?.target}`,
+  );
+  // Faktur Rina di Oktober (Fase 44a): subtotal 10 juta, berPPN 11%.
+  check(
+    "44b realisasi memakai SUBTOTAL, dasar yang sama dengan komisi",
+    barisT?.realisasi === 10_000_000,
+    `→ ${barisT?.realisasi}`,
+  );
+  check("44b pencapaian 10jt dari target 40jt = 25%", barisT?.persen === 25, `→ ${barisT?.persen}`);
+  check("44b kekurangannya 30jt", barisT?.kurang === 30_000_000, `→ ${barisT?.kurang}`);
+
+  // Doni menjual 5 juta tetapi tak pernah diberi target — barisnya HARUS muncul
+  // sebagai belum bertarget, bukan hilang dari laporan.
+  const barisDoni = lapT.json?.rows?.find((r) => r.salespersonName === "Doni Belum Berskema");
+  check(
+    "44b sales tanpa target tetap muncul dengan realisasinya",
+    barisDoni?.target === 0 && barisDoni?.realisasi === 5_000_000,
+    `→ ${JSON.stringify({ t: barisDoni?.target, r: barisDoni?.realisasi })}`,
+  );
+  check(
+    "44b tanpa target TIDAK berpura-pura tercapai",
+    barisDoni?.tercapai === false && barisDoni?.persen === 0,
+  );
+
+  // Prakiraan: pipeline tenant ini diisi lebih dulu supaya angkanya pasti.
+  const prospekA = await admin("POST", `/api/tenants/${mpT}/leads`, {
+    name: "Prospek Proposal", estValue: 100_000_000,
+  });
+  await admin("PATCH", `/api/tenants/${mpT}/leads/${prospekA.json.id}`, { stage: "proposal" });
+  await admin("POST", `/api/tenants/${mpT}/leads`, { name: "Prospek Baru", estValue: 50_000_000 });
+
+  const lapF = await admin("GET", `/api/tenants/${mpT}/sales-targets?period=2026-10`);
+  const prakiraan = lapF.json?.forecast;
+  check(
+    "44b prakiraan tertimbang < nilai kotor (proposal 60%, baru 10%)",
+    prakiraan?.tertimbang < prakiraan?.kotor && prakiraan?.tertimbang > 0,
+    `→ tertimbang=${prakiraan?.tertimbang} kotor=${prakiraan?.kotor}`,
+  );
+  check(
+    "44b rincian per tahap menjumlah persis ke totalnya",
+    prakiraan?.perTahap?.reduce((a, t) => a + t.tertimbang, 0) === prakiraan?.tertimbang,
+    `→ ${JSON.stringify(prakiraan?.perTahap?.map((t) => t.tertimbang))}`,
+  );
+  check(
+    "44b prakiraan hanya memuat tahap yang masih berjalan (bukan won/lost)",
+    prakiraan?.perTahap?.every((t) => t.stage !== "won" && t.stage !== "lost"),
+    `→ ${JSON.stringify(prakiraan?.perTahap?.map((t) => t.stage))}`,
+  );
+
+  const lapPeriodeNgawur = await admin("GET", `/api/tenants/${mpT}/sales-targets?period=2026-13`);
+  check("44b bulan 13 DITOLAK 400", lapPeriodeNgawur.status === 400);
+
   // --- Template industri (Fase 11f) — di tenant Dewi (terisolasi) --------------
   const indTplRetail = await admin("POST", `/api/tenants/${mpT}/setup/industry-template`, { industry: "retail" });
   check("template industri retail: 5 produk + 2 kontak ditambahkan",
