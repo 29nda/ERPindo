@@ -73,7 +73,34 @@ export type Panel =
       jenis: "formulir";
       id: string;
       judul: Dual;
-      medan: { id: string; label: Dual; nilai: Dual; num?: boolean }[];
+      medan: {
+        id: string;
+        label: Dual;
+        nilai: Dual;
+        num?: boolean;
+        /**
+         * Dari mana medan ini berasal di produk sungguhan (Fase 42b) — WAJIB.
+         *
+         * Bentuknya `"tabel.kolom"` (mis. `"contacts.credit_limit"`), atau
+         * `"hitung"` untuk nilai yang memang tidak disimpan melainkan dihitung
+         * saat itu juga (total, kembalian, selisih).
+         *
+         * ## Kenapa wajib, bukan opsional
+         *
+         * Peragaan pernah memajang formulir kontak berisi "Batas kredit" dan
+         * "Syarat pembayaran" selama beberapa fase padahal kolomnya tidak
+         * pernah ada. Uji naskah yang berjumlah 255 lulus seluruhnya, karena
+         * semuanya memeriksa KONSISTENSI INTERNAL — id unik, langkah menunjuk
+         * panel yang ada, jurnal seimbang — dan tidak satu pun memeriksa apakah
+         * yang dijanjikan naskah benar-benar ada di produk.
+         *
+         * Bidang ini memaksa penulis naskah menyebutkan asalnya, dan
+         * `test/peragaan-klaim.test.ts` mencocokkannya dengan skema migrasi
+         * yang sesungguhnya. Opsional tidak cukup: medan yang lupa diberi
+         * `sumber` justru medan yang paling mungkin mengada-ada.
+         */
+        sumber: string;
+      }[];
       tombol?: Dual;
     }
   /** Tabel data. */
