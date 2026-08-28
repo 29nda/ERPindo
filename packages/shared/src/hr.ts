@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PTKP_STATUSES, type PtkpStatus } from "./payroll";
+import { JENIS_HARI_LEMBUR, PTKP_STATUSES, type JenisHariLembur, type PtkpStatus } from "./payroll";
 import { amountSchema } from "./accounting";
 
 // ---------------------------------------------------------------------------
@@ -142,6 +142,35 @@ export type ApiThrRun = {
   slips: ApiThrSlip[];
   voidedAt?: string | null;
   voidJournalNo?: string | null;
+};
+
+/** Catat lembur satu karyawan pada satu tanggal (Fase 43b). */
+export const overtimeSchema = z.object({
+  employeeId: z.string().min(1, "Pilih karyawan lebih dulu."),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
+  jenisHari: z.enum(JENIS_HARI_LEMBUR),
+  // Setengah jam adalah satuan lembur yang lazim; 24 jam adalah batas fisik
+  // sehari, bukan batas hukum — batas hukumnya ditandai, bukan ditolak.
+  hours: z.number().min(0.5, "Lembur minimal setengah jam").max(24),
+  note: z.string().trim().max(200).optional(),
+});
+export type OvertimeInput = z.infer<typeof overtimeSchema>;
+
+export type ApiOvertime = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  period: string;
+  jenisHari: JenisHariLembur;
+  hours: number;
+  hourlyWage: number;
+  amount: number;
+  /** Melampaui batas jam PP 35/2021 — ditandai, bukan ditolak. */
+  exceedsLimit: boolean;
+  note: string | null;
+  /** Terisi bila periodenya sudah digaji; saat itu barisnya terkunci. */
+  runId: string | null;
 };
 
 export type ApiPayrollRun = {

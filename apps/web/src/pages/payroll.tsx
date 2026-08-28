@@ -3,15 +3,17 @@ import {
   type ApiEmployee,
   type ApiLeaveRequest,
   type ApiPayrollRun,
+  type ApiOvertime,
   type ApiThrRun,
   type HariRaya,
+  type JenisHariLembur,
   type LeaveType,
   HARI_RAYA,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isi, namaHariRaya, useLang } from "../i18n";
 import { useUi, type UiKey } from "../i18n/ui";
-import { CalendarDays, Gift, HandCoins, UserPlus, Users } from "lucide-react";
+import { CalendarDays, Clock, Gift, HandCoins, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { api, formatIDR } from "../api/client";
 import { Lembar } from "../components/kerangka";
@@ -448,7 +450,10 @@ export function PayrollPage() {
       ) : null}
 
       {tab === "komponen" && isAdmin ? (
-        <AdjustmentsCard tenantId={tenant.tenantId} employees={employees} period={period} />
+        <div className="space-y-4">
+          <AdjustmentsCard tenantId={tenant.tenantId} employees={employees} period={period} />
+          <OvertimeCard tenantId={tenant.tenantId} employees={employees} period={period} />
+        </div>
       ) : null}
 
       {/* Gaji: riwayat penggajian */}
@@ -1699,5 +1704,197 @@ function ThrRunRow({ run, tenantId, canVoid }: { run: ApiThrRun; tenantId: strin
         </Table>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Lembur berumus — PP 35/2021 (Fase 43b).
+ *
+ * Yang diketik pengguna hanya **jam dan jenis hari**; upahnya dihitung server
+ * memakai tangga pengali peraturannya. Sebelum fase ini, lembur adalah angka
+ * rupiah yang diketik tangan ke komponen ad-hoc — artinya rumusnya hidup di
+ * kepala pengetiknya, dan kesalahannya tidak bisa diperiksa siapa pun,
+ * termasuk oleh karyawan yang dirugikan.
+ *
+ * Duduk di tab yang sama dengan komponen ad-hoc karena keduanya menambah bruto
+ * periode yang sama; memisahkannya akan menyembunyikan hubungan itu.
+ */
+function OvertimeCard({
+  tenantId,
+  employees,
+  period,
+}: {
+  tenantId: string;
+  employees: ApiEmployee[];
+  period: string;
+}) {
+  const u = useUi();
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    employeeId: "",
+    date: today(),
+    jenisHari: "biasa" as JenisHariLembur,
+    hours: "2",
+  });
+  const [galat, setGalat] = useState<string | null>(null);
+
+  const listQuery = useQuery({
+    queryKey: ["overtime", tenantId, period],
+    queryFn: () => api.overtime(tenantId, period),
+    enabled: /^\d{4}-\d{2}$/.test(period),
+  });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["overtime", tenantId] });
+
+  const create = useMutation({
+    mutationFn: () =>
+      api.createOvertime(tenantId, {
+        employeeId: form.employeeId || employees[0]?.id || "",
+        date: form.date,
+        jenisHari: form.jenisHari,
+        hours: Number(form.hours),
+      }),
+    onSuccess: (res) => {
+      setGalat(null);
+      toast("success", isi(u("toastLemburDicatat"), form.hours, formatIDR(res.amount)));
+      invalidate();
+    },
+    onError: (err) => setGalat((err as Error).message),
+  });
+
+  const hapus = useMutation({
+    mutationFn: (id: string) => api.deleteOvertime(tenantId, id),
+    onSuccess: () => {
+      toast("success", u("toastLemburDihapus"));
+      invalidate();
+    },
+    onError: (err) => toast("error", (err as Error).message),
+  });
+
+  const daftar: ApiOvertime[] = listQuery.data?.overtime ?? [];
+  const adaLampau = daftar.some((o) => o.exceedsLimit);
+
+  return (
+    <Card>
+      <CardHeader title={u("lembur")} description={u("descLembur")} />
+      <CardBody className="space-y-4">
+        {galat ? <Alert tone="error">{galat}</Alert> : null}
+        {adaLampau ? <Alert tone="warning">{u("descMelampauiBatasJam")}</Alert> : null}
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div>
+            <Label htmlFor="ot-emp">{u("karyawan")}</Label>
+            <Select
+              id="ot-emp"
+              value={form.employeeId || employees[0]?.id || ""}
+              onChange={(e) => setForm((f) => ({ ...f, employeeId: e.target.value }))}
+            >
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="ot-date">{u("tanggal")}</Label>
+            <Input
+              id="ot-date"
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+            />
+          </div>
+          <div>
+            <Label htmlFor="ot-jenis">{u("jenisHariLembur")}</Label>
+            <Select
+              id="ot-jenis"
+              value={form.jenisHari}
+              onChange={(e) => setForm((f) => ({ ...f, jenisHari: e.target.value as JenisHariLembur }))}
+            >
+              <option value="biasa">{u("hariBiasa")}</option>
+              <option value="libur6">{u("hariLibur6")}</option>
+              <option value="libur5">{u("hariLibur5")}</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="ot-jam">{u("jamLembur")}</Label>
+            <Input
+              id="ot-jam"
+              type="number"
+              step="0.5"
+              min="0.5"
+              value={form.hours}
+              onChange={(e) => setForm((f) => ({ ...f, hours: e.target.value }))}
+            />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={() => create.mutate()} disabled={create.isPending || employees.length === 0}>
+            {create.isPending ? <Spinner /> : null} {u("catatLembur")}
+          </Button>
+        </div>
+
+        {listQuery.isLoading ? (
+          <Spinner />
+        ) : daftar.length === 0 ? (
+          <EmptyState
+            icon={<Clock className="size-6" aria-hidden />}
+            title={u("belumAdaLembur")}
+            description={u("descBelumAdaLembur")}
+          />
+        ) : (
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>{u("karyawan")}</Th>
+                <Th>{u("tanggal")}</Th>
+                <Th>{u("jenisHariLembur")}</Th>
+                <Th numeric>{u("jamLembur")}</Th>
+                <Th numeric>{u("upahSejam")}</Th>
+                <Th numeric>{u("upahLembur")}</Th>
+                <Th>{u("aksiLabel")}</Th>
+              </Tr>
+            </Thead>
+            <tbody>
+              {daftar.map((o) => (
+                <Tr key={o.id}>
+                  <Td label={u("karyawan")}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span>{o.employeeName}</span>
+                      {o.exceedsLimit ? <Badge tone="amber">{u("melampauiBatasJam")}</Badge> : null}
+                      {o.runId ? <Badge tone="brand">{u("sudahDigaji")}</Badge> : null}
+                    </div>
+                  </Td>
+                  <Td label={u("tanggal")}>{o.date}</Td>
+                  <Td label={u("jenisHariLembur")}>
+                    {o.jenisHari === "biasa" ? u("hariBiasa") : o.jenisHari === "libur6" ? u("hariLibur6") : u("hariLibur5")}
+                  </Td>
+                  <Td label={u("jamLembur")} numeric>
+                    {o.hours}
+                  </Td>
+                  <Td label={u("upahSejam")} numeric>
+                    {formatIDR(o.hourlyWage)}
+                  </Td>
+                  <Td label={u("upahLembur")} numeric>
+                    <strong>{formatIDR(o.amount)}</strong>
+                  </Td>
+                  <Td label={u("aksiLabel")}>
+                    {o.runId ? null : (
+                      <Button
+                        variant="ghost"
+                        className="h-8 text-galat-ink hover:bg-galat-surface"
+                        onClick={() => hapus.mutate(o.id)}
+                      >
+                        {u("hapus")}
+                      </Button>
+                    )}
+                  </Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </CardBody>
+    </Card>
   );
 }
