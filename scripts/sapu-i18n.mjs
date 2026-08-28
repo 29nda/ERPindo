@@ -389,10 +389,14 @@ for (const file of process.argv.slice(2)) {
    *
    * Penandanya sintaksis, bukan kosakata: teks yang dibaca pengguna tidak
    * pernah memuat titik koma yang disusul kata kunci deklarasi, panah fungsi,
-   * atau `?.`. Sengaja sesempit itu — kalimat layar yang memuat titik koma saja
-   * TETAP terhitung.
+   * `?.`, maupun pembanding ketat `===` / `!==`. Sengaja sesempit itu — kalimat
+   * layar yang memuat titik koma saja TETAP terhitung.
    */
-  const jelasKode = (t) => /;\s*(const|let|var|return|await|if|for|function)\b/.test(t) || /=>/.test(t) || /\?\./.test(t);
+  const jelasKode = (t) =>
+    /;\s*(const|let|var|return|await|if|for|function)\b/.test(t) ||
+    /=>/.test(t) ||
+    /\?\./.test(t) ||
+    /[=!]==/.test(t);
 
   for (const m of src.matchAll(/[>}]([^<>{}]+)[<{]/gs))
     if (!jelasKode(m[1]) && isID(m[1])) add(jenisDari(m.index, m.index + m[0].length), m[1], m.index);

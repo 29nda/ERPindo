@@ -643,6 +643,8 @@ export const TENANT_ROUTE_ACCESS: Record<string, AksesRute> = {
   // gaji orang, boleh melihat THR-nya juga; dan sebaliknya.
   "thr-runs": { baca: "hr", tulis: "hr" },
   "thr-preview": { baca: "hr", tulis: "hr" },
+  // Lembur (Fase 43b) — modul yang sama dengan penggajian.
+  "overtime": { baca: "hr", tulis: "hr" },
   "payroll-adjustments": { baca: "hr", tulis: "hr" },
   "leave-requests": { baca: "hr", tulis: "hr" },
   attendance: { baca: "hr", tulis: "hr" },

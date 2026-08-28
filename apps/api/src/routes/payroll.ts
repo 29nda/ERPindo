@@ -2,6 +2,7 @@ import {
   attendanceSchema,
   calculatePayslip,
   decideLeaveSchema,
+  hitungLembur,
   hitungPph21Thr,
   hitungThr,
   employeeLoanSchema,
@@ -9,6 +10,7 @@ import {
   leaveRequestSchema,
   payrollAdjustmentSchema,
   reverseJournalSchema,
+  overtimeSchema,
   runPayrollSchema,
   runThrSchema,
   type ApiAttendance,
@@ -18,11 +20,13 @@ import {
   type ApiLeaveRequest,
   type ApiPayrollAdjustment,
   type ApiPayrollRun,
+  type ApiOvertime,
   type ApiPayslip,
   type ApiThrRun,
   type ApiThrSlip,
   type AttendanceStatus,
   type HariRaya,
+  type JenisHariLembur,
   type LeaveType,
   type PtkpStatus,
 } from "@erpindo/shared";
@@ -411,6 +415,17 @@ export const payrollRoutes = new Hono<AppEnv>()
       adjByEmployee.set(a.employee_id, (adjByEmployee.get(a.employee_id) ?? 0) + a.amount);
     }
 
+    // Lembur berumus (Fase 43b) — masuk lewat pintu yang sama dengan komponen
+    // ad-hoc, jadi ikut bruto, PPh 21, dan BPJS sebagaimana mestinya. Bedanya
+    // hanya asal angkanya: dihitung server dari jam & jenis hari, bukan diketik.
+    const { results: lemburRows } = await db
+      .prepare(`SELECT id, employee_id, amount FROM overtime_records WHERE period = ? AND run_id IS NULL`)
+      .bind(input.period)
+      .all<{ id: string; employee_id: string; amount: number }>();
+    for (const l of lemburRows) {
+      adjByEmployee.set(l.employee_id, (adjByEmployee.get(l.employee_id) ?? 0) + l.amount);
+    }
+
     // Kasbon aktif — cicilan dipotong dari netto (bukan bruto, tidak kena pajak).
     const { results: loanRows } = await db
       .prepare(`SELECT id, employee_id, monthly_deduction, balance FROM employee_loans WHERE status = 'active' AND balance > 0`)
@@ -519,6 +534,9 @@ export const payrollRoutes = new Hono<AppEnv>()
     for (const a of adjRows) {
       await db.prepare(`UPDATE payroll_adjustments SET run_id = ? WHERE id = ?`).bind(runId, a.id).run();
     }
+    for (const l of lemburRows) {
+      await db.prepare(`UPDATE overtime_records SET run_id = ? WHERE id = ?`).bind(runId, l.id).run();
+    }
     for (const u of loanUpdates) {
       await db
         .prepare(`UPDATE employee_loans SET balance = ?, status = CASE WHEN ? <= 0 THEN 'paid' ELSE 'active' END WHERE id = ?`)
@@ -614,6 +632,9 @@ export const payrollRoutes = new Hono<AppEnv>()
     }
     // Lepaskan komponen ad-hoc agar ikut terhitung saat run ulang periode ini.
     await db.prepare(`UPDATE payroll_adjustments SET run_id = NULL WHERE run_id = ?`).bind(runId).run();
+    // Lembur ikut dilepas, dengan alasan yang sama: kalau tidak, run ulang akan
+    // membayar gaji tanpa lembur yang jam kerjanya benar-benar sudah terjadi.
+    await db.prepare(`UPDATE overtime_records SET run_id = NULL WHERE run_id = ?`).bind(runId).run();
     // Kolom period ber-UNIQUE (SQLite tak bisa melepas constraint) — beri
     // sufiks tombstone unik agar slot periode bebas untuk run ulang;
     // tampilan daftar memotong kembali ke YYYY-MM.
@@ -633,6 +654,152 @@ export const payrollRoutes = new Hono<AppEnv>()
       ip: clientIp(c),
     });
     return c.json({ ok: true, runNo: run.run_no, reversalEntryNo: reversal.entryNo });
+  })
+
+  // ---------------------------------------------------------------------------
+  // Lembur berumus — PP 35/2021 (Fase 43b).
+  //
+  // Yang dicatat adalah JAM dan JENIS HARI; nilainya dihitung server memakai
+  // tangga pengali peraturannya, bukan diketik tangan. Hasilnya masuk bruto
+  // lewat jalur yang sama dengan komponen ad-hoc, jadi ikut PPh 21 dan BPJS
+  // sebagaimana mestinya.
+  // ---------------------------------------------------------------------------
+  .get("/:tenantId/overtime", requireAuth, requireTenantRole("viewer"), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+    const period = c.req.query("period");
+    const { results } = await db
+      .prepare(
+        `SELECT o.id, o.employee_id, o.date, o.period, o.jenis_hari, o.hours, o.hourly_wage, o.amount,
+                o.exceeds_limit, o.note, o.run_id, e.name
+         FROM overtime_records o JOIN employees e ON e.id = o.employee_id
+         ${period ? "WHERE o.period = ?" : ""}
+         ORDER BY o.date DESC, e.name`,
+      )
+      .bind(...(period ? [period] : []))
+      .all<{
+        id: string;
+        employee_id: string;
+        date: string;
+        period: string;
+        jenis_hari: JenisHariLembur;
+        hours: number;
+        hourly_wage: number;
+        amount: number;
+        exceeds_limit: number;
+        note: string | null;
+        run_id: string | null;
+        name: string;
+      }>();
+
+    const overtime: ApiOvertime[] = results.map((r) => ({
+      id: r.id,
+      employeeId: r.employee_id,
+      employeeName: r.name,
+      date: r.date,
+      period: r.period,
+      jenisHari: r.jenis_hari,
+      hours: r.hours,
+      hourlyWage: r.hourly_wage,
+      amount: r.amount,
+      exceedsLimit: r.exceeds_limit === 1,
+      note: r.note,
+      runId: r.run_id,
+    }));
+    return c.json({ overtime });
+  })
+
+  .post("/:tenantId/overtime", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = overtimeSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const input = parsed.data;
+
+    const emp = await db
+      .prepare(`SELECT id, name, base_salary, allowances FROM employees WHERE id = ? AND is_active = 1`)
+      .bind(input.employeeId)
+      .first<{ id: string; name: string; base_salary: number; allowances: number }>();
+    if (!emp) return c.json({ error: "Karyawan tidak ditemukan atau sudah tidak aktif." }, 404);
+
+    const period = input.date.slice(0, 7);
+    // Periode yang sudah digaji tidak boleh menerima lembur baru: slipnya sudah
+    // tercetak dan jurnalnya sudah diposting, jadi menambahkannya sekarang
+    // hanya akan menghasilkan angka yang tidak pernah dibayarkan.
+    const sudahDigaji = await db
+      .prepare(`SELECT id FROM payroll_runs WHERE period = ? AND voided_at IS NULL`)
+      .bind(period)
+      .first<{ id: string }>();
+    if (sudahDigaji) {
+      return c.json({ error: `Penggajian ${period} sudah dijalankan — catat lembur ini di periode berikutnya.` }, 409);
+    }
+
+    const sudahAda = await db
+      .prepare(`SELECT id FROM overtime_records WHERE employee_id = ? AND date = ?`)
+      .bind(input.employeeId, input.date)
+      .first<{ id: string }>();
+    if (sudahAda) return c.json({ error: `Lembur ${emp.name} pada ${input.date} sudah dicatat.` }, 409);
+
+    const b = hitungLembur({
+      upahSebulan: emp.base_salary + emp.allowances,
+      jam: input.hours,
+      jenisHari: input.jenisHari,
+    });
+
+    const id = crypto.randomUUID();
+    await db
+      .prepare(
+        `INSERT INTO overtime_records (id, employee_id, date, period, jenis_hari, hours, hourly_wage, amount,
+                                       exceeds_limit, note, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        id,
+        input.employeeId,
+        input.date,
+        period,
+        input.jenisHari,
+        input.hours,
+        b.upahPerJam,
+        b.amount,
+        b.melampauiBatas ? 1 : 0,
+        input.note ?? null,
+        c.get("user").id,
+      )
+      .run();
+
+    await audit(c.env, {
+      action: "hr.lembur.catat",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { employee: emp.name, date: input.date, jam: input.hours, jenisHari: input.jenisHari, amount: b.amount },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, id, amount: b.amount, hourlyWage: b.upahPerJam, segmen: b.segmen, exceedsLimit: b.melampauiBatas }, 201);
+  })
+
+  .delete("/:tenantId/overtime/:id", requireAuth, requireTenantRole("admin"), async (c) => {
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const id = c.req.param("id");
+    const row = await db
+      .prepare(`SELECT id, run_id FROM overtime_records WHERE id = ?`)
+      .bind(id)
+      .first<{ id: string; run_id: string | null }>();
+    if (!row) return c.json({ error: "Catatan lembur tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
+    // Baris yang sudah ikut penggajian tidak boleh hilang: slipnya menyebut
+    // angka itu, dan menghapusnya membuat slip tidak bisa dijelaskan lagi.
+    if (row.run_id) return c.json({ error: "Lembur ini sudah ikut penggajian — batalkan penggajiannya lebih dulu." }, 400);
+    await db.prepare(`DELETE FROM overtime_records WHERE id = ?`).bind(id).run();
+    await audit(c.env, {
+      action: "hr.lembur.hapus",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { id },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true });
   })
 
   // ---------------------------------------------------------------------------

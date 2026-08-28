@@ -1756,6 +1756,108 @@ try {
   const thrTb2 = await admin("GET", `/api/tenants/${mpT}/trial-balance`);
   check("43a neraca saldo tetap seimbang setelah batal & bayar ulang", thrTb2.json?.balanced === true);
 
+  // --- Lembur berumus — PP 35/2021 (Fase 43b) — di tenant Dewi ---------------
+  // Di tenant terisolasi karena run penggajian di bawah memposting jurnal.
+  console.log("11i4. Lembur berumus (PP 35/2021)");
+
+  // Upah 8.650.000 dipilih supaya 8.650.000 / 173 = 50.000 pas — angkanya bisa
+  // dibaca mata, jadi cek di bawah menguji rumusnya, bukan sekadar konsistensi
+  // server dengan dirinya sendiri.
+  const empLembur = await admin("POST", `/api/tenants/${mpT}/employees`, {
+    name: "Joko Lembur", position: "Operator", ptkpStatus: "TK/0", baseSalary: 8_650_000, allowances: 0,
+    joinDate: "2024-01-05",
+  });
+  check("43b karyawan lembur dibuat", empLembur.status === 201);
+
+  const otBiasa = await admin("POST", `/api/tenants/${mpT}/overtime`, {
+    employeeId: empLembur.json.id, date: "2026-09-08", jenisHari: "biasa", hours: 3,
+  });
+  check(
+    "43b hari biasa 3 jam = 1x1,5 + 2x2 = 275.000 (bukan 3x1,5)",
+    otBiasa.status === 201 && otBiasa.json?.amount === 275_000 && otBiasa.json?.hourlyWage === 50_000,
+    `→ ${JSON.stringify(otBiasa.json)}`,
+  );
+  check(
+    "43b rincian segmennya dikembalikan, jadi hitungannya bisa diperiksa",
+    otBiasa.json?.segmen?.length === 2 && otBiasa.json.segmen[0].kali === 1.5,
+    `→ ${JSON.stringify(otBiasa.json?.segmen)}`,
+  );
+
+  const otLibur = await admin("POST", `/api/tenants/${mpT}/overtime`, {
+    employeeId: empLembur.json.id, date: "2026-09-13", jenisHari: "libur6", hours: 8,
+  });
+  check(
+    "43b libur pekan 6 hari, 8 jam = 7x2 + 1x3 = 850.000",
+    otLibur.status === 201 && otLibur.json?.amount === 850_000,
+    `→ ${JSON.stringify(otLibur.json)}`,
+  );
+
+  const otLampau = await admin("POST", `/api/tenants/${mpT}/overtime`, {
+    employeeId: empLembur.json.id, date: "2026-09-14", jenisHari: "biasa", hours: 6,
+  });
+  check(
+    "43b lewat batas 4 jam TETAP dibayar, tetapi ditandai",
+    otLampau.status === 201 && otLampau.json?.exceedsLimit === true && otLampau.json?.amount === 575_000,
+    `→ ${JSON.stringify(otLampau.json)}`,
+  );
+
+  const otGanda = await admin("POST", `/api/tenants/${mpT}/overtime`, {
+    employeeId: empLembur.json.id, date: "2026-09-08", jenisHari: "biasa", hours: 1,
+  });
+  check("43b lembur ganda pada tanggal sama DITOLAK 409", otGanda.status === 409, `→ ${otGanda.status}`);
+
+  const otJamNol = await admin("POST", `/api/tenants/${mpT}/overtime`, {
+    employeeId: empLembur.json.id, date: "2026-09-20", jenisHari: "biasa", hours: 0,
+  });
+  check("43b jam nol DITOLAK 400", otJamNol.status === 400);
+
+  const otJenisNgawur = await admin("POST", `/api/tenants/${mpT}/overtime`, {
+    employeeId: empLembur.json.id, date: "2026-09-20", jenisHari: "hari-kejepit", hours: 2,
+  });
+  check("43b jenis hari di luar daftar DITOLAK 400", otJenisNgawur.status === 400);
+
+  // Inilah cek yang paling menentukan: lembur harus MASUK BRUTO, bukan
+  // dibayarkan di luar pajak. Total lembur September = 275rb + 850rb + 575rb.
+  const totalLembur = 275_000 + 850_000 + 575_000;
+  const runLembur = await admin("POST", `/api/tenants/${mpT}/payroll-runs`, {
+    period: "2026-09", cashAccountId: thrKas?.id, paymentDate: "2026-09-30",
+  });
+  check("43b penggajian September berjalan", runLembur.status === 201, `→ ${runLembur.status}`);
+
+  const runsLembur = await admin("GET", `/api/tenants/${mpT}/payroll-runs`);
+  const slipJoko = runsLembur.json?.runs
+    ?.find((r) => r.period === "2026-09")
+    ?.payslips?.find((p) => p.employeeName === "Joko Lembur");
+  check(
+    "43b upah lembur masuk bruto slip (bukan dibayar di luar pajak)",
+    slipJoko?.gross === 8_650_000 + totalLembur,
+    `→ gross=${slipJoko?.gross} harapan=${8_650_000 + totalLembur}`,
+  );
+  check(
+    "43b lembur ikut menaikkan PPh 21 — itulah gunanya masuk bruto",
+    slipJoko?.pph21 > 0 && slipJoko?.adjustmentsTotal === totalLembur,
+    `→ pph=${slipJoko?.pph21} adj=${slipJoko?.adjustmentsTotal}`,
+  );
+
+  const otSetelahGaji = await admin("POST", `/api/tenants/${mpT}/overtime`, {
+    employeeId: empLembur.json.id, date: "2026-09-25", jenisHari: "biasa", hours: 2,
+  });
+  check("43b lembur pada periode yang sudah digaji DITOLAK 409", otSetelahGaji.status === 409, `→ ${otSetelahGaji.status}`);
+
+  const otList = await admin("GET", `/api/tenants/${mpT}/overtime?period=2026-09`);
+  const otTerkunci = otList.json?.overtime?.find((o) => o.date === "2026-09-08");
+  check("43b lembur yang sudah digaji ditandai runId", Boolean(otTerkunci?.runId));
+
+  const otHapusTerkunci = await admin("DELETE", `/api/tenants/${mpT}/overtime/${otTerkunci?.id}`);
+  check(
+    "43b lembur yang sudah digaji TIDAK boleh dihapus (slipnya menyebut angka itu)",
+    otHapusTerkunci.status === 400,
+    `→ ${otHapusTerkunci.status}`,
+  );
+
+  const tbLembur = await admin("GET", `/api/tenants/${mpT}/trial-balance`);
+  check("43b neraca saldo tetap seimbang setelah penggajian berlembur", tbLembur.json?.balanced === true);
+
   // --- Template industri (Fase 11f) — di tenant Dewi (terisolasi) --------------
   const indTplRetail = await admin("POST", `/api/tenants/${mpT}/setup/industry-template`, { industry: "retail" });
   check("template industri retail: 5 produk + 2 kontak ditambahkan",

@@ -3597,6 +3597,36 @@ export const UI = {
     en: "Holiday allowance payment {0} cancelled — reversing entry {1}.",
   },
   bulanSatuan: { id: "bulan", en: "months" },
+  // Lembur berumus — PP 35/2021 (Fase 43b)
+  lembur: { id: "Lembur", en: "Overtime" },
+  descLembur: {
+    id: "Isi jam dan jenis harinya, lalu upahnya dihitung memakai pengali PP 35/2021. Hasilnya masuk gaji bruto, jadi ikut PPh 21 dan BPJS.",
+    en: "Enter the hours and day type, then pay is computed using the statutory multipliers. It enters gross pay, so income tax and social security apply.",
+  },
+  jamLembur: { id: "Jam lembur", en: "Overtime hours" },
+  jenisHariLembur: { id: "Jenis hari", en: "Day type" },
+  hariBiasa: { id: "Hari kerja biasa", en: "Ordinary working day" },
+  hariLibur6: { id: "Hari libur (pekan 6 hari kerja)", en: "Holiday (6-day week)" },
+  hariLibur5: { id: "Hari libur (pekan 5 hari kerja)", en: "Holiday (5-day week)" },
+  upahSejam: { id: "Upah sejam", en: "Hourly wage" },
+  upahLembur: { id: "Upah lembur", en: "Overtime pay" },
+  catatLembur: { id: "Catat lembur", en: "Record overtime" },
+  belumAdaLembur: { id: "Belum ada lembur dicatat", en: "No overtime recorded yet" },
+  descBelumAdaLembur: {
+    id: "Lembur yang dicatat di sini otomatis masuk penggajian periode yang sama, lengkap dengan pajaknya.",
+    en: "Overtime recorded here flows into the same period's payroll automatically, tax included.",
+  },
+  melampauiBatasJam: { id: "Melampaui batas jam", en: "Over the hour limit" },
+  descMelampauiBatasJam: {
+    id: "Jamnya melampaui batas PP 35/2021, tetapi tetap dibayar — jam yang sudah dikerjakan adalah hak karyawan. Yang perlu diperiksa adalah pengaturan jam kerjanya.",
+    en: "The hours exceed the statutory limit but are still paid — hours already worked are the employee's right. What needs review is the working-time arrangement.",
+  },
+  sudahDigaji: { id: "Sudah digaji", en: "Paid out" },
+  toastLemburDicatat: {
+    id: "Lembur {0} jam tercatat, upah {1}.",
+    en: "{0} hours of overtime recorded, pay {1}.",
+  },
+  toastLemburDihapus: { id: "Catatan lembur dihapus.", en: "Overtime record deleted." },
 } satisfies Record<string, Dual>;
 
 export type UiKey = keyof typeof UI;

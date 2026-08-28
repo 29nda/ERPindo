@@ -70,7 +70,9 @@ import type {
   ApiLeaveRequest,
   ApiPayrollAdjustment,
   ApiPayrollRun,
+  ApiOvertime,
   ApiThrRun,
+  OvertimeInput,
   RunThrInput,
   ApiProject,
   ApiProjectDetail,
@@ -659,6 +661,23 @@ export const api = {
       `/api/tenants/${tenantId}/payroll-runs/${id}/void`,
       date ? { date } : {},
     ),
+  /** Lembur berumus (Fase 43b) — server yang menghitung, bukan pengetik. */
+  overtime: (tenantId: string, period?: string) =>
+    request<{ overtime: ApiOvertime[] }>(
+      "GET",
+      `/api/tenants/${tenantId}/overtime${period ? `?period=${period}` : ""}`,
+    ),
+  createOvertime: (tenantId: string, input: OvertimeInput) =>
+    request<{
+      ok: true;
+      id: string;
+      amount: number;
+      hourlyWage: number;
+      segmen: { jam: number; kali: number; amount: number }[];
+      exceedsLimit: boolean;
+    }>("POST", `/api/tenants/${tenantId}/overtime`, input),
+  deleteOvertime: (tenantId: string, id: string) =>
+    request<{ ok: true }>("DELETE", `/api/tenants/${tenantId}/overtime/${id}`),
   /** THR — pratinjau hak tiap karyawan sebelum uangnya berpindah (Fase 43a). */
   thrPreview: (tenantId: string, payDate: string) =>
     request<{

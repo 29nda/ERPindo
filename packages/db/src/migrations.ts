@@ -1960,6 +1960,47 @@ export const TENANT_MIGRATIONS: Migration[] = [
       `CREATE UNIQUE INDEX thr_runs_tahun_raya ON thr_runs (tahun, hari_raya) WHERE voided_at IS NULL`,
     ],
   },
+  {
+    /**
+     * Lembur berumus — PP 35/2021 (Fase 43b).
+     *
+     * Sampai fase ini lembur hanyalah angka yang diketik tangan ke dalam
+     * `payroll_adjustments`. Rumusnya hidup di kepala orang yang mengetik, dan
+     * kesalahannya tidak bisa diperiksa siapa pun — termasuk oleh karyawan yang
+     * dirugikan.
+     *
+     * Yang disimpan adalah **jam dan jenis harinya**, lalu nilainya dihitung
+     * saat dicatat dan ikut disimpan. Keduanya sengaja ada:
+     *
+     * - jam & jenis hari membuat perhitungannya bisa ditelusuri ulang;
+     * - `amount` yang tersimpan membuat slip lama tetap benar meski gaji
+     *   karyawannya kemudian naik — persis alasan yang sama seperti slip THR.
+     *
+     * `run_id` mengikuti pola `payroll_adjustments`: kosong selama belum
+     * digaji, terisi saat periode itu dijalankan, dan dilepas kembali bila
+     * runnya dibatalkan.
+     */
+    id: "0050_lembur",
+    statements: [
+      `CREATE TABLE overtime_records (
+        id TEXT PRIMARY KEY,
+        employee_id TEXT NOT NULL REFERENCES employees(id),
+        date TEXT NOT NULL,
+        period TEXT NOT NULL,
+        jenis_hari TEXT NOT NULL,
+        hours REAL NOT NULL,
+        hourly_wage INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        exceeds_limit INTEGER NOT NULL DEFAULT 0,
+        note TEXT,
+        run_id TEXT REFERENCES payroll_runs(id),
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (employee_id, date)
+      )`,
+      `CREATE INDEX overtime_period ON overtime_records (period)`,
+    ],
+  },
 ];
 
 /** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */

@@ -2523,6 +2523,29 @@ try {
   );
   check("F55 alur THR bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
+  // F56 — Fase 43b: lembur berumus. Yang diperiksa adalah bahwa layarnya
+  // meminta JAM dan JENIS HARI, bukan rupiah: begitu ia meminta rupiah, rumus
+  // peraturannya kembali hidup di kepala pengetiknya.
+  await page.getByRole("tab", { name: "Komponen" }).click();
+  await page.waitForTimeout(600);
+  const lemburBody = await page.innerText("body");
+  check("F56 kartu lembur muncul di tab Komponen", lemburBody.includes("Lembur"));
+  check(
+    "F56 lembur meminta jam & jenis hari, bukan rupiah yang diketik tangan",
+    (await page.locator("#ot-jam").count()) === 1 && (await page.locator("#ot-jenis").count()) === 1,
+  );
+  const jenisHari = await page.locator("#ot-jenis option").allInnerTexts();
+  check(
+    "F56 ketiga jenis hari PP 35/2021 tersedia, termasuk beda pekan 5 & 6 hari",
+    jenisHari.length === 3 && jenisHari.some((t) => t.includes("6 hari")) && jenisHari.some((t) => t.includes("5 hari")),
+    `→ ${JSON.stringify(jenisHari)}`,
+  );
+  check(
+    "F56 lembur menyebut bahwa upahnya masuk bruto & kena pajak",
+    lemburBody.includes("PPh 21") && lemburBody.includes("PP 35/2021"),
+  );
+  check("F56 alur lembur bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/app/alat", 700);
   const alatBody = await page.innerText("body");
   check("F19 kalkulator render (HPP + hasil Rupiah)", alatBody.includes("Harga Pokok Produksi") && /Rp\s?[1-9]/.test(alatBody.replace(/\u00A0/g, " ")));

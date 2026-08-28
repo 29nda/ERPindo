@@ -293,3 +293,146 @@ export function hitungPph21Thr(brutoReguler: number, thr: number, ptkpStatus: Pt
     pph21Thr: Math.max(0, pph21Gabungan - pph21Reguler),
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Lembur berumus — PP 35/2021 (Fase 43b)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Sampai fase ini lembur hanyalah angka yang diketik tangan ke dalam komponen
+ * gaji ad-hoc. Artinya rumusnya hidup di kepala orang yang mengetik, dan
+ * kesalahannya tidak bisa dilihat siapa pun — termasuk oleh karyawan yang
+ * dirugikan.
+ *
+ * PP 35/2021 pasal 31 menetapkan pengalinya, dan pengali itu tidak rata:
+ *
+ * - **Hari kerja biasa** — jam pertama 1,5×, jam berikutnya 2×.
+ * - **Hari libur, 6 hari kerja seminggu** — jam 1–7 = 2×, jam ke-8 = 3×,
+ *   jam 9–10 = 4×.
+ * - **Hari libur, 5 hari kerja seminggu** — jam 1–8 = 2×, jam ke-9 = 3×,
+ *   jam 10–11 = 4×.
+ *
+ * Karena berjenjang, mengalikan seluruh jam dengan satu pengali selalu salah:
+ * terlalu kecil pada jam-jam awal hari libur, terlalu besar pada jam pertama
+ * hari biasa. Itulah alasan fungsi di bawah mengembalikan **rincian per
+ * segmen**, bukan satu angka — supaya slipnya bisa menunjukkan cara hitungnya,
+ * dan karyawan bisa memeriksanya.
+ */
+
+/**
+ * Pembagi upah sebulan menjadi upah sejam, PP 35/2021 pasal 32 ayat (2).
+ *
+ * Angka 173 bukan perkiraan: ia berasal dari 40 jam seminggu × 52 minggu ÷ 12
+ * bulan ≈ 173,33, yang dibakukan menjadi 173 di peraturannya. Menuliskannya
+ * sebagai konstanta bernama, bukan angka telanjang di tengah rumus, supaya
+ * yang membacanya tahu ini ketentuan hukum dan bukan pilihan yang boleh diubah.
+ */
+export const PEMBAGI_UPAH_JAM = 173;
+
+/** Jenis hari lembur. Menentukan tangga pengalinya. */
+export const JENIS_HARI_LEMBUR = ["biasa", "libur6", "libur5"] as const;
+export type JenisHariLembur = (typeof JENIS_HARI_LEMBUR)[number];
+
+type Tangga = { hingga: number; kali: number }[];
+
+/**
+ * Tangga pengali per jenis hari. `hingga` bersifat kumulatif: jam ke-n memakai
+ * baris pertama yang `n <= hingga`.
+ */
+const TANGGA: Record<JenisHariLembur, Tangga> = {
+  biasa: [
+    { hingga: 1, kali: 1.5 },
+    { hingga: Number.POSITIVE_INFINITY, kali: 2 },
+  ],
+  libur6: [
+    { hingga: 7, kali: 2 },
+    { hingga: 8, kali: 3 },
+    { hingga: Number.POSITIVE_INFINITY, kali: 4 },
+  ],
+  libur5: [
+    { hingga: 8, kali: 2 },
+    { hingga: 9, kali: 3 },
+    { hingga: Number.POSITIVE_INFINITY, kali: 4 },
+  ],
+};
+
+/**
+ * Batas jam lembur yang dibolehkan per hari.
+ *
+ * Hari biasa dibatasi 4 jam (PP 35/2021 pasal 26 ayat 1). Hari libur dibatasi
+ * oleh tangga pengalinya sendiri — peraturannya tidak menyebut pengali untuk
+ * jam ke-11 pada pekan 6 hari, maupun jam ke-12 pada pekan 5 hari.
+ */
+export const BATAS_JAM_LEMBUR: Record<JenisHariLembur, number> = {
+  biasa: 4,
+  libur6: 10,
+  libur5: 11,
+};
+
+export type SegmenLembur = {
+  /** Jumlah jam pada segmen ini. */
+  jam: number;
+  /** Pengali upah sejam yang berlaku pada segmen ini. */
+  kali: number;
+  amount: number;
+};
+
+export type LemburBreakdown = {
+  upahPerJam: number;
+  jam: number;
+  jenisHari: JenisHariLembur;
+  segmen: SegmenLembur[];
+  amount: number;
+  /** Benar bila jamnya melampaui batas yang dibolehkan peraturan. */
+  melampauiBatas: boolean;
+  batasJam: number;
+};
+
+/** Upah sejam menurut PP 35/2021: 1/173 dari upah sebulan. */
+export function upahPerJam(upahSebulan: number): number {
+  return Math.round(upahSebulan / PEMBAGI_UPAH_JAM);
+}
+
+/**
+ * Hitung upah lembur berikut rinciannya.
+ *
+ * Jam pecahan didukung (0,5 jam adalah hal biasa) dan dipotong pada batas tiap
+ * segmen, sehingga lembur 1,5 jam di hari biasa menghasilkan dua segmen:
+ * 1 jam × 1,5 dan 0,5 jam × 2.
+ *
+ * Jam yang melampaui batas peraturan TETAP dihitung dan ditandai
+ * `melampauiBatas`, bukan dipotong diam-diam. Memotongnya akan menghilangkan
+ * upah yang secara perdata sudah menjadi hak karyawan atas jam yang benar-benar
+ * ia kerjakan; yang dilanggar perusahaan adalah batas waktu kerjanya, dan itu
+ * persoalan yang harus terlihat, bukan ditutup oleh pembayaran yang dikurangi.
+ */
+export function hitungLembur(input: {
+  upahSebulan: number;
+  jam: number;
+  jenisHari: JenisHariLembur;
+}): LemburBreakdown {
+  const perJam = upahPerJam(input.upahSebulan);
+  const batasJam = BATAS_JAM_LEMBUR[input.jenisHari];
+  const jam = Math.max(0, input.jam);
+
+  const segmen: SegmenLembur[] = [];
+  let sudah = 0;
+  for (const baris of TANGGA[input.jenisHari]) {
+    if (sudah >= jam) break;
+    const sampai = Math.min(jam, baris.hingga);
+    const jamSegmen = sampai - sudah;
+    if (jamSegmen <= 0) continue;
+    segmen.push({ jam: jamSegmen, kali: baris.kali, amount: Math.round(jamSegmen * baris.kali * perJam) });
+    sudah = sampai;
+  }
+
+  return {
+    upahPerJam: perJam,
+    jam,
+    jenisHari: input.jenisHari,
+    segmen,
+    amount: segmen.reduce((a, s) => a + s.amount, 0),
+    melampauiBatas: jam > batasJam,
+    batasJam,
+  };
+}
