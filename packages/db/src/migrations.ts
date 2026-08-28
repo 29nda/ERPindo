@@ -2186,6 +2186,33 @@ export const TENANT_MIGRATIONS: Migration[] = [
       `CREATE INDEX severance_employee ON severance_records (employee_id)`,
     ],
   },
+  {
+    /**
+     * Perbaikan tabrakan kode akun (Fase 48).
+     *
+     * Dua kode dipakai dua maksud sekaligus, dan keduanya ditemukan oleh uji
+     * baru `apps/api/test/kodeAkunUnik.test.ts`:
+     *
+     * - `5-2100` — dimaksudkan "Beban PPh Final UMKM" sejak Fase 7d, tetapi
+     *   Fase 21f menyisipkan "Beban Produksi Diserap" di kode yang sama. Beban
+     *   pajak karena itu mendarat di akun kontra-beban penyerapan produksi.
+     * - `1-1300` — dimaksudkan "Uang Muka PPh 22" di Fase 46, padahal sudah
+     *   dipakai "Persediaan Barang" di COA bawaan.
+     *
+     * Migrasi ini menyediakan kedua akun yang benar. Ia **tidak** menulis ulang
+     * jurnal yang sudah diposting: jurnal terposting adalah catatan sejarah,
+     * dan diam-diam memindahkannya akan mengubah laporan periode yang mungkin
+     * sudah ditutup dan dilaporkan. Angka lama yang salah tempat harus
+     * direklasifikasi lewat Jurnal Umum, sebagai keputusan sadar pemiliknya.
+     */
+    id: "0056_kode_akun_pajak",
+    statements: [
+      `INSERT OR IGNORE INTO accounts (id, code, name, type, is_system)
+       VALUES ('acc-5-2200', '5-2200', 'Beban PPh Final UMKM', 'expense', 1)`,
+      `INSERT OR IGNORE INTO accounts (id, code, name, type, is_system)
+       VALUES ('acc-1-1410', '1-1410', 'Uang Muka PPh 22', 'asset', 1)`,
+    ],
+  },
 ];
 
 /** Antarmuka minimal database yang dibutuhkan runner migrasi (kompatibel D1). */

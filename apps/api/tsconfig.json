@@ -16,6 +16,7 @@
   "exclude": [
     "test/rbac-guard.test.ts",
     "test/pesan-galat.test.ts",
-    "test/token-publik.test.ts"
+    "test/token-publik.test.ts",
+    "test/kodeAkunUnik.test.ts"
   ]
 }
