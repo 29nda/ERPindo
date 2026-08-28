@@ -3694,6 +3694,37 @@ export const UI = {
   peluang: { id: "Peluang", en: "Probability" },
   nilaiKotor: { id: "Nilai kotor", en: "Gross value" },
   toastTargetDisimpan: { id: "Target penjualan disimpan.", en: "Sales target saved." },
+  // Kontrak: eskalasi, perpanjangan, adendum (Fase 45)
+  eskalasiTahunan: { id: "Kenaikan tahunan (%)", en: "Annual increase (%)" },
+  perpanjangOtomatis: { id: "Perpanjang otomatis", en: "Renew automatically" },
+  descEskalasi: {
+    id: "Kenaikan dihitung dari harga tahun sebelumnya, terhitung sejak ulang tahun kontrak, bukan sejak awal tahun kalender. Harga dasar yang disepakati tetap tersimpan apa adanya.",
+    en: "The increase compounds from the previous year's price, counted from the contract anniversary rather than the calendar year. The agreed base price is kept as it is.",
+  },
+  adendum: { id: "Adendum", en: "Amendments" },
+  descAdendum: {
+    id: "Setiap perubahan kontrak meninggalkan jejak di sini, termasuk perpanjangan yang berjalan sendiri.",
+    en: "Every change to the contract leaves a trace here, including renewals that run on their own.",
+  },
+  belumAdaAdendum: { id: "Kontrak ini belum pernah diubah", en: "This contract has never been changed" },
+  descBelumAdaAdendum: {
+    id: "Perpanjangan, perubahan harga, dan perubahan lingkup akan tercatat di sini begitu terjadi.",
+    en: "Renewals, price changes, and scope changes will be recorded here as they happen.",
+  },
+  jenisAdendum: { id: "Jenis", en: "Kind" },
+  adendumPerpanjangan: { id: "Perpanjangan", en: "Renewal" },
+  adendumHarga: { id: "Harga", en: "Price" },
+  adendumLingkup: { id: "Lingkup", en: "Scope" },
+  berlakuSejak: { id: "Berlaku sejak", en: "Effective from" },
+  sebelumnya: { id: "Sebelumnya", en: "Before" },
+  menjadi: { id: "Menjadi", en: "After" },
+  perpanjangKontrak: { id: "Perpanjang kontrak", en: "Renew contract" },
+  toastKontrakDiperpanjang: {
+    id: "Kontrak diperpanjang sampai {0}.",
+    en: "Contract renewed until {0}.",
+  },
+  segeraBerakhir: { id: "Segera berakhir", en: "Ending soon" },
+  tahunSatuan: { id: "tahun", en: "year" },
 } satisfies Record<string, Dual>;
 
 export type UiKey = keyof typeof UI;

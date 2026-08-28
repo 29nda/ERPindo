@@ -1,9 +1,15 @@
 import {
+  contractAmendmentSchema,
   contractStatusSchema,
   createContractSchema,
+  hargaTereskalasi,
+  renewContractSchema,
+  tahunBerjalan,
   type ApiContract,
+  type ApiContractAmendment,
   type ApiContractLine,
   type ContractFrequency,
+  type JenisAdendum,
   type CreateInvoiceInput,
 } from "@erpindo/shared";
 import type { SqlExecutor } from "@erpindo/db";
@@ -47,7 +53,8 @@ export async function runBilling(
 ): Promise<{ issued: number; total: number }> {
   const { results: due } = await db
     .prepare(
-      `SELECT id, contact_id, name, frequency, tax_rate, warehouse_id, next_invoice_date, end_date, invoice_count
+      `SELECT id, contact_id, name, frequency, tax_rate, warehouse_id, next_invoice_date, end_date, invoice_count,
+              start_date, escalation_bp, auto_renew, renew_months
        FROM contracts WHERE status = 'active' AND next_invoice_date <= ?`,
     )
     .bind(today)
@@ -61,6 +68,10 @@ export async function runBilling(
       next_invoice_date: string;
       end_date: string | null;
       invoice_count: number;
+      start_date: string | null;
+      escalation_bp: number;
+      auto_renew: number;
+      renew_months: number;
     }>();
 
   let issued = 0;
@@ -80,7 +91,15 @@ export async function runBilling(
         productId: l.product_id,
         description: l.description ?? undefined,
         qty: l.qty,
-        unitPrice: l.unit_price,
+        // Eskalasi (Fase 45) dihitung dari harga DASAR tiap kali menagih,
+        // bukan dengan menimpa harga di kontrak. Harga yang disepakati awal
+        // karena itu tetap terbaca selamanya, dan pelanggan bisa memeriksa
+        // sendiri kenaikannya.
+        unitPrice: hargaTereskalasi(
+          l.unit_price,
+          c.escalation_bp,
+          tahunBerjalan(c.start_date ?? c.next_invoice_date, c.next_invoice_date),
+        ),
       })),
     };
 
@@ -88,13 +107,32 @@ export async function runBilling(
     if ("error" in result) continue; // mis. periode terkunci / stok kurang — lewati, coba lagi lain waktu
 
     const next = addMonths(c.next_invoice_date, FREQ_MONTHS[c.frequency]);
-    const ended = c.end_date && next > c.end_date;
+    let endDate = c.end_date;
+    let ended = Boolean(endDate && next > endDate);
+
+    // Perpanjangan otomatis (Fase 45): kontrak yang habis masa berlakunya
+    // tidak berhenti diam-diam bila pemiliknya sudah memutuskan sebaliknya.
+    // Perpanjangannya DICATAT sebagai adendum — perpanjangan senyap sama
+    // buruknya dengan penghentian senyap.
+    if (ended && c.auto_renew === 1 && endDate) {
+      const baru = addMonths(endDate, c.renew_months);
+      await db
+        .prepare(
+          `INSERT INTO contract_amendments (id, contract_id, jenis, effective_date, sebelum, sesudah, note, created_by)
+           VALUES (?, ?, 'perpanjangan', ?, ?, ?, 'Perpanjangan otomatis', ?)`,
+        )
+        .bind(crypto.randomUUID(), c.id, c.next_invoice_date, endDate, baru, userId)
+        .run();
+      endDate = baru;
+      ended = false;
+    }
+
     await db
       .prepare(
         `UPDATE contracts SET next_invoice_date = ?, last_invoice_id = ?, invoice_count = invoice_count + 1,
-                status = ? WHERE id = ?`,
+                status = ?, end_date = ? WHERE id = ?`,
       )
-      .bind(next, result.invoiceId, ended ? "ended" : "active", c.id)
+      .bind(next, result.invoiceId, ended ? "ended" : "active", endDate, c.id)
       .run();
     issued++;
     total += result.total;
@@ -106,7 +144,8 @@ async function listContracts(db: SqlExecutor): Promise<ApiContract[]> {
   const { results: rows } = await db
     .prepare(
       `SELECT ct.id, ct.code, ct.contact_id, c.name AS contact_name, ct.name, ct.frequency, ct.tax_rate,
-              ct.next_invoice_date, ct.end_date, ct.status, ct.invoice_count
+              ct.next_invoice_date, ct.end_date, ct.status, ct.invoice_count,
+              ct.start_date, ct.escalation_bp, ct.auto_renew, ct.renew_months
        FROM contracts ct JOIN contacts c ON c.id = ct.contact_id
        ORDER BY CASE ct.status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END, ct.next_invoice_date`,
     )
@@ -122,6 +161,10 @@ async function listContracts(db: SqlExecutor): Promise<ApiContract[]> {
       end_date: string | null;
       status: ApiContract["status"];
       invoice_count: number;
+      start_date: string | null;
+      escalation_bp: number;
+      auto_renew: number;
+      renew_months: number;
     }>();
 
   const { results: lines } = await db
@@ -138,6 +181,36 @@ async function listContracts(db: SqlExecutor): Promise<ApiContract[]> {
       qty: number;
       unit_price: number;
     }>();
+
+  const { results: adendum } = await db
+    .prepare(
+      `SELECT id, contract_id, jenis, effective_date, sebelum, sesudah, note, created_at
+       FROM contract_amendments ORDER BY effective_date DESC, created_at DESC`,
+    )
+    .all<{
+      id: string;
+      contract_id: string;
+      jenis: JenisAdendum;
+      effective_date: string;
+      sebelum: string | null;
+      sesudah: string | null;
+      note: string | null;
+      created_at: string;
+    }>();
+  const adendumPer = new Map<string, ApiContractAmendment[]>();
+  for (const a of adendum) {
+    const list = adendumPer.get(a.contract_id) ?? [];
+    list.push({
+      id: a.id,
+      jenis: a.jenis,
+      effectiveDate: a.effective_date,
+      sebelum: a.sebelum,
+      sesudah: a.sesudah,
+      note: a.note,
+      createdAt: a.created_at,
+    });
+    adendumPer.set(a.contract_id, list);
+  }
 
   const byContract = new Map<string, ApiContractLine[]>();
   for (const l of lines) {
@@ -171,6 +244,11 @@ async function listContracts(db: SqlExecutor): Promise<ApiContract[]> {
       invoiceCount: r.invoice_count,
       total: subtotal + Math.round((subtotal * r.tax_rate) / 100),
       lines: cl,
+      startDate: r.start_date,
+      escalationBp: r.escalation_bp,
+      autoRenew: r.auto_renew === 1,
+      renewMonths: r.renew_months,
+      amendments: adendumPer.get(r.id) ?? [],
     };
   });
 }
@@ -203,8 +281,9 @@ export const contractRoutes = new Hono<AppEnv>()
     const id = crypto.randomUUID();
     await db
       .prepare(
-        `INSERT INTO contracts (id, code, contact_id, name, frequency, tax_rate, warehouse_id, next_invoice_date, end_date, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO contracts (id, code, contact_id, name, frequency, tax_rate, warehouse_id, next_invoice_date, end_date, created_by,
+                                start_date, escalation_bp, auto_renew, renew_months)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         id,
@@ -217,6 +296,13 @@ export const contractRoutes = new Hono<AppEnv>()
         input.startDate,
         input.endDate ?? null,
         c.get("user").id,
+        // Jangkar ulang-tahun eskalasi. Sama dengan tagihan pertama saat
+        // kontrak dibuat, tetapi TIDAK ikut bergerak saat menagih — itulah
+        // bedanya dengan `next_invoice_date`.
+        input.startDate,
+        input.escalationBp ?? 0,
+        input.autoRenew ? 1 : 0,
+        input.renewMonths ?? 12,
       )
       .run();
     for (const line of input.lines) {
@@ -275,4 +361,106 @@ export const contractRoutes = new Hono<AppEnv>()
       ip: clientIp(c),
     });
     return c.json({ ok: true, ...result });
+  })
+
+  // ---------------------------------------------------------------------------
+  // Adendum & perpanjangan (Fase 45).
+  //
+  // Perubahan kontrak WAJIB meninggalkan jejak. Kontrak yang berubah tanpa
+  // jejak tidak bisa dipertanggungjawabkan ketika pelanggannya bertanya
+  // "kenapa naik?" — dan pertanyaan itu selalu datang.
+  // ---------------------------------------------------------------------------
+  .post("/:tenantId/contracts/:id/amendments", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = contractAmendmentSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const id = c.req.param("id");
+    const kontrak = await db
+      .prepare(`SELECT id, code FROM contracts WHERE id = ?`)
+      .bind(id)
+      .first<{ id: string; code: string }>();
+    if (!kontrak) {
+      return c.json({ error: "Kontrak tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
+    }
+    const input = parsed.data;
+    await db
+      .prepare(
+        `INSERT INTO contract_amendments (id, contract_id, jenis, effective_date, sebelum, sesudah, note, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        id,
+        input.jenis,
+        input.effectiveDate,
+        input.sebelum ?? null,
+        input.sesudah ?? null,
+        input.note ?? null,
+        c.get("user").id,
+      )
+      .run();
+    await audit(c.env, {
+      action: "contract.adendum",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { kontrak: kontrak.code, jenis: input.jenis, berlaku: input.effectiveDate },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true }, 201);
+  })
+
+  .post("/:tenantId/contracts/:id/renew", requireAuth, requireTenantRole("admin"), async (c) => {
+    const parsed = renewContractSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return c.json({ error: "Data tidak valid", issues: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const tenant = c.get("tenant");
+    const db = getTenantDb(c.env, tenant.dbRef);
+    const id = c.req.param("id");
+    const kontrak = await db
+      .prepare(`SELECT id, code, end_date, status FROM contracts WHERE id = ?`)
+      .bind(id)
+      .first<{ id: string; code: string; end_date: string | null; status: string }>();
+    if (!kontrak) {
+      return c.json({ error: "Kontrak tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
+    }
+    // Kontrak tanpa tanggal berakhir memang berjalan terus — memperpanjangnya
+    // tidak berarti apa-apa, dan diam-diam memberinya tanggal berakhir justru
+    // MEMBATASI kontrak yang tadinya tak terbatas.
+    if (!kontrak.end_date) {
+      return c.json({ error: "Kontrak ini tidak punya tanggal berakhir, jadi tidak perlu diperpanjang." }, 400);
+    }
+
+    const baru = addMonths(kontrak.end_date, parsed.data.months);
+    await db
+      .prepare(`UPDATE contracts SET end_date = ?, status = CASE WHEN status = 'ended' THEN 'active' ELSE status END WHERE id = ?`)
+      .bind(baru, id)
+      .run();
+    await db
+      .prepare(
+        `INSERT INTO contract_amendments (id, contract_id, jenis, effective_date, sebelum, sesudah, note, created_by)
+         VALUES (?, ?, 'perpanjangan', ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        crypto.randomUUID(),
+        id,
+        kontrak.end_date,
+        kontrak.end_date,
+        baru,
+        parsed.data.note ?? null,
+        c.get("user").id,
+      )
+      .run();
+
+    await audit(c.env, {
+      action: "contract.diperpanjang",
+      userId: c.get("user").id,
+      tenantId: tenant.id,
+      detail: { kontrak: kontrak.code, dari: kontrak.end_date, sampai: baru },
+      ip: clientIp(c),
+    });
+    return c.json({ ok: true, endDate: baru }, 200);
   });

@@ -229,6 +229,10 @@ export const CONTRACT_FREQUENCY_LABELS: Record<ContractFrequency, string> = {
   yearly: "Tahunan",
 };
 
+/** Jenis adendum yang dikenal. Daftarnya tertutup, seperti kosakata peragaan. */
+export const JENIS_ADENDUM = ["perpanjangan", "harga", "lingkup"] as const;
+export type JenisAdendum = (typeof JENIS_ADENDUM)[number];
+
 export const createContractSchema = z.object({
   code: z.string().trim().min(1, "Kode wajib diisi").max(30).toUpperCase(),
   contactId: z.string().min(1, "Pelanggan wajib dipilih"),
@@ -242,6 +246,12 @@ export const createContractSchema = z.object({
   warehouseId: z.string().min(1, "Gudang wajib dipilih"),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** Eskalasi tahunan dalam basis poin (Fase 45): 500 = 5% per tahun. */
+  escalationBp: z.number().int().min(0).max(10_000).optional(),
+  /** Perpanjang sendiri saat masa berlaku habis, alih-alih berhenti diam-diam. */
+  autoRenew: z.boolean().optional(),
+  /** Panjang satu perpanjangan, dalam bulan. */
+  renewMonths: z.number().int().min(1).max(120).optional(),
   lines: z
     .array(
       z.object({
@@ -283,5 +293,122 @@ export type ApiContract = {
   invoiceCount: number;
   total: number;
   lines: ApiContractLine[];
+  /** Fase 45 — eskalasi & perpanjangan. */
+  startDate: string | null;
+  escalationBp: number;
+  autoRenew: boolean;
+  renewMonths: number;
+  amendments: ApiContractAmendment[];
 };
 
+export type ApiContractAmendment = {
+  id: string;
+  jenis: JenisAdendum;
+  effectiveDate: string;
+  sebelum: string | null;
+  sesudah: string | null;
+  note: string | null;
+  createdAt: string;
+};
+
+/** Catat adendum kontrak secara manual (Fase 45). */
+export const contractAmendmentSchema = z.object({
+  jenis: z.enum(JENIS_ADENDUM),
+  effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid"),
+  sebelum: z.string().trim().max(200).optional(),
+  sesudah: z.string().trim().max(200).optional(),
+  note: z.string().trim().max(300).optional(),
+});
+export type ContractAmendmentInput = z.infer<typeof contractAmendmentSchema>;
+
+/** Perpanjang kontrak secara manual (Fase 45). */
+export const renewContractSchema = z.object({
+  months: z.number().int().min(1).max(120),
+  note: z.string().trim().max(300).optional(),
+});
+export type RenewContractInput = z.infer<typeof renewContractSchema>;
+
+
+/* ------------------------------------------------------------------ *
+ * Kontrak: eskalasi harga, perpanjangan, adendum (Fase 45)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Kontrak berulang yang berjalan bertahun-tahun punya tiga kebutuhan yang tidak
+ * dipenuhi penagihan berulang saja:
+ *
+ * 1. **Eskalasi harga.** Hampir semua kontrak jangka panjang di Indonesia
+ *    memuat klausul kenaikan tahunan. Tanpa dukungan sistem, kenaikan itu
+ *    dikerjakan dengan mengedit harga kontrak setiap tahun — dan yang lupa
+ *    diedit menagih harga tahun pertama selamanya.
+ * 2. **Perpanjangan.** Kontrak yang habis masa berlakunya berhenti menagih
+ *    diam-diam. Yang dibutuhkan pemilik bukan penghentian senyap, melainkan
+ *    keputusan sadar: perpanjang, atau akhiri.
+ * 3. **Adendum.** Perubahan kontrak — harga, lingkup, masa berlaku — harus
+ *    punya jejak. Kontrak yang berubah tanpa jejak tidak bisa diperiksa
+ *    siapa pun ketika pelanggannya bertanya "kok naik?".
+ */
+
+/**
+ * Berapa tahun penuh sudah berjalan sejak tanggal jangkar.
+ *
+ * Memakai ulang-tahun kontrak, bukan tahun kalender: kontrak yang dimulai
+ * 1 Juli naik harga tiap 1 Juli, bukan tiap 1 Januari. Menghitungnya per tahun
+ * kalender akan menaikkan harga hanya enam bulan setelah kontrak diteken.
+ */
+export function tahunBerjalan(jangkar: string, tanggal: string): number {
+  const a = new Date(`${jangkar}T00:00:00Z`);
+  const b = new Date(`${tanggal}T00:00:00Z`);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || b < a) return 0;
+  let tahun = b.getUTCFullYear() - a.getUTCFullYear();
+  const bulanBelumLewat =
+    b.getUTCMonth() < a.getUTCMonth() ||
+    (b.getUTCMonth() === a.getUTCMonth() && b.getUTCDate() < a.getUTCDate());
+  if (bulanBelumLewat) tahun -= 1;
+  return Math.max(0, tahun);
+}
+
+/**
+ * Harga setelah eskalasi tahunan.
+ *
+ * **Berbunga majemuk**, bukan sederhana: klausul "naik 5% per tahun" yang lazim
+ * ditulis di kontrak Indonesia berarti 5% dari harga tahun sebelumnya, bukan 5%
+ * dari harga awal terus-menerus. Selisih keduanya kecil di tahun kedua dan
+ * besar di tahun kelima — dan yang membayar selisihnya adalah salah satu pihak.
+ *
+ * Dihitung dari **harga dasar** tiap kali menagih, bukan dengan menimpa harga
+ * di kontrak. Karena itu harga yang disepakati awal tetap terbaca selamanya,
+ * dan siapa pun bisa memeriksa kenaikannya sendiri.
+ */
+export function hargaTereskalasi(hargaDasar: number, eskalasiBp: number, tahun: number): number {
+  if (eskalasiBp <= 0 || tahun <= 0) return hargaDasar;
+  return Math.round(hargaDasar * Math.pow(1 + eskalasiBp / 10_000, tahun));
+}
+
+export type RencanaPerpanjangan = {
+  /** Kontraknya berakhir pada tanggal ini bila tidak diperpanjang. */
+  berakhir: string;
+  /** Benar bila sudah waktunya diputuskan. */
+  jatuhTempo: boolean;
+  /** Sisa hari menuju berakhir. Negatif berarti sudah lewat. */
+  sisaHari: number;
+};
+
+/**
+ * Apakah sebuah kontrak sudah masuk masa pengingat perpanjangan.
+ *
+ * Peringatan muncul jauh sebelum tanggal berakhir — kontrak yang baru
+ * diberitahukan pada hari terakhirnya sudah terlambat untuk dinegosiasikan.
+ */
+export function rencanaPerpanjangan(
+  endDate: string | null | undefined,
+  hariIni: string,
+  ambangHari = 60,
+): RencanaPerpanjangan | null {
+  if (!endDate) return null;
+  const akhir = Date.parse(`${endDate}T00:00:00Z`);
+  const kini = Date.parse(`${hariIni}T00:00:00Z`);
+  if (Number.isNaN(akhir) || Number.isNaN(kini)) return null;
+  const sisaHari = Math.round((akhir - kini) / 86_400_000);
+  return { berakhir: endDate, jatuhTempo: sisaHari <= ambangHari, sisaHari };
+}

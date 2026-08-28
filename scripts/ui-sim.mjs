@@ -2596,6 +2596,21 @@ try {
   check("F58 medan penetapan target tersedia bagi admin", (await page.locator("#tg-nilai").count()) === 1);
   check("F58 alur target bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
+  // F59 — Fase 45: kontrak bereskalasi & adendum. Yang diperiksa adalah bahwa
+  // formulirnya menawarkan kenaikan tahunan dan perpanjangan otomatis, dan
+  // bahwa jejak perubahan bisa dibuka dari daftarnya. Kontrak yang berubah
+  // tanpa jejak tidak bisa dipertanggungjawabkan saat pelanggan bertanya.
+  await gotoRoute("/app/kontrak", 900);
+  const ktrBody = await page.innerText("body");
+  check("F59 formulir kontrak menawarkan kenaikan tahunan", (await page.locator("#ct-eskalasi").count()) === 1);
+  check("F59 formulir kontrak menawarkan perpanjangan otomatis", (await page.locator("#ct-autorenew").count()) === 1);
+  check(
+    "F59 daftar kontrak memberi jalan membuka jejak adendum",
+    /Adendum \(\d+\)/.test(ktrBody),
+    `→ ${ktrBody.includes("Adendum")}`,
+  );
+  check("F59 alur kontrak bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
   await gotoRoute("/app/alat", 700);
   const alatBody = await page.innerText("body");
   check("F19 kalkulator render (HPP + hasil Rupiah)", alatBody.includes("Harga Pokok Produksi") && /Rp\s?[1-9]/.test(alatBody.replace(/\u00A0/g, " ")));

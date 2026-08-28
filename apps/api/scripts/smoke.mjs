@@ -4395,6 +4395,112 @@ try {
   const stockSvc = await owner("GET", `/api/tenants/${tenantId}/stock`);
   check("produk jasa tidak muncul di level stok", !stockSvc.json?.levels?.some((l) => l.sku === "JASA-01"));
 
+  // --- Kontrak: eskalasi, perpanjangan, adendum (Fase 45) --------------------
+  // Di tenant Dewi: menagih kontrak memposting jurnal, dan tenant utama punya
+  // belasan asersi angka yang menghitungnya.
+  console.log("12c. Kontrak: eskalasi harga, perpanjangan, adendum");
+
+  const eskProduk = await admin("POST", `/api/tenants/${mpT}/products`, {
+    sku: "JASA-ESKALASI", name: "Langganan Uji Eskalasi", unit: "bulan", sellPrice: 10_000_000, buyPrice: 0, isService: true,
+  });
+  const eskKontrak = await admin("POST", `/api/tenants/${mpT}/contracts`, {
+    code: "ESK-01", contactId: plgKomisi.json.id, name: "Langganan Bereskalasi",
+    frequency: "yearly", taxRate: 0, warehouseId: mpWh,
+    startDate: "2026-01-01", endDate: "2027-06-30",
+    escalationBp: 500, autoRenew: true, renewMonths: 12,
+    lines: [{ productId: eskProduk.json.id, qty: 1, unitPrice: 10_000_000 }],
+  });
+  check("45 kontrak bereskalasi dibuat", eskKontrak.status === 201, `→ ${eskKontrak.status} ${eskKontrak.json?.error ?? ""}`);
+
+  const eskTagih1 = await admin("POST", `/api/tenants/${mpT}/contracts/run-billing`, { date: "2026-01-01" });
+  check(
+    "45 tahun pertama menagih harga dasar 10jt (belum naik)",
+    eskTagih1.json?.issued >= 1 && eskTagih1.json?.total >= 10_000_000,
+    `→ ${JSON.stringify(eskTagih1.json)}`,
+  );
+
+  const eskTagih2 = await admin("POST", `/api/tenants/${mpT}/contracts/run-billing`, { date: "2027-01-01" });
+  check("45 tahun kedua menagih lagi", eskTagih2.json?.issued >= 1, `→ ${JSON.stringify(eskTagih2.json)}`);
+
+  const eskFaktur = await admin("GET", `/api/tenants/${mpT}/invoices?limit=500`);
+  const eskDocs = (eskFaktur.json?.docs ?? []).filter((d) => d.date === "2027-01-01");
+  check(
+    "45 harga tahun kedua naik 5% menjadi 10,5jt",
+    eskDocs.some((d) => d.total === 10_500_000),
+    `→ ${JSON.stringify(eskDocs.map((d) => d.total))}`,
+  );
+
+  const eskList = await admin("GET", `/api/tenants/${mpT}/contracts`);
+  const eskCt = eskList.json?.contracts?.find((c) => c.code === "ESK-01");
+  check(
+    "45 HARGA DASAR di kontrak tidak ikut berubah — kesepakatan awal tetap terbaca",
+    eskCt?.lines?.[0]?.unitPrice === 10_000_000,
+    `→ ${eskCt?.lines?.[0]?.unitPrice}`,
+  );
+  check("45 eskalasi terbaca kembali dari server", eskCt?.escalationBp === 500 && eskCt?.autoRenew === true);
+
+  // endDate 2027-06-30; tagihan 2027-01-01 memajukan next ke 2028-01-01 yang
+  // melewatinya, jadi perpanjangan otomatis harus jalan DAN tercatat.
+  check(
+    "45 perpanjangan otomatis memajukan masa berlaku, bukan menghentikan diam-diam",
+    eskCt?.endDate === "2028-06-30" && eskCt?.status === "active",
+    `→ end=${eskCt?.endDate} status=${eskCt?.status}`,
+  );
+  const adPerpanjang = eskCt?.amendments?.find((a) => a.jenis === "perpanjangan");
+  check(
+    "45 perpanjangan otomatis MENINGGALKAN adendum",
+    adPerpanjang?.sebelum === "2027-06-30" && adPerpanjang?.sesudah === "2028-06-30",
+    `→ ${JSON.stringify(adPerpanjang)}`,
+  );
+
+  const adManual = await admin("POST", `/api/tenants/${mpT}/contracts/${eskCt.id}/amendments`, {
+    jenis: "lingkup", effectiveDate: "2027-02-01", sebelum: "1 lisensi", sesudah: "3 lisensi",
+    note: "Penambahan cabang",
+  });
+  check("45 adendum manual tercatat 201", adManual.status === 201, `→ ${adManual.status}`);
+
+  const adJenisNgawur = await admin("POST", `/api/tenants/${mpT}/contracts/${eskCt.id}/amendments`, {
+    jenis: "renegosiasi", effectiveDate: "2027-02-01",
+  });
+  check("45 jenis adendum di luar daftar DITOLAK 400", adJenisNgawur.status === 400);
+
+  const adKontrakHilang = await admin("POST", `/api/tenants/${mpT}/contracts/tidak-ada/amendments`, {
+    jenis: "harga", effectiveDate: "2027-02-01",
+  });
+  check("45 adendum pada kontrak tak dikenal DITOLAK 404", adKontrakHilang.status === 404);
+
+  const perpanjangManual = await admin("POST", `/api/tenants/${mpT}/contracts/${eskCt.id}/renew`, { months: 6 });
+  check(
+    "45 perpanjangan manual memajukan masa berlaku 6 bulan",
+    perpanjangManual.status === 200 && perpanjangManual.json?.endDate === "2028-12-30",
+    `→ ${JSON.stringify(perpanjangManual.json)}`,
+  );
+
+  const eskList2 = await admin("GET", `/api/tenants/${mpT}/contracts`);
+  const eskCt2 = eskList2.json?.contracts?.find((c) => c.code === "ESK-01");
+  check(
+    "45 seluruh perubahan berjejak: 2 perpanjangan + 1 lingkup",
+    eskCt2?.amendments?.length === 3,
+    `→ ${eskCt2?.amendments?.length}`,
+  );
+
+  // Kontrak tanpa tanggal berakhir memang berjalan terus; memperpanjangnya akan
+  // diam-diam MEMBATASI kontrak yang tadinya tak terbatas.
+  const ktrTanpaAkhir = await admin("POST", `/api/tenants/${mpT}/contracts`, {
+    code: "ESK-02", contactId: plgKomisi.json.id, name: "Langganan Tanpa Akhir",
+    frequency: "monthly", taxRate: 0, warehouseId: mpWh, startDate: "2026-01-01",
+    lines: [{ productId: eskProduk.json.id, qty: 1, unitPrice: 1_000_000 }],
+  });
+  const perpanjangTanpaAkhir = await admin("POST", `/api/tenants/${mpT}/contracts/${ktrTanpaAkhir.json.id}/renew`, { months: 12 });
+  check(
+    "45 kontrak tanpa tanggal berakhir DITOLAK diperpanjang 400",
+    perpanjangTanpaAkhir.status === 400,
+    `→ ${perpanjangTanpaAkhir.status}`,
+  );
+
+  const tbEskalasi = await admin("GET", `/api/tenants/${mpT}/trial-balance`);
+  check("45 neraca saldo tetap seimbang setelah kontrak bereskalasi", tbEskalasi.json?.balanced === true);
+
   const tbAfterContract = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
   check("neraca saldo TETAP seimbang setelah tagihan kontrak", tbAfterContract.json?.balanced === true);
 
