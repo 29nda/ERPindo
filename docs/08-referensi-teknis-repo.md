@@ -19,13 +19,13 @@ packages/shared ──┬──▶ apps/api ──▶ packages/db
 
 | Paket | Isi | Catatan penting |
 | --- | --- | --- |
-| `packages/shared` | 20 modul skema zod + tipe API + fungsi murni (`core.ts`, `accounting.ts`, `pos.ts`, `payroll.ts`, …) | **Satu-satunya kontrak** antara api & web. Diimpor sebagai `@erpindo/shared` |
+| `packages/shared` | 21 modul skema zod + tipe API + fungsi murni (`core.ts`, `accounting.ts`, `pos.ts`, `payroll.ts`, …) | **Satu-satunya kontrak** antara api & web. Diimpor sebagai `@erpindo/shared` |
 | `packages/db` | `migrations.ts` (skema tenant) + `control-plane/schema.ts` (Drizzle) | Migrasi **append-only**: jangan pernah mengubah entri lama |
 | `apps/api` | Hono di Cloudflare Workers. Entry `src/index.ts` | Juga menyajikan SPA lewat binding `ASSETS` |
 | `apps/web` | React 19 + Vite + TanStack Router/Query + Tailwind 4 + PWA | Klien API tunggal di `src/api/client.ts` |
 
-Angka acuan: **48 modul route** (`apps/api/src/routes/`), **~40 halaman
-aplikasi** + halaman landing/panduan (`apps/web/src/pages/`).
+Angka acuan: **47 modul route** (`apps/api/src/routes/`), **44 halaman
+aplikasi** + halaman landing/panduan/publik (`apps/web/src/pages/`).
 
 ## Siklus permintaan
 
@@ -37,7 +37,7 @@ aplikasi** + halaman landing/panduan (`apps/web/src/pages/`).
    lapis dua: tiap route juga memasang `requirePlanModule`/`requirePermission`
    sendiri, tetapi pagar per-path memastikan modul baru tidak lolos hanya karena
    penulisnya lupa.
-3. Pemasangan ~48 modul route di bawah `/api/*`.
+3. Pemasangan 47 modul route di bawah `/api/*`.
 4. `requireAuth` (`middleware/auth.ts:23`) — sesi lewat cookie `erpindo_sid`.
 5. `requireTenantRole` / `requirePermission` — RBAC, termasuk peran kustom
    (`resolvePermissions`).
@@ -53,12 +53,12 @@ untuk mesin pencari.
 ## Dua bidang database
 
 **Control-plane** (binding `DB`, D1 `erpindo-control-plane`): **17 tabel**,
-**16 migrasi** — `users`, `tenants`, `memberships`, `sessions`, `tokens`,
+**17 migrasi** — `users`, `tenants`, `memberships`, `sessions`, `tokens`,
 `subscription_invoices`, `payment_links`, `audit_logs`, `blog_posts`, `feedback`,
 `demo_requests`, `api_keys`, `webhooks`, `webhook_deliveries`, `custom_roles`,
 `drive_connections`, `oauth_states`.
 
-**Per tenant**: **81 tabel**, **46 migrasi** (`TENANT_SCHEMA_VERSION =
+**Per tenant**: **89 tabel**, **57 migrasi** (`TENANT_SCHEMA_VERSION =
 TENANT_MIGRATIONS.length`, `packages/db/src/migrations.ts`).
 
 > **Koreksi (Fase 26b).** Versi pertama dokumen ini menulis "3 migrasi
@@ -69,17 +69,20 @@ TENANT_MIGRATIONS.length`, `packages/db/src/migrations.ts`).
 > **modul yang sudah dimuat**, bukan dari teks berkas — satu-satunya cara yang
 > tidak bisa dibohongi oleh format penulisan.
 
-Hitung ulang kapan saja (jalankan dari `apps/api`):
-
-```sh
-npx vitest run --reporter=basic -t hitung 2>/dev/null || \
-node --experimental-strip-types -e '
-  import("@erpindo/db").then(({ CONTROL_PLANE_MIGRATIONS, TENANT_MIGRATIONS }) => {
-    const tabel = (m) => m.flatMap((x) => x.statements).filter((s) => /CREATE TABLE/.test(s)).length;
-    console.log("control-plane:", CONTROL_PLANE_MIGRATIONS.length, "migrasi,", tabel(CONTROL_PLANE_MIGRATIONS), "tabel");
-    console.log("tenant       :", TENANT_MIGRATIONS.length, "migrasi,", tabel(TENANT_MIGRATIONS), "tabel");
-  })'
-```
+> **Koreksi kedua (Fase 50d).** Angka di atas basi lagi: "16 migrasi
+> control-plane · 81 tabel tenant · 46 migrasi tenant" sudah tertinggal jauh
+> ketika Fase 43–48 menambah sebelas migrasi. Menghitung dari modul yang dimuat
+> memang benar, tetapi menghitungnya **sekali lalu menyalinnya ke Markdown**
+> tetap menghasilkan angka yang membeku.
+>
+> Perintah hitung ulang yang dulu diterbitkan di sini bahkan tidak bisa
+> dijalankan lagi (`ERR_MODULE_NOT_FOUND`: `--experimental-strip-types` tidak
+> menyelesaikan impor tanpa ekstensi di dalam paket). Jadi jalan keluarnya
+> **bukan perintah yang lebih baik**, melainkan gerbang: seluruh angka di
+> bagian ini dipaksa oleh `apps/api/test/angkaAcuanDokumen.test.ts` dan ikut
+> berjalan pada `pnpm test`. Menambah migrasi, route, atau halaman tanpa
+> memperbarui dokumen ini membuat uji itu merah, dan pesannya menyebut angka
+> penggantinya.
 
 ### Resolusi database tenant — `apps/api/src/lib/tenantDb.ts`
 

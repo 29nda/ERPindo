@@ -108,12 +108,63 @@ Utang turun 53 → 52 (satu positif palsu lama, `infra-demo-belum-siap`, ikut
 bersih). Ini kelanjutan langsung dari catatan kejujuran Fase 41 tentang
 kelebihan hitung 50: kelas yang sama, ditemukan lagi.
 
+## 50d — angka acuan struktur, salah untuk kedua kalinya
+
+### Yang ditemukan
+
+`docs/08-referensi-teknis-repo.md` menyebut jumlah modul route, halaman, tabel,
+dan migrasi. Enam dari angkanya basi:
+
+| Angka | Tertulis | Sebenarnya |
+| --- | --- | --- |
+| Migrasi control-plane | 16 | **17** |
+| Tabel tenant | 81 | **89** |
+| Migrasi tenant | 46 | **57** |
+| Modul route | 48, lalu "~48" di kalimat lain | **47** (dua-duanya salah) |
+| Halaman aplikasi | ~40 | **44** |
+| Modul `packages/shared` | 20 | **21** |
+
+Dokumen ini **sudah pernah dikoreksi** di Fase 26b, dengan kesimpulan yang
+benar: hitung dari modul yang dimuat, bukan dari teks berkas. Kesimpulan itu
+tetap benar dan tetap tidak cukup — menghitung sekali lalu **menyalinnya ke
+Markdown** tetap menghasilkan angka beku, karena sesudah itu tidak ada lagi
+yang menagihnya. Fase 43–48 menambah sebelas migrasi dan tidak ada yang
+memerah.
+
+Dua temuan tambahan saat memeriksa:
+
+- **Perintah hitung ulang yang diterbitkan dokumen itu sudah tidak bisa
+  dijalankan.** `node --experimental-strip-types` gagal dengan
+  `ERR_MODULE_NOT_FOUND` pada impor tanpa ekstensi di dalam paket. Jadi selama
+  entah berapa lama, satu-satunya cara memverifikasi angkanya juga rusak.
+- **Satu hal ditulis dengan dua angka berbeda** di satu dokumen: "48 modul
+  route" di bagian angka acuan, "~48" di siklus permintaan. Keduanya salah,
+  dan yang satu tidak pernah menyingkap yang lain.
+
+Diperiksa juga dan ternyata BENAR (tidak diubah): "22 modul" di
+`docs/07-peta-repo-untuk-pemilik.md` — `MODUL_DETAIL` memang berisi 22 entri.
+
+### Yang dikerjakan
+
+`apps/api/test/angkaAcuanDokumen.test.ts` — enam uji yang menagih setiap angka
+di bagian itu terhadap modul yang dimuat (`@erpindo/db`) dan isi direktori.
+Dua kalimat yang menyebut modul route dijaga terpisah, supaya memperbaiki satu
+tidak menutupi yang lain.
+
+Perintah hitung ulang yang rusak **dihapus, bukan diperbaiki**. Jalan keluarnya
+memang bukan perintah yang lebih baik: perintah manual hanya berguna bila ada
+yang ingat menjalankannya, dan dua kali terbukti tidak ada. Dokumen kini
+menunjuk uji yang memaksanya, yang ikut berjalan pada `pnpm test`.
+
+Uji negatif: mengubah "89 tabel" kembali ke "81" memang memerah dengan
+`expected 81 to be 89`.
+
 ## Validasi
 
 | Gerbang | Sebelum | Sesudah |
 | --- | --- | --- |
 | `pnpm typecheck` | lulus | ✅ lulus |
-| `pnpm test` (unit) | 1.117 | ✅ **1.123** (+6) |
+| `pnpm test` (unit) | 1.117 | ✅ **1.129** (+12) |
 | `pnpm build` | lulus | ✅ lulus |
 | `pnpm smoke` | 1.299 | ✅ **1.300** (+1) |
 | `node scripts/ui-sim.mjs` | 474 | ✅ 474 |
@@ -126,7 +177,8 @@ kelebihan hitung 50: kelas yang sama, ditemukan lagi.
 
 Uji negatif penjaga angka (dijalankan, lalu dikembalikan): angka tabel dibuat
 basi → memerah menyebut tempat & angka penggantinya; kalimat total diubah
-bentuknya → memerah menyebut kutipan yang hilang.
+bentuknya → memerah menyebut kutipan yang hilang; "89 tabel" dikembalikan ke
+"81" → memerah `expected 81 to be 89`.
 
 ## Yang TIDAK dikerjakan, dan kenapa
 
