@@ -42,11 +42,32 @@ const kode = await new Promise((resolve) => {
 // Uji yang gagal adalah beritanya; angka dokumen tidak relevan sampai hijau.
 if (kode !== 0) process.exit(kode ?? 1);
 
+/**
+ * Membuang kode warna ANSI sebelum mencocokkan.
+ *
+ * WAJIB, dan bukan kehati-hatian berlebihan: vitest mematikan warna ketika
+ * keluarannya dipipa, jadi di mesin lokal ringkasannya polos dan polanya cocok.
+ * Di CI warna tetap menyala, sehingga baris yang sama menjadi
+ * `Tests \x1b[22m \x1b[1m\x1b[32m353 passed` — "Tests" dan angkanya tidak lagi
+ * bersebelahan, dan pencarian menemukan NOL.
+ *
+ * Persis itu yang terjadi pada jalannya CI pertama Fase 50a: seluruh 1.131 uji
+ * lulus, lalu skrip ini menggagalkan pekerjaannya sendiri. Warnanya sengaja
+ * TIDAK dimatikan di anak proses — keluaran berwarna itu untuk manusia yang
+ * membacanya; yang butuh teks polos hanya pencocokan di bawah ini.
+ */
+// ESC (`\u001b`) memang yang dicari di sini: `no-control-regex` menjaring
+// karakter kontrol yang TIDAK disengaja, sedangkan awalan setiap urutan warna
+// justru karakter itu. Pengecualiannya sesempit satu baris.
+// eslint-disable-next-line no-control-regex
+const tanpaWarna = (t) => t.replace(/\u001b\[[0-9;]*[A-Za-z]/g, "");
+
 // vitest menutup tiap paket dengan "Tests  412 passed (412)". Bila ada yang
 // di-skip bentuknya "Tests  410 passed | 2 skipped (412)" — yang dihitung tetap
 // yang LULUS, sama seperti smoke dan ui-sim menghitung ✓-nya.
-const jumlahUji = [...terkumpul.matchAll(/Tests\s+(\d+) passed/g)].map((m) => Number(m[1]));
-const jumlahBerkas = [...terkumpul.matchAll(/Test Files\s+\d+ passed/g)].length;
+const polos = tanpaWarna(terkumpul);
+const jumlahUji = [...polos.matchAll(/Tests\s+(\d+) passed/g)].map((m) => Number(m[1]));
+const jumlahBerkas = [...polos.matchAll(/Test Files\s+\d+ passed/g)].length;
 
 // Penjaga bagi penjaganya: kalau vitest mengubah bentuk ringkasannya, parsing
 // ini akan diam-diam menemukan nol dan meloloskan angka apa pun. Tiga paket
