@@ -355,8 +355,15 @@ for (const file of process.argv.slice(2)) {
    * angkanya: `csv-mutasi` dan `bank-recon` sudah terhitung sejak sebelum fase
    * ini. Sengaja TIDAK mencakup `aria-*` maupun `placeholder`/`title` — ketiganya
    * memang sampai ke pengguna dan tetap wajib terhitung.
+   *
+   * `testId` ikut sejak Fase 50c, dan bukan kelas baru: prop itu diteruskan
+   * apa adanya menjadi `data-testid={testId}` di `components/ui.tsx`, jadi ia
+   * PERSIS kelas `data-*` di atas — hanya ejaannya yang berbeda karena lewat
+   * prop React, bukan atribut DOM langsung. Penanda gerbang yang "diterjemahkan"
+   * akan mematahkan ui-sim yang mencarinya.
    */
-  const nilaiPengenal = (awal) => /\b(?:id|htmlFor)\s*=\s*$/.test(src.slice(Math.max(0, awal - 40), awal));
+  const nilaiPengenal = (awal) =>
+    /\b(?:id|htmlFor|testId)\s*=\s*$/.test(src.slice(Math.max(0, awal - 40), awal));
 
   for (const m of src.matchAll(/(?:^|[^\w])"((?:[^"\\]|\\.)*)"/gm)) {
     const akhir = m.index + m[0].length;

@@ -3,9 +3,43 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 28 Agustus 2026
+**Terakhir diperbarui:** 29 Agustus 2026
 
-## Yang baru saja selesai — Fase 42–48: ERPindo berhenti berat sebelah ke keuangan
+## Yang baru saja selesai — Fase 50: merapikan yang tidak terlihat
+
+Empat pekerjaan kecil tanpa fitur baru. Semuanya berbagi satu bentuk: **keadaan
+yang salah tidak ada yang melihat, karena tidak ada yang bertugas melihatnya.**
+
+**Angka di laporan ini berhenti basi.** Halaman yang sedang Anda baca, dan
+panduan hari peluncuran, mengumumkan berapa banyak pemeriksaan otomatis yang
+dijalankan mesin. Angka itu ditulis tangan — dan ternyata sudah tertinggal jauh:
+tertulis 2.498 padahal kenyataannya 2.890. Ironinya, aturan repo ini berbunyi
+"jumlah pemeriksaan hanya boleh naik", lalu angka yang diterbitkan tidak pernah
+naik. Sekarang mesin sendiri yang menagihnya: menambah pemeriksaan tanpa
+memperbarui kedua dokumen ini membuat pengujian gagal, lengkap dengan angka
+penggantinya. Hal yang sama juga dipasang untuk dokumen teknis, yang enam
+angkanya juga sudah salah.
+
+**Salah pasang kunci kapasitas kini ketahuan seketika.** Bila suatu hari Anda
+menyalakan mode "database dinamis" (untuk melewati batas 6 perusahaan) tetapi
+kuncinya belum terpasang, **setiap** pendaftaran perusahaan baru gagal. Lebih
+buruk lagi, halaman Admin → Infra justru terlihat paling sehat dalam keadaan
+itu — kartu kapasitasnya sengaja diam karena mode dinamis memang tak berbatas.
+Sekarang layar itu menampilkan peringatan merah paling atas, menyebut kunci
+mana yang kurang dan dua cara membereskannya.
+
+**Pendaftar yang belum membayar berhenti dihitung sebagai masalah.** Menengok
+database produksi menyingkap cacat yang belum terlihat: perusahaan yang sudah
+mendaftar tetapi belum membayar dihitung sebagai "tertinggal pemutakhiran",
+dan pemutakhiran otomatis mencoba memperbaikinya setiap hari lalu gagal —
+selamanya, karena perusahaan itu memang belum punya database untuk diperbarui.
+Hari ini hanya satu baris demo. Tetapi **setiap calon pelanggan yang mendaftar
+dan belum membayar berbentuk sama persis**, sehingga angka peringatan itu akan
+naik terus dan tidak pernah bisa turun. Peringatan yang tidak bisa dipadamkan
+pada akhirnya membuat semua peringatan diabaikan — jadi diperbaiki sekarang,
+selagi murah.
+
+## Sebelumnya — Fase 42–48: ERPindo berhenti berat sebelah ke keuangan
 
 Anda menyampaikan satu hal yang tepat: aplikasi ini terlalu condong ke sisi
 keuangan, padahal ruang lingkup ERP jauh lebih luas. Sepuluh pekerjaan berikut
@@ -97,15 +131,17 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.113** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.299** |
+| Uji unit | 923 | **1.131** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.303** |
 | Simulasi klik di peramban nyata | 431 | **474** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
 kode program yang salah dibaca oleh alat pemeriksanya. Utang sesungguhnya 53.
 Angka yang salah selama berbulan-bulan membuat pekerjaan terlihat lebih
-tertinggal daripada keadaannya.
+tertinggal daripada keadaannya. Fase 50c menemukan satu lagi dari kelas yang
+sama — penanda uji `testId`, yang tidak pernah dibaca siapa pun dan justru
+rusak bila diterjemahkan — sehingga angkanya kini **52**.
 
 ## Sebelumnya — Fase 39: situs dibaca mesin, dan layarnya bisa dilihat
 
@@ -579,9 +615,9 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.157 skenario ujian end-to-end + 917 unit test + 424 cek simulasi UI browser nyata**, totalnya **2.498 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.303 skenario ujian end-to-end + 1.131 unit test + 474 cek simulasi UI browser nyata**, totalnya **2.908 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
-*Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 21 Agustus 2026, bukan disalin dari catatan.*
+*Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 
 ## Apakah sudah bisa diakses di internet?
 

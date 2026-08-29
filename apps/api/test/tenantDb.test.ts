@@ -6,6 +6,7 @@ import {
   getTenantDb,
   hitungKapasitasPool,
   KapasitasTenantPenuhError,
+  kesiapanD1Dinamis,
   migrateTenantBatch,
   pastikanTenantTerprovisi,
   provisionTenantDb,
@@ -120,6 +121,10 @@ function fakeControlPlane(rows: { id: string; slug: string; db_ref: string; sche
             const batas = params[0] as number;
             out = out.filter((r) => r.schema_version < batas);
           }
+          // Ditiru sejak Fase 50e. Tanpa ini, tiruan control-plane tidak
+          // memodelkan syarat yang justru sedang diuji, dan uji "tenant tanpa
+          // database dilewati" akan lulus atau gagal karena sebab yang salah.
+          if (/db_ref\s*<>\s*''/i.test(sql)) out = out.filter((r) => r.db_ref !== "");
           if (/ORDER BY schema_version/i.test(sql)) {
             out.sort((a, b) => a.schema_version - b.schema_version);
           }
@@ -140,7 +145,12 @@ function fakeControlPlane(rows: { id: string; slug: string; db_ref: string; sche
         async first<T = unknown>(): Promise<T | null> {
           if (/COUNT\(\*\)/i.test(sql) && /schema_version\s*<\s*\?/i.test(sql)) {
             const batas = params[0] as number;
-            return { n: rows.filter((r) => r.schema_version < batas).length } as T;
+            const tanpaDbDikecualikan = /db_ref\s*<>\s*''/i.test(sql);
+            return {
+              n: rows.filter(
+                (r) => r.schema_version < batas && (!tanpaDbDikecualikan || r.db_ref !== ""),
+              ).length,
+            } as T;
           }
           return null;
         },
@@ -509,5 +519,119 @@ describe("pastikanTenantTerprovisi", () => {
     const setelahPertama = migrasi();
     await pastikanTenantTerprovisi(env, "t1");
     expect(migrasi()).toBe(setelahPertama);
+  });
+});
+
+/**
+ * Fase 50b — kesiapan D1 dinamis.
+ *
+ * `provisionTenantDb` sudah melempar untuk mode cloudflare tanpa secret, tapi
+ * hanya SAAT pendaftaran. Yang diuji di sini adalah pelaporan dini: keadaan
+ * yang sama, terlihat sebelum ada calon pelanggan yang ditolak olehnya.
+ */
+/**
+ * Fase 50e — tenant yang belum membayar bukan tenant yang tertinggal.
+ *
+ * Ditemukan di produksi: satu tenant `provisioning` (`db_ref = ''`,
+ * `schema_version = 0` — lihat INSERT non-comped di `routes/auth.ts`) ikut
+ * terpilih oleh batch migrasi, `getTenantDb(env, "")` melempar "db_ref tidak
+ * dikenal", dan ia tercatat GAGAL pada setiap jalannya cron. Selamanya: tidak
+ * ada database untuk dimigrasikan, jadi tidak ada yang bisa memperbaikinya.
+ *
+ * Akibatnya `selesai` tidak pernah true dan `gagal` tidak pernah 0 — peringatan
+ * yang tidak bisa dipadamkan, yang lama-lama membuat semua peringatan diabaikan.
+ * Dan ini BUKAN kasus tepi: setiap pendaftar yang belum membayar berbentuk
+ * seperti ini.
+ */
+describe("migrateTenantBatch — tenant tanpa database (Fase 50e)", () => {
+  it("dilewati sama sekali: tidak diproses, tidak gagal, tidak terhitung sisa", async () => {
+    const stale = fakeTenantDb();
+    const rows = [
+      { id: "t-stale", slug: "stale", db_ref: "binding:STALE", schema_version: 0 },
+      // Pendaftar yang belum membayar. Bentuk PERSIS seperti di produksi.
+      { id: "t-belum-bayar", slug: "belum-bayar", db_ref: "", schema_version: 0 },
+    ];
+    const env = { DB: fakeControlPlane(rows), STALE: stale.exec } as unknown as Env;
+
+    const hasil = await migrateTenantBatch(env);
+
+    expect(hasil.results.some((r) => r.id === "t-belum-bayar")).toBe(false);
+    expect(hasil.diproses).toBe(1);
+    expect(hasil.gagal).toBe(0);
+    // Inti perbaikannya: tanpa ini `sisa` tetap 1 dan `selesai` tetap false
+    // setiap kali cron berjalan, tanpa akhir.
+    expect(hasil.sisa).toBe(0);
+    expect(hasil.selesai).toBe(true);
+    // Versinya TIDAK ikut dinaikkan diam-diam — tenant itu memang belum punya
+    // skema apa pun, dan mengaku sudah mutakhir akan berbohong ke arah lain.
+    expect(rows.find((r) => r.id === "t-belum-bayar")?.schema_version).toBe(0);
+  });
+
+  it("tenant lain di batch yang sama tetap dimigrasi seperti biasa", async () => {
+    const stale = fakeTenantDb();
+    const rows = [
+      { id: "t-belum-bayar", slug: "belum-bayar", db_ref: "", schema_version: 0 },
+      { id: "t-stale", slug: "stale", db_ref: "binding:STALE", schema_version: 0 },
+    ];
+    const env = { DB: fakeControlPlane(rows), STALE: stale.exec } as unknown as Env;
+
+    const hasil = await migrateTenantBatch(env);
+    expect(hasil.results.find((r) => r.id === "t-stale")?.ok).toBe(true);
+    expect(rows.find((r) => r.id === "t-stale")?.schema_version).toBe(TENANT_SCHEMA_VERSION);
+  });
+});
+
+describe("kesiapanD1Dinamis — salah konfigurasi yang terlihat sebelum menggigit", () => {
+  const rahasia = { CLOUDFLARE_API_TOKEN: "t", CLOUDFLARE_ACCOUNT_ID: "a" };
+
+  it("mode lokal tidak melaporkan apa pun — bukan keadaan yang relevan", () => {
+    expect(kesiapanD1Dinamis({ TENANT_DB_MODE: "local" } as unknown as Env)).toBeNull();
+    // Secret yang kebetulan ada pun tidak membuatnya jadi relevan di mode lokal.
+    expect(kesiapanD1Dinamis({ TENANT_DB_MODE: "local", ...rahasia } as unknown as Env)).toBeNull();
+  });
+
+  it("mode cloudflare dengan kedua secret dinyatakan siap, tanpa peringatan", () => {
+    const k = kesiapanD1Dinamis({ TENANT_DB_MODE: "cloudflare", ...rahasia } as unknown as Env);
+    expect(k).toEqual({ siap: true, kurang: [], peringatan: null });
+  });
+
+  it("menyebut secret mana yang kurang, bukan sekadar 'konfigurasi salah'", () => {
+    const tanpaToken = kesiapanD1Dinamis({
+      TENANT_DB_MODE: "cloudflare",
+      CLOUDFLARE_ACCOUNT_ID: "a",
+    } as unknown as Env);
+    expect(tanpaToken?.siap).toBe(false);
+    expect(tanpaToken?.kurang).toEqual(["CLOUDFLARE_API_TOKEN"]);
+    expect(tanpaToken?.peringatan).toContain("CLOUDFLARE_API_TOKEN");
+    expect(tanpaToken?.peringatan).not.toContain("CLOUDFLARE_ACCOUNT_ID");
+
+    const tanpaAkun = kesiapanD1Dinamis({
+      TENANT_DB_MODE: "cloudflare",
+      CLOUDFLARE_API_TOKEN: "t",
+    } as unknown as Env);
+    expect(tanpaAkun?.kurang).toEqual(["CLOUDFLARE_ACCOUNT_ID"]);
+    expect(tanpaAkun?.peringatan).toContain("CLOUDFLARE_ACCOUNT_ID");
+  });
+
+  it("keduanya kurang → keduanya disebut", () => {
+    const k = kesiapanD1Dinamis({ TENANT_DB_MODE: "cloudflare" } as unknown as Env);
+    expect(k?.kurang).toEqual(["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"]);
+    expect(k?.peringatan).toContain("CLOUDFLARE_API_TOKEN");
+    expect(k?.peringatan).toContain("CLOUDFLARE_ACCOUNT_ID");
+  });
+
+  it("peringatannya menyebut jalan keluar, bukan hanya menyatakan rusak", () => {
+    const p = kesiapanD1Dinamis({ TENANT_DB_MODE: "cloudflare" } as unknown as Env)?.peringatan ?? "";
+    // Dua jalan keluar yang sah: pasang secret, atau turunkan kembali modenya.
+    expect(p).toContain("wrangler secret put");
+    expect(p).toContain("local");
+    // Dan menyatakan luasnya dengan jujur — ini bukan kegagalan sebagian.
+    expect(p).toContain("SETIAP");
+  });
+
+  it("keadaan yang SAMA menggagalkan provisionTenantDb — pelaporan dini bukan pengganti penjaganya", async () => {
+    await expect(
+      provisionTenantDb({ TENANT_DB_MODE: "cloudflare" } as unknown as Env, "acme", []),
+    ).rejects.toThrow(/CLOUDFLARE_API_TOKEN/);
   });
 });

@@ -447,6 +447,17 @@ function InfraTab() {
                 ))}
               </div>
 
+              {/* Didahulukan di atas semuanya (Fase 50b): kapasitas habis pun
+                  masih MELAPORKAN dirinya di kartu di atas, sedangkan mode D1
+                  dinamis tanpa secret membuat kartu itu diam sama sekali —
+                  layarnya terlihat paling sehat justru ketika tidak ada satu
+                  pun pendaftaran yang bisa berhasil. */}
+              {d.d1Dinamis && !d.d1Dinamis.siap ? (
+                <Alert tone="error" testId="infra-d1-belum-siap">
+                  {d.d1Dinamis.peringatan}
+                </Alert>
+              ) : null}
+
               {/* Demo publik didahulukan bahkan di atas kapasitas: kapasitas
                   habis menghentikan pendaftar BARU, sedangkan demo yang tidak
                   ada menggagalkan ajakan utama halaman depan untuk SETIAP

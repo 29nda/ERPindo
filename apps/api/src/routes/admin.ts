@@ -15,7 +15,7 @@ import { audit } from "../lib/audit";
 import { ambilKuota } from "../lib/kuota";
 import { requireAuth, requirePlatformAdmin } from "../middleware/auth";
 import { rateLimitUser } from "../middleware/rateLimit";
-import { BATCH_MIGRASI, hitungKapasitasPool, migrateTenantBatch, pastikanTenantTerprovisi, TENANT_SCHEMA_VERSION } from "../lib/tenantDb";
+import { BATCH_MIGRASI, hitungKapasitasPool, kesiapanD1Dinamis, migrateTenantBatch, pastikanTenantTerprovisi, TENANT_SCHEMA_VERSION } from "../lib/tenantDb";
 import { clientIp } from "./auth";
 
 /**
@@ -274,11 +274,16 @@ export const adminRoutes = new Hono<AppEnv>()
   .get("/infra", requireAuth, requirePlatformAdmin, async (c) => {
     const [total, byVersion, behind, jumlahBehind, byMode] = await Promise.all([
       c.env.DB.prepare(`SELECT COUNT(*) AS n FROM tenants`).first<{ n: number }>(),
+      // `db_ref <> ''` di seluruh blok ini (Fase 50e): tenant `provisioning`
+      // belum punya database, jadi ia tidak punya versi skema untuk dilaporkan
+      // dan tidak mungkin "tertinggal". Tanpa syarat ini ia terhitung
+      // tertinggal SELAMANYA — tidak ada migrasi yang bisa menyusulkannya,
+      // karena tidak ada database untuk dimigrasikan. Ditemukan di produksi.
       c.env.DB.prepare(
-        `SELECT schema_version AS v, COUNT(*) AS n FROM tenants GROUP BY schema_version ORDER BY v`,
+        `SELECT schema_version AS v, COUNT(*) AS n FROM tenants WHERE db_ref <> '' GROUP BY schema_version ORDER BY v`,
       ).all<{ v: number; n: number }>(),
       c.env.DB.prepare(
-        `SELECT id, name, slug, schema_version FROM tenants WHERE schema_version < ? ORDER BY schema_version, created_at LIMIT 100`,
+        `SELECT id, name, slug, schema_version FROM tenants WHERE schema_version < ? AND db_ref <> '' ORDER BY schema_version, created_at LIMIT 100`,
       )
         .bind(TENANT_SCHEMA_VERSION)
         .all<{ id: string; name: string; slug: string; schema_version: number }>(),
@@ -290,12 +295,20 @@ export const adminRoutes = new Hono<AppEnv>()
       // sepanjang cron mencicilnya, sehingga pemilik tidak bisa membedakan
       // seratus dari seribu dan tidak melihat kemajuan sama sekali. Daftarnya
       // tetap dibatasi 100 — itu contoh untuk ditindaklanjuti, bukan sensus.
-      c.env.DB.prepare(`SELECT COUNT(*) AS n FROM tenants WHERE schema_version < ?`)
+      c.env.DB.prepare(`SELECT COUNT(*) AS n FROM tenants WHERE schema_version < ? AND db_ref <> ''`)
         .bind(TENANT_SCHEMA_VERSION)
         .first<{ n: number }>(),
       // Sebaran jenis referensi DB: 'binding:' (pool lokal) vs 'uuid:' (D1 dinamis).
+      // Tiga ember, bukan dua (Fase 50e): `db_ref = ''` dulu jatuh ke `ELSE` dan
+      // terhitung 'binding', sehingga pemilik melihat lebih banyak slot pool
+      // terpakai daripada yang sebenarnya — persis angka yang dipakai untuk
+      // memutuskan kapan menyalakan D1 dinamis.
       c.env.DB.prepare(
-        `SELECT CASE WHEN db_ref LIKE 'uuid:%' THEN 'cloudflare' ELSE 'binding' END AS kind, COUNT(*) AS n
+        `SELECT CASE
+                  WHEN db_ref = '' THEN 'tanpa-db'
+                  WHEN db_ref LIKE 'uuid:%' THEN 'cloudflare'
+                  ELSE 'binding'
+                END AS kind, COUNT(*) AS n
          FROM tenants GROUP BY kind`,
       ).all<{ kind: string; n: number }>(),
     ]);
@@ -328,6 +341,10 @@ export const adminRoutes = new Hono<AppEnv>()
       kapasitas = { ...k, peringatan };
     }
 
+    // Kesiapan D1 dinamis (Fase 50b) — lihat `kesiapanD1Dinamis`. Dilaporkan
+    // justru di mode `cloudflare`, tempat blok kapasitas di atas sengaja diam.
+    const d1Dinamis = kesiapanD1Dinamis(c.env);
+
     /**
      * Kesiapan demo publik (Fase 31g).
      *
@@ -351,6 +368,7 @@ export const adminRoutes = new Hono<AppEnv>()
 
     return c.json({
       dbMode: c.env.TENANT_DB_MODE,
+      d1Dinamis,
       demo: {
         slug: demoSlug,
         siap: Boolean(demoTenant),

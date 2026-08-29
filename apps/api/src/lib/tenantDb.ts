@@ -127,6 +127,46 @@ export class KapasitasTenantPenuhError extends Error {
 }
 
 /**
+ * Kesiapan D1 dinamis (Fase 50b).
+ *
+ * `provisionTenantDb` sudah menolak mode `cloudflare` tanpa kedua secret — tapi
+ * penolakan itu terjadi **saat pendaftaran**, yaitu setelah salah konfigurasi
+ * sudah tayang dan sudah menolak calon pelanggan sungguhan. Runbook go-live
+ * menyebut keadaan ini "lebih buruk daripada batas 6", dan memang begitu:
+ * batas 6 menolak pendaftar ke-7, sedangkan ini menolak SEMUANYA.
+ *
+ * Yang membuatnya berbahaya bukan galatnya, melainkan tampilannya. Halaman
+ * Admin → Infra melaporkan kapasitas hanya untuk mode lokal; di mode
+ * `cloudflare` ia sengaja tidak menampilkan peringatan kapasitas apa pun
+ * (D1 dinamis memang tak berbatas). Jadi deploy yang salah konfigurasi justru
+ * terlihat **lebih sehat** daripada deploy lokal yang normal, sementara tidak
+ * ada satu pun pendaftaran yang berhasil. Fungsi ini menutup lubang itu.
+ *
+ * Mengembalikan `null` di mode lokal — bukan keadaan yang perlu dilaporkan.
+ */
+export function kesiapanD1Dinamis(env: Env): {
+  siap: boolean;
+  kurang: string[];
+  peringatan: string | null;
+} | null {
+  if (env.TENANT_DB_MODE !== "cloudflare") return null;
+  const kurang: string[] = [];
+  if (!env.CLOUDFLARE_API_TOKEN) kurang.push("CLOUDFLARE_API_TOKEN");
+  if (!env.CLOUDFLARE_ACCOUNT_ID) kurang.push("CLOUDFLARE_ACCOUNT_ID");
+  return {
+    siap: kurang.length === 0,
+    kurang,
+    peringatan:
+      kurang.length === 0
+        ? null
+        : `Mode D1 dinamis menyala, tetapi secret ${kurang.join(" dan ")} belum dipasang. ` +
+          `SETIAP pendaftaran perusahaan baru gagal — bukan hanya sebagian. ` +
+          `Pasang secret-nya dengan "wrangler secret put", atau kembalikan ` +
+          `TENANT_DB_MODE ke "local" sampai secret itu siap.`,
+  };
+}
+
+/**
  * Apakah database pool ini masih benar-benar kosong?
  *
  * Binding pool dipakai ulang begitu tenant lamanya dihapus dari control-plane,
@@ -414,9 +454,20 @@ export type MigrasiBatchResult = {
  * menghentikan sisanya.
  */
 export async function migrateTenantBatch(env: Env, batas = BATCH_MIGRASI): Promise<MigrasiBatchResult> {
+  // `db_ref <> ''` WAJIB (Fase 50e). Tenant `provisioning` — sudah mendaftar,
+  // belum membayar — sengaja tidak punya database, dan `schema_version`-nya 0
+  // (lihat INSERT di `routes/auth.ts`). Tanpa syarat ini ia ikut terpilih,
+  // `getTenantDb(env, "")` melempar "db_ref tidak dikenal", dan ia tercatat
+  // GAGAL pada setiap jalannya cron — selamanya, karena tidak ada yang bisa
+  // diperbaiki. Ditemukan di produksi: satu tenant seperti itu membuat
+  // `selesai` tidak pernah true dan `gagal` tidak pernah 0.
+  //
+  // Ia memang bukan "tertinggal": ketika membayar, `pastikanTenantTerprovisi`
+  // membuat databasenya lalu menulis `schema_version = TENANT_SCHEMA_VERSION`
+  // sekaligus — melompat langsung ke versi terkini tanpa lewat batch ini.
   const { results } = await env.DB.prepare(
     `SELECT id, slug, db_ref, schema_version FROM tenants
-     WHERE schema_version < ?
+     WHERE schema_version < ? AND db_ref <> ''
      ORDER BY schema_version, created_at
      LIMIT ?`,
   )
@@ -440,7 +491,9 @@ export async function migrateTenantBatch(env: Env, batas = BATCH_MIGRASI): Promi
 
   // Sisa dihitung SESUDAH batch berjalan, bukan diperkirakan dari selisih —
   // tenant yang gagal tetap terhitung tertinggal, dan itu memang benar.
-  const sisaRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM tenants WHERE schema_version < ?`)
+  const sisaRow = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM tenants WHERE schema_version < ? AND db_ref <> ''`,
+  )
     .bind(TENANT_SCHEMA_VERSION)
     .first<{ n: number }>();
   const sisa = sisaRow?.n ?? 0;

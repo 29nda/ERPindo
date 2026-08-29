@@ -172,8 +172,8 @@ akan membuat aplikasi gagal keras.
 ## 4. Checklist pra-peluncuran
 
 **Gerbang mutu (harus hijau — sudah otomatis di CI):**
-- [ ] `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` (**1.157 smoke · 917 unit**)
-- [ ] `node scripts/ui-sim.mjs` (**424 cek browser**)
+- [ ] `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` (**1.303 smoke · 1.131 unit**)
+- [ ] `node scripts/ui-sim.mjs` (**474 cek browser**)
 - [ ] `pnpm lint`
 
 **Urutan pasang kunci (bukan sembarang urutan):**
@@ -204,12 +204,18 @@ akan membuat aplikasi gagal keras.
 - [ ] `COMPED_EMAILS` berisi email pemilik (akun kebal trial) bila diperlukan
 - [x] **Demo publik disemai ulang ke 12 bulan** (Fase 24b, diperdalam di Fase 30).
       Sejak trial dihapus, demo inilah satu-satunya cara calon pelanggan menilai
-      produk. Caranya di §7. **Terverifikasi 24 Agustus 2026:** demo produksi
-      berisi 236 jurnal yang membentang 15 bulan (2025-06 s.d. 2026-08).
+      produk. Caranya di §7. **Diperiksa ulang 29 Agustus 2026:** demo produksi
+      berisi **237** jurnal yang membentang 15 bulan (2025-06-05 s.d. 2026-08-31).
 - [x] Seed demo produksi masih tampil sehat (`/app` mode demo, neraca seimbang,
       **laba positif** di jendela 12 bulan maupun bulan berjalan).
-      **Terverifikasi 24 Agustus 2026** langsung di D1 produksi: total debit =
-      total kredit (Rp 5.085.725.220) dan **nol** jurnal yang tidak seimbang.
+      **Diperiksa ulang 29 Agustus 2026** langsung di D1 produksi: total debit =
+      total kredit (**Rp 5.086.116.854**) dan **nol** jurnal yang tidak seimbang.
+
+      > Angkanya berubah dari catatan 24 Agustus (236 jurnal ·
+      > Rp 5.085.725.220) karena Fase 48a memposting **satu jurnal koreksi**
+      > (JRN-00237): beban PPh Final UMKM Rp 391.634 dipindahkan dari akun
+      > `5-2100` — yang ternyata sudah dipakai "Beban Produksi Diserap" — ke
+      > `5-2200`. Bukan data baru, melainkan pembetulan penempatan akun.
 
 **Uji asap manual pasca-deploy (di domain produksi):**
 - [ ] Daftar perusahaan baru → login → buat faktur → terima pembayaran → Neraca seimbang
@@ -270,6 +276,14 @@ wrangler deploy
 > **Pasang secret-nya DULU, baru ubah `TENANT_DB_MODE`.** Deploy mode
 > `cloudflare` tanpa kedua secret membuat **seluruh** pendaftaran gagal
 > (`tenantDb.ts` menolak di awal) — lebih buruk daripada batas 6.
+>
+> Sejak Fase 50b keadaan itu **terlihat tanpa menunggu ada yang mendaftar**:
+> Admin → Infra menampilkan peringatan merah yang menyebut secret mana yang
+> kurang. Sebelumnya justru sebaliknya — kartu kapasitas sengaja diam di mode
+> `cloudflare` (D1 dinamis memang tak berbatas), sehingga deploy yang salah
+> konfigurasi terlihat **lebih sehat** daripada deploy lokal yang normal.
+> Kalau Anda terlanjur membalik urutannya, buka Admin → Infra: peringatannya
+> ada di paling atas.
 
 **Verifikasi:**
 

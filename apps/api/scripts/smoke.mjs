@@ -21,6 +21,12 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 // Config dev = wrangler.jsonc minus binding "ai" (butuh kredensial remote).
 const { makeDevConfig } = await import(join(apiDir, "../../scripts/make-dev-config.mjs"));
+const { laporAngkaGerbang } = await import(join(apiDir, "../../scripts/lib/angka-gerbang.mjs"));
+
+// Jumlah cek yang LULUS. Dideklarasikan setinggi ini karena blok pra-terbang di
+// bawah mencetak ✓-nya sendiri sebelum `check()` sempat ada — dan angka yang
+// diumumkan ke pemilik adalah seluruh ✓, bukan hanya yang lewat `check()`.
+let passed = 0;
 const devConfigPath = makeDevConfig();
 
 /**
@@ -53,12 +59,14 @@ const devConfigPath = makeDevConfig();
     );
     process.exit(1);
   }
+  passed++;
   console.log("  ✓ 31e tidak ada var https:// yang bocor ke konfigurasi dev");
 }
 
 let failures = 0;
 function check(name, cond, extra = "") {
   if (cond) {
+    passed++;
     console.log(`  ✓ ${name}`);
   } else {
     failures++;
@@ -1588,6 +1596,49 @@ try {
   // suite. Yang baru di sini adalah pengetahuan pemilik tentangnya — 404 yang
   // benar tidak berguna kalau tak ada yang melihatnya sampai pengunjung
   // mengeklik tombolnya.
+
+  // --- 50e: tenant yang belum membayar BUKAN tenant yang tertinggal ----------
+  //
+  // Tepat di titik ini `calon@contoh.co.id` sudah terdaftar, berstatus
+  // `provisioning`, `db_ref = ''`, dan `schema_version = 0` (lihat INSERT di
+  // routes/auth.ts: non-comped dapat 0). Inilah satu-satunya saat di suite ini
+  // tenant tanpa database benar-benar ada — jadi inilah tempat yang tepat
+  // untuk membuktikan ia tidak dihitung tertinggal.
+  //
+  // Sebelum Fase 50e ia dihitung, dan tidak ada migrasi yang bisa
+  // menyusulkannya: tidak ada database untuk dimigrasikan. Ditemukan di
+  // produksi — satu tenant seperti itu membuat cron migrasi melaporkan satu
+  // kegagalan pada SETIAP jalannya, selamanya.
+  check(
+    "50e tenant provisioning (tanpa database) tidak dihitung tertinggal migrasi",
+    infraSebelum.json?.tenantsBehind === 0 && infraSebelum.json?.behind?.length === 0,
+    `→ behind=${infraSebelum.json?.tenantsBehind} daftar=${JSON.stringify(infraSebelum.json?.behind)}`,
+  );
+  check(
+    "50e tenant tanpa database tidak mengaku memakai slot pool",
+    (infraSebelum.json?.refKinds?.binding ?? 0) < (infraSebelum.json?.totalTenants ?? 0) &&
+      (infraSebelum.json?.refKinds?.["tanpa-db"] ?? 0) >= 1,
+    `→ refKinds=${JSON.stringify(infraSebelum.json?.refKinds)} total=${infraSebelum.json?.totalTenants}`,
+  );
+  check(
+    "50e sebaran versi skema hanya memuat tenant yang punya database",
+    Array.isArray(infraSebelum.json?.versionDistribution) &&
+      infraSebelum.json.versionDistribution.every((d) => d.v === infraSebelum.json.schemaVersion),
+    `→ ${JSON.stringify(infraSebelum.json?.versionDistribution)}`,
+  );
+
+  // --- 50b: kesiapan D1 dinamis ikut dilaporkan ------------------------------
+  //
+  // Suite ini berjalan di `TENANT_DB_MODE=local`, jadi yang bisa dibuktikan di
+  // sini hanya sisi lokalnya: medannya ADA di jawaban (bukan lupa dipasang di
+  // route) dan bernilai null (mode lokal memang bukan keadaan yang dilaporkan).
+  // Cabang cloudflare-nya diuji deterministik di `test/tenantDb.test.ts`, yang
+  // bisa menyusun env tanpa secret tanpa perlu mode itu benar-benar menyala.
+  check(
+    "50b /admin/infra memuat medan d1Dinamis, null di mode lokal",
+    "d1Dinamis" in (infraSebelum.json ?? {}) && infraSebelum.json?.d1Dinamis === null,
+    `→ ${JSON.stringify(infraSebelum.json?.d1Dinamis)}`,
+  );
 
   const bacaBelumBayar = await belumBayar("GET", `/api/tenants/${tenantBelumBayar}/products`);
   check(
@@ -8183,6 +8234,18 @@ try {
   check("logout 200", out.status === 200);
   const afterLogout = await owner("GET", "/api/auth/me");
   check("sesi dicabut setelah logout", afterLogout.status === 401);
+
+  // --- Angka gerbang di dokumen tayang (Fase 50a) -----------------------------
+  // Yang tahu jumlah cek smoke sebenarnya hanya smoke, dan hanya di titik ini —
+  // setelah semuanya berjalan. Jadi di sinilah `docs/STATUS.md` dan
+  // `docs/05-runbook-go-live.md` ditagih: angka yang mereka umumkan ke pemilik
+  // harus angka yang barusan benar-benar dihitung.
+  //
+  // Sengaja TIDAK memakai `check()`: satu ✓ tambahan akan menaikkan jumlah cek
+  // menjadi jumlah yang baru saja diperiksa + 1, dan penjaganya akan selamanya
+  // meleset satu dari yang dijaganya.
+  const jumlahSmoke = passed;
+  failures += laporAngkaGerbang({ smoke: jumlahSmoke });
 
   console.log(`\n${failures === 0 ? "SEMUA SMOKE TEST LULUS ✅" : `${failures} PEMERIKSAAN GAGAL ❌`}`);
 } catch (err) {

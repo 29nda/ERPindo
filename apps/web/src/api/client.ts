@@ -346,6 +346,14 @@ export const api = {
         status: string | null;
         peringatan: string | null;
       };
+      // Fase 50b — kesiapan D1 dinamis. null di mode lokal. Justru di mode
+      // cloudflare-lah `kapasitas` di bawah diam, sehingga deploy tanpa secret
+      // terlihat sehat padahal setiap pendaftaran gagal.
+      d1Dinamis: {
+        siap: boolean;
+        kurang: string[];
+        peringatan: string | null;
+      } | null;
       // Fase 23c — kapasitas pendaftaran mode lokal. null di mode cloudflare
       // (D1 dinamis: tak ada batas keras yang perlu diperingatkan).
       kapasitas: {
