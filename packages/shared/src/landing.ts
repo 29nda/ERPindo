@@ -79,8 +79,8 @@ export const FAQ_LANDING: TanyaJawab[] = [
       en: "Does it follow Indonesian tax rules?",
     },
     a: {
-      id: "Ya. PPN dihitung otomatis di faktur, termasuk DPP nilai lain 11/12 sesuai PMK 131/2024. Faktur keluaran diunduh sebagai XML yang langsung diimpor ke Coretax DJP. Penggajian menghitung PPh 21 metode TER berikut BPJS Kesehatan dan Ketenagakerjaan.",
-      en: "Yes. VAT is computed automatically on invoices, including the 11/12 alternative tax base under PMK 131/2024. Output invoices download as XML that imports straight into Coretax (DJP). Payroll computes PPh 21 using the TER method plus BPJS health and employment contributions.",
+      id: "Ya. PPN dihitung otomatis di faktur, termasuk DPP nilai lain 11/12 sesuai PMK 131/2024. Faktur keluaran diunduh sebagai XML yang langsung diimpor ke Coretax DJP. Penggajian menghitung PPh 21 metode TER berikut BPJS Kesehatan dan Ketenagakerjaan, THR menurut Permenaker 6/2016, serta lembur dan pesangon menurut PP 35/2021. PPh 22 yang dipungut dari Anda dicatat sebagai kredit pajak, bukan beban. Rekap PPh satu masa bisa diunduh sebagai bahan pengisian e-Bupot; berkasnya bahan pengisian, bukan berkas impor resmi DJP.",
+      en: "Yes. VAT is computed automatically on invoices, including the 11/12 alternative tax base under PMK 131/2024. Output invoices download as XML that imports straight into Coretax (DJP). Payroll computes PPh 21 using the TER method plus BPJS health and employment contributions, holiday allowance under Permenaker 6/2016, and overtime and severance under PP 35/2021. Article 22 tax collected from you is recorded as a tax credit, not an expense. A period's withholding recap downloads as source data for filling e-Bupot; the file is source data, not an official DJP import file.",
     },
   },
   {
@@ -160,16 +160,19 @@ export const FAQ_RICH_RESULT: [q: string, a: string][] = FAQ_LANDING.slice(0, 5)
  */
 export const FITUR_UTAMA: string[] = [
   "Akuntansi double-entry dengan bagan akun standar Indonesia",
-  "Faktur penjualan & pembelian dengan PPN dan diskon per baris",
+  "Faktur penjualan & pembelian dengan PPN, diskon per baris, batas kredit dan termin pelanggan",
   "Kasir (POS) dengan shift kas, multi-tender, dan mode luring",
-  "Stok multi-gudang dengan HPP rata-rata bergerak dan FEFO",
+  "Stok multi-gudang dengan HPP rata-rata bergerak, FEFO, konsinyasi, dan dropship",
   "Pembelian & pengadaan: permintaan, pesanan, penerimaan, persetujuan berjenjang",
-  "Penggajian dengan PPh 21 metode TER dan BPJS, slip gaji dan 1721-A1",
-  "Pajak: PPN, PPh Final UMKM, PPh 23, dan ekspor e-Faktur XML untuk Coretax DJP",
+  "Penggajian PPh 21 metode TER dan BPJS, THR, lembur berumus PP 35/2021, slip gaji dan 1721-A1",
+  "Pesangon dan kompensasi PKWT menurut PP 35/2021, dengan rincian tiap komponennya",
+  "Pajak: PPN, PPh Final UMKM, PPh 22, PPh 23, e-Faktur XML untuk Coretax DJP, dan bahan pengisian e-Bupot",
+  "Komisi sales berskema, target penjualan, dan prakiraan tertimbang dari pipeline",
   "Laporan keuangan: laba rugi, neraca, arus kas, buku besar, umur piutang dan utang",
   "Multi-perusahaan dengan laporan konsolidasi dan multi mata uang",
   "Aset tetap dengan penyusutan komersial dan fiskal, revaluasi, dan pelepasan",
   "Manufaktur dengan resep produk, perintah produksi, work center, dan QC",
-  "Proyek, anggaran, CRM, kontrak berulang, pemeliharaan aset, dan helpdesk",
+  "Kontrak berulang dengan kenaikan harga tahunan, perpanjangan, dan jejak adendum",
+  "Proyek, anggaran, CRM, pemeliharaan aset, dan helpdesk",
   "Asisten AI yang menjawab dari panduan dan dari buku Anda sendiri",
 ];

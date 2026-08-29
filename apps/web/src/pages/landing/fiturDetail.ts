@@ -181,6 +181,10 @@ export const MODUL_DETAIL: ModulDetail[] = [
         en: "Minimum-stock thresholds trigger purchase suggestions that can become a Purchase Request in one click.",
       },
       {
+        id: "Barang titipan di toko mitra dicatat sebagai gudang konsinyasi — stoknya tetap milik Anda sampai terjual. Dropship juga didukung: pemasok mengirim langsung ke pelanggan, stok tidak bergerak, tetapi harga pokoknya tetap tercatat.",
+        en: "Goods placed with a partner are held in a consignment warehouse — the stock stays yours until sold. Dropship is supported too: the supplier ships straight to the customer, stock does not move, but the cost is still recorded.",
+      },
+      {
         id: "Stok opname mencatat selisih fisik sebagai jurnal penyesuaian, bukan sebagai angka yang diubah tanpa jejak.",
         en: "Stock counts record physical variances as adjusting journals, not as numbers silently edited.",
       },
@@ -216,6 +220,18 @@ export const MODUL_DETAIL: ModulDetail[] = [
         id: "Absensi, cuti, dan kasbon karyawan tercatat di modul yang sama.",
         en: "Attendance, leave, and employee advances live in the same module.",
       },
+      {
+        id: "THR dihitung menurut Permenaker 6/2016: satu bulan upah untuk masa kerja setahun ke atas, proporsional di bawah itu, dan dasarnya upah pokok ditambah tunjangan tetap.",
+        en: "Religious holiday allowance follows Permenaker 6/2016: one month's wage from a year of service, pro-rated below that, based on wages plus fixed allowances.",
+      },
+      {
+        id: "Lembur memakai tangga pengali PP 35/2021 — Anda mengisi jam dan jenis harinya, aplikasi yang menghitung. Rinciannya ditampilkan supaya karyawan bisa memeriksanya.",
+        en: "Overtime uses the statutory multipliers of PP 35/2021 — you enter hours and day type, the app computes. The breakdown is shown so employees can check it.",
+      },
+      {
+        id: "Pesangon dihitung berikut pengali yang berbeda menurut alasan berakhirnya hubungan kerja, dan karyawan kontrak mendapat uang kompensasi PKWT saat kontraknya berakhir.",
+        en: "Severance is computed with the multipliers that differ by reason for termination, and fixed-term employees receive their end-of-contract compensation.",
+      },
     ],
     hasil: {
       id: "Gajian jadi pekerjaan sekali klik, dan laporan keuangan bulan itu sudah memuat beban gaji yang benar.",
@@ -241,8 +257,12 @@ export const MODUL_DETAIL: ModulDetail[] = [
         en: "Output invoices export as XML that imports straight into Coretax (DJP).",
       },
       {
-        id: "PPh Final UMKM dan PPh 23 dihitung di modul yang sama, lengkap dengan dasar pengenaannya.",
-        en: "SME final income tax and PPh 23 are computed in the same module, with their tax bases shown.",
+        id: "PPh Final UMKM, PPh 22, dan PPh 23 dihitung di modul yang sama, lengkap dengan dasar pengenaannya. PPh 22 yang dipungut dari Anda dicatat sebagai kredit pajak, bukan beban.",
+        en: "SME final income tax and Article 22 and 23 withholding are computed in the same module, with their tax bases shown. Article 22 collected from you is recorded as a tax credit, not an expense.",
+      },
+      {
+        id: "Rekap seluruh PPh satu masa diunduh sebagai bahan pengisian e-Bupot, beserta NPWP lawan transaksinya. Bentuknya bahan pengisian, bukan berkas impor resmi DJP.",
+        en: "A period's full withholding recap downloads as source data for filling e-Bupot, with counterparty tax numbers. It is source data, not an official DJP import file.",
       },
     ],
     hasil: {
@@ -445,6 +465,8 @@ export const MODUL_DETAIL: ModulDetail[] = [
       { id: "Penawaran punya masa berlaku dan halaman cetak berlogo. Sekali klik, ia berubah menjadi faktur tanpa diketik ulang.", en: "Quotes carry a validity period and a branded print page; one click turns one into an invoice with no retyping." },
       { id: "Form penangkap lead publik bisa ditempel di web atau bio media sosial — pengisinya langsung masuk pipeline, ditandai asalnya.", en: "A public lead form can be embedded on your site or social bio — submissions land straight in the pipeline, tagged by source." },
       { id: "Laporan konversi per sumber menunjukkan kanal mana yang benar-benar menghasilkan, bukan yang paling ramai.", en: "Conversion-by-source reporting shows which channel actually closes, not which is loudest." },
+      { id: "Target penjualan per sales per bulan, dengan prakiraan yang ditimbang menurut tahap pipeline — prospek baru tidak dihitung sebesar penawaran yang tinggal diteken.", en: "Monthly sales targets per person, with a forecast weighted by pipeline stage — a new lead is not counted the same as a proposal awaiting signature." },
+      { id: "Komisi sales dihitung dari omzet sebelum PPN atau dari laba kotor, dan bisa menunggu pelanggan benar-benar membayar sebelum lahir.", en: "Sales commission is computed on revenue before VAT or on gross profit, and can wait until the customer actually pays before it arises." },
     ],
     hasil: { id: "Tidak ada calon pelanggan yang hilang karena lupa dihubungi.", en: "No prospect is lost to a forgotten follow-up." },
     peragaan: "pipeline-penawaran",
@@ -494,6 +516,8 @@ export const MODUL_DETAIL: ModulDetail[] = [
     cara: [
       { id: "Kontrak menerbitkan faktur otomatis tiap periode, tanpa perlu diingat.", en: "Contracts issue invoices automatically each period, with nothing to remember." },
       { id: "Produk jasa didukung penuh (tanpa stok), termasuk harga khusus per grup pelanggan.", en: "Service products are fully supported (no stock), including price tiers per customer group." },
+      { id: "Kenaikan harga tahunan berjalan sendiri, dihitung dari harga tahun sebelumnya sejak ulang tahun kontrak. Harga yang disepakati awal tetap tersimpan, sehingga pelanggan bisa memeriksa kenaikannya.", en: "Annual price increases run on their own, compounding from the previous year's price from the contract anniversary. The originally agreed price is kept, so customers can check the increase." },
+      { id: "Kontrak yang habis masa berlakunya diperpanjang sendiri bila Anda memilih begitu, dan setiap perubahan meninggalkan jejak adendum.", en: "Expiring contracts renew themselves if you choose so, and every change leaves an amendment trail." },
       { id: "Template jurnal berulang menangani biaya tetap seperti sewa — terbit sekali klik atau otomatis tiap bulan.", en: "Recurring journal templates handle fixed costs like rent — one click, or automatically each month." },
     ],
     hasil: { id: "Pendapatan berulang tertagih sendiri, bulan demi bulan.", en: "Recurring revenue bills itself, month after month." },
