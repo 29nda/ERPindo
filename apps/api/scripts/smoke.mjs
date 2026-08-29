@@ -21,6 +21,12 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 // Config dev = wrangler.jsonc minus binding "ai" (butuh kredensial remote).
 const { makeDevConfig } = await import(join(apiDir, "../../scripts/make-dev-config.mjs"));
+const { laporAngkaGerbang } = await import(join(apiDir, "../../scripts/lib/angka-gerbang.mjs"));
+
+// Jumlah cek yang LULUS. Dideklarasikan setinggi ini karena blok pra-terbang di
+// bawah mencetak ✓-nya sendiri sebelum `check()` sempat ada — dan angka yang
+// diumumkan ke pemilik adalah seluruh ✓, bukan hanya yang lewat `check()`.
+let passed = 0;
 const devConfigPath = makeDevConfig();
 
 /**
@@ -53,12 +59,14 @@ const devConfigPath = makeDevConfig();
     );
     process.exit(1);
   }
+  passed++;
   console.log("  ✓ 31e tidak ada var https:// yang bocor ke konfigurasi dev");
 }
 
 let failures = 0;
 function check(name, cond, extra = "") {
   if (cond) {
+    passed++;
     console.log(`  ✓ ${name}`);
   } else {
     failures++;
@@ -1588,6 +1596,19 @@ try {
   // suite. Yang baru di sini adalah pengetahuan pemilik tentangnya — 404 yang
   // benar tidak berguna kalau tak ada yang melihatnya sampai pengunjung
   // mengeklik tombolnya.
+
+  // --- 50b: kesiapan D1 dinamis ikut dilaporkan ------------------------------
+  //
+  // Suite ini berjalan di `TENANT_DB_MODE=local`, jadi yang bisa dibuktikan di
+  // sini hanya sisi lokalnya: medannya ADA di jawaban (bukan lupa dipasang di
+  // route) dan bernilai null (mode lokal memang bukan keadaan yang dilaporkan).
+  // Cabang cloudflare-nya diuji deterministik di `test/tenantDb.test.ts`, yang
+  // bisa menyusun env tanpa secret tanpa perlu mode itu benar-benar menyala.
+  check(
+    "50b /admin/infra memuat medan d1Dinamis, null di mode lokal",
+    "d1Dinamis" in (infraSebelum.json ?? {}) && infraSebelum.json?.d1Dinamis === null,
+    `→ ${JSON.stringify(infraSebelum.json?.d1Dinamis)}`,
+  );
 
   const bacaBelumBayar = await belumBayar("GET", `/api/tenants/${tenantBelumBayar}/products`);
   check(
@@ -8183,6 +8204,18 @@ try {
   check("logout 200", out.status === 200);
   const afterLogout = await owner("GET", "/api/auth/me");
   check("sesi dicabut setelah logout", afterLogout.status === 401);
+
+  // --- Angka gerbang di dokumen tayang (Fase 50a) -----------------------------
+  // Yang tahu jumlah cek smoke sebenarnya hanya smoke, dan hanya di titik ini —
+  // setelah semuanya berjalan. Jadi di sinilah `docs/STATUS.md` dan
+  // `docs/05-runbook-go-live.md` ditagih: angka yang mereka umumkan ke pemilik
+  // harus angka yang barusan benar-benar dihitung.
+  //
+  // Sengaja TIDAK memakai `check()`: satu ✓ tambahan akan menaikkan jumlah cek
+  // menjadi jumlah yang baru saja diperiksa + 1, dan penjaganya akan selamanya
+  // meleset satu dari yang dijaganya.
+  const jumlahSmoke = passed;
+  failures += laporAngkaGerbang({ smoke: jumlahSmoke });
 
   console.log(`\n${failures === 0 ? "SEMUA SMOKE TEST LULUS ✅" : `${failures} PEMERIKSAAN GAGAL ❌`}`);
 } catch (err) {

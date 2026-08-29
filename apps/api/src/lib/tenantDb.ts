@@ -127,6 +127,46 @@ export class KapasitasTenantPenuhError extends Error {
 }
 
 /**
+ * Kesiapan D1 dinamis (Fase 50b).
+ *
+ * `provisionTenantDb` sudah menolak mode `cloudflare` tanpa kedua secret — tapi
+ * penolakan itu terjadi **saat pendaftaran**, yaitu setelah salah konfigurasi
+ * sudah tayang dan sudah menolak calon pelanggan sungguhan. Runbook go-live
+ * menyebut keadaan ini "lebih buruk daripada batas 6", dan memang begitu:
+ * batas 6 menolak pendaftar ke-7, sedangkan ini menolak SEMUANYA.
+ *
+ * Yang membuatnya berbahaya bukan galatnya, melainkan tampilannya. Halaman
+ * Admin → Infra melaporkan kapasitas hanya untuk mode lokal; di mode
+ * `cloudflare` ia sengaja tidak menampilkan peringatan kapasitas apa pun
+ * (D1 dinamis memang tak berbatas). Jadi deploy yang salah konfigurasi justru
+ * terlihat **lebih sehat** daripada deploy lokal yang normal, sementara tidak
+ * ada satu pun pendaftaran yang berhasil. Fungsi ini menutup lubang itu.
+ *
+ * Mengembalikan `null` di mode lokal — bukan keadaan yang perlu dilaporkan.
+ */
+export function kesiapanD1Dinamis(env: Env): {
+  siap: boolean;
+  kurang: string[];
+  peringatan: string | null;
+} | null {
+  if (env.TENANT_DB_MODE !== "cloudflare") return null;
+  const kurang: string[] = [];
+  if (!env.CLOUDFLARE_API_TOKEN) kurang.push("CLOUDFLARE_API_TOKEN");
+  if (!env.CLOUDFLARE_ACCOUNT_ID) kurang.push("CLOUDFLARE_ACCOUNT_ID");
+  return {
+    siap: kurang.length === 0,
+    kurang,
+    peringatan:
+      kurang.length === 0
+        ? null
+        : `Mode D1 dinamis menyala, tetapi secret ${kurang.join(" dan ")} belum dipasang. ` +
+          `SETIAP pendaftaran perusahaan baru gagal — bukan hanya sebagian. ` +
+          `Pasang secret-nya dengan "wrangler secret put", atau kembalikan ` +
+          `TENANT_DB_MODE ke "local" sampai secret itu siap.`,
+  };
+}
+
+/**
  * Apakah database pool ini masih benar-benar kosong?
  *
  * Binding pool dipakai ulang begitu tenant lamanya dihapus dari control-plane,

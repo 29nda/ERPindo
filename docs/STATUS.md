@@ -97,15 +97,17 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.113** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.299** |
+| Uji unit | 923 | **1.123** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.300** |
 | Simulasi klik di peramban nyata | 431 | **474** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
 kode program yang salah dibaca oleh alat pemeriksanya. Utang sesungguhnya 53.
 Angka yang salah selama berbulan-bulan membuat pekerjaan terlihat lebih
-tertinggal daripada keadaannya.
+tertinggal daripada keadaannya. Fase 50c menemukan satu lagi dari kelas yang
+sama — penanda uji `testId`, yang tidak pernah dibaca siapa pun dan justru
+rusak bila diterjemahkan — sehingga angkanya kini **52**.
 
 ## Sebelumnya — Fase 39: situs dibaca mesin, dan layarnya bisa dilihat
 
@@ -579,9 +581,9 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.157 skenario ujian end-to-end + 917 unit test + 424 cek simulasi UI browser nyata**, totalnya **2.498 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.300 skenario ujian end-to-end + 1.123 unit test + 474 cek simulasi UI browser nyata**, totalnya **2.897 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
-*Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 21 Agustus 2026, bukan disalin dari catatan.*
+*Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 
 ## Apakah sudah bisa diakses di internet?
 

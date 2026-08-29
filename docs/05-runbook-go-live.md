@@ -172,8 +172,8 @@ akan membuat aplikasi gagal keras.
 ## 4. Checklist pra-peluncuran
 
 **Gerbang mutu (harus hijau — sudah otomatis di CI):**
-- [ ] `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` (**1.157 smoke · 917 unit**)
-- [ ] `node scripts/ui-sim.mjs` (**424 cek browser**)
+- [ ] `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` (**1.300 smoke · 1.123 unit**)
+- [ ] `node scripts/ui-sim.mjs` (**474 cek browser**)
 - [ ] `pnpm lint`
 
 **Urutan pasang kunci (bukan sembarang urutan):**
@@ -270,6 +270,14 @@ wrangler deploy
 > **Pasang secret-nya DULU, baru ubah `TENANT_DB_MODE`.** Deploy mode
 > `cloudflare` tanpa kedua secret membuat **seluruh** pendaftaran gagal
 > (`tenantDb.ts` menolak di awal) — lebih buruk daripada batas 6.
+>
+> Sejak Fase 50b keadaan itu **terlihat tanpa menunggu ada yang mendaftar**:
+> Admin → Infra menampilkan peringatan merah yang menyebut secret mana yang
+> kurang. Sebelumnya justru sebaliknya — kartu kapasitas sengaja diam di mode
+> `cloudflare` (D1 dinamis memang tak berbatas), sehingga deploy yang salah
+> konfigurasi terlihat **lebih sehat** daripada deploy lokal yang normal.
+> Kalau Anda terlanjur membalik urutannya, buka Admin → Infra: peringatannya
+> ada di paling atas.
 
 **Verifikasi:**
 

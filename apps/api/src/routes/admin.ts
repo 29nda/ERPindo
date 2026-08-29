@@ -15,7 +15,7 @@ import { audit } from "../lib/audit";
 import { ambilKuota } from "../lib/kuota";
 import { requireAuth, requirePlatformAdmin } from "../middleware/auth";
 import { rateLimitUser } from "../middleware/rateLimit";
-import { BATCH_MIGRASI, hitungKapasitasPool, migrateTenantBatch, pastikanTenantTerprovisi, TENANT_SCHEMA_VERSION } from "../lib/tenantDb";
+import { BATCH_MIGRASI, hitungKapasitasPool, kesiapanD1Dinamis, migrateTenantBatch, pastikanTenantTerprovisi, TENANT_SCHEMA_VERSION } from "../lib/tenantDb";
 import { clientIp } from "./auth";
 
 /**
@@ -328,6 +328,10 @@ export const adminRoutes = new Hono<AppEnv>()
       kapasitas = { ...k, peringatan };
     }
 
+    // Kesiapan D1 dinamis (Fase 50b) — lihat `kesiapanD1Dinamis`. Dilaporkan
+    // justru di mode `cloudflare`, tempat blok kapasitas di atas sengaja diam.
+    const d1Dinamis = kesiapanD1Dinamis(c.env);
+
     /**
      * Kesiapan demo publik (Fase 31g).
      *
@@ -351,6 +355,7 @@ export const adminRoutes = new Hono<AppEnv>()
 
     return c.json({
       dbMode: c.env.TENANT_DB_MODE,
+      d1Dinamis,
       demo: {
         slug: demoSlug,
         siap: Boolean(demoTenant),

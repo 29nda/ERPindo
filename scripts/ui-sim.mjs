@@ -23,6 +23,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AUDIT_ROUTES } from "./audit-routes.mjs";
 import { y4mEan13 } from "./lib/ean13.mjs";
+import { laporAngkaGerbang } from "./lib/angka-gerbang.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = Number(process.env.UISIM_PORT ?? 8798);
@@ -3993,6 +3994,16 @@ try {
   rmSync(kameraPalsu, { force: true });
 }
 
+// Angka gerbang di dokumen tayang (Fase 50a) — lihat `lib/angka-gerbang.mjs`.
+// Hanya di titik ini jumlah cek browser sudah final, jadi hanya di sini
+// `docs/STATUS.md` dan `docs/05-runbook-go-live.md` bisa ditagih kebenarannya.
+// Sengaja tidak lewat `check()`: satu cek tambahan akan membuat angka yang
+// diperiksa selalu meleset satu dari angka akhirnya.
+// Dihitung TERPISAH dari `failures` supaya baris "474/474" tetap melaporkan
+// jumlah cek browser yang sebenarnya — angka basi di dokumen bukan cek browser
+// yang gagal, dan mencampurnya akan mengaburkan angka yang sedang dijaga.
+const angkaBasi = laporAngkaGerbang({ browser: passed });
+
 const total = passed + failures.length;
 if (failures.length > 0) {
   console.error(`\nUI-SIM: ${passed}/${total} checks passed — ${failures.length} GAGAL:`);
@@ -4000,4 +4011,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log(`\nUI-SIM: ${passed}/${total} checks passed ✅`);
-process.exit(0);
+process.exit(angkaBasi > 0 ? 1 : 0);

@@ -48,6 +48,12 @@ node scripts/sapu-istilah.mjs
 node scripts/sapu-gaya.mjs
 ```
 
+Angka cek yang dikutip `docs/STATUS.md` dan `docs/05-runbook-go-live.md`
+**dipaksa** oleh `scripts/lib/angka-gerbang.mjs` (Fase 50a): `pnpm test`,
+`pnpm smoke`, dan `ui-sim` masing-masing menagih angka yang menyebut dirinya.
+Menambah cek berarti memperbarui kedua dokumen itu pada commit yang sama —
+gerbangnya akan memberitahu angka barunya.
+
 Jumlah cek hanya boleh **naik**, tidak boleh turun. Fitur baru wajib diberi cek
 smoke (`apps/api/scripts/smoke.mjs`) dan, bila menyentuh UI, cek ui-sim.
 

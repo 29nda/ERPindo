@@ -6,6 +6,7 @@ import {
   getTenantDb,
   hitungKapasitasPool,
   KapasitasTenantPenuhError,
+  kesiapanD1Dinamis,
   migrateTenantBatch,
   pastikanTenantTerprovisi,
   provisionTenantDb,
@@ -509,5 +510,67 @@ describe("pastikanTenantTerprovisi", () => {
     const setelahPertama = migrasi();
     await pastikanTenantTerprovisi(env, "t1");
     expect(migrasi()).toBe(setelahPertama);
+  });
+});
+
+/**
+ * Fase 50b — kesiapan D1 dinamis.
+ *
+ * `provisionTenantDb` sudah melempar untuk mode cloudflare tanpa secret, tapi
+ * hanya SAAT pendaftaran. Yang diuji di sini adalah pelaporan dini: keadaan
+ * yang sama, terlihat sebelum ada calon pelanggan yang ditolak olehnya.
+ */
+describe("kesiapanD1Dinamis — salah konfigurasi yang terlihat sebelum menggigit", () => {
+  const rahasia = { CLOUDFLARE_API_TOKEN: "t", CLOUDFLARE_ACCOUNT_ID: "a" };
+
+  it("mode lokal tidak melaporkan apa pun — bukan keadaan yang relevan", () => {
+    expect(kesiapanD1Dinamis({ TENANT_DB_MODE: "local" } as unknown as Env)).toBeNull();
+    // Secret yang kebetulan ada pun tidak membuatnya jadi relevan di mode lokal.
+    expect(kesiapanD1Dinamis({ TENANT_DB_MODE: "local", ...rahasia } as unknown as Env)).toBeNull();
+  });
+
+  it("mode cloudflare dengan kedua secret dinyatakan siap, tanpa peringatan", () => {
+    const k = kesiapanD1Dinamis({ TENANT_DB_MODE: "cloudflare", ...rahasia } as unknown as Env);
+    expect(k).toEqual({ siap: true, kurang: [], peringatan: null });
+  });
+
+  it("menyebut secret mana yang kurang, bukan sekadar 'konfigurasi salah'", () => {
+    const tanpaToken = kesiapanD1Dinamis({
+      TENANT_DB_MODE: "cloudflare",
+      CLOUDFLARE_ACCOUNT_ID: "a",
+    } as unknown as Env);
+    expect(tanpaToken?.siap).toBe(false);
+    expect(tanpaToken?.kurang).toEqual(["CLOUDFLARE_API_TOKEN"]);
+    expect(tanpaToken?.peringatan).toContain("CLOUDFLARE_API_TOKEN");
+    expect(tanpaToken?.peringatan).not.toContain("CLOUDFLARE_ACCOUNT_ID");
+
+    const tanpaAkun = kesiapanD1Dinamis({
+      TENANT_DB_MODE: "cloudflare",
+      CLOUDFLARE_API_TOKEN: "t",
+    } as unknown as Env);
+    expect(tanpaAkun?.kurang).toEqual(["CLOUDFLARE_ACCOUNT_ID"]);
+    expect(tanpaAkun?.peringatan).toContain("CLOUDFLARE_ACCOUNT_ID");
+  });
+
+  it("keduanya kurang → keduanya disebut", () => {
+    const k = kesiapanD1Dinamis({ TENANT_DB_MODE: "cloudflare" } as unknown as Env);
+    expect(k?.kurang).toEqual(["CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ACCOUNT_ID"]);
+    expect(k?.peringatan).toContain("CLOUDFLARE_API_TOKEN");
+    expect(k?.peringatan).toContain("CLOUDFLARE_ACCOUNT_ID");
+  });
+
+  it("peringatannya menyebut jalan keluar, bukan hanya menyatakan rusak", () => {
+    const p = kesiapanD1Dinamis({ TENANT_DB_MODE: "cloudflare" } as unknown as Env)?.peringatan ?? "";
+    // Dua jalan keluar yang sah: pasang secret, atau turunkan kembali modenya.
+    expect(p).toContain("wrangler secret put");
+    expect(p).toContain("local");
+    // Dan menyatakan luasnya dengan jujur — ini bukan kegagalan sebagian.
+    expect(p).toContain("SETIAP");
+  });
+
+  it("keadaan yang SAMA menggagalkan provisionTenantDb — pelaporan dini bukan pengganti penjaganya", async () => {
+    await expect(
+      provisionTenantDb({ TENANT_DB_MODE: "cloudflare" } as unknown as Env, "acme", []),
+    ).rejects.toThrow(/CLOUDFLARE_API_TOKEN/);
   });
 });
