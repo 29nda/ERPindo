@@ -159,14 +159,84 @@ menunjuk uji yang memaksanya, yang ikut berjalan pada `pnpm test`.
 Uji negatif: mengubah "89 tabel" kembali ke "81" memang memerah dengan
 `expected 81 to be 89`.
 
+## 50e — pendaftar yang belum membayar bukan tenant yang tertinggal
+
+### Yang ditemukan
+
+Menengok control-plane produksi untuk membereskan satu baris tenant yang
+tampak tersangkut (`Workspace Staf Demo`, status `provisioning`, `db_ref`
+kosong) justru menyingkap **cacat kode**, bukan sampah data:
+
+```
+name                 status         db_ref                schema_version
+PT Coba Demo         active         binding:TENANT_DB_1   57
+PT Demo Sejahtera    active         binding:TENANT_DB_2   57
+Workspace Staf Demo  provisioning   (kosong)               0
+CV Demo Cabang       active         binding:TENANT_DB_3   57
+```
+
+Bentuk itu bukan kerusakan — ia keadaan sah yang didokumentasikan sendiri di
+`docs/08` (`""` = `TANPA_DB`, tenant terdaftar yang belum membayar). Dan
+`routes/auth.ts` menulisnya untuk **setiap** pendaftar non-comped:
+`comped ? TENANT_SCHEMA_VERSION : 0`.
+
+Tetapi tiga kueri memperlakukannya sebagai tenant biasa:
+
+1. **`migrateTenantBatch`** memilih `WHERE schema_version < ?` tanpa menyaring
+   `db_ref`. `getTenantDb(env, "")` melempar `db_ref tidak dikenal`, jadi tenant
+   itu tercatat **GAGAL pada setiap jalannya cron** — selamanya, karena tidak
+   ada database untuk dimigrasikan. `sisa` tidak pernah 0 dan `selesai` tidak
+   pernah true.
+2. **`/api/admin/infra`** menghitungnya tertinggal, jadi Admin → Infra
+   menampilkan "1 tertinggal migrasi" yang tidak bisa dipadamkan.
+3. **`refKinds`** memakai `CASE WHEN db_ref LIKE 'uuid:%' … ELSE 'binding'`,
+   sehingga `db_ref` kosong jatuh ke `binding` — pemilik melihat slot pool
+   terpakai lebih banyak daripada kenyataannya, padahal angka itulah yang
+   dipakai memutuskan kapan menyalakan D1 dinamis.
+
+Yang membuatnya layak diperbaiki sekarang: **ini bukan kasus tepi**. Satu baris
+demo hari ini, tetapi setiap calon pelanggan yang mendaftar dan belum membayar
+berbentuk persis sama. Begitu ada pendaftar sungguhan, hitungan "tertinggal"
+naik dan tidak pernah bisa turun — peringatan yang tidak bisa dipadamkan
+akhirnya membuat semua peringatan diabaikan.
+
+### Yang dikerjakan
+
+`AND db_ref <> ''` pada keempat kueri (batch, hitungan sisa, daftar & sensus
+tertinggal, sebaran versi), dan ember ketiga `'tanpa-db'` pada `refKinds`.
+
+Tenant tanpa database sengaja **tidak** dinaikkan versinya diam-diam: ia memang
+belum punya skema apa pun, dan mengaku mutakhir hanya berbohong ke arah
+sebaliknya. Ketika ia membayar, `pastikanTenantTerprovisi` membuat databasenya
+lalu menulis `schema_version = TENANT_SCHEMA_VERSION` sekaligus — melompat ke
+versi terkini tanpa pernah lewat batch.
+
+Tiruan control-plane di `tenantDb.test.ts` diajari syarat `db_ref <> ''` lebih
+dulu. Tanpa itu ia tidak memodelkan hal yang sedang diuji, dan ujinya akan
+lulus atau gagal karena sebab yang salah.
+
+Tiga cek smoke ditaruh tepat di titik `calon@contoh.co.id` sudah mendaftar dan
+belum membayar — satu-satunya saat suite ini benar-benar memiliki tenant tanpa
+database.
+
+Uji negatif: melepas `AND db_ref <> ''` membuat uji unitnya merah
+(`expected true to be false`).
+
+### Baris produksinya sendiri
+
+**Tidak dihapus.** Setelah perbaikan ini ia menjadi apa adanya — satu pendaftar
+yang belum membayar, tidak memakan slot pool, tidak dihitung tertinggal, tidak
+menggagalkan cron. Menghapusnya hanya akan menyembunyikan cacat yang baru saja
+diperbaiki, dan bentuk yang sama akan lahir lagi dari pendaftar berikutnya.
+
 ## Validasi
 
 | Gerbang | Sebelum | Sesudah |
 | --- | --- | --- |
 | `pnpm typecheck` | lulus | ✅ lulus |
-| `pnpm test` (unit) | 1.117 | ✅ **1.129** (+12) |
+| `pnpm test` (unit) | 1.117 | ✅ **1.131** (+14) |
 | `pnpm build` | lulus | ✅ lulus |
-| `pnpm smoke` | 1.299 | ✅ **1.300** (+1) |
+| `pnpm smoke` | 1.299 | ✅ **1.303** (+4) |
 | `node scripts/ui-sim.mjs` | 474 | ✅ 474 |
 | `pnpm lint` | bersih | ✅ bersih |
 | `sapu-warna` | 0 / 0 | ✅ 0 / 0 |

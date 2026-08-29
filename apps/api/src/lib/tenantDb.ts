@@ -454,9 +454,20 @@ export type MigrasiBatchResult = {
  * menghentikan sisanya.
  */
 export async function migrateTenantBatch(env: Env, batas = BATCH_MIGRASI): Promise<MigrasiBatchResult> {
+  // `db_ref <> ''` WAJIB (Fase 50e). Tenant `provisioning` — sudah mendaftar,
+  // belum membayar — sengaja tidak punya database, dan `schema_version`-nya 0
+  // (lihat INSERT di `routes/auth.ts`). Tanpa syarat ini ia ikut terpilih,
+  // `getTenantDb(env, "")` melempar "db_ref tidak dikenal", dan ia tercatat
+  // GAGAL pada setiap jalannya cron — selamanya, karena tidak ada yang bisa
+  // diperbaiki. Ditemukan di produksi: satu tenant seperti itu membuat
+  // `selesai` tidak pernah true dan `gagal` tidak pernah 0.
+  //
+  // Ia memang bukan "tertinggal": ketika membayar, `pastikanTenantTerprovisi`
+  // membuat databasenya lalu menulis `schema_version = TENANT_SCHEMA_VERSION`
+  // sekaligus — melompat langsung ke versi terkini tanpa lewat batch ini.
   const { results } = await env.DB.prepare(
     `SELECT id, slug, db_ref, schema_version FROM tenants
-     WHERE schema_version < ?
+     WHERE schema_version < ? AND db_ref <> ''
      ORDER BY schema_version, created_at
      LIMIT ?`,
   )
@@ -480,7 +491,9 @@ export async function migrateTenantBatch(env: Env, batas = BATCH_MIGRASI): Promi
 
   // Sisa dihitung SESUDAH batch berjalan, bukan diperkirakan dari selisih —
   // tenant yang gagal tetap terhitung tertinggal, dan itu memang benar.
-  const sisaRow = await env.DB.prepare(`SELECT COUNT(*) AS n FROM tenants WHERE schema_version < ?`)
+  const sisaRow = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM tenants WHERE schema_version < ? AND db_ref <> ''`,
+  )
     .bind(TENANT_SCHEMA_VERSION)
     .first<{ n: number }>();
   const sisa = sisaRow?.n ?? 0;

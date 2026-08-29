@@ -1597,6 +1597,36 @@ try {
   // benar tidak berguna kalau tak ada yang melihatnya sampai pengunjung
   // mengeklik tombolnya.
 
+  // --- 50e: tenant yang belum membayar BUKAN tenant yang tertinggal ----------
+  //
+  // Tepat di titik ini `calon@contoh.co.id` sudah terdaftar, berstatus
+  // `provisioning`, `db_ref = ''`, dan `schema_version = 0` (lihat INSERT di
+  // routes/auth.ts: non-comped dapat 0). Inilah satu-satunya saat di suite ini
+  // tenant tanpa database benar-benar ada — jadi inilah tempat yang tepat
+  // untuk membuktikan ia tidak dihitung tertinggal.
+  //
+  // Sebelum Fase 50e ia dihitung, dan tidak ada migrasi yang bisa
+  // menyusulkannya: tidak ada database untuk dimigrasikan. Ditemukan di
+  // produksi — satu tenant seperti itu membuat cron migrasi melaporkan satu
+  // kegagalan pada SETIAP jalannya, selamanya.
+  check(
+    "50e tenant provisioning (tanpa database) tidak dihitung tertinggal migrasi",
+    infraSebelum.json?.tenantsBehind === 0 && infraSebelum.json?.behind?.length === 0,
+    `→ behind=${infraSebelum.json?.tenantsBehind} daftar=${JSON.stringify(infraSebelum.json?.behind)}`,
+  );
+  check(
+    "50e tenant tanpa database tidak mengaku memakai slot pool",
+    (infraSebelum.json?.refKinds?.binding ?? 0) < (infraSebelum.json?.totalTenants ?? 0) &&
+      (infraSebelum.json?.refKinds?.["tanpa-db"] ?? 0) >= 1,
+    `→ refKinds=${JSON.stringify(infraSebelum.json?.refKinds)} total=${infraSebelum.json?.totalTenants}`,
+  );
+  check(
+    "50e sebaran versi skema hanya memuat tenant yang punya database",
+    Array.isArray(infraSebelum.json?.versionDistribution) &&
+      infraSebelum.json.versionDistribution.every((d) => d.v === infraSebelum.json.schemaVersion),
+    `→ ${JSON.stringify(infraSebelum.json?.versionDistribution)}`,
+  );
+
   // --- 50b: kesiapan D1 dinamis ikut dilaporkan ------------------------------
   //
   // Suite ini berjalan di `TENANT_DB_MODE=local`, jadi yang bisa dibuktikan di
