@@ -204,12 +204,18 @@ akan membuat aplikasi gagal keras.
 - [ ] `COMPED_EMAILS` berisi email pemilik (akun kebal trial) bila diperlukan
 - [x] **Demo publik disemai ulang ke 12 bulan** (Fase 24b, diperdalam di Fase 30).
       Sejak trial dihapus, demo inilah satu-satunya cara calon pelanggan menilai
-      produk. Caranya di §7. **Terverifikasi 24 Agustus 2026:** demo produksi
-      berisi 236 jurnal yang membentang 15 bulan (2025-06 s.d. 2026-08).
+      produk. Caranya di §7. **Diperiksa ulang 29 Agustus 2026:** demo produksi
+      berisi **237** jurnal yang membentang 15 bulan (2025-06-05 s.d. 2026-08-31).
 - [x] Seed demo produksi masih tampil sehat (`/app` mode demo, neraca seimbang,
       **laba positif** di jendela 12 bulan maupun bulan berjalan).
-      **Terverifikasi 24 Agustus 2026** langsung di D1 produksi: total debit =
-      total kredit (Rp 5.085.725.220) dan **nol** jurnal yang tidak seimbang.
+      **Diperiksa ulang 29 Agustus 2026** langsung di D1 produksi: total debit =
+      total kredit (**Rp 5.086.116.854**) dan **nol** jurnal yang tidak seimbang.
+
+      > Angkanya berubah dari catatan 24 Agustus (236 jurnal ·
+      > Rp 5.085.725.220) karena Fase 48a memposting **satu jurnal koreksi**
+      > (JRN-00237): beban PPh Final UMKM Rp 391.634 dipindahkan dari akun
+      > `5-2100` — yang ternyata sudah dipakai "Beban Produksi Diserap" — ke
+      > `5-2200`. Bukan data baru, melainkan pembetulan penempatan akun.
 
 **Uji asap manual pasca-deploy (di domain produksi):**
 - [ ] Daftar perusahaan baru → login → buat faktur → terima pembayaran → Neraca seimbang

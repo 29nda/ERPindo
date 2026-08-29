@@ -3,9 +3,43 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 28 Agustus 2026
+**Terakhir diperbarui:** 29 Agustus 2026
 
-## Yang baru saja selesai — Fase 42–48: ERPindo berhenti berat sebelah ke keuangan
+## Yang baru saja selesai — Fase 50: merapikan yang tidak terlihat
+
+Empat pekerjaan kecil tanpa fitur baru. Semuanya berbagi satu bentuk: **keadaan
+yang salah tidak ada yang melihat, karena tidak ada yang bertugas melihatnya.**
+
+**Angka di laporan ini berhenti basi.** Halaman yang sedang Anda baca, dan
+panduan hari peluncuran, mengumumkan berapa banyak pemeriksaan otomatis yang
+dijalankan mesin. Angka itu ditulis tangan — dan ternyata sudah tertinggal jauh:
+tertulis 2.498 padahal kenyataannya 2.890. Ironinya, aturan repo ini berbunyi
+"jumlah pemeriksaan hanya boleh naik", lalu angka yang diterbitkan tidak pernah
+naik. Sekarang mesin sendiri yang menagihnya: menambah pemeriksaan tanpa
+memperbarui kedua dokumen ini membuat pengujian gagal, lengkap dengan angka
+penggantinya. Hal yang sama juga dipasang untuk dokumen teknis, yang enam
+angkanya juga sudah salah.
+
+**Salah pasang kunci kapasitas kini ketahuan seketika.** Bila suatu hari Anda
+menyalakan mode "database dinamis" (untuk melewati batas 6 perusahaan) tetapi
+kuncinya belum terpasang, **setiap** pendaftaran perusahaan baru gagal. Lebih
+buruk lagi, halaman Admin → Infra justru terlihat paling sehat dalam keadaan
+itu — kartu kapasitasnya sengaja diam karena mode dinamis memang tak berbatas.
+Sekarang layar itu menampilkan peringatan merah paling atas, menyebut kunci
+mana yang kurang dan dua cara membereskannya.
+
+**Pendaftar yang belum membayar berhenti dihitung sebagai masalah.** Menengok
+database produksi menyingkap cacat yang belum terlihat: perusahaan yang sudah
+mendaftar tetapi belum membayar dihitung sebagai "tertinggal pemutakhiran",
+dan pemutakhiran otomatis mencoba memperbaikinya setiap hari lalu gagal —
+selamanya, karena perusahaan itu memang belum punya database untuk diperbarui.
+Hari ini hanya satu baris demo. Tetapi **setiap calon pelanggan yang mendaftar
+dan belum membayar berbentuk sama persis**, sehingga angka peringatan itu akan
+naik terus dan tidak pernah bisa turun. Peringatan yang tidak bisa dipadamkan
+pada akhirnya membuat semua peringatan diabaikan — jadi diperbaiki sekarang,
+selagi murah.
+
+## Sebelumnya — Fase 42–48: ERPindo berhenti berat sebelah ke keuangan
 
 Anda menyampaikan satu hal yang tepat: aplikasi ini terlalu condong ke sisi
 keuangan, padahal ruang lingkup ERP jauh lebih luas. Sepuluh pekerjaan berikut
