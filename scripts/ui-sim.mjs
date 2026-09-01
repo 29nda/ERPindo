@@ -430,14 +430,37 @@ try {
     );
     if (!kartu) return null;
     const teks = kartu.innerText;
-    const m = teks.match(/(-?)\s*Rp\s*([\d.]+)/);
+    // Minus bisa berada di DUA sisi "Rp" (Fase 51c).
+    //
+    // Pola lama hanya mengenali `-Rp 1.000`, sedangkan kartu ini merender
+    // `Rp -226.150`. Akibatnya nilai negatif dibaca sebagai "tidak ketemu":
+    // ceknya tetap merah — nilainya null, bukan > 0 — tetapi pesannya berbohong
+    // tentang APA yang dilihat, dan penyelidik berikutnya mengira kartunya
+    // rusak alih-alih melihat angka rugi yang sebenarnya tercetak di sana.
+    // U+2212 ikut dikenali: itu yang dipakai sebagian pemformat angka.
+    const m = teks.match(/([-\u2212]?)\s*Rp\s*([-\u2212]?)\s*([\d.]+)/);
     if (!m) return { teks, nilai: null };
-    return { teks: m[0], nilai: Number(m[2].replace(/\./g, "")) * (m[1] === "-" ? -1 : 1) };
+    const negatif = Boolean(m[1]) || Boolean(m[2]);
+    return { teks: m[0], nilai: Number(m[3].replace(/\./g, "")) * (negatif ? -1 : 1) };
   });
+  /**
+   * Ambang, bukan sekadar "di atas nol" (Fase 51c).
+   *
+   * Cek ini dulu berbunyi `nilai > 0`, dan itulah yang membuatnya bertahan
+   * merah selama berbulan-bulan tanpa ketahuan: Fase 21d menyetel margin bulan
+   * berjalan pas-pasan, fase-fase sesudahnya menambah beban, dan angkanya
+   * merosot sampai −Rp 226.150 — terlihat HANYA pada 1–3 tiap bulan, karena di
+   * tanggal lain masih positif tipis. CI hijau 27 hari sebulan.
+   *
+   * Ambangnya disetel jauh di bawah margin sehat bulan riwayat (Rp 3–6 juta)
+   * tapi jauh di atas nol, sehingga pengikisan berikutnya memerah SELAGI masih
+   * ada sisa — bukan setelah menembus nol dan hanya di hari tertentu.
+   */
+  const AMBANG_LABA_DEMO = 2_000_000;
   check(
-    "F1b perusahaan demo menampilkan laba positif, bukan rugi",
-    Boolean(labaDemo && typeof labaDemo.nilai === "number" && labaDemo.nilai > 0),
-    `→ ${labaDemo ? `terbaca "${labaDemo.teks}" → ${labaDemo.nilai}` : "kartu Laba Bulan Ini tidak ditemukan"}`,
+    "F1b perusahaan demo menampilkan laba dengan margin sehat, bukan tipis atau rugi",
+    Boolean(labaDemo && typeof labaDemo.nilai === "number" && labaDemo.nilai >= AMBANG_LABA_DEMO),
+    `→ ${labaDemo ? `terbaca "${labaDemo.teks}" → ${labaDemo.nilai} (ambang ${AMBANG_LABA_DEMO})` : "kartu Laba Bulan Ini tidak ditemukan"}`,
   );
   // F36c — Fase 21e: pembanding bulan yang SAMA tahun lalu di kartu KPI.
   // Diperiksa dari elemen deltanya, bukan dari ada/tidaknya kata "tahun lalu"
@@ -3939,10 +3962,70 @@ try {
   // seluruh suite di atas bergantung pada sesi yang sudah masuk. Menaruhnya di
   // awal berarti menyentuh gerbang `#email`/`#password` yang menopang 200-an
   // asersi lain — persis yang dilarang komentar kontrak di auth.tsx.
+  // ---------------------------------------------------------------------------
+  // F51b — kegagalan MEMUAT sampai ke pengguna (Fase 51b).
+  //
+  // 140 dari 201 `useQuery` memakai `data?.xxx ?? []` tanpa membaca `.isError`,
+  // sehingga gagal-memuat tampil sama persis dengan tidak-ada-data: halaman
+  // Faktur yang gagal memuat berbunyi "Belum ada faktur". Diperbaiki sekali
+  // lewat `QueryCache.onError` di main.tsx.
+  //
+  // Yang dibuktikan DI SINI adalah kabelnya, bukan keputusannya (itu diuji di
+  // `test/galat-query.test.ts`): QueryCache → toastGlobal → ToastProvider.
+  // Kalau salah satu sambungan putus, perbaikannya diam-diam tidak melakukan
+  // apa pun — persis kelas cacat yang sedang ditutup.
+  //
+  // Ditaruh setelah SELURUH asersi bersesi selesai, dan permintaannya
+  // dikembalikan (`unroute`) segera: yang menyusul hanya bagian tanpa sesi,
+  // yang membersihkan cookie sendiri.
+  {
+    const pesanUji = "Uji 51b: server sengaja dibuat bermasalah";
+    await page.route("**/api/tenants/*/invoices*", (r) =>
+      r.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: pesanUji }) }),
+    );
+    await page.goto(`${BASE}/app/penjualan`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(900);
+    const toastTerlihat = await page.getByText(pesanUji, { exact: false }).count();
+    check(
+      "F51b gagal memuat memunculkan pemberitahuan, bukan halaman kosong yang menyesatkan",
+      toastTerlihat > 0,
+      `→ toast tidak muncul; pengguna hanya melihat daftar kosong`,
+    );
+    await page.unroute("**/api/tenants/*/invoices*");
+  }
+
   await page.setViewportSize({ width: 1360, height: 900 });
   await ctx.clearCookies();
   await page.goto(`${BASE}/masuk`, { waitUntil: "networkidle" });
   await page.waitForTimeout(600);
+
+  // ---------------------------------------------------------------------------
+  // F51a — halaman "lupa password" tidak lagi gagal dalam diam.
+  //
+  // Sebelum Fase 51a hanya `isSuccess` yang dirender: bila permintaannya gagal
+  // (endpoint-nya dibatasi 5×/5 menit, jadi 429 nyata), spinner berhenti dan
+  // TIDAK ADA apa pun yang berubah di layar — pada satu-satunya jalan pulih
+  // akun. Halaman ini juga tidak pernah dibuka ui-sim sampai sekarang.
+  {
+    const pesanUji = "Uji 51a: terlalu sering, coba lagi nanti";
+    await page.route("**/api/auth/forgot-password", (r) =>
+      r.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ error: pesanUji }) }),
+    );
+    await page.goto(`${BASE}/lupa-password`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(400);
+    await page.locator("#email").fill("pemilik@contoh.co.id");
+    await page.getByRole("button", { name: /kirim/i }).first().click();
+    await page.waitForTimeout(700);
+    const terlihat = await page.getByText(pesanUji, { exact: false }).count();
+    check(
+      "F51a lupa-password menampilkan sebab kegagalan, bukan diam",
+      terlihat > 0,
+      `→ tidak ada pesan galat di layar setelah permintaan ditolak`,
+    );
+    await page.unroute("**/api/auth/forgot-password");
+    await page.goto(`${BASE}/masuk`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(400);
+  }
 
   // Sampai Fase 19q ini satu-satunya layar publik TANPA tombol bahasa.
   const saklarBahasa = page.getByRole("group", { name: "Bahasa" });

@@ -952,6 +952,30 @@ try {
   });
   check("retur melebihi qty dokumen DITOLAK 400", returnTooMany.status === 400);
 
+  // --- 51c: retur tidak boleh mendahului dokumen asalnya ----------------------
+  //
+  // Sebelum Fase 51c kueri dokumen asal bahkan tidak MENGAMBIL tanggalnya, jadi
+  // urutannya mustahil diperiksa: barang bisa tercatat kembali sebelum terjual.
+  // Yang rusak bukan kerapian tanggal melainkan angkanya — jurnal pembalik
+  // retur memakai `returnDate`, jadi retur bertanggal mundur memindahkan
+  // pengurangnya ke bulan SEBELUM penjualannya. Neraca saldo tetap seimbang,
+  // sehingga tidak ada gerbang lain yang bisa melihatnya.
+  const returSebelumFaktur = await owner("POST", `/api/tenants/${tenantId}/returns`, {
+    refType: "invoice",
+    refId: inv2.json.id,
+    warehouseId: whUtama.id,
+    returnDate: "2026-07-02", // sehari SEBELUM faktur 2026-07-03
+    lines: [{ productId: prodBarang.json.id, qty: 1 }],
+  });
+  check(
+    "51c retur bertanggal sebelum dokumen asalnya DITOLAK 400",
+    returSebelumFaktur.status === 400 && /mendahului/.test(returSebelumFaktur.json?.error ?? ""),
+    `→ ${returSebelumFaktur.status} ${JSON.stringify(returSebelumFaktur.json)}`,
+  );
+  // Tanggal SAMA tetap boleh: barang dijual dan dikembalikan di hari yang sama
+  // adalah kejadian nyata, dan penjaganya memakai "sebelum" yang ketat.
+  // Dibuktikan oleh retur sah di bawah, yang memakai tanggal faktur persis.
+
   const salesReturn = await owner("POST", `/api/tenants/${tenantId}/returns`, {
     refType: "invoice",
     refId: inv2.json.id,

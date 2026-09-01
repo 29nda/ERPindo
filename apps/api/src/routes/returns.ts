@@ -27,6 +27,8 @@ import { clientIp } from "./auth";
 
 type DocRow = {
   doc_no: string;
+  /** Tanggal dokumen asal — dipakai menolak retur yang mendahuluinya (Fase 51c). */
+  doc_date: string | null;
   tax_rate: number;
   total: number;
   paid_amount: number;
@@ -131,15 +133,42 @@ export const returnRoutes = new Hono<AppEnv>().post(
       return c.json({ error: `Periode sampai ${lockedBefore} sudah ditutup.` }, 400);
     }
 
+    const dateColumn = isSale ? "invoice_date" : "purchase_date";
     const { results: docs } = await db
       .prepare(
-        `SELECT ${noColumn} AS doc_no, tax_rate, total, paid_amount, returned_amount, voided_at FROM ${table} WHERE id = ?`,
+        `SELECT ${noColumn} AS doc_no, ${dateColumn} AS doc_date, tax_rate, total, paid_amount, returned_amount, voided_at FROM ${table} WHERE id = ?`,
       )
       .bind(input.refId)
       .all<DocRow>();
     const doc = docs[0];
     if (!doc) return c.json({ error: "Dokumen asal tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 404);
     if (doc.voided_at) return c.json({ error: "Dokumen asal sudah dibatalkan — tidak bisa diretur." }, 400);
+
+    /**
+     * Retur tidak boleh mendahului dokumen asalnya (Fase 51c).
+     *
+     * Sebelum ini kueri di atas bahkan tidak MENGAMBIL tanggal dokumen asal,
+     * jadi urutannya mustahil diperiksa: barang bisa tercatat kembali sebelum
+     * ia terjual. Yang dijaga bukan kerapian tanggal, melainkan angkanya —
+     * jurnal pembalik retur memakai `returnDate` sebagai tanggal jurnal, jadi
+     * retur bertanggal mundur memindahkan pengurangnya ke bulan SEBELUM
+     * penjualannya: bulan lalu jadi kurang saji, bulan ini lebih saji, dan
+     * neraca saldo tetap seimbang sehingga tidak ada yang memerah.
+     *
+     * Salah ketik tanggal adalah cara paling lazim keadaan ini terjadi —
+     * memilih tanggal bulan lalu di pemilih tanggal. Karena itu pesannya
+     * menyebut kedua tanggal, bukan sekadar menolak.
+     */
+    if (doc.doc_date && input.returnDate < doc.doc_date) {
+      return c.json(
+        {
+          error:
+            `Tanggal retur (${input.returnDate}) mendahului dokumen asalnya ` +
+            `(${doc.doc_no}, ${doc.doc_date}). Barang tidak bisa kembali sebelum keluar.`,
+        },
+        400,
+      );
+    }
 
     // Validasi qty per produk terhadap dokumen asal dan retur sebelumnya.
     const docLines = await docLineAggregates(db, lineTable, fk, input.refId);

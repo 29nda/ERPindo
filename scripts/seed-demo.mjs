@@ -704,12 +704,12 @@ await step("pelunasan faktur tahun lalu", "POST", `${T}/payments`, {
 await purchase("kulakan grosir bulan ini (12 hari lalu)", {
   contactId: suppAneka.id, invoiceDate: daysAgo(12), taxRate: 0, warehouseId: whUtama.id,
   lines: [
-    { productId: kopi.id, qty: 420, unitPrice: 55_000 },
+    { productId: kopi.id, qty: 490, unitPrice: 55_000 },
     { productId: teh.id, qty: 250, unitPrice: 28_000 },
     { productId: keripik.id, qty: 620, unitPrice: 14_000 },
-    { productId: gula.id, qty: 200, unitPrice: 38_000 },
-    { productId: madu.id, qty: 60, unitPrice: 80_000 },
-    { productId: sirup.id, qty: 250, unitPrice: 24_000 },
+    { productId: gula.id, qty: 260, unitPrice: 38_000 },
+    { productId: madu.id, qty: 80, unitPrice: 80_000 },
+    { productId: sirup.id, qty: 310, unitPrice: 24_000 },
   ],
 });
 for (const [nama, cust, back, lines] of [
@@ -734,6 +734,27 @@ for (const [nama, cust, back, lines] of [
   ["grosir kantor (kopi + keripik)", custUmum, 2, [
     { productId: kopi.id, qty: 100, unitPrice: 85_000 },
     { productId: keripik.id, qty: 100, unitPrice: 25_000 },
+  ]],
+  // Faktur kelima ditambahkan Fase 51c — dan alasannya perlu dicatat utuh,
+  // karena ini KEDUA KALINYA cacat yang sama diperbaiki.
+  //
+  // Fase 21d menambahkan faktur keempat dengan sebab yang sama persis:
+  // "dasbor demo tetap merah di hari pertama tiap bulan". Marginnya lalu
+  // disetel pas-pasan, dan fase-fase sesudahnya (43a THR, 43b lembur, 44a
+  // komisi, 47 pesangon) menambah beban ke bulan berjalan sampai margin itu
+  // habis. Pada 1 September 2026 bulan berjalan kembali RUGI Rp 226.150 —
+  // terpaut kurang dari sepertiga persen dari omzetnya.
+  //
+  // Yang membuatnya bertahan lama: cacatnya hanya terlihat beberapa hari
+  // sebulan. Di tanggal lain angkanya positif, jadi CI hijau. Karena itu
+  // Fase 51c tidak sekadar menambal, tetapi memberi margin yang LEGA lalu
+  // menagihnya lewat ambang di ui-sim — supaya pengikisan berikutnya
+  // ketahuan selagi masih ada sisa, bukan setelah menembus nol.
+  ["grosir katering (kopi + gula + madu + sirup)", custToko, 6, [
+    { productId: kopi.id, qty: 60, unitPrice: 85_000 },
+    { productId: gula.id, qty: 50, unitPrice: 60_000 },
+    { productId: madu.id, qty: 15, unitPrice: 120_000 },
+    { productId: sirup.id, qty: 50, unitPrice: 40_000 },
   ]],
 ]) {
   const invGrosir = await step(`faktur ${nama}`, "POST", `${T}/invoices`, {

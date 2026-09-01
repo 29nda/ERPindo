@@ -1092,6 +1092,9 @@ function TemplatesCard({
   const remove = useMutation({
     mutationFn: (id: string) => api.deleteJournalTemplate(tenantId, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["journal-templates", tenantId] }),
+    // Fase 51a: tanpa ini penghapusan yang gagal tidak meninggalkan jejak —
+    // barisnya tetap ada dan pengguna menyimpulkan tombolnya yang rusak.
+    onError: (err) => toast("error", (err as Error).message),
   });
 
   const templates = query.data?.templates ?? [];
