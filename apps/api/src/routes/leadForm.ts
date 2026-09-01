@@ -47,7 +47,13 @@ export const leadFormRoutes = new Hono<AppEnv>().post(
     // Tenant hanya boleh berstatus aktif/trial: perusahaan yang berhenti
     // berlangganan tidak lagi menerima kiriman ke datanya.
     const tenant = await c.env.DB.prepare(
-      `SELECT id, db_ref FROM tenants WHERE slug = ? AND status IN ('active', 'past_due')`,
+      // `db_ref <> ''` WAJIB (Fase 52c). Status bisa sudah `active` sementara
+      // databasenya belum ada — persis keadaan "sudah membayar, provisioning
+      // tertunda" yang dicatat sendiri oleh webhook billing. Tanpa syarat ini
+      // `getTenantDb(env, "")` melempar, dan yang melihat 500 adalah PENGUNJUNG
+      // di formulir publik, bukan pemiliknya. Diperlakukan sebagai form yang
+      // belum ada: 404 yang sudah ditangani di bawah.
+      `SELECT id, db_ref FROM tenants WHERE slug = ? AND status IN ('active', 'past_due') AND db_ref <> ''`,
     )
       .bind(c.req.param("slug"))
       .first<{ id: string; db_ref: string }>();

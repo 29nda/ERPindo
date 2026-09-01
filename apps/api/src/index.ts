@@ -432,7 +432,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
     const { results: tenants } = await env.DB.prepare(
       // `name` ikut ditarik sejak Fase 21b: email rekap bulanan menyebut nama
       // perusahaan, dan pemilik beberapa perusahaan harus bisa membedakannya.
-      `SELECT id, name, db_ref FROM tenants WHERE status IN ('active', 'past_due')`,
+      `SELECT id, name, db_ref FROM tenants WHERE status IN ('active', 'past_due') AND db_ref <> ''`,
     ).all<{ id: string; name: string; db_ref: string }>();
     // Grup 0 diproses mulai tanggal 1, grup 1 mulai tanggal 2, grup 2 tanggal 3;
     // tanggal 3 sekaligus menyapu semua yang belum bertanda (resume).
@@ -513,7 +513,8 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
     //     dijalankan untuk tenant past_due (data milik pengguna).
     if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
       const { results: connected } = await env.DB.prepare(
-        `SELECT t.id, t.name, t.slug, t.db_ref FROM drive_connections dc JOIN tenants t ON t.id = dc.tenant_id`,
+        `SELECT t.id, t.name, t.slug, t.db_ref FROM drive_connections dc JOIN tenants t ON t.id = dc.tenant_id
+         WHERE t.db_ref <> ''`,
       ).all<{ id: string; name: string; slug: string; db_ref: string }>();
       let backedUp = 0;
       for (const t of connected.filter((t) => day >= monthlyGroup(t.id) + 1)) {
@@ -542,7 +543,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
   //    (next_run_date / next_due_date dimajukan setelah diproses).
   const todayDate = nowIso.slice(0, 10);
   const { results: billTenants } = await env.DB.prepare(
-    `SELECT id, db_ref FROM tenants WHERE status IN ('active', 'past_due')`,
+    `SELECT id, db_ref FROM tenants WHERE status IN ('active', 'past_due') AND db_ref <> ''`,
   ).all<{ id: string; db_ref: string }>();
   let billed = 0;
   let woGenerated = 0;
@@ -611,7 +612,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
   if (closingAsOf) {
     const tahunBuku = closingAsOf.slice(0, 4);
     const { results: closingTenants } = await env.DB.prepare(
-      `SELECT id, db_ref FROM tenants WHERE status IN ('active', 'past_due')`,
+      `SELECT id, db_ref FROM tenants WHERE status IN ('active', 'past_due') AND db_ref <> ''`,
     ).all<{ id: string; db_ref: string }>();
     let ditutup = 0;
     for (const t of closingTenants) {
