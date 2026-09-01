@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createRootRoute,
   createRoute,
@@ -9,7 +9,8 @@ import {
 } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { ToastProvider } from "./components/ui";
+import { ToastProvider, toastGlobal } from "./components/ui";
+import { buatPeredam, perluDitoast, pesanGalat } from "./lib/galatQuery";
 import { AppShell, DashboardPage, SettingsPage } from "./pages/app";
 import { PurchasesPage, SalesPage, StockPage } from "./pages/commerce";
 import { MarketplacePage } from "./pages/marketplace";
@@ -219,8 +220,46 @@ declare module "@tanstack/react-router" {
   }
 }
 
+/**
+ * Galat query yang sampai ke pengguna (Fase 51b).
+ *
+ * ## Kelas cacat yang ditutup di sini
+ *
+ * `request()` melempar pada non-2xx maupun jaringan mati, tetapi 140 dari 201
+ * `useQuery` di aplikasi ini memakai pola `query.data?.xxx ?? []` tanpa pernah
+ * membaca `.isError`. Akibatnya kegagalan MEMUAT tidak bisa dibedakan dari
+ * TIDAK ADA DATA: halaman Faktur yang gagal memuat menampilkan "Belum ada
+ * faktur", dan pengguna menyimpulkan datanya hilang.
+ *
+ * Menambal 140 tempat satu per satu berarti churn besar di 40-an berkas untuk
+ * satu kelemahan yang sama, dan tempat ke-141 akan lahir tanpa penjaga. Jadi
+ * diperbaiki sekali di sini, dan berlaku untuk query yang belum ditulis.
+ *
+ * ## Yang sengaja TIDAK ditoast
+ *
+ * - **401** — sesi habis. `AppShell` sudah menanganinya dengan memindahkan
+ *   pengguna ke halaman masuk; toast hanya menambah kebisingan di atasnya.
+ * - **403** — tanpa izin. Panel yang bersangkutan memang tidak boleh tampil,
+ *   dan layarnya sudah menjelaskan itu di tempatnya sendiri.
+ * - **503** — binding absen (Workers AI, Resend, Xendit). Degradasi anggun
+ *   adalah perilaku yang DIRANCANG di repo ini, bukan kerusakan.
+ *
+ * Pesan yang sama tidak diulang dalam 5 detik: satu halaman bisa menembakkan
+ * delapan query sekaligus, dan delapan toast identik membuat layar tidak
+ * terbaca justru ketika pengguna perlu membacanya.
+ */
+const bolehTampil = buatPeredam();
+
+function laporkanGalatQuery(err: unknown) {
+  if (!perluDitoast(err)) return;
+  const pesan = pesanGalat(err);
+  if (!bolehTampil(pesan)) return;
+  toastGlobal("error", pesan);
+}
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+  queryCache: new QueryCache({ onError: laporkanGalatQuery }),
 });
 
 createRoot(document.getElementById("root")!).render(

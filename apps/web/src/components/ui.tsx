@@ -677,6 +677,24 @@ export function useToast() {
   return useContext(ToastContext);
 }
 
+/**
+ * Jembatan toast untuk pemanggil DI LUAR pohon React (Fase 51b).
+ *
+ * `QueryClient` dibuat di `main.tsx` sebelum `ToastProvider` ada, jadi penangan
+ * galat global tidak bisa memakai `useToast()`. Alih-alih memindahkan
+ * pembuatannya ke dalam komponen — yang membuat cache ikut lahir ulang setiap
+ * render — provider mendaftarkan fungsi push-nya ke sini saat dipasang.
+ *
+ * Selama belum ada provider yang terpasang, panggilan ke sini tidak melakukan
+ * apa-apa. Itu disengaja: konteks tanpa UI (uji unit, render server) tidak
+ * boleh gagal hanya karena tidak ada tempat menampilkan toast.
+ */
+let pushGlobal: ((tone: Toast["tone"], message: string) => void) | null = null;
+
+export function toastGlobal(tone: Toast["tone"], message: string) {
+  pushGlobal?.(tone, message);
+}
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -685,6 +703,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((t) => [...t, { id, tone, message }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4000);
   }, []);
+
+  // Daftarkan diri sebagai tujuan `toastGlobal()` selama provider terpasang.
+  useEffect(() => {
+    pushGlobal = push;
+    return () => {
+      if (pushGlobal === push) pushGlobal = null;
+    };
+  }, [push]);
 
   return (
     <ToastContext.Provider value={push}>

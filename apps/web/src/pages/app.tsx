@@ -75,6 +75,7 @@ import {
   Spinner,
   tourSeen,
   useDarkMode,
+  useToast,
 } from "../components/ui";
 import { Asisten } from "../components/asisten";
 import { PaletPerintah } from "../components/palet";
@@ -464,6 +465,7 @@ function NotificationBell({ tenantId }: { tenantId: string }) {
 export function AppShell() {
   const u = useUi();
   const navigate = useNavigate();
+  const toast = useToast();
   const { dark, toggle } = useDarkMode();
   const lang = useLang();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -495,9 +497,22 @@ export function AppShell() {
     enabled: Boolean(activeTenantId),
   });
 
+  /**
+   * Keluar (Fase 51a — jalur galatnya dulu tidak ada sama sekali).
+   *
+   * Ini satu-satunya dari empat mutasi sunyi yang berimbas keamanan. Bila
+   * `POST /auth/logout` gagal — jaringan putus, server 500 — sesinya **tetap
+   * hidup**, sementara layar tidak berubah sedikit pun. Pengguna di komputer
+   * bersama menekan "Keluar", melihat halaman yang sama, lalu pergi.
+   *
+   * Sengaja TIDAK ikut berpindah ke /masuk saat gagal: berpindah akan membuat
+   * layarnya berbohong lebih meyakinkan lagi, karena cookie sesi masih sah dan
+   * siapa pun tinggal menekan tombol kembali.
+   */
   const logout = useMutation({
     mutationFn: api.logout,
     onSuccess: () => navigate({ to: "/masuk" }),
+    onError: (err) => toast("error", (err as Error).message),
   });
 
   // Mode Sederhana: ikuti perubahan toggle dari halaman Pengaturan.

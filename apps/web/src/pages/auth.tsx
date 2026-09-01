@@ -397,6 +397,13 @@ export function ForgotPasswordPage() {
         <Alert tone="success">{u("authResetTerkirim")}</Alert>
       ) : (
         <form onSubmit={onSubmit} className="space-y-3">
+          {/* Fase 51a — dulu HANYA `isSuccess` yang dirender di sini, sementara
+              `ResetPasswordPage` tepat di bawah sudah menangani `isError`.
+              Endpoint-nya dibatasi 5 permintaan / 5 menit, jadi 429 bukan
+              kemungkinan teoretis; begitu pula jaringan mati. Tanpa baris ini
+              pengguna menekan "kirim", spinner berhenti, dan TIDAK ADA apa pun
+              yang berubah di layar — pada satu-satunya jalan pulih akun. */}
+          {mutation.isError ? <Alert tone="error">{(mutation.error as Error).message}</Alert> : null}
           <div>
             <Label htmlFor="email">{u("email")}</Label>
             <Input id="email" name="email" type="email" required />

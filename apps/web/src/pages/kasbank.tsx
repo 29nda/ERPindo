@@ -170,6 +170,10 @@ export function KasBankPage() {
   const unmatchMutation = useMutation({
     mutationFn: (itemId: string) => api.bankReconUnmatch(tenant.tenantId, itemId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bank-recon", tenant.tenantId] }),
+    // Fase 51a: `matchMutation` di atas sudah punya ini, pasangannya belum.
+    // Batal-cocok yang gagal diam-diam meninggalkan entri TETAP tercocok,
+    // sementara pengguna melanjutkan rekonsiliasi seolah sudah terlepas.
+    onError: (err) => toast("error", (err as Error).message),
   });
 
   /**
