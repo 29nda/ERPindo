@@ -33,11 +33,32 @@ async function ownedTenants(
   userId: string,
   filterIds?: string[],
 ): Promise<OwnedTenant[]> {
+  /**
+   * `t.db_ref <> ''` WAJIB (Fase 52b).
+   *
+   * Perusahaan yang sudah didaftarkan tetapi belum membayar sengaja tidak punya
+   * database (`TANPA_DB` — lihat `routes/auth.ts` dan `docs/08`). Tanpa syarat
+   * ini ia ikut terpilih, lalu `getTenantDb(env, "")` melempar "db_ref tidak
+   * dikenal" — dan yang runtuh bukan satu barisnya, melainkan **seluruh laporan
+   * konsolidasi**, dengan 500 tanpa penjelasan.
+   *
+   * Ini bukan kasus tepi. Justru begitulah keadaan tepat setelah pemilik
+   * mendaftarkan perusahaan keduanya — hal yang persis diundang oleh fitur
+   * konsolidasi itu sendiri.
+   *
+   * Perusahaan tanpa database juga tidak punya buku untuk dikonsolidasikan,
+   * jadi menyaringnya di sini sekaligus membuat pemilih perusahaan di UI
+   * berhenti menawarkan perusahaan yang pasti kosong.
+   *
+   * Kelas yang sama sudah ditemukan dua kali sebelumnya: Fase 50e (cron migrasi
+   * dan kartu kapasitas memperlakukan tenant tanpa database sebagai tenant
+   * biasa). Ini kemunculan ketiganya.
+   */
   const { results } = await db
     .prepare(
       `SELECT t.id, t.name, t.db_ref
        FROM memberships m JOIN tenants t ON t.id = m.tenant_id
-       WHERE m.user_id = ? AND m.role = 'owner'
+       WHERE m.user_id = ? AND m.role = 'owner' AND t.db_ref <> ''
        ORDER BY t.created_at`,
     )
     .bind(userId)

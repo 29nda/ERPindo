@@ -1664,6 +1664,40 @@ try {
     `→ ${JSON.stringify(infraSebelum.json?.d1Dinamis)}`,
   );
 
+  // --- 52b: konsolidasi tidak runtuh karena perusahaan yang belum membayar ---
+  //
+  // `calon@contoh.co.id` memiliki tepat satu perusahaan, dan perusahaan itu
+  // sengaja belum punya database (`TANPA_DB`, karena belum membayar). Sebelum
+  // Fase 52b `ownedTenants` tetap memilihnya, lalu `getTenantDb(env, "")`
+  // melempar — dan yang runtuh bukan satu barisnya melainkan SELURUH laporan
+  // konsolidasi, dengan 500 tanpa penjelasan.
+  //
+  // Bukan kasus tepi: justru begitulah keadaan tepat setelah pemilik
+  // mendaftarkan perusahaan keduanya — hal yang persis diundang oleh fitur
+  // konsolidasi. Di sini pemiliknya baru punya satu, jadi jawabannya harus
+  // "tidak ada yang bisa dikonsolidasikan", bukan galat server.
+  const konsolBelumBayar = await belumBayar(
+    "GET",
+    "/api/consolidation/income-statement?from=2026-01-01&to=2026-12-31",
+  );
+  check(
+    "52b konsolidasi dengan perusahaan tanpa database → 404, bukan 500",
+    konsolBelumBayar.status === 404,
+    `→ ${konsolBelumBayar.status} ${JSON.stringify(konsolBelumBayar.json)}`,
+  );
+  const konsolNeraca = await belumBayar("GET", "/api/consolidation/balance-sheet?asOf=2026-12-31");
+  check(
+    "52b neraca konsolidasi juga tidak runtuh",
+    konsolNeraca.status === 404,
+    `→ ${konsolNeraca.status} ${JSON.stringify(konsolNeraca.json)}`,
+  );
+  const konsolDaftar = await belumBayar("GET", "/api/consolidation/companies");
+  check(
+    "52b pemilih perusahaan tidak menawarkan perusahaan yang pasti kosong",
+    konsolDaftar.status === 200 && (konsolDaftar.json?.companies?.length ?? -1) === 0,
+    `→ ${konsolDaftar.status} ${JSON.stringify(konsolDaftar.json)}`,
+  );
+
   const bacaBelumBayar = await belumBayar("GET", `/api/tenants/${tenantBelumBayar}/products`);
   check(
     "24 tenant belum berlangganan: MEMBACA pun ditolak 402 belum-berlangganan",
