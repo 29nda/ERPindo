@@ -3963,6 +3963,92 @@ try {
   // awal berarti menyentuh gerbang `#email`/`#password` yang menopang 200-an
   // asersi lain — persis yang dilarang komentar kontrak di auth.tsx.
   // ---------------------------------------------------------------------------
+  // F51d — empat halaman CETAK, yang belum pernah dibuka peramban sama sekali.
+  //
+  // `/cetak/faktur`, `/cetak/penawaran`, `/cetak/slip-gaji`, dan `/cetak/1721a1`
+  // tidak ada di `audit-routes.mjs` dan tidak disebut di mana pun dalam berkas
+  // ini. Padahal justru inilah yang DISERAHKAN keluar: faktur ke pelanggan,
+  // slip gaji dan 1721-A1 ke karyawan.
+  //
+  // Halaman-halaman ini mengambil parameternya dari query string dan mencari
+  // dokumennya di daftar. Bila salah satu pemanggilan API-nya berubah bentuk,
+  // yang muncul adalah "tidak ditemukan" — dan tidak ada gerbang yang akan
+  // melihatnya sampai ada pengguna menekan tombol cetak.
+  //
+  // Asersinya sengaja dua sisi: nomor dokumennya HARUS muncul, DAN kalimat
+  // "tidak ditemukan" harus absen. Memeriksa satu sisi saja akan hijau pada
+  // halaman kosong yang kebetulan tidak memuat kata itu.
+  {
+    const tid = await page.evaluate(() => localStorage.getItem("erpindo-tenant"));
+    const rujukan = await page.evaluate(async (t) => {
+      const ambil = async (jalur) => {
+        const r = await fetch(`/api/tenants/${t}/${jalur}`);
+        return r.ok ? r.json() : null;
+      };
+      const [inv, quo, run, emp] = await Promise.all([
+        ambil("invoices"),
+        ambil("quotations"),
+        ambil("payroll-runs"),
+        ambil("employees"),
+      ]);
+      return {
+        invoice: inv?.docs?.[0] ?? null,
+        quotation: quo?.quotations?.[0] ?? null,
+        run: run?.runs?.[0] ?? null,
+        employee: emp?.employees?.[0] ?? null,
+      };
+    }, tid);
+
+    const bukaCetak = async (nama, url, harusAda) => {
+      await page.goto(`${BASE}${url}`, { waitUntil: "networkidle" });
+      await page.waitForTimeout(700);
+      const teks = await page.innerText("body");
+      const adaIsi = harusAda.every((t) => t && teks.includes(t));
+      const takDitemukan = /tidak ditemukan/i.test(teks);
+      check(
+        `F51d halaman cetak ${nama} merender dokumennya`,
+        adaIsi && !takDitemukan,
+        `→ isi=${adaIsi} takDitemukan=${takDitemukan} cuplikan="${teks.slice(0, 120).replace(/\n/g, " ")}"`,
+      );
+    };
+
+    if (rujukan.invoice) {
+      await bukaCetak("faktur", `/cetak/faktur?tenant=${tid}&id=${rujukan.invoice.id}`, [
+        rujukan.invoice.docNo ?? rujukan.invoice.invoiceNo,
+      ]);
+    } else {
+      check("F51d halaman cetak faktur merender dokumennya", false, "→ tidak ada faktur di demo");
+    }
+
+    if (rujukan.quotation) {
+      await bukaCetak("penawaran", `/cetak/penawaran?tenant=${tid}&id=${rujukan.quotation.id}`, [
+        rujukan.quotation.quoteNo ?? rujukan.quotation.docNo,
+      ]);
+    } else {
+      check("F51d halaman cetak penawaran merender dokumennya", false, "→ tidak ada penawaran di demo");
+    }
+
+    if (rujukan.run && rujukan.employee) {
+      await bukaCetak(
+        "slip gaji",
+        `/cetak/slip-gaji?tenant=${tid}&run=${rujukan.run.id}&employee=${rujukan.employee.id}`,
+        [rujukan.employee.name],
+      );
+      await bukaCetak(
+        "1721-A1",
+        `/cetak/1721a1?tenant=${tid}&employee=${rujukan.employee.id}&year=${new Date().getFullYear()}`,
+        [rujukan.employee.name],
+      );
+    } else {
+      check("F51d halaman cetak slip gaji merender dokumennya", false, "→ tidak ada payroll run/karyawan di demo");
+      check("F51d halaman cetak 1721-A1 merender dokumennya", false, "→ tidak ada payroll run/karyawan di demo");
+    }
+
+    await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(400);
+  }
+
+  // ---------------------------------------------------------------------------
   // F51b — kegagalan MEMUAT sampai ke pengguna (Fase 51b).
   //
   // 140 dari 201 `useQuery` memakai `data?.xxx ?? []` tanpa membaca `.isError`,
