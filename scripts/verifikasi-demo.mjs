@@ -274,17 +274,41 @@ console.log("");
 // ---------------------------------------------------------------------------
 // 4. Asersi
 // ---------------------------------------------------------------------------
-// Bulan BERJALAN dikecualikan dari uji laba: ia selalu separuh jalan (belanja
-// bulanan sudah masuk, penjualannya belum lengkap), jadi rugi di sana normal
-// dan bukan tanda demo yang rusak. Yang dinilai pengunjung adalah bulan-bulan
-// yang sudah utuh.
 const riwayatSaja = baris.slice(0, -1);
+const barisBerjalan = baris[baris.length - 1];
 
 const rugi = riwayatSaja.filter((r) => r.laba <= 0);
 periksa(
   `tidak ada bulan riwayat yang rugi (${riwayatSaja.length} bulan diperiksa)`,
   rugi.length === 0,
   `→ rugi di: ${rugi.map((r) => `${r.periode} (${rupiah(r.laba)})`).join(", ")}`,
+);
+
+/**
+ * Bulan BERJALAN ikut dinilai sejak Fase 51c — dan komentar yang dulu di sini
+ * perlu dicabut, bukan sekadar diperbarui.
+ *
+ * Bunyinya: "bulan berjalan dikecualikan dari uji laba: ia selalu separuh jalan,
+ * jadi rugi di sana normal". Untuk perusahaan SUNGGUHAN itu benar. Untuk demo
+ * ia salah, dan salahnya mahal: bulan berjalan justru satu-satunya yang dilihat
+ * calon pelanggan ketika ia mengeklik "Lihat Demo", dan angkanya yang terpampang
+ * di kartu "Laba Bulan Ini" pada dasbor.
+ *
+ * Akibat pengecualian itu, berkas ini menyatakan "DEMO MASUK AKAL ✅" pada
+ * 1 September 2026 sementara demo yang sama menampilkan RUGI Rp 226.150 kepada
+ * setiap pengunjung — dan ui-sim (F1b) memerah untuk keadaan yang persis sama.
+ * Dua gerbang di repo ini saling bertentangan selama itu, dan tidak ada yang
+ * mendamaikannya karena keduanya jarang merah bersamaan.
+ *
+ * Ambangnya disamakan dengan F1b di `ui-sim.mjs`. Kalau salah satunya diubah,
+ * yang lain harus ikut — dan keduanya menyebut alasannya di tempat.
+ */
+const AMBANG_LABA_BERJALAN = 2_000_000;
+periksa(
+  `bulan berjalan (${barisBerjalan.periode}) untung dengan margin sehat`,
+  barisBerjalan.laba >= AMBANG_LABA_BERJALAN,
+  `→ ${rupiah(barisBerjalan.laba)} (ambang ${rupiah(AMBANG_LABA_BERJALAN)}). ` +
+    `Ini yang dilihat calon pelanggan lewat "Lihat Demo".`,
 );
 
 const kasNegatif = baris.filter((r) => r.kas < 0);

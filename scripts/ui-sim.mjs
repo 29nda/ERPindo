@@ -443,10 +443,24 @@ try {
     const negatif = Boolean(m[1]) || Boolean(m[2]);
     return { teks: m[0], nilai: Number(m[3].replace(/\./g, "")) * (negatif ? -1 : 1) };
   });
+  /**
+   * Ambang, bukan sekadar "di atas nol" (Fase 51c).
+   *
+   * Cek ini dulu berbunyi `nilai > 0`, dan itulah yang membuatnya bertahan
+   * merah selama berbulan-bulan tanpa ketahuan: Fase 21d menyetel margin bulan
+   * berjalan pas-pasan, fase-fase sesudahnya menambah beban, dan angkanya
+   * merosot sampai −Rp 226.150 — terlihat HANYA pada 1–3 tiap bulan, karena di
+   * tanggal lain masih positif tipis. CI hijau 27 hari sebulan.
+   *
+   * Ambangnya disetel jauh di bawah margin sehat bulan riwayat (Rp 3–6 juta)
+   * tapi jauh di atas nol, sehingga pengikisan berikutnya memerah SELAGI masih
+   * ada sisa — bukan setelah menembus nol dan hanya di hari tertentu.
+   */
+  const AMBANG_LABA_DEMO = 2_000_000;
   check(
-    "F1b perusahaan demo menampilkan laba positif, bukan rugi",
-    Boolean(labaDemo && typeof labaDemo.nilai === "number" && labaDemo.nilai > 0),
-    `→ ${labaDemo ? `terbaca "${labaDemo.teks}" → ${labaDemo.nilai}` : "kartu Laba Bulan Ini tidak ditemukan"}`,
+    "F1b perusahaan demo menampilkan laba dengan margin sehat, bukan tipis atau rugi",
+    Boolean(labaDemo && typeof labaDemo.nilai === "number" && labaDemo.nilai >= AMBANG_LABA_DEMO),
+    `→ ${labaDemo ? `terbaca "${labaDemo.teks}" → ${labaDemo.nilai} (ambang ${AMBANG_LABA_DEMO})` : "kartu Laba Bulan Ini tidak ditemukan"}`,
   );
   // F36c — Fase 21e: pembanding bulan yang SAMA tahun lalu di kartu KPI.
   // Diperiksa dari elemen deltanya, bukan dari ada/tidaknya kata "tahun lalu"
