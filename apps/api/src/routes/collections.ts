@@ -77,6 +77,12 @@ export const collectionRoutes = new Hono<AppEnv>()
     const m = await loadMembership(c);
     if (!m) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
     if (m.role === "viewer") return c.json({ error: "Peran Anda tidak dapat membuat tagihan." }, 403);
+    // Fase 52c: perusahaan yang belum selesai diprovisi tidak punya database,
+    // dan `getTenantDb(env, "")` akan melempar sebelum sempat menjelaskan apa
+    // pun. Dijawab sebagai keadaan yang bisa ditindaklanjuti, bukan 500.
+    if (!m.dbRef) {
+      return c.json({ error: "Perusahaan ini belum selesai disiapkan. Buka halaman Langganan untuk melanjutkan." }, 409);
+    }
     if (!billingConfigured(c.env)) {
       return c.json({ error: "Pembayaran online belum dikonfigurasi. Hubungi kami untuk aktivasi." }, 503);
     }

@@ -19,6 +19,7 @@
     "test/token-publik.test.ts",
     "test/kodeAkunUnik.test.ts",
     "test/fiturTertinggal.test.ts",
-    "test/angkaAcuanDokumen.test.ts"
+    "test/angkaAcuanDokumen.test.ts",
+    "test/tenantTanpaDb.test.ts"
   ]
 }
