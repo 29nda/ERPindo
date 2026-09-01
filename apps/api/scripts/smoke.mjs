@@ -5377,6 +5377,74 @@ try {
   const doneBig = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ordBig.json.id}/complete`);
   check("produksi melebihi stok bahan DITOLAK 400", doneBig.status === 400);
 
+  // --- 52a: penolakan produksi TIDAK BOLEH menyentuh stok bahan --------------
+  //
+  // Cek di atas hanya memastikan statusnya 400 — dan itulah titik butanya.
+  // Sebelum Fase 52a, bahan dikonsumsi satu per satu di dalam `try`, dan
+  // `catch`-nya hanya membalas 400 tanpa mengembalikan apa pun. Bahan ke-1..k−1
+  // sudah terlanjur keluar sementara barang jadinya tidak pernah masuk.
+  //
+  // Skenarionya disusun sengaja: BoM di bawah menyebut "Paku" (stok berlimpah)
+  // dan "Zat Perekat" (stok tipis). `loadBom` mengurutkan baris `ORDER BY
+  // p.name`, jadi Paku diproses LEBIH DULU dan berhasil, lalu Zat Perekat
+  // gagal — persis bentuk yang membuat konsumsi sebagian terjadi. Memakai
+  // BoM Meja di atas tidak akan membuktikan apa pun, karena bahan pertamanya
+  // yang justru kurang, sehingga tak ada yang sempat keluar.
+  const zat = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "BHN-ZAT", name: "Zat Perekat", unit: "liter", sellPrice: 90_000,
+  });
+  await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-07-15", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: zat.json.id, qty: 2, unitPrice: 40_000 }],
+  });
+  const lemari = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "JADI-LEMARI", name: "Lemari Arsip", unit: "unit", sellPrice: 900_000,
+  });
+  await owner("PUT", `/api/tenants/${tenantId}/boms`, {
+    productId: lemari.json.id, outputQty: 1,
+    lines: [{ componentId: paku.json.id, qty: 2 }, { componentId: zat.json.id, qty: 3 }],
+  });
+
+  const stokSebelum = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const pakuSebelum = stokSebelum.json?.levels?.find((l) => l.sku === "BHN-PAKU")?.qty;
+  const zatSebelum = stokSebelum.json?.levels?.find((l) => l.sku === "BHN-ZAT")?.qty;
+
+  // Butuh 2 paku (ada) + 3 zat (hanya 2) → harus ditolak TANPA mengurangi paku.
+  const ordSebagian = await owner("POST", `/api/tenants/${tenantId}/production-orders`, {
+    productId: lemari.json.id, warehouseId: whUtama.id, qty: 1,
+  });
+  const doneSebagian = await owner(
+    "POST",
+    `/api/tenants/${tenantId}/production-orders/${ordSebagian.json.id}/complete`,
+  );
+  check(
+    "52a produksi kurang bahan ditolak, dan pesannya menyebut bahan yang kurang",
+    doneSebagian.status === 400 && /Zat Perekat/.test(doneSebagian.json?.error ?? ""),
+    `→ ${doneSebagian.status} ${JSON.stringify(doneSebagian.json)}`,
+  );
+
+  const stokSesudah = await owner("GET", `/api/tenants/${tenantId}/stock`);
+  const pakuSesudah = stokSesudah.json?.levels?.find((l) => l.sku === "BHN-PAKU")?.qty;
+  const zatSesudah = stokSesudah.json?.levels?.find((l) => l.sku === "BHN-ZAT")?.qty;
+  check(
+    "52a stok bahan UTUH setelah produksi ditolak (tidak ada konsumsi sebagian)",
+    pakuSesudah === pakuSebelum && zatSesudah === zatSebelum,
+    `→ paku ${pakuSebelum}→${pakuSesudah}, zat ${zatSebelum}→${zatSesudah}`,
+  );
+
+  // Dan perintahnya masih bisa dijalankan ulang setelah bahan dilengkapi —
+  // yang pada kode lama justru berbahaya, karena pengulangan mengurangi bahan
+  // ke-1..k−1 untuk kedua kalinya.
+  await owner("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id, invoiceDate: "2026-07-15", taxRate: 0, warehouseId: whUtama.id,
+    lines: [{ productId: zat.json.id, qty: 5, unitPrice: 40_000 }],
+  });
+  const ulang = await owner(
+    "POST",
+    `/api/tenants/${tenantId}/production-orders/${ordSebagian.json.id}/complete`,
+  );
+  check("52a produksi yang sama berhasil setelah bahan dilengkapi", ulang.status === 200, `→ ${ulang.status}`);
+
   // Produksi lagi 2 unit lalu karantina ke gudang kedua.
   const ord2 = await owner("POST", `/api/tenants/${tenantId}/production-orders`, { productId: meja.json.id, warehouseId: whUtama.id, qty: 2 });
   const done2 = await owner("POST", `/api/tenants/${tenantId}/production-orders/${ord2.json.id}/complete`);

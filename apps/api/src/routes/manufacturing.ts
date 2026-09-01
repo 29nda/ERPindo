@@ -293,20 +293,100 @@ export const manufacturingRoutes = new Hono<AppEnv>()
     if (!bom) return c.json({ error: "Resep (BoM) produk sudah tidak ada." }, 400);
     const batches = order.qty / bom.outputQty;
 
-    // Konsumsi seluruh bahan; kumpulkan biaya. Bila stok kurang, batalkan.
+    /**
+     * Semua bahan diperiksa DULU, baru dikonsumsi (Fase 52a).
+     *
+     * ## Cacat yang diperbaiki
+     *
+     * Versi sebelumnya langsung mengonsumsi bahan satu per satu di dalam `try`,
+     * dan komentarnya berbunyi "Bila stok kurang, batalkan" — padahal `catch`-nya
+     * hanya membalas 400. Tidak ada yang dibatalkan. Bahan ke-1..k−1 sudah
+     * TERLANJUR keluar beserta baris `stock_movements`-nya, sementara barang
+     * jadinya tidak pernah masuk.
+     *
+     * Akibatnya berlipat, dan senyap:
+     *
+     * 1. Persediaan berkurang tanpa ada barang jadi sebagai gantinya.
+     * 2. Status perintah produksi tetap `draft`, jadi pengguna WAJAR mencoba
+     *    lagi setelah menambah stok — dan percobaan kedua mengurangi bahan
+     *    ke-1..k−1 untuk KEDUA KALINYA.
+     * 3. Tidak ada jurnal yang dibuat pada jalur gagal ini, sehingga neraca
+     *    saldo tetap seimbang dan tidak ada gerbang yang bisa melihatnya.
+     *    `stock_levels` turun sementara buku besar Persediaan diam — persis
+     *    kelas "dua angka berpisah diam-diam" yang diperingatkan komentar
+     *    jurnal penyerapan di bawah, hanya lewat pintu yang berbeda.
+     *
+     * ## Kenapa pemeriksaan di muka, bukan pembatalan saja
+     *
+     * Pemeriksaan di muka menyelesaikan kasus yang sebenarnya lazim — bahan
+     * memang kurang — tanpa menyentuh persediaan sama sekali, dan pesannya bisa
+     * menyebut bahan MANA yang kurang alih-alih menyebut satu baris yang
+     * kebetulan diproses lebih dulu.
+     *
+     * Pembatalan tetap disediakan untuk sisa yang tidak bisa dicegah: dua
+     * penyelesaian produksi bersamaan atas bahan yang sama bisa lolos
+     * pemeriksaan lalu salah satunya kalah di `stockOut` (yang memang atomik
+     * sejak Fase 29a). Di situ bahan yang sudah keluar dikembalikan pada biaya
+     * yang sama persis saat ia keluar, sehingga nilai persediaan pulih utuh.
+     */
+    const butuh = new Map<string, { qty: number; nama: string }>();
+    for (const line of bom.lines) {
+      const ada = butuh.get(line.componentId);
+      // BoM boleh menyebut satu komponen lebih dari sekali; yang menentukan
+      // cukup-tidaknya adalah TOTALNYA, bukan tiap barisnya sendiri-sendiri.
+      butuh.set(line.componentId, { qty: (ada?.qty ?? 0) + line.qty * batches, nama: line.name });
+    }
+
+    const kurang: string[] = [];
+    for (const [componentId, { qty, nama }] of butuh) {
+      const { results: lv } = await db
+        .prepare(`SELECT qty FROM stock_levels WHERE product_id = ? AND warehouse_id = ?`)
+        .bind(componentId, order.warehouse_id)
+        .all<{ qty: number }>();
+      const tersedia = lv[0]?.qty ?? 0;
+      if (tersedia < qty) kurang.push(`${nama} (perlu ${qty}, tersedia ${tersedia})`);
+    }
+    if (kurang.length > 0) {
+      return c.json(
+        { error: `Stok bahan tidak mencukupi: ${kurang.join("; ")}. Tidak ada bahan yang dikurangi.` },
+        400,
+      );
+    }
+
     let totalCost = 0;
+    const terkonsumsi: { productId: string; qty: number; biaya: number }[] = [];
     try {
       for (const line of bom.lines) {
-        totalCost += await stockOut(db, {
+        const qty = line.qty * batches;
+        const biaya = await stockOut(db, {
           productId: line.componentId,
           warehouseId: order.warehouse_id,
-          qty: line.qty * batches,
+          qty,
+          refType: "adjustment",
+          refId: orderId,
+        });
+        totalCost += biaya;
+        terkonsumsi.push({ productId: line.componentId, qty, biaya });
+      }
+    } catch (err) {
+      // Kalah balapan setelah pemeriksaan lolos: kembalikan yang sudah keluar,
+      // pada biaya yang sama persis saat keluar, supaya nilai persediaan pulih.
+      for (const t of terkonsumsi) {
+        await stockIn(db, {
+          productId: t.productId,
+          warehouseId: order.warehouse_id,
+          qty: t.qty,
+          unitCost: t.qty > 0 ? Math.round(t.biaya / t.qty) : 0,
           refType: "adjustment",
           refId: orderId,
         });
       }
-    } catch (err) {
-      if (err instanceof InsufficientStockError) return c.json({ error: err.message }, 400);
+      if (err instanceof InsufficientStockError) {
+        return c.json(
+          { error: `${err.message} Bahan yang sempat keluar sudah dikembalikan.` },
+          400,
+        );
+      }
       throw err;
     }
 
