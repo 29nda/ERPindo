@@ -3,9 +3,57 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 29 Agustus 2026
+**Terakhir diperbarui:** 2 September 2026
 
-## Yang baru saja selesai — Fase 50: merapikan yang tidak terlihat
+## Yang baru saja selesai — Fase 51–52: mencari cacat yang tidak bisa dilihat mesin mana pun
+
+Anda bertanya apakah aplikasi ini bisa dipakai tanpa salah fungsi dan alur. Saya
+jawab tidak yakin — lalu menelusurinya. **Tiga belas cacat ditemukan**, semuanya
+lolos dari 2.900-an pemeriksaan yang sudah ada.
+
+### Yang paling perlu Anda ketahui
+
+**Tombol "Keluar" bisa gagal tanpa memberi tahu.** Bila jaringan putus saat
+menekannya, sesi Anda **tetap hidup** sementara layar tidak berubah sedikit pun.
+Di komputer bersama, orang akan pergi mengira sudah keluar. Sekarang
+kegagalannya muncul di layar, dan aplikasi sengaja **tidak** berpura-pura
+memindahkan Anda ke halaman masuk — berpindah hanya membuat layarnya berbohong
+lebih meyakinkan.
+
+**Halaman yang gagal memuat dulu berbunyi "Belum ada data".** 140 dari 201
+pengambilan data tidak membedakan "gagal memuat" dari "memang kosong". Halaman
+Faktur yang gagal memuat berbunyi "Belum ada faktur", dan siapa pun akan
+menyimpulkan datanya hilang. Diperbaiki sekali di satu tempat, berlaku untuk
+seluruhnya.
+
+**Perusahaan demo tampil RUGI tiap tanggal 1–3 tiap bulan.** Itu yang dilihat
+setiap calon pelanggan yang mengeklik "Lihat Demo". Cacat ini sudah pernah
+diperbaiki sekali (Fase 21d), lalu marginnya termakan habis oleh fitur-fitur
+sesudahnya — dan bertahan berbulan-bulan karena **hanya terlihat 2–3 hari
+sebulan**. Sekarang bulan berjalannya untung Rp 4 juta, sejajar dengan
+bulan-bulan lain, dan penjaganya menuntut margin — bukan sekadar "di atas nol"
+yang justru membuatnya bisa terkikis diam-diam.
+
+**Bahan produksi bisa menguap.** Bila bahan pertama cukup dan bahan kedua
+kurang, bahan pertama sudah terlanjur keluar dari gudang sementara barang
+jadinya tidak pernah masuk — dan karena perintah produksinya masih bisa diulang,
+pengulangan mengurangi bahan yang sama untuk kedua kalinya. Terbukti dengan
+angka: 60 paku menjadi 58 pada produksi yang **ditolak**.
+
+**Laporan konsolidasi bisa runtuh seluruhnya.** Bila Anda mendaftarkan
+perusahaan kedua dan belum membayarnya, laporan gabungan membalas galat server —
+padahal justru itulah keadaan yang diundang oleh fitur konsolidasi.
+
+### Sisanya
+
+Retur yang bertanggal sebelum fakturnya kini ditolak (dulu diterima, dan
+memindahkan angka ke bulan yang salah tanpa membuat neraca timpang, sehingga
+tidak ada yang bisa melihatnya). Empat halaman cetak — faktur, penawaran, slip
+gaji, 1721-A1 — kini benar-benar dibuka mesin penguji; sebelumnya nol. Dan satu
+kelas cacat yang muncul **enam kali** di tempat berbeda akhirnya dijadikan
+gerbang, jadi kemunculan ketujuhnya akan tertangkap sebelum tayang.
+
+## Sebelumnya — Fase 50: merapikan yang tidak terlihat
 
 Empat pekerjaan kecil tanpa fitur baru. Semuanya berbagi satu bentuk: **keadaan
 yang salah tidak ada yang melihat, karena tidak ada yang bertugas melihatnya.**
