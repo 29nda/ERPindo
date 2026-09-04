@@ -392,6 +392,38 @@ export const CONTROL_PLANE_MIGRATIONS: Migration[] = [
       `UPDATE subscription_invoices SET plan = 'lengkap' WHERE plan IS NOT NULL`,
     ],
   },
+  {
+    /**
+     * Fase 53a/53b — tiga paket menggantikan paket tunggal.
+     *
+     * Kebalikan dari 0017: nilai `lengkap` dinormalkan menjadi `business`.
+     * Pilihan itu bukan kebetulan. Paket `lengkap` menjanjikan seluruh modul
+     * terbuka dan pengguna tak terbatas, dan Business adalah paket yang
+     * membawa keduanya dengan kapasitas menengah — padanan terdekatnya. Tidak
+     * ada pelanggan berbayar yang perlu di-grandfather saat migrasi ini
+     * ditulis (`subscription_invoices` masih kosong), jadi tidak ada tagihan
+     * siapa pun yang berubah diam-diam. Bila kelak ada, `legacy_full_access`
+     * dan `plan_overrides` di bawah adalah tempat yang benar untuk itu —
+     * bukan menyisakan nama paket mati di kolom `plan`.
+     *
+     * `billing_period` diperlukan karena tahunan bukan sekadar diskon di
+     * layar: ia menentukan berapa yang ditagih Xendit dan berapa lama masa
+     * berlakunya diperpanjang. Menyimpannya di tenant, bukan menyimpulkannya
+     * dari nominal invoice, membuat perpanjangan tidak perlu menebak.
+     *
+     * `plan_overrides` menampung pengecualian per tenant sebagai JSON.
+     * Sengaja ada sejak awal: kesepakatan Enterprise selalu punya
+     * pengecualian, dan menambah kolom di tengah negosiasi adalah cara paling
+     * buruk untuk menemukannya.
+     */
+    id: "0018_paket_kapasitas",
+    statements: [
+      `ALTER TABLE tenants ADD COLUMN billing_period TEXT NOT NULL DEFAULT 'bulanan'`,
+      `ALTER TABLE tenants ADD COLUMN plan_overrides TEXT`,
+      `UPDATE tenants SET plan = 'business' WHERE plan = 'lengkap' OR plan NOT IN ('starter','business','enterprise')`,
+      `UPDATE subscription_invoices SET plan = 'business' WHERE plan IS NOT NULL AND plan NOT IN ('starter','business','enterprise')`,
+    ],
+  },
 ];
 
 /**

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   ASSUMED_PER_USER_PRICE,
+  batasDapatDitimpaSchema,
+  batasEfektif,
   BULAN_DIBAYAR_TAHUNAN,
   biayaKaryawanTambahan,
   hargaPaket,
@@ -15,6 +17,8 @@ import {
   PLAN_LABELS,
   PLAN_LIMITS,
   PLANS,
+  TAK_TERBATAS,
+  takTerbatas,
 } from "../src/index";
 
 describe("PLAN_LIMITS (Fase 53a — tiga paket, dibedakan kapasitas)", () => {
@@ -205,5 +209,68 @@ describe("perUserMonthlyCost (kalkulator perbandingan implisit, Fase 13c)", () =
       return 0;
     };
     expect(impas(PLAN_LIMITS[PAKET_MASUK].pricePerMonth)).toBe(3);
+  });
+});
+
+describe("batasEfektif — pengecualian per tenant", () => {
+  it("tanpa override, batas paket dipakai apa adanya", () => {
+    expect(batasEfektif("starter")).toEqual(PLAN_LIMITS.starter);
+    expect(batasEfektif("starter", null)).toEqual(PLAN_LIMITS.starter);
+    expect(batasEfektif("starter", "")).toEqual(PLAN_LIMITS.starter);
+  });
+
+  it("hanya kunci yang disebut yang ditimpa", () => {
+    const b = batasEfektif("starter", JSON.stringify({ maxLokasi: 9 }));
+    expect(b.maxLokasi).toBe(9);
+    expect(b.maxBadanUsaha).toBe(PLAN_LIMITS.starter.maxBadanUsaha);
+    expect(b.pricePerMonth).toBe(PLAN_LIMITS.starter.pricePerMonth);
+  });
+
+  it("JSON rusak diabaikan, tidak melempar", () => {
+    // Kolom ini diisi tangan saat menutup kesepakatan. Satu salah ketik di sana
+    // tidak boleh membuat perusahaan tidak bisa membuat gudang.
+    expect(batasEfektif("business", "{bukan json")).toEqual(PLAN_LIMITS.business);
+    expect(batasEfektif("business", "null")).toEqual(PLAN_LIMITS.business);
+    expect(batasEfektif("business", "[]")).toEqual(PLAN_LIMITS.business);
+  });
+
+  it("nilai tidak masuk akal ditolak seluruhnya, bukan sebagian", () => {
+    expect(batasEfektif("starter", JSON.stringify({ maxLokasi: -3 }))).toEqual(PLAN_LIMITS.starter);
+    expect(batasEfektif("starter", JSON.stringify({ maxLokasi: 1.5 }))).toEqual(PLAN_LIMITS.starter);
+  });
+
+  it("kunci asing tidak menyelinap masuk", () => {
+    const b = batasEfektif("starter", JSON.stringify({ pricePerMonth: 1, maxLokasi: 4 }));
+    expect(b.pricePerMonth).toBe(PLAN_LIMITS.starter.pricePerMonth);
+    expect(b.maxLokasi).toBe(4);
+  });
+
+  it("harga TIDAK bisa ditimpa — daftar harga tetap satu sumber", () => {
+    // Harga yang bisa dibengkokkan per baris database berarti tidak ada satu
+    // pun tempat yang bisa menjawab "berapa harga paket Business" dengan pasti.
+    expect(batasDapatDitimpaSchema.safeParse({ pricePerMonth: 1 }).success).toBe(true);
+    expect(batasEfektif("business", JSON.stringify({ pricePerMonth: 1 })).pricePerMonth).toBe(
+      PLAN_LIMITS.business.pricePerMonth,
+    );
+  });
+});
+
+describe("TAK_TERBATAS — jebakan yang sudah memakan korban", () => {
+  it("Number.isFinite TIDAK bisa dipakai mendeteksi tanpa batas", () => {
+    // Uji ini mengunci sebab kegagalannya, bukan gejalanya. Di fase ini sendiri
+    // kartu harga sempat menuliskan "9007199254740991 lokasi" dan penjaga
+    // kapasitas memakai `!Number.isFinite()` yang tidak pernah terpicu.
+    expect(Number.isFinite(TAK_TERBATAS)).toBe(true);
+    expect(takTerbatas(TAK_TERBATAS)).toBe(true);
+  });
+
+  it("batas berhingga dikenali sebagai berhingga", () => {
+    expect(takTerbatas(2)).toBe(false);
+    expect(takTerbatas(PLAN_LIMITS.starter.maxLokasi)).toBe(false);
+    expect(takTerbatas(PLAN_LIMITS.enterprise.maxLokasi)).toBe(true);
+  });
+
+  it("pengguna tak terbatas memakai konstanta yang sama", () => {
+    for (const plan of PLANS) expect(takTerbatas(PLAN_LIMITS[plan].maxUsers)).toBe(true);
   });
 });

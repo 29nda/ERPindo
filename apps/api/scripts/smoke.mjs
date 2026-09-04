@@ -7877,6 +7877,27 @@ try {
   const billCheckoutBadPlan = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan: "gratis" });
   check("billing checkout paket tak dikenal → 400", billCheckoutBadPlan.status === 400, `→ HTTP ${billCheckoutBadPlan.status}`);
   const billCheckoutOwner = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan: "business" });
+  // --- Fase 53e: checkout per paket DAN per periode -------------------------
+  //
+  // Diuji terhadap Xendit yang belum dikonfigurasi (503) DAN terhadap
+  // validasinya, karena keduanya jalur yang berbeda: yang pertama membuktikan
+  // degradasi anggun, yang kedua membuktikan periode benar-benar dibaca.
+  const checkoutPeriodeSalah = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, {
+    plan: "business", periode: "mingguan",
+  });
+  check(
+    "53e periode tagihan di luar bulanan/tahunan ditolak 400",
+    checkoutPeriodeSalah.status === 400,
+    `→ ${checkoutPeriodeSalah.status} ${JSON.stringify(checkoutPeriodeSalah.json)}`,
+  );
+  const checkoutTahunan = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, {
+    plan: "business", periode: "tahunan",
+  });
+  check(
+    "53e checkout tahunan tetap terdegradasi anggun tanpa kunci Xendit (503)",
+    checkoutTahunan.status === 503,
+    `→ ${checkoutTahunan.status} ${JSON.stringify(checkoutTahunan.json)}`,
+  );
   check("billing checkout tanpa konfigurasi Xendit → 503", billCheckoutOwner.status === 503, `→ HTTP ${billCheckoutOwner.status}`);
   // Dewi = anggota admin (bukan owner) di tenant ini → ditolak mengatur langganan.
   const billCheckoutAdmin = await admin("POST", `/api/tenants/${tenantId}/billing/checkout`);
@@ -7945,6 +7966,67 @@ try {
       billStarter.json?.plan === "starter" &&
       billStarter.json?.pricePerMonth === 750_000,
     `→ ${JSON.stringify({ plan: billStarter.json?.plan, harga: billStarter.json?.pricePerMonth })}`,
+  );
+  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
+    plan: "business", status: "active", subscriptionEndsAt: akhirPeriode,
+  });
+
+  // --- Fase 53c: penegakan kuota kapasitas ---------------------------------
+  //
+  // Angka kapasitas paket sengaja tidak terbit di halaman harga sebelum blok
+  // ini ada. Fase 30 menghapus `maxEntities` karena ia diumumkan di landing
+  // tanpa satu baris pun yang memeriksanya, dan batas yang tidak ditegakkan
+  // adalah janji yang bisa dibantah pelanggan.
+  const gudangSekarang = await owner("GET", `/api/tenants/${tenantId}/warehouses`);
+  const jumlahGudang = gudangSekarang.json?.items?.length ?? 0;
+  check(
+    "53c prasyarat: gudang tenant sudah memenuhi kuota Starter (2)",
+    jumlahGudang >= 2,
+    `→ ${jumlahGudang} gudang`,
+  );
+
+  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
+    plan: "starter", status: "active", subscriptionEndsAt: akhirPeriode,
+  });
+  const gudangDitolak = await owner("POST", `/api/tenants/${tenantId}/warehouses`, {
+    code: "KUOTA1", name: "Gudang Melampaui Kuota",
+  });
+  check(
+    "53c gudang ke-N di paket Starter DITOLAK 402 dengan kuota-paket",
+    gudangDitolak.status === 402 && gudangDitolak.json?.detail === "kuota-paket",
+    `→ ${gudangDitolak.status} ${JSON.stringify(gudangDitolak.json)}`,
+  );
+  check(
+    "53c tolakan membawa cukup keterangan untuk merender ajakan naik paket",
+    gudangDitolak.json?.jenis === "lokasi" &&
+      typeof gudangDitolak.json?.batas === "number" &&
+      typeof gudangDitolak.json?.terpakai === "number" &&
+      gudangDitolak.json?.paketSekarang === "starter" &&
+      ["business", "enterprise", null].includes(gudangDitolak.json?.paketSaran ?? null),
+    `→ ${JSON.stringify(gudangDitolak.json)}`,
+  );
+  // Impor massal adalah jalur sisip KEDUA. Cek yang hanya menjaga POST biasa
+  // akan meninggalkannya sebagai pintu belakang yang melewati kuota.
+  const imporDitolak = await owner("POST", `/api/tenants/${tenantId}/warehouses/import`, {
+    rows: [{ code: "KUOTA2", name: "Gudang Impor A" }, { code: "KUOTA3", name: "Gudang Impor B" }],
+  });
+  check(
+    "53c impor massal gudang TIDAK melewati kuota (pintu belakang tertutup)",
+    imporDitolak.status === 402 && imporDitolak.json?.detail === "kuota-paket",
+    `→ ${imporDitolak.status} ${JSON.stringify(imporDitolak.json)}`,
+  );
+  // Naik paket harus langsung membukanya — kalau tidak, pelanggan membayar dan
+  // tetap tertahan, yang jauh lebih buruk daripada ditolak sejak awal.
+  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
+    plan: "enterprise", status: "active", subscriptionEndsAt: akhirPeriode,
+  });
+  const gudangSetelahNaik = await owner("POST", `/api/tenants/${tenantId}/warehouses`, {
+    code: "KUOTA1", name: "Gudang Setelah Naik Paket",
+  });
+  check(
+    "53c naik ke Enterprise langsung membuka kuota lokasi",
+    gudangSetelahNaik.status === 201,
+    `→ ${gudangSetelahNaik.status} ${JSON.stringify(gudangSetelahNaik.json)}`,
   );
   await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
     plan: "business", status: "active", subscriptionEndsAt: akhirPeriode,

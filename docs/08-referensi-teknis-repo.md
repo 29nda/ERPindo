@@ -53,7 +53,7 @@ untuk mesin pencari.
 ## Dua bidang database
 
 **Control-plane** (binding `DB`, D1 `erpindo-control-plane`): **17 tabel**,
-**17 migrasi** — `users`, `tenants`, `memberships`, `sessions`, `tokens`,
+**18 migrasi** — `users`, `tenants`, `memberships`, `sessions`, `tokens`,
 `subscription_invoices`, `payment_links`, `audit_logs`, `blog_posts`, `feedback`,
 `demo_requests`, `api_keys`, `webhooks`, `webhook_deliveries`, `custom_roles`,
 `drive_connections`, `oauth_states`.

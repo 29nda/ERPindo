@@ -3159,6 +3159,23 @@ try {
     `→ ajakan migrasi tidak ditemukan`,
   );
   check(
+    "F53d kartu paket menyebut kapasitas yang benar-benar ditegakkan",
+    /1 badan usaha/.test(landingText) &&
+      /2 lokasi, gudang, atau outlet/.test(landingText) &&
+      /10 karyawan penggajian termasuk/.test(landingText),
+    `→ baris kapasitas tidak lengkap`,
+  );
+  check(
+    "F53d Enterprise menawarkan lokasi tak terbatas + konsolidasi",
+    /Lokasi tak terbatas/.test(landingText) && /badan usaha \+ konsolidasi/.test(landingText),
+    `→ baris Enterprise tidak lengkap`,
+  );
+  check(
+    "F53d kelebihan karyawan dinyatakan per kepala, bukan lompatan tagihan",
+    /per orang per tahun/.test(landingText) && /tanpa lompatan tagihan/.test(landingText),
+    `→ catatan kelebihan karyawan tidak ditemukan`,
+  );
+  check(
     "F53a landing tidak menjual satu pun modul lewat paket",
     !/(tersedia|terbuka) (mulai|hanya) (di )?paket|terkunci di paket/i.test(landingText),
     `→ ada naskah yang menjual modul lewat paket`,

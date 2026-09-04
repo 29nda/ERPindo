@@ -56,14 +56,45 @@ akan **selalu** lebih tipis. Omzetnya dinaikkan sepadan (laba kini Rp 8,2 juta,
 sejajar bulan tersehat), dan penjaganya diubah agar ikut berskala sendiri —
 supaya tidak perlu disetel ulang keempat kalinya.
 
-### Yang belum, dan urutannya sengaja dibalik
+### Kapasitasnya kini ditegakkan, dan angkanya sudah terbit
 
-Angka kapasitas tiap paket — berapa badan usaha, lokasi, dan karyawan
-penggajian — **belum ditampilkan di halaman harga**, karena belum ada kode yang
-menegakkannya. Batas yang diumumkan tetapi tidak diperiksa bukan sekadar kode
-yang menganggur; ia janji yang bisa dibantah pelanggan. Jadi penegakannya
-dikerjakan lebih dulu, baru angkanya terbit. Checkout Xendit untuk enam
-kombinasi paket dan periode menyusul sesudahnya.
+Batas tiap paket sekarang benar-benar diperiksa aplikasi, bukan sekadar
+tertulis. Gudang atau outlet ke-3 di paket Starter ditolak dengan pesan yang
+menyebutkan paket mana yang memuatnya — bukan galat, melainkan ajakan naik
+paket. Perusahaan kedua di akun yang paketnya hanya memuat satu badan usaha
+ditolak dengan cara yang sama.
+
+Baru **setelah** itu angkanya saya terbitkan di kartu harga. Urutannya sengaja:
+batas yang diumumkan tetapi tidak diperiksa bukan sekadar kode yang menganggur,
+melainkan janji yang bisa dibantah pelanggan — dan itu persis kesalahan yang
+pernah terjadi di sini sebelumnya.
+
+**Karyawan penggajian sengaja tidak ditolak.** Kalau karyawan ke-51 ditolak,
+perusahaan akan menggaji sisanya di luar sistem — dan sejak saat itu laporan
+PPh 21 yang dihasilkan ERPindo menjadi salah. Kerugian itu jauh lebih besar
+daripada tagihan yang diselamatkan. Jadi jatah karyawan adalah titik mulai
+penagihan, bukan pagar: kelebihannya ditagih per kepala, Rp 150.000 per orang
+per tahun.
+
+### Checkout sudah mengenal paket dan periode
+
+Pembayaran Xendit kini menagih sesuai paket **dan** periode yang dipilih —
+bulanan atau tahunan — beserta kelebihan karyawan bila ada. Masa berlakunya
+diperpanjang satu bulan atau satu tahun mengikuti yang dibayar.
+
+Semua ini tetap terdegradasi anggun tanpa kunci Xendit produksi: layar
+menampilkan pesan yang jelas, bukan galat. Jadi seluruhnya sudah teruji dan siap
+sebelum Anda memasang kuncinya.
+
+### Yang masih tertunda, dan sengaja
+
+**Perilaku saat langganan berakhir** — mode baca-saja dengan ekspor tetap hidup
+— belum dikerjakan. Tenggatnya nyata tetapi belum dekat: dua belas bulan setelah
+pelanggan pertama. Bagian ini menyentuh data pembukuan pelanggan, jadi tidak
+pantas dikerjakan terburu-buru di ujung pekerjaan panjang.
+
+**Perhitungan selisih saat naik paket di tengah periode** juga belum. Keduanya
+saya kerjakan sebagai pekerjaan tersendiri, bukan tempelan.
 
 ## Sebelumnya — Fase 51–52: mencari cacat yang tidak bisa dilihat mesin mana pun
 
@@ -239,9 +270,9 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.162** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.314** |
-| Simulasi klik di peramban nyata | 431 | **484** |
+| Uji unit | 923 | **1.171** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.321** |
+| Simulasi klik di peramban nyata | 431 | **487** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
@@ -723,7 +754,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.314 skenario ujian end-to-end + 1.162 unit test + 484 cek simulasi UI browser nyata**, totalnya **2.960 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.321 skenario ujian end-to-end + 1.171 unit test + 487 cek simulasi UI browser nyata**, totalnya **2.979 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

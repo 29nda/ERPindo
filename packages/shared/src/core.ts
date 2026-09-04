@@ -161,6 +161,22 @@ export type Plan = (typeof PLANS)[number];
  * hemat, dinyatakan sekali di `BULAN_DIBAYAR_TAHUNAN` agar halaman harga,
  * checkout, dan uji tidak pernah menghitungnya sendiri-sendiri.
  */
+/**
+ * Nilai yang berarti "tanpa batas" pada `BatasPaket`.
+ *
+ * Diberi nama karena `Number.isFinite(Number.MAX_SAFE_INTEGER)` bernilai TRUE —
+ * jebakan yang sudah memakan korban di fase ini sendiri: kartu harga menuliskan
+ * "9007199254740991 lokasi" alih-alih "Lokasi tak terbatas", dan penjaga
+ * kapasitas memakai `!Number.isFinite()` yang tidak pernah terpicu. Bandingkan
+ * dengan konstanta ini, jangan dengan keterhinggaan.
+ */
+export const TAK_TERBATAS = Number.MAX_SAFE_INTEGER;
+
+/** Apakah sebuah batas berarti tanpa batas. */
+export function takTerbatas(n: number): boolean {
+  return n >= TAK_TERBATAS;
+}
+
 export const PERIODE_TAGIHAN = ["bulanan", "tahunan"] as const;
 export type PeriodeTagihan = (typeof PERIODE_TAGIHAN)[number];
 
@@ -232,7 +248,7 @@ export const PLAN_LIMITS: Record<Plan, BatasPaket> = {
   starter: {
     label: "Starter",
     pricePerMonth: 750_000,
-    maxUsers: Number.MAX_SAFE_INTEGER,
+    maxUsers: TAK_TERBATAS,
     aiDailyLimit: 50,
     maxBadanUsaha: 1,
     maxLokasi: 2,
@@ -245,7 +261,7 @@ export const PLAN_LIMITS: Record<Plan, BatasPaket> = {
   business: {
     label: "Business",
     pricePerMonth: 1_500_000,
-    maxUsers: Number.MAX_SAFE_INTEGER,
+    maxUsers: TAK_TERBATAS,
     aiDailyLimit: 150,
     maxBadanUsaha: 1,
     maxLokasi: 10,
@@ -258,10 +274,10 @@ export const PLAN_LIMITS: Record<Plan, BatasPaket> = {
   enterprise: {
     label: "Enterprise",
     pricePerMonth: 3_000_000,
-    maxUsers: Number.MAX_SAFE_INTEGER,
+    maxUsers: TAK_TERBATAS,
     aiDailyLimit: 400,
     maxBadanUsaha: 5,
-    maxLokasi: Number.MAX_SAFE_INTEGER,
+    maxLokasi: TAK_TERBATAS,
     karyawanTermasuk: 200,
     lampiranGb: 100,
     kanalDukungan: "prioritas",
@@ -269,6 +285,45 @@ export const PLAN_LIMITS: Record<Plan, BatasPaket> = {
     pendampinganJamPerTahun: 12,
   },
 };
+
+/**
+ * Kapasitas yang boleh ditimpa per tenant. Sengaja HANYA kapasitas.
+ *
+ * Harga tidak ada di sini, dan itu keputusan: harga yang bisa ditimpa per baris
+ * database berarti tidak ada satu pun tempat yang bisa menjawab "berapa harga
+ * paket Business" dengan pasti. Kesepakatan harga khusus dicatat di invoice,
+ * bukan dengan membengkokkan daftar harga.
+ */
+export const batasDapatDitimpaSchema = z
+  .object({
+    maxBadanUsaha: z.number().int().positive(),
+    maxLokasi: z.number().int().positive(),
+    karyawanTermasuk: z.number().int().nonnegative(),
+    aiDailyLimit: z.number().int().positive(),
+    lampiranGb: z.number().int().positive(),
+  })
+  .partial();
+
+export type BatasDitimpa = z.infer<typeof batasDapatDitimpaSchema>;
+
+/**
+ * Batas yang BERLAKU untuk sebuah tenant: paketnya, ditimpa pengecualiannya.
+ *
+ * JSON yang rusak atau berisi kunci asing tidak menggagalkan apa pun — ia
+ * diabaikan dan tenant jatuh ke batas paketnya. Alasannya: kolom ini diisi
+ * tangan saat menutup kesepakatan, dan satu salah ketik di sana tidak boleh
+ * membuat perusahaan tidak bisa membuat faktur.
+ */
+export function batasEfektif(plan: Plan, overridesJson?: string | null): BatasPaket {
+  const dasar = PLAN_LIMITS[plan];
+  if (!overridesJson) return dasar;
+  try {
+    const hasil = batasDapatDitimpaSchema.safeParse(JSON.parse(overridesJson));
+    return hasil.success ? { ...dasar, ...hasil.data } : dasar;
+  } catch {
+    return dasar;
+  }
+}
 
 /** Harga satu periode tagihan penuh. Tahunan = 10 bulan. */
 export function hargaPaket(plan: Plan, periode: PeriodeTagihan): number {
@@ -582,9 +637,16 @@ export type BillingStatus = {
   invoices: ApiSubscriptionInvoice[];
 };
 
-/** Pilih paket berbayar yang akan di-checkout (Fase 13b). */
+/**
+ * Pilih paket berbayar yang akan di-checkout (Fase 13b, periode di Fase 53e).
+ *
+ * `periode` berdefault `bulanan` supaya pemanggil lama — dan uji yang sudah
+ * ada — tetap sah tanpa diubah. Yang tidak boleh berdefault adalah harganya:
+ * itu selalu dihitung dari `hargaPaket()`.
+ */
 export const checkoutSchema = z.object({
   plan: z.enum(PAID_PLANS),
+  periode: z.enum(PERIODE_TAGIHAN).default("bulanan"),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 

@@ -1,11 +1,13 @@
 import {
   ASSUMED_PER_USER_PRICE,
+  HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN,
   hargaPaket,
   PAKET_DISARANKAN,
   PAKET_MASUK,
   perUserMonthlyCost,
   PLAN_LIMITS,
   PLANS,
+  takTerbatas,
 } from "@erpindo/shared";
 import { Link } from "@tanstack/react-router";
 import { Check, Eye, Plus, X } from "lucide-react";
@@ -560,6 +562,44 @@ function Pricing() {
                   <span className="num font-medium text-ink">{formatRupiah(hargaPaket(plan, "tahunan"))}</span>{" "}
                   {L(lang, "per tahun — hemat dua bulan", "per year — two months free")}
                 </p>
+                {/* Angka kapasitas baru terbit di sini setelah Fase 53c
+                    menegakkannya dan 53e menagih kelebihan karyawannya. Fase 30
+                    menghapus `maxEntities` justru karena ia diumumkan lebih
+                    dulu daripada kodenya. */}
+                <ul className="mt-4 flex-1 space-y-1.5 border-t border-line pt-3 text-[13px]">
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden />
+                    {batas.maxBadanUsaha === 1
+                      ? L(lang, "1 badan usaha", "1 legal entity")
+                      : L(
+                          lang,
+                          `Sampai ${batas.maxBadanUsaha} badan usaha + konsolidasi`,
+                          `Up to ${batas.maxBadanUsaha} entities + consolidation`,
+                        )}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden />
+                    {!takTerbatas(batas.maxLokasi)
+                      ? L(
+                          lang,
+                          `${batas.maxLokasi} lokasi, gudang, atau outlet`,
+                          `${batas.maxLokasi} locations, warehouses, or outlets`,
+                        )
+                      : L(lang, "Lokasi tak terbatas", "Unlimited locations")}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden />
+                    {L(
+                      lang,
+                      `${batas.karyawanTermasuk} karyawan penggajian termasuk`,
+                      `${batas.karyawanTermasuk} payroll employees included`,
+                    )}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden />
+                    {L(lang, "Pengguna tak terbatas", "Unlimited users")}
+                  </li>
+                </ul>
                 <a href="/daftar" className="mt-4">
                   <Button variant={disarankan ? "primary" : "secondary"} className="w-full">
                     {L(lang, "Mulai Berlangganan", "Start subscribing")}
@@ -582,6 +622,14 @@ function Pricing() {
         </div>
 
         <p className="mt-4 text-[13px] text-ink-muted">
+          {L(
+            lang,
+            `Karyawan di atas jatah paket ditagih ${formatRupiah(HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN)} per orang per tahun — per kepala, tanpa lompatan tagihan.`,
+            `Payroll employees beyond your plan's allowance are billed ${formatRupiah(HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN)} per person per year — per head, with no jump in your bill.`,
+          )}
+        </p>
+
+        <p className="mt-2 text-[13px] text-ink-muted">
           {L(lang, "Termasuk:", "Included:")} {SINGLE_PLAN_MODULES.slice(0, 6).map((m) => pick(m, lang)).join(" · ")}
           {L(lang, ", dan banyak lagi. Harga sudah final, tanpa tambahan apa pun.", ", and much more. Prices are final, with nothing added on top.")}
         </p>

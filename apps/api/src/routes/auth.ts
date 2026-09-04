@@ -17,6 +17,7 @@ import { Hono } from "hono";
 import { deleteCookie, setCookie } from "hono/cookie";
 import type { AppEnv, Env } from "../env";
 import { audit } from "../lib/audit";
+import { periksaKuotaBadanUsaha } from "../lib/kapasitas";
 import { generateToken, hashPassword, sha256Hex, verifyPassword } from "../lib/crypto";
 import { kirimEmail } from "../lib/mailer";
 import { KapasitasTenantPenuhError, provisionTenantDb, TANPA_DB, TENANT_SCHEMA_VERSION } from "../lib/tenantDb";
@@ -355,6 +356,21 @@ export const authRoutes = new Hono<AppEnv>()
           402,
         );
       }
+    }
+
+    /**
+     * Kuota badan usaha per paket (Fase 53c).
+     *
+     * Diperiksa SETELAH pagar anti-abuse di atas dan SEBELUM slot database
+     * dipesan: menolak sesudah database dibuat akan meninggalkan slot terpakai
+     * untuk perusahaan yang tidak pernah jadi.
+     *
+     * Akun comped dilewati — ia tidak pernah ditagih, jadi tidak ada kuota yang
+     * bisa dilampauinya.
+     */
+    if (!isComped(c.env, user.email)) {
+      const kuota = await periksaKuotaBadanUsaha(c.env, user.id);
+      if (!kuota.boleh) return c.json(kuota.tolakan, 402);
     }
 
     const base = toSlug(companyName);

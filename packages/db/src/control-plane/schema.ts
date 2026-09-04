@@ -26,6 +26,21 @@ export const tenants = sqliteTable("tenants", {
   dbRef: text("db_ref").notNull(),
   status: text("status").notNull(),
   plan: text("plan").notNull().default("trial"),
+  /**
+   * Periode tagihan: `bulanan` atau `tahunan` (Fase 53b).
+   *
+   * Disimpan di tenant, bukan disimpulkan dari nominal invoice terakhir:
+   * perpanjangan perlu tahu berapa lama masa berlakunya diperpanjang, dan
+   * menebaknya dari angka adalah cara paling mudah salah setelah harga berubah.
+   */
+  billingPeriod: text("billing_period").notNull().default("bulanan"),
+  /**
+   * Pengecualian kapasitas per tenant, JSON (Fase 53b).
+   *
+   * Kesepakatan Enterprise selalu punya pengecualian. Kolomnya ada sejak awal
+   * supaya tidak perlu ditambahkan di tengah negosiasi.
+   */
+  planOverrides: text("plan_overrides"),
   /** Grandfather (Fase 13a): pelanggan lama harga tunggal → akses semua modul. */
   legacyFullAccess: integer("legacy_full_access", { mode: "boolean" }).notNull().default(false),
   trialEndsAt: text("trial_ends_at"),
