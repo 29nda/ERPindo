@@ -232,7 +232,7 @@ naskah penjualan dan keamanan: `dapat`.
 ## 6. Rupiah
 
 Satu sumber: `formatRupiah()` di `packages/shared/src/text.ts`. Menghasilkan
-`Rp 499.000` — dengan spasi BIASA, pemisah ribuan titik.
+`Rp 750.000` — dengan spasi BIASA, pemisah ribuan titik.
 
 > **Fase 38p:** pernyataan "satu sumber" di atas sempat **tidak benar** selama
 > beberapa fase. Fungsinya hidup di `pages/landing/sections.ts`, dan di
@@ -243,8 +243,16 @@ Satu sumber: `formatRupiah()` di `packages/shared/src/text.ts`. Menghasilkan
 > `packages/shared`; `formatIDR` dipertahankan sebagai nama lama yang
 > meneruskan ke sana.
 
-Jangan menulis `Rp499.000` atau `Rp 499000` langsung di naskah. Placeholder
+Jangan menulis `Rp750.000` atau `Rp 750000` langsung di naskah. Placeholder
 angka juga memakai pemisah ribuan: `mis. 5.000.000`, bukan `mis. 5000000`.
+
+**Harga paket sama sekali tidak boleh dieja** (Fase 53a), sekalipun ejaannya
+benar. Ia dibaca dari `PLAN_LIMITS` lalu disisipkan — lewat template literal
+di `packages/shared`, atau lubang `{0}` + `isi()` di kamus web. Naskah yang
+mengeja harganya sendiri akan menyimpang dari harga yang benar-benar ditagih,
+dan tidak ada gerbang lain yang bisa melihatnya: halaman menjanjikan satu
+angka, checkout menagih angka lain, dan typecheck tetap hijau karena string
+apa pun sah. Dijaga aturan `harga-paket-literal` di `scripts/sapu-istilah.mjs`.
 
 ## 8. Register perusahaan (Fase 38p)
 

@@ -1,21 +1,32 @@
 import { describe, expect, it } from "vitest";
 import * as shared from "../src/index";
-import { izinRute, PERMISSION_KEYS, PLANS, TENANT_ROUTE_ACCESS } from "../src/index";
+import { izinRute, PERMISSION_KEYS, PLAN_LIMITS, PLANS, TENANT_ROUTE_ACCESS } from "../src/index";
 
 /**
- * Penegak pencabutan paket bertingkat (Fase 30).
+ * Penegak pencabutan PENGUNCIAN MODUL (Fase 30, dipertegas Fase 53a).
  *
- * Menggantikan `prorata.test.ts`. Berkas lama menguji `hitungProrata()` —
- * rumus selisih harga saat pelanggan naik/turun paket. Dengan satu paket,
- * fungsi itu tidak punya arti dan sudah dihapus, jadi ujinya ikut hilang.
+ * Berkas ini dulu bernama `paket-tunggal.test.ts` dan menjaga dua hal
+ * sekaligus: bahwa penguncian modul per paket tercabut, DAN bahwa hanya ada
+ * satu paket. Fase 53a memisahkan keduanya, karena ternyata hanya satu di
+ * antaranya yang merupakan keputusan.
  *
- * Yang menggantikannya BUKAN uji rumus, melainkan uji **bahwa konsepnya tetap
- * tercabut**. Ini disengaja: Fase 24 mencatat bagaimana paket `trial` yang
- * "sudah dihapus" terus muncul kembali di lencana, harga, dan penegakan modul
- * karena tidak ada satu pun cek yang menjaganya tetap hilang. Kelas kesalahan
- * itu tidak dicegah dengan mengingat, melainkan dengan gerbang.
+ * Yang tercabut permanen adalah **membedakan paket lewat modul**. Itu yang
+ * menjebak pembeli: UKM membeli Starter, menemukan penggajian terkunci di
+ * bulan kedua, lalu merasa ditipu. Nama paketnya sendiri tidak pernah menjadi
+ * masalah — dan Fase 53a memakainya kembali untuk membedakan KAPASITAS
+ * (badan usaha, lokasi, karyawan), sesuatu yang bisa dinilai calon pelanggan
+ * sebelum membeli.
+ *
+ * Karena itu uji "nama paket lama tidak boleh dipakai" DIHAPUS: ia menjaga
+ * ejaannya, bukan keputusannya. Yang menggantikannya menjaga hal yang benar —
+ * tidak ada satu pun mekanisme penguncian modul yang boleh hidup lagi.
+ *
+ * Catatan untuk pembaca berikutnya: `hitungProrata` dan `changePlanSchema`
+ * tetap ada di daftar tercabut. Dengan tiga paket, naik paket menjadi punya
+ * arti lagi, jadi keduanya BOLEH kembali — tetapi lewat keputusan sadar yang
+ * mengubah berkas ini, bukan diam-diam.
  */
-describe("pencabutan paket bertingkat tetap tercabut", () => {
+describe("pencabutan penguncian modul tetap tercabut", () => {
   const dicabut = [
     "MODULE_MIN_PLAN",
     "MODULE_KEYS",
@@ -34,9 +45,19 @@ describe("pencabutan paket bertingkat tetap tercabut", () => {
     expect(shared).not.toHaveProperty(nama);
   });
 
-  it("nama paket lama tidak bisa dipakai lagi", () => {
-    for (const lama of ["starter", "business", "enterprise", "trial"]) {
-      expect(PLANS).not.toContain(lama);
+  it("paket gratis tetap tidak ada", () => {
+    // `trial` dihapus di Fase 24: "belum berlangganan" adalah STATUS tenant
+    // (`provisioning`), bukan paket. Ini satu-satunya nama paket lama yang
+    // memang menyatakan keputusan, jadi hanya ini yang tetap dijaga.
+    expect(PLANS).not.toContain("trial");
+  });
+
+  it("tidak ada paket yang membedakan diri lewat modul", () => {
+    // Sumbu pembeda yang sah hanyalah kapasitas. Begitu ada field bernama
+    // modul/fitur di definisi paket, paywall Fase 13a hidup kembali.
+    for (const plan of PLANS) {
+      const kunci = Object.keys(PLAN_LIMITS[plan]);
+      expect(kunci.filter((k) => /modul|module|fitur|feature/i.test(k)), plan).toEqual([]);
     }
   });
 });
@@ -59,7 +80,7 @@ describe("registri RBAC tetap menjadi batas keamanan", () => {
 
   it("modul yang DULU terkunci paket tetap dijaga IZIN", () => {
     // Inti pembedaan Fase 30: yang dibongkar adalah paywall, BUKAN keamanan.
-    // Penggajian dulu butuh paket Business; kini terbuka untuk semua paket,
+    // Penggajian dulu butuh paket Business; kini terbuka di semua paket,
     // tetapi tetap menuntut izin `hr` — kasir tidak boleh membuka slip gaji
     // hanya karena perusahaannya berhenti membayar paket yang lebih mahal.
     expect(izinRute("employees", "GET")?.izin).toBe("hr");

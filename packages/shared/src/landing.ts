@@ -26,6 +26,8 @@
  * `packages/shared/test` mengunci agar keduanya tidak bisa berpisah lagi.
  */
 
+import { PAKET_MASUK, PLAN_LIMITS } from "./core";
+
 /** Nilai dwibahasa. Bentuknya sama dengan `Dual` di `apps/web/src/i18n`. */
 export type TeksDwibahasa = { id: string; en: string };
 
@@ -42,6 +44,17 @@ export type TanyaJawab = { q: TeksDwibahasa; a: TeksDwibahasa };
  * aplikasi lama dan menyebut "pilihan paket" yang sudah tidak ada sejak
  * harga tunggal diberlakukan.
  */
+/**
+ * Harga paket masuk, diformat sekali (Fase 53a).
+ *
+ * Ditulis sebagai konstanta, bukan angka di dalam kalimat: naskah harga yang
+ * mengeja angkanya sendiri akan menyimpang dari `PLAN_LIMITS` tanpa satu pun
+ * gerbang melihatnya — halaman menjanjikan satu harga, checkout menagih harga
+ * lain. Penyapu istilah kini menolak harga paket yang ditulis literal.
+ */
+const HARGA_MASUK_ID = PLAN_LIMITS[PAKET_MASUK].pricePerMonth.toLocaleString("id-ID");
+const HARGA_MASUK_EN = PLAN_LIMITS[PAKET_MASUK].pricePerMonth.toLocaleString("en-US");
+
 export const FAQ_LANDING: TanyaJawab[] = [
   {
     q: {
@@ -49,8 +62,8 @@ export const FAQ_LANDING: TanyaJawab[] = [
       en: "What does it cost, and what do I get?",
     },
     a: {
-      id: "Rp 499.000 per perusahaan per bulan. Satu harga, seluruh modul terbuka, dan pengguna tak terbatas. Tidak ada paket yang lebih mahal, jadi tidak ada fitur yang terkunci, dan menambah karyawan tidak menambah tagihan.",
-      en: "Rp 499,000 per company per month. One price, every module unlocked, unlimited users. There is no pricier tier, so nothing is locked away — and adding staff never adds to your bill.",
+      id: `Mulai Rp ${HARGA_MASUK_ID} per perusahaan per bulan. Seluruh modul terbuka dan pengguna tak terbatas di semua paket, jadi tidak ada fitur yang terkunci dan menambah orang tidak menambah tagihan. Yang membedakan paket adalah ukuran perusahaannya.`,
+      en: `From Rp ${HARGA_MASUK_EN} per company per month. Every module is open and users are unlimited on every plan, so nothing is locked away and adding people never adds to your bill. Plans differ by how large your company is.`,
     },
   },
   {

@@ -3,9 +3,69 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 2 September 2026
+**Terakhir diperbarui:** 4 September 2026
 
-## Yang baru saja selesai — Fase 51–52: mencari cacat yang tidak bisa dilihat mesin mana pun
+## Yang baru saja selesai — Fase 53a: tiga paket menggantikan harga tunggal
+
+Harga ERPindo kini bertiga: **Starter Rp 750.000, Business Rp 1.500.000,
+Enterprise Rp 3.000.000** per perusahaan per bulan. Bayar tahunan di muka
+seharga sepuluh bulan — dua bulan hemat.
+
+**Yang membedakan paket adalah ukuran perusahaannya, bukan fitur yang dikunci.**
+Ini penting dan sengaja: seluruh modul tetap terbuka di paket termurah, termasuk
+penggajian, manufaktur, dan konsolidasi. Keputusan Fase 30 dulu membubarkan
+paket bertingkat karena pembedanya waktu itu adalah fitur — dan itulah yang
+membuat pembeli merasa dijebak saat menemukan pintu terkunci di bulan kedua.
+Yang kembali sekarang hanya nama paketnya.
+
+**Pengguna tetap tak terbatas di ketiga paket.** Rencana awal membatasinya, dan
+saya membatalkannya setelah menelusuri kode: janji "tanpa lisensi per orang"
+ternyata tertulis di lebih dari tiga puluh tempat, dan membatasinya akan
+membatalkan seluruhnya sekaligus — sekaligus menyerahkan kembali keunggulan
+Anda melawan pesaing yang menagih per kepala.
+
+Halaman harga sekarang juga menawarkan **bantuan migrasi data** sebagai
+konsultasi, bukan sebagai baris biaya: *"Kami membantu memindahkan data
+pembukuan Anda sampai neraca pembukanya cocok dengan catatan lama Anda."*
+Ketakutan terbesar saat pindah aplikasi akuntansi bukan harganya, melainkan
+apakah angkanya berubah di tengah jalan — jadi yang dijanjikan adalah sesuatu
+yang bisa diperiksa.
+
+**Harga tidak lagi ditulis tangan di mana pun.** Dulu angkanya dieja di enam
+tempat berbeda. Selama harganya cuma satu, tidak ada yang rugi; dengan tiga
+paket, tiap salinan itu bisa diam-diam menyimpang dari yang benar-benar ditagih.
+Sekarang semuanya membaca satu sumber, dan ada penjaga otomatis yang menolak
+harga yang dieja di naskah.
+
+### Tiga cacat ikut ditemukan dan diperbaiki
+
+**Dasbor admin Anda akan rusak** — halaman metrik bisnis membaca angka yang
+sudah tidak dikirim server, dan layarnya galat. Sekarang dasbor menampilkan
+rincian pendapatan per paket.
+
+**Perhitungan MRR diam-diam menjadi salah.** Rumus lama "jumlah pelanggan × satu
+harga" benar selama paketnya satu; dengan tiga paket angkanya keliru tetapi
+tetap terlihat wajar — jenis kesalahan yang paling sulit dicurigai. Kini
+dijumlahkan per paket.
+
+**Laba demo bulan berjalan menipis lagi** — ketiga kalinya. Penjaganya berbunyi
+tepat seperti maksudnya: merah selagi masih untung, bukan setelah rugi.
+Sebabnya akhirnya terukur: bulan berjalan menanggung beban HR sekali-jalan (THR,
+lembur, komisi, pesangon) yang tidak ditanggung bulan-bulan sebelumnya, jadi ia
+akan **selalu** lebih tipis. Omzetnya dinaikkan sepadan (laba kini Rp 8,2 juta,
+sejajar bulan tersehat), dan penjaganya diubah agar ikut berskala sendiri —
+supaya tidak perlu disetel ulang keempat kalinya.
+
+### Yang belum, dan urutannya sengaja dibalik
+
+Angka kapasitas tiap paket — berapa badan usaha, lokasi, dan karyawan
+penggajian — **belum ditampilkan di halaman harga**, karena belum ada kode yang
+menegakkannya. Batas yang diumumkan tetapi tidak diperiksa bukan sekadar kode
+yang menganggur; ia janji yang bisa dibantah pelanggan. Jadi penegakannya
+dikerjakan lebih dulu, baru angkanya terbit. Checkout Xendit untuk enam
+kombinasi paket dan periode menyusul sesudahnya.
+
+## Sebelumnya — Fase 51–52: mencari cacat yang tidak bisa dilihat mesin mana pun
 
 Anda bertanya apakah aplikasi ini bisa dipakai tanpa salah fungsi dan alur. Saya
 jawab tidak yakin — lalu menelusurinya. **Tiga belas cacat ditemukan**, semuanya
@@ -179,9 +239,9 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.147** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.310** |
-| Simulasi klik di peramban nyata | 431 | **480** |
+| Uji unit | 923 | **1.162** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.314** |
+| Simulasi klik di peramban nyata | 431 | **484** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
@@ -663,7 +723,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.310 skenario ujian end-to-end + 1.147 unit test + 480 cek simulasi UI browser nyata**, totalnya **2.937 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.314 skenario ujian end-to-end + 1.162 unit test + 484 cek simulasi UI browser nyata**, totalnya **2.960 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

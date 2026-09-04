@@ -173,31 +173,32 @@ export function SubscriptionCard() {
           </p>
         ) : null}
 
-        {/* Kartu paket tunggal (Fase 30). Tiga kartu Starter/Business/
-            Enterprise dibubarkan bersama paketnya; yang tersisa adalah satu
-            paket, jadi layar ini tidak lagi memilih melainkan MENYATAKAN apa
-            yang didapat. Dialog pratinjau prorata ikut hilang — tanpa paket
-            lain untuk dituju, tidak ada selisih harga yang perlu dipratinjau. */}
+        {/* Kartu paket yang SEDANG dipakai tenant ini (Fase 53a).
+            Sampai fase ini kartu ini menyebut satu paket yang ditulis mati,
+            dan itu benar selama paketnya memang satu. Dengan tiga paket,
+            angka yang ditulis mati akan menampilkan harga paket lain kepada
+            pelanggan — jadi seluruhnya kini dibaca dari `tenant.plan`.
+            Pemilihan antar paket ada di halaman harga publik, bukan di sini. */}
         <div className="rounded-xl border border-brand-line bg-brand-surface p-4">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-ink">{PLAN_LIMITS.lengkap.label}</span>
+            <span className="font-semibold text-ink">{PLAN_LIMITS[tenant.plan].label}</span>
             {langgananAktif ? <Badge tone="brand">{u("paketAnda")}</Badge> : null}
           </div>
           <div className="mt-1 text-2xl font-bold tabular-nums">
-            Rp {PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")}
+            Rp {PLAN_LIMITS[tenant.plan].pricePerMonth.toLocaleString("id-ID")}
             <span className="text-xs font-normal text-ink-muted">/{u("perBulanSingkat")}</span>
           </div>
           <ul className="mt-2 space-y-0.5 text-xs text-ink-muted">
             <li>{u("penggunaTakTerbatas")}</li>
             <li>{u("seluruhModulTerbuka")}</li>
-            <li>{u("aiPerHari")} {PLAN_LIMITS.lengkap.aiDailyLimit}/{u("hariSuffix")}</li>
+            <li>{u("aiPerHari")} {PLAN_LIMITS[tenant.plan].aiDailyLimit}/{u("hariSuffix")}</li>
           </ul>
           {b?.configured && isOwner ? (
             <Button
               className="mt-3 h-8 w-full text-xs"
               variant="primary"
               data-testid="beli-langganan"
-              onClick={() => checkout.mutate("lengkap")}
+              onClick={() => checkout.mutate(tenant.plan)}
               disabled={checkout.isPending}
             >
               {checkout.isPending

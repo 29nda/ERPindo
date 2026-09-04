@@ -1557,8 +1557,8 @@ try {
   const dewiMe = await admin("GET", "/api/auth/me");
   const dewiOwn = dewiMe.json?.memberships?.find((m) => m.tenantSlug?.startsWith("usaha-dewi"));
   check(
-    "register email comped → tenant langsung active tanpa akhir trial (Fase 30: paket tunggal)",
-    dewiOwn?.tenantStatus === "active" && dewiOwn?.plan === "lengkap" && dewiOwn?.trialEndsAt === null,
+    "53a register email comped → tenant langsung active berpaket teratas, tanpa akhir trial",
+    dewiOwn?.tenantStatus === "active" && dewiOwn?.plan === "enterprise" && dewiOwn?.trialEndsAt === null,
     `→ ${JSON.stringify(dewiOwn)}`,
   );
   // Fase 24: pendaftar biasa TIDAK dapat database dan berstatus `provisioning`
@@ -1734,7 +1734,7 @@ try {
   );
 
   // Aktivasi manual (pelanggan transfer bank) HARUS ikut membuatkan database.
-  await owner("POST", `/api/admin/tenants/${tenantBelumBayar}/plan`, { plan: "lengkap", status: "active" });
+  await owner("POST", `/api/admin/tenants/${tenantBelumBayar}/plan`, { plan: "business", status: "active" });
   const bacaSetelahAktif = await belumBayar("GET", `/api/tenants/${tenantBelumBayar}/products`);
   check(
     "24 aktivasi manual admin membuatkan database → tenant bisa dipakai",
@@ -1747,7 +1747,7 @@ try {
   const dewiCoRow = dewiMe2.json?.memberships?.find((m) => m.tenantId === dewiCo.json?.tenantId);
   check(
     "perusahaan tambahan comped juga langsung active",
-    dewiCoRow?.tenantStatus === "active" && dewiCoRow?.plan === "lengkap" && dewiCoRow?.trialEndsAt === null,
+    dewiCoRow?.tenantStatus === "active" && dewiCoRow?.plan === "enterprise" && dewiCoRow?.trialEndsAt === null,
     `→ ${JSON.stringify(dewiCoRow)}`,
   );
 
@@ -4905,7 +4905,7 @@ try {
   // publik 1.800 baris di bawah sini (form hanya melayani tenant
   // `active`/`past_due`). Jadi pengembaliannya dihapus, bukan diperbaiki:
   // `active` memang keadaan yang selama ini berlaku.
-  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, { plan: "lengkap", status: "active" });
+  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, { plan: "business", status: "active" });
   const co2 = await owner("POST", "/api/auth/companies", { companyName: "PT Anak Usaha" });
   check("buat perusahaan kedua 201", co2.status === 201, `→ ${co2.status} ${JSON.stringify(co2.json)}`);
   const tenant2 = co2.json?.tenantId;
@@ -4976,7 +4976,7 @@ try {
   // SATU perusahaan, paketnya diturunkan sementara lalu dikembalikan.
   const viewerOwnTenant = viewerCompanies.json?.companies?.[0]?.tenantId;
   check("26a fixture: user kedua memiliki tepat satu perusahaan", Boolean(viewerOwnTenant));
-  await owner("POST", `/api/admin/tenants/${viewerOwnTenant}/plan`, { plan: "lengkap", status: "active" });
+  await owner("POST", `/api/admin/tenants/${viewerOwnTenant}/plan`, { plan: "business", status: "active" });
   // Fase 30: paywall konsolidasi DICABUT. Yang diuji kini bukan "paket rendah
   // ditolak" melainkan "terbuka untuk semua pelanggan, TANPA membocorkan
   // perusahaan orang lain" — batas kepemilikan adalah satu-satunya penahan
@@ -5095,7 +5095,7 @@ try {
   //
   // Ini pembuktian inti Fase 30: paywall dicabut di API, bukan disembunyikan di UI.
   console.log("11n2. Seluruh modul terbuka pada paket tunggal (Fase 30)");
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap", status: "active" });
+  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "business", status: "active" });
 
   const modulDuluTerkunci = [
     ["employees", "HR & Penggajian (dulu Business)"],
@@ -5337,17 +5337,17 @@ try {
   // seluruh modul memang sudah terbuka. Penandanya DIPERTAHANKAN karena masih
   // dipakai jalur comped & lencana pelanggan awal; yang diuji di sini adalah
   // menyetelnya tidak MERUSAK akses, bukan bahwa ia yang memberikannya.
-  const setLegacy = await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap", status: "active", legacyFullAccess: true });
+  const setLegacy = await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "business", status: "active", legacyFullAccess: true });
   check("30 set legacy_full_access 200", setLegacy.status === 200, `→ ${setLegacy.status}`);
   const legacyPayroll = await owner("GET", `/api/tenants/${tenant2}/employees`);
   check("30 legacy_full_access: modul tetap terbuka (200)", legacyPayroll.status === 200, `→ ${legacyPayroll.status}`);
 
   // set-plan hanya untuk platform admin (dewi comped = admin biasa, bukan platform admin).
-  const notAdminSetPlan = await admin("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap" });
+  const notAdminSetPlan = await admin("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "business" });
   check("set-plan oleh non-admin platform → 403", notAdminSetPlan.status === 403, `→ ${notAdminSetPlan.status}`);
 
   // Kembalikan tenant2 ke starter (bebas legacy) agar uji siklus di bawah tak berubah.
-  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "lengkap", status: "active", legacyFullAccess: false });
+  await owner("POST", `/api/admin/tenants/${tenant2}/plan`, { plan: "business", status: "active", legacyFullAccess: false });
 
 
   // --- Manufaktur + QC (Fase 2u) -------------------------------------------------
@@ -6990,7 +6990,7 @@ try {
   // tenggang tenant memang masih boleh menulis, dan itu perilaku yang benar.
   const kemarinLama = new Date(Date.now() - 10 * 86_400_000).toISOString();
   await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
-    plan: "lengkap",
+    plan: "business",
     status: "active",
     subscriptionEndsAt: kemarinLama,
   });
@@ -7776,16 +7776,30 @@ try {
 
   const ringkas = await owner("GET", "/api/admin/overview");
   check(
-    "30f ringkasan memuat metrik bisnis (MRR dihitung dari harga tunggal)",
+    "30f ringkasan memuat metrik bisnis (MRR + rinciannya per paket)",
     ringkas.status === 200 &&
       typeof ringkas.json?.bisnis?.mrr === "number" &&
-      ringkas.json.bisnis.hargaPerBulan === 499_000,
+      typeof ringkas.json?.bisnis?.mrrPerPaket === "object" &&
+      typeof ringkas.json?.bisnis?.pelangganPerPaket === "object",
     `→ ${JSON.stringify(ringkas.json?.bisnis)}`,
   );
   check(
-    "30f MRR = jumlah pelanggan membayar × harga (konsisten, bukan angka lepas)",
-    ringkas.json?.bisnis?.mrr === ringkas.json?.bisnis?.pelangganMembayar * 499_000,
-    `→ mrr=${ringkas.json?.bisnis?.mrr} pelanggan=${ringkas.json?.bisnis?.pelangganMembayar}`,
+    "53a MRR = jumlah rincian per paket (bukan jumlah pelanggan × satu harga)",
+    ringkas.json?.bisnis?.mrr ===
+      Object.values(ringkas.json?.bisnis?.mrrPerPaket ?? {}).reduce((t, n) => t + n, 0),
+    `→ mrr=${ringkas.json?.bisnis?.mrr} rinci=${JSON.stringify(ringkas.json?.bisnis?.mrrPerPaket)}`,
+  );
+  check(
+    "53a ketiga paket muncul di rincian, meski nol — pemilik melihat yang kosong juga",
+    ["starter", "business", "enterprise"].every(
+      (p) => typeof ringkas.json?.bisnis?.mrrPerPaket?.[p] === "number",
+    ),
+    `→ ${JSON.stringify(ringkas.json?.bisnis?.mrrPerPaket)}`,
+  );
+  check(
+    "53a harga tunggal `hargaPerBulan` sudah TIDAK dikirim — dengan tiga paket ia berbohong",
+    ringkas.json?.bisnis?.hargaPerBulan === undefined,
+    `→ ${ringkas.json?.bisnis?.hargaPerBulan}`,
   );
   check(
     "30f tenant comped TIDAK dihitung sebagai pendapatan",
@@ -7862,7 +7876,7 @@ try {
   // Checkout paket (Fase 13b): kirim paket valid; tanpa kunci Xendit → 503.
   const billCheckoutBadPlan = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan: "gratis" });
   check("billing checkout paket tak dikenal → 400", billCheckoutBadPlan.status === 400, `→ HTTP ${billCheckoutBadPlan.status}`);
-  const billCheckoutOwner = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan: "lengkap" });
+  const billCheckoutOwner = await owner("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan: "business" });
   check("billing checkout tanpa konfigurasi Xendit → 503", billCheckoutOwner.status === 503, `→ HTTP ${billCheckoutOwner.status}`);
   // Dewi = anggota admin (bukan owner) di tenant ini → ditolak mengatur langganan.
   const billCheckoutAdmin = await admin("POST", `/api/tenants/${tenantId}/billing/checkout`);
@@ -7901,24 +7915,40 @@ try {
   // hidup tetapi tak terpakai adalah permukaan serang tanpa pemilik.
   const proHilang = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=lengkap`);
   check("30 endpoint pratinjau prorata sudah tidak ada (404)", proHilang.status === 404, `→ ${proHilang.status}`);
-  const gantiHilang = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "lengkap" });
+  const gantiHilang = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "business" });
   check("30 endpoint ganti paket sudah tidak ada (404)", gantiHilang.status === 404, `→ ${gantiHilang.status}`);
 
   // Jalur uang yang TERSISA harus tetap utuh: admin platform boleh menyetel
   // periode langganan, dan status billing memantulkannya dengan harga tunggal.
   const akhirPeriode = new Date(Date.now() + 15 * 86_400_000).toISOString();
   const setPeriode = await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
-    plan: "lengkap", status: "active", subscriptionEndsAt: akhirPeriode,
+    plan: "business", status: "active", subscriptionEndsAt: akhirPeriode,
   });
   check("admin platform menyetel akhir periode langganan 200", setPeriode.status === 200);
   const billTunggal = await owner("GET", `/api/tenants/${tenantId}/billing`);
   check(
-    "30 status billing: paket 'lengkap' berharga 499.000, tanpa sisa pendingPlan",
-    billTunggal.json?.plan === "lengkap" &&
-      billTunggal.json?.pricePerMonth === 499_000 &&
+    "53a status billing memantulkan paket tenant, bukan satu harga yang ditulis mati",
+    billTunggal.json?.plan === "business" &&
+      billTunggal.json?.pricePerMonth === 1_500_000 &&
       billTunggal.json?.pendingPlan === undefined,
     `→ ${JSON.stringify({ plan: billTunggal.json?.plan, harga: billTunggal.json?.pricePerMonth, pending: billTunggal.json?.pendingPlan })}`,
   );
+  // Paket lain harus memantulkan harganya sendiri. Tanpa cek kedua ini, harga
+  // yang ditulis mati tetap lolos selama kebetulan sama dengan satu paket.
+  const setStarter = await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
+    plan: "starter", status: "active", subscriptionEndsAt: akhirPeriode,
+  });
+  const billStarter = await owner("GET", `/api/tenants/${tenantId}/billing`);
+  check(
+    "53a pindah ke Starter mengubah harga yang dilaporkan (750.000)",
+    setStarter.status === 200 &&
+      billStarter.json?.plan === "starter" &&
+      billStarter.json?.pricePerMonth === 750_000,
+    `→ ${JSON.stringify({ plan: billStarter.json?.plan, harga: billStarter.json?.pricePerMonth })}`,
+  );
+  await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
+    plan: "business", status: "active", subscriptionEndsAt: akhirPeriode,
+  });
 
   // Bersihkan akhir periode agar asersi langganan di bawah tidak terganggu —
   // TETAPI status dibiarkan `active`.
@@ -7934,7 +7964,7 @@ try {
   // menurunkan status sama sekali: itulah perilaku yang sesungguhnya berlaku
   // sepanjang suite ini hijau.
   await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
-    plan: "lengkap", status: "active", subscriptionEndsAt: null,
+    plan: "business", status: "active", subscriptionEndsAt: null,
   });
 
   // Fase 11d: payment collection link (tanpa Xendit → degradasi anggun).
@@ -8083,8 +8113,8 @@ try {
     `→ ${landing.status}`,
   );
   check(
-    "SEO landing: JSON-LD SoftwareApplication + Offer harga (499000) + FAQPage",
-    landingHtml.includes('"@type":"SoftwareApplication"') && landingHtml.includes("499000") && landingHtml.includes('"@type":"FAQPage"') && landingHtml.includes('"@type":"Organization"'),
+    "SEO landing: JSON-LD SoftwareApplication + Offer harga masuk (750000) + FAQPage",
+    landingHtml.includes('"@type":"SoftwareApplication"') && landingHtml.includes("750000") && landingHtml.includes('"@type":"FAQPage"') && landingHtml.includes('"@type":"Organization"'),
     `→ ${landingHtml.includes('"@type":"FAQPage"')}`,
   );
   check("SEO landing: canonical + noscript konten untuk crawler tanpa JS", landingHtml.includes('rel="canonical"') && landingHtml.includes("<noscript>"), `→ ${landingHtml.includes("<noscript>")}`);
@@ -8109,24 +8139,30 @@ try {
   //
   // Dikecualikan sebagai frasa UTUH, bukan per kata, supaya "Enterprise" telanjang
   // di kalimat jualan tetap tertangkap.
-  const KOSAKATA_SCHEMA = ["BusinessApplication", "Enterprise Resource Planning", "BusinessAudience"];
-  const htmlTanpaSchema = KOSAKATA_SCHEMA.reduce((h, k) => h.replaceAll(k, ""), landingHtml);
-  const paketLama = ["Starter", "Business", "Enterprise"];
-  const sisaNamaPaket = paketLama.filter((nama) => htmlTanpaSchema.includes(nama));
+  // Fase 53a: nama paket kembali dipakai, jadi penjaga "tidak boleh menyebut
+  // Starter/Business/Enterprise" dipensiunkan — ia menjaga ejaan, bukan
+  // keputusan. Yang menggantikannya menjaga hal yang benar: SSR tidak boleh
+  // menjual MODUL lewat paket, karena justru itu yang dibubarkan Fase 30.
+  const JUAL_MODUL = /(tersedia|terbuka) (mulai|hanya) (di )?paket|hanya di paket|terkunci di paket|available (from|on) the \w+ plan/i;
   check(
-    "30 SSR landing tidak menyebut nama paket lama di mana pun",
-    sisaNamaPaket.length === 0,
-    `→ masih menyebut: ${sisaNamaPaket.join(", ")}`,
+    "53a SSR landing tidak menjual satu pun modul lewat paket",
+    !JUAL_MODUL.test(landingHtml),
+    `→ ${landingHtml.match(JUAL_MODUL)?.[0] ?? ""}`,
   );
   check(
-    "30 SSR landing menyatakan satu harga tunggal per perusahaan",
-    landingHtml.includes("499.000") && /[Ss]atu paket, satu harga/.test(landingHtml),
-    `→ harga=${landingHtml.includes("499.000")}`,
+    "53a SSR landing menyatakan harga masuk + seluruh modul terbuka di semua paket",
+    landingHtml.includes("750.000") && /seluruh modul terbuka di semua paket/i.test(landingHtml),
+    `→ harga=${landingHtml.includes("750.000")}`,
   );
   check(
-    "30 JSON-LD memuat TEPAT satu Offer (bukan tiga)",
-    (landingHtml.match(/"@type":"Offer"/g) ?? []).length === 1,
+    "53a JSON-LD memuat TEPAT satu Offer per paket — tiga, tidak lebih",
+    (landingHtml.match(/"@type":"Offer"/g) ?? []).length === 3,
     `→ ${(landingHtml.match(/"@type":"Offer"/g) ?? []).length} Offer`,
+  );
+  check(
+    "53a ketiga harga paket tersaji ke perayap, bukan hanya harga masuk",
+    ["750000", "1500000", "3000000"].every((n) => landingHtml.includes(n)),
+    `→ ${["750000", "1500000", "3000000"].filter((n) => !landingHtml.includes(n)).join(", ")} hilang`,
   );
   // Fase 30b: salinan publik TIDAK boleh menyebut kedalaman demo dalam bulan.
   //
@@ -8152,18 +8188,22 @@ try {
     );
   }
 
+  // Fase 53a: "tiga paket" kini justru HARUS ada — yang tidak boleh adalah
+  // istilah "paket bertingkat", karena tingkatan menyiratkan fitur berjenjang
+  // dan itulah yang dibubarkan Fase 30. Bedanya tipis dan justru karena itu
+  // perlu dijaga mesin: paketnya bertiga, tetapi tidak bertingkat.
   check(
-    "30 FAQ SSR tidak lagi menjanjikan pilihan paket bertingkat",
-    !/paket bertingkat/i.test(landingHtml) && !/tiga paket/i.test(landingHtml),
-    `→ bertingkat=${/paket bertingkat/i.test(landingHtml)}`,
+    "53a FAQ SSR menawarkan tiga paket TANPA menyebutnya bertingkat",
+    /tiga paket/i.test(landingHtml) && !/paket bertingkat/i.test(landingHtml),
+    `→ tiga=${/tiga paket/i.test(landingHtml)} bertingkat=${/paket bertingkat/i.test(landingHtml)}`,
   );
-  // Kuota AI ikut menjadi satu angka: kartu langganan & pesan galat membacanya
-  // dari PLAN_LIMITS, jadi nilai yang salah muncul di layar pelanggan.
+  // Kuota AI dibaca dari PLAN_LIMITS oleh kartu langganan & pesan galat, jadi
+  // nilai yang salah muncul langsung di layar pelanggan.
   const meAI = await owner("GET", "/api/auth/me");
   check(
-    "30 /auth/me: seluruh keanggotaan berpaket 'lengkap'",
+    "53a /auth/me: setiap keanggotaan berpaket yang dikenal",
     (meAI.json?.memberships ?? []).length > 0 &&
-      (meAI.json?.memberships ?? []).every((m) => m.plan === "lengkap"),
+      (meAI.json?.memberships ?? []).every((m) => ["starter", "business", "enterprise"].includes(m.plan)),
     `→ ${JSON.stringify((meAI.json?.memberships ?? []).map((m) => m.plan))}`,
   );
 
@@ -8246,7 +8286,7 @@ try {
   );
   check(
     "39a kalimat harga <noscript> memuat angkanya, bukan ekspresinya",
-    /Satu paket, satu harga: Rp 499\.000 per perusahaan per bulan/.test(landingNoscript),
+    /Tiga paket, mulai Rp 750\.000 per perusahaan per bulan/.test(landingNoscript),
     "→ tidak ditemukan",
   );
 
@@ -8267,7 +8307,7 @@ try {
   );
   check(
     "39a /llms.txt menyebut harga sebagai angka, bukan ekspresi",
-    llmsTxt.includes("Rp 499.000 per perusahaan per bulan") && !llmsTxt.includes("${"),
+    llmsTxt.includes("mulai Rp 750.000 per perusahaan per bulan") && !llmsTxt.includes("${"),
   );
   check(
     "39a /llms.txt menyebut modul, FAQ, dan peta halaman",

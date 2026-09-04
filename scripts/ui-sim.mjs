@@ -456,7 +456,10 @@ try {
    * tapi jauh di atas nol, sehingga pengikisan berikutnya memerah SELAGI masih
    * ada sisa — bukan setelah menembus nol dan hanya di hari tertentu.
    */
-  const AMBANG_LABA_DEMO = 2_000_000;
+  // Dinaikkan di Fase 53a bersama omzet grosir bulan berjalan; tetap sama
+  // dengan `AMBANG_LABA_BERJALAN` di verifikasi-demo.mjs, yang juga memikul
+  // penjaga relatif agar angka tetap ini tidak perlu disetel keempat kalinya.
+  const AMBANG_LABA_DEMO = 4_000_000;
   check(
     "F1b perusahaan demo menampilkan laba dengan margin sehat, bukan tipis atau rugi",
     Boolean(labaDemo && typeof labaDemo.nilai === "number" && labaDemo.nilai >= AMBANG_LABA_DEMO),
@@ -2298,16 +2301,20 @@ try {
   await page.waitForTimeout(400);
   const perusahaanBody = await page.innerText("body");
   check("F19 tab Perusahaan menampilkan kartu Profil perusahaan", perusahaanBody.includes("Profil perusahaan"));
-  // Fase 30: satu kartu paket di Langganan (dulu tiga: Starter/Business/Enterprise).
+  // Fase 53a: kartu Langganan menampilkan paket yang BENAR-BENAR dipakai
+  // tenant ini, bukan satu paket yang ditulis mati. Tenant ui-sim adalah akun
+  // comped, jadi paketnya Enterprise — dan harganya harus ikut Enterprise.
+  // Cek ini yang menangkap kartu yang menyebut harga paket lain kepada
+  // pelanggan, kelas cacat yang tidak terlihat selama harganya cuma satu.
   check(
-    "F19 Langganan menampilkan SATU kartu paket Lengkap Rp499.000",
-    perusahaanBody.includes("Lengkap") && /Rp\s?499\.000/.test(perusahaanBody),
-    `→ harga=${/Rp\s?499\.000/.test(perusahaanBody)}`,
+    "F53a Langganan menampilkan paket tenant sendiri (comped → Enterprise)",
+    perusahaanBody.includes("Enterprise") && /Rp\s?3\.000\.000/.test(perusahaanBody),
+    `→ harga=${/Rp\s?3\.000\.000/.test(perusahaanBody)}`,
   );
   check(
-    "F19 Langganan tidak lagi menawarkan paket bertingkat",
-    !perusahaanBody.includes("Starter") && !perusahaanBody.includes("Enterprise"),
-    `→ masih ada nama paket lama`,
+    "F53a Langganan tidak menyebut harga paket lain di kartu yang sama",
+    !/Rp\s?750\.000/.test(perusahaanBody) && !/Rp\s?1\.500\.000/.test(perusahaanBody),
+    `→ ada harga paket lain di kartu`,
   );
   // F2d — Fase 20m: halaman Pengaturan ikut EN.
   //
@@ -3114,32 +3121,56 @@ try {
 
   // F15 — landing harga paket tunggal (Fase 30) + masuk mode demo tanpa daftar.
   // Dijalankan TERAKHIR karena tombol demo mengganti cookie sesi konteks ini.
-  console.log("3. Landing harga paket tunggal & mode demo (Fase 30)");
+  console.log("3. Landing tiga paket & mode demo (Fase 53a)");
   resetErrors();
   await gotoRoute("/", 600);
   const landingText = (await page.innerText("body")).replace(/\u00A0/g, " ");
   check(
-    "F15 landing menampilkan SATU harga Rp499.000 per perusahaan",
-    /Rp\s?499\.000/.test(landingText) && landingText.includes("Lengkap"),
-    `→ harga=${/Rp\s?499\.000/.test(landingText)}`,
+    "F53a landing menampilkan ketiga kartu paket",
+    (await page.locator('[data-testid^="kartu-paket-"]').count()) === 3,
+    `→ ${await page.locator('[data-testid^="kartu-paket-"]').count()} kartu`,
   );
   check(
-    "F15 landing TIDAK lagi menyebut Starter/Business/Enterprise",
-    !landingText.includes("Starter") && !landingText.includes("Enterprise"),
-    `→ nama paket lama masih tampil`,
+    "F53a ketiga harga bulanan tampil, bukan hanya harga masuk",
+    /Rp\s?750\.000/.test(landingText) &&
+      /Rp\s?1\.500\.000/.test(landingText) &&
+      /Rp\s?3\.000\.000/.test(landingText),
+    `→ ${landingText.match(/Rp\s?[\d.]+/g)?.slice(0, 6).join(" ")}`,
   );
   check(
-    "F15 landing menyatakan seluruh modul terbuka (argumen jualan paket tunggal)",
+    "F53a harga tahunan tampil sebagai hemat dua bulan",
+    /Rp\s?7\.500\.000/.test(landingText) && /hemat dua bulan/i.test(landingText),
+    `→ tahunan tidak lengkap`,
+  );
+  check(
+    "F53a hanya SATU kartu bertanda Paling sesuai",
+    (landingText.match(/Paling sesuai/g) ?? []).length === 1,
+    `→ ${(landingText.match(/Paling sesuai/g) ?? []).length} penanda`,
+  );
+  check(
+    "F53a landing menyatakan seluruh modul terbuka — argumen jualan tiga paket",
     /[Ss]eluruh modul terbuka/.test(landingText) || /modul terbuka/.test(landingText),
     `→ klaim modul terbuka tidak ditemukan`,
+  );
+  check(
+    "F53a landing menawarkan bantuan migrasi sebagai konsultasi, bukan harga",
+    /Pindah dari aplikasi lama/i.test(landingText) &&
+      /Konsultasi migrasi data/i.test(landingText),
+    `→ ajakan migrasi tidak ditemukan`,
+  );
+  check(
+    "F53a landing tidak menjual satu pun modul lewat paket",
+    !/(tersedia|terbuka) (mulai|hanya) (di )?paket|terkunci di paket/i.test(landingText),
+    `→ ada naskah yang menjual modul lewat paket`,
   );
   // Fase 30b — harga muncul di HERO, bukan hanya di seksi harga yang harus
   // digulir dulu. Diuji lewat posisi: teks harga harus ada SEBELUM judul seksi
   // harga di dalam innerText halaman, kalau tidak ia sebenarnya masih di bawah.
-  const posHargaPertama = landingText.indexOf("499.000");
+  const posHargaPertama = landingText.indexOf("750.000");
   // Fase 35c — judul seksi harga diganti; penanda posisinya ikut menyebut
   // bunyi barunya, bukan dilonggarkan menjadi pencocokan sebagian.
-  const posSeksiHarga = landingText.search(/Tidak ada paket yang lebih mahal/);
+  // Fase 53a — judulnya berganti lagi bersama tiga paket.
+  const posSeksiHarga = landingText.search(/Seluruh modul terbuka di ketiganya/);
   check(
     "F30b harga tampil di hero — sebelum seksi harga, bukan sesudahnya",
     posHargaPertama >= 0 && posSeksiHarga >= 0 && posHargaPertama < posSeksiHarga,
@@ -3472,17 +3503,19 @@ try {
   await page.waitForTimeout(700);
   const hargaText = (await page.innerText("body")).replace(/\u00A0/g, " ");
   check(
-    "F51 /harga terjangkau dari bilah atas dan memuat harga bulanan",
-    hargaText.includes("Rp 499.000"),
+    "F51 /harga terjangkau dari bilah atas dan memuat harga bulanan paket masuk",
+    hargaText.includes("Rp 750.000"),
     `→ harga tidak ditemukan`,
   );
-  // 36 × 499.000 = 17.964.000. Diuji karena inilah angka yang diminta bagian
+  // 36 × 750.000 = 27.000.000. Diuji karena inilah angka yang diminta bagian
   // pengadaan, dan satu-satunya angka di situs yang dihitung dari perkalian —
   // jadi ia akan salah diam-diam bila harga bulanannya berubah tanpa halaman
-  // ini ikut dihitung ulang.
+  // ini ikut dihitung ulang. Sejak Fase 53a angkanya disisipkan lewat lubang
+  // `{0}`, bukan dieja di kamus, jadi cek ini sekaligus membuktikan lubangnya
+  // benar-benar terisi.
   check(
     "F51 /harga menyebut biaya kepemilikan tiga tahun yang benar",
-    hargaText.includes("17.964.000"),
+    hargaText.includes("27.000.000"),
     `→ biaya 3 tahun tidak ditemukan`,
   );
 
@@ -3617,9 +3650,9 @@ try {
   const enText = await page.innerText("body");
   check(
     "F15 toggle EN menerjemahkan hero + harga ke Inggris",
-    // "Most popular" hilang bersama kartu bertingkat (Fase 30) — lencana kartu
-    // tunggal kini menyatakan bahwa paketnya memang cuma satu.
-    enText.includes("in a single application") && enText.includes("One plan for everything") && enText.includes("/month"),
+    // Fase 53a: lencana kartu tunggal "One plan for everything" berganti
+    // menjadi penanda satu paket pilihan di antara tiga.
+    enText.includes("in a single application") && enText.includes("Best fit") && enText.includes("/month"),
     `→ EN tidak lengkap`,
   );
   // Fase 14f: seluruh seksi landing (Showcase/Comparison/Security/FAQ) kini dwibahasa.

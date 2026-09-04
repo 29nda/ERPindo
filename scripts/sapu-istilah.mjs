@@ -47,7 +47,30 @@ const ATURAN = [
   {
     nama: "rupiah-tanpa-spasi",
     pola: /\bRp\d/,
-    pesan: 'rupiah ditulis "Rp 499.000" dengan spasi (glosarium §6)',
+    pesan: 'rupiah ditulis "Rp 750.000" dengan spasi (glosarium §6)',
+  },
+  {
+    // Fase 53a — harga paket tidak boleh dieja di dalam naskah.
+    //
+    // Sampai fase ini harga tunggal ditulis literal di enam tempat: FAQ
+    // landing, poin kepercayaan, halaman /harga, syarat layanan, keterangan
+    // ikon, dan naskah SSR. Selama harganya satu dan tidak pernah berubah,
+    // tidak ada yang rugi. Begitu paketnya menjadi tiga, tiap salinan itu
+    // menjadi calon kebohongan yang tidak bisa dilihat gerbang mana pun:
+    // halaman menjanjikan satu angka, checkout menagih angka lain, dan
+    // typecheck tetap hijau karena string apa pun sah.
+    //
+    // Harga HARUS dibaca dari `PLAN_LIMITS` lalu disisipkan — lewat template
+    // literal di `shared`, atau lubang `{0}` + `isi()` di kamus web.
+    nama: "harga-paket-literal",
+    // Dua format sekaligus: naskah Indonesia memakai titik, naskah Inggris
+    // memakai koma. Uji-negatif pertama hanya menjaring yang Indonesia,
+    // dan salinan Inggris justru yang paling mudah luput dari mata.
+    pola: /\bRp\s?(750[.,]000|1[.,]500[.,]000|3[.,]000[.,]000|7[.,]500[.,]000|15[.,]000[.,]000|30[.,]000[.,]000)\b/,
+    pesan: "harga paket dibaca dari PLAN_LIMITS, jangan dieja di naskah (Fase 53a)",
+    // Peragaan memakai angka bulat sebagai data contoh; kebetulan sama dengan
+    // harga paket tidak berarti ia menyatakan harga.
+    lewatiBerkas: [/apps\/web\/src\/peragaan\//],
   },
   {
     // Fase 34a — pemilik menegaskan yang diminta adalah TATA BAHASA YANG BENAR,
@@ -80,21 +103,25 @@ const ATURAN = [
     pesan: '"karyawan", bukan "pegawai" (glosarium §5b)',
   },
   {
-    // Fase 38u. Paket bertingkat Starter/Business/Enterprise dibubarkan di Fase
-    // 30, tetapi naskah yang menjualnya bertahan delapan fase lagi di dua kartu
-    // pengaturan — dan baru ketahuan setelah halaman /harga terbit menyatakan
-    // hal yang berlawanan: "seluruh modul terbuka sejak hari pertama".
+    // Fase 38u, ditulis ulang di Fase 53a.
     //
-    // Dua permukaan yang saling bertentangan, dan pembaca tidak punya cara tahu
-    // mana yang berlaku. Kelas kegagalan yang sama sudah muncul di /api-docs
-    // (Fase 38g), yang berarti ini bukan kelalaian sekali, melainkan pola.
+    // Bentuk lamanya melarang NAMA paket ("paket Business", "Enterprise
+    // plan"). Itu tepat selama paketnya memang satu, tetapi ia menjaga
+    // ejaannya, bukan keputusannya — dan Fase 53a mengembalikan tiga nama itu
+    // untuk membedakan KAPASITAS, sesuatu yang tidak pernah menjadi masalah.
     //
-    // Polanya sengaja SEMPIT: hanya frasa yang menamai tingkatan sebagai barang
-    // dagangan. "Enterprise ERP" dan "enterprise-grade" pada naskah Inggris
-    // tetap sah — di sana kata itu berarti "kelas perusahaan", bukan nama paket.
-    nama: "paket-bertingkat-dibubarkan",
-    pola: /\b(paket (Enterprise|Starter|Business)|tingkatkan ke Enterprise|upgrade to (the )?Enterprise|Enterprise plan)\b/i,
-    pesan: "paket bertingkat dibubarkan di Fase 30 — seluruh modul terbuka (docs/riwayat.md)",
+    // Yang benar-benar dilarang, dan tetap dilarang selamanya, adalah menjual
+    // MODUL lewat paket: "tersedia mulai paket Business", "tingkatkan ke
+    // Enterprise untuk membuka penggajian". Itulah yang membuat pembeli merasa
+    // dijebak — ia membeli, lalu menemukan pintu terkunci di bulan kedua — dan
+    // itulah yang dibubarkan Fase 30.
+    //
+    // Cacat aslinya tetap dijaga: naskah yang menjual tingkatan bertahan
+    // delapan fase setelah paketnya dibubarkan, di dua kartu pengaturan, dan
+    // baru ketahuan saat /harga terbit menyatakan hal yang berlawanan.
+    nama: "paket-tidak-menjual-modul",
+    pola: /\b(tingkatkan ke (paket )?\w+ untuk|upgrade (to|your plan) to (unlock|get|access)|(tersedia|terbuka) (mulai|hanya) (di )?paket|hanya (tersedia )?di paket|terkunci di paket|available (from|on) the \w+ plan|requires the \w+ plan)\b/i,
+    pesan: "paket membedakan KAPASITAS, bukan modul — jangan menjual fitur lewat paket (Fase 30, dipertegas 53a)",
   },
 ];
 

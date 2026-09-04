@@ -103,7 +103,7 @@ function svgPratinjau() {
   <text x="94" y="372" font-family="${SANS}" font-size="38" fill="${TINTA}" opacity="0.75">Penjualan, stok, gaji, dan pajak dalam satu aplikasi</text>
   <text x="94" y="432" font-family="${SANS}" font-size="30" fill="${TINTA}" opacity="0.55">Untuk perusahaan Indonesia. Tanpa lisensi per pengguna.</text>
   <line x1="90" y1="${h - 120}" x2="${w - 90}" y2="${h - 120}" stroke="${GARIS}" stroke-width="2"/>
-  <text x="94" y="${h - 72}" font-family="${SANS}" font-size="28" fill="${TINTA}" opacity="0.55">Rp 499.000 / bulan / perusahaan · pengguna tak terbatas</text>
+  <text x="94" y="${h - 72}" font-family="${SANS}" font-size="28" fill="${TINTA}" opacity="0.55">Mulai Rp 750.000 / bulan / perusahaan · pengguna tak terbatas</text>
 </svg>`;
 }
 

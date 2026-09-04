@@ -1,4 +1,5 @@
 import {
+  PAKET_MASUK,
   changePasswordSchema,
   createCompanySchema,
   forgotPasswordSchema,
@@ -40,7 +41,13 @@ const SESSION_DAYS = 30;
  * pemeriksa tipe: nama paket yang tidak ada lagi kini gagal di `pnpm typecheck`,
  * bukan di layar pendaftar.
  */
-const PAKET_BAWAAN: Plan = "lengkap";
+// Paket bawaan pendaftaran baru = paket masuk. Tenant baru berstatus
+// `provisioning` (belum berlangganan), jadi nilai ini hanya bertahan sampai
+// checkout pertama menimpanya — tetapi harus tetap paket yang PALING KECIL,
+// supaya tidak ada yang pernah mendapat kapasitas yang belum dibayarnya.
+const PAKET_BAWAAN: Plan = PAKET_MASUK;
+/** Akun comped tidak pernah ditagih, jadi tidak dibatasi kapasitas. */
+const PAKET_COMPED: Plan = "enterprise";
 const TOKEN_HOURS = 24;
 
 function now(): string {
@@ -268,9 +275,11 @@ export const authRoutes = new Hono<AppEnv>()
         status,
         // Paket hanya berarti setelah aktif; sebelum bayar ia sekadar nilai
         // bawaan kolom NOT NULL. Yang dilihat pengguna adalah STATUS-nya.
-        // Sejak Fase 30 hanya ada satu paket, jadi comped & non-comped sama —
-        // yang membedakan comped adalah `legacy_full_access`, bukan paketnya.
-        PAKET_BAWAAN,
+        // Fase 53a: dengan tiga paket, comped & non-comped kembali berbeda.
+        // Akun comped adalah milik pemilik dan tidak pernah ditagih, jadi
+        // membatasinya di kapasitas paket masuk tidak masuk akal — ia diberi
+        // paket teratas. `legacy_full_access` tetap penanda terpisah.
+        comped ? PAKET_COMPED : PAKET_BAWAAN,
         comped ? TENANT_SCHEMA_VERSION : 0,
         now(),
       ),
@@ -394,7 +403,10 @@ export const authRoutes = new Hono<AppEnv>()
         companyName,
         slug,
         dbRef,
-        PAKET_BAWAAN,
+        // Sama seperti pendaftaran pertama (Fase 53a): akun comped tidak
+        // pernah ditagih, jadi perusahaan tambahannya pun tidak dibatasi
+        // kapasitas paket masuk.
+        comped ? PAKET_COMPED : PAKET_BAWAAN,
         TENANT_SCHEMA_VERSION,
         now(),
       ),

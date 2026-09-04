@@ -44,8 +44,8 @@ export const TRUST_POINTS: { value: Dual; label: Dual; icon: LucideIcon }[] = [
     icon: Wallet,
     value: { id: "Pengguna tak terbatas", en: "Unlimited users" },
     label: {
-      id: "Rp 499.000 per bulan untuk satu badan usaha. Mau menambah 10 orang atau 200 orang, tagihannya tetap sama.",
-      en: "Rp 499,000 a month per legal entity. Add 10 people or 200 — the bill does not move.",
+      id: "Tagihannya per badan usaha, bukan per kepala. Mau menambah 10 orang atau 200 orang, angkanya tetap sama.",
+      en: "You are billed per legal entity, never per head. Add 10 people or 200 — the figure does not move.",
     },
   },
   {

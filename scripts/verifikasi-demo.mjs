@@ -303,12 +303,40 @@ periksa(
  * Ambangnya disamakan dengan F1b di `ui-sim.mjs`. Kalau salah satunya diubah,
  * yang lain harus ikut — dan keduanya menyebut alasannya di tempat.
  */
-const AMBANG_LABA_BERJALAN = 2_000_000;
+const AMBANG_LABA_BERJALAN = 4_000_000;
 periksa(
   `bulan berjalan (${barisBerjalan.periode}) untung dengan margin sehat`,
   barisBerjalan.laba >= AMBANG_LABA_BERJALAN,
   `→ ${rupiah(barisBerjalan.laba)} (ambang ${rupiah(AMBANG_LABA_BERJALAN)}). ` +
     `Ini yang dilihat calon pelanggan lewat "Lihat Demo".`,
+);
+
+/**
+ * Penjaga yang BERSKALA SENDIRI (Fase 53a).
+ *
+ * Ambang rupiah di atas sudah disetel ulang tiga kali — 21d, 51c, dan fase ini.
+ * Setiap kali sebabnya sama: skala demo bergeser, lalu angka tetap itu menjadi
+ * salah tanpa ada yang salah. Ambang yang menuntut perhatian saat tidak ada
+ * masalah adalah ambang yang lama-lama diabaikan.
+ *
+ * Cek ini membandingkan MARGIN bulan berjalan terhadap median bulan riwayat,
+ * jadi ia ikut bergerak bila seluruh demo diperbesar atau diperkecil. Yang
+ * dijaganya adalah bentuknya: bulan berjalan boleh lebih tipis dari bulan
+ * riwayat — beban HR sekali-jalan memang hanya ada di sana — tetapi tidak
+ * boleh tipis sampai setengahnya.
+ */
+const marginPersen = (r) => (r.pendapatan > 0 ? (r.laba / r.pendapatan) * 100 : 0);
+const marginRiwayat = baris
+  .filter((r) => r.periode !== barisBerjalan.periode)
+  .map(marginPersen)
+  .sort((a, b) => a - b);
+const medianRiwayat = marginRiwayat[Math.floor(marginRiwayat.length / 2)] ?? 0;
+const marginBerjalan = marginPersen(barisBerjalan);
+periksa(
+  "margin bulan berjalan sepadan dengan bulan riwayat (bukan setengahnya)",
+  marginBerjalan >= medianRiwayat * 0.5,
+  `→ berjalan ${marginBerjalan.toFixed(1)}% vs median riwayat ${medianRiwayat.toFixed(1)}% ` +
+    `(minimal ${(medianRiwayat * 0.5).toFixed(1)}%)`,
 );
 
 const kasNegatif = baris.filter((r) => r.kas < 0);

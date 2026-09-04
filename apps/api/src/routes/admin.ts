@@ -3,11 +3,13 @@ import {
   FEEDBACK_STATUSES,
   feedbackSchema,
   PLAN_LIMITS,
+  PLANS,
   setTenantPlanSchema,
   type ApiBlogPost,
   type ApiFeedback,
   type FeedbackCategory,
   type FeedbackStatus,
+  type Plan,
 } from "@erpindo/shared";
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
@@ -117,7 +119,7 @@ export const adminRoutes = new Hono<AppEnv>()
     // diaktifkan manual (transfer bank — masih cara paling umum di segmen ini)
     // sama nyatanya dan tetap harus terhitung.
     const nowIso = new Date().toISOString();
-    const [langganan, umur, churnBulanan] = await Promise.all([
+    const [langganan, bayarPerPaket, umur, churnBulanan] = await Promise.all([
       // `active` dipecah tiga, karena ketiganya berarti hal yang sangat berbeda
       // bagi pemilik: berbayar & aman, berbayar & jatuh tempo tetapi masih boleh
       // menulis (masa tenggang), dan comped (tak pernah menagih).
@@ -140,6 +142,16 @@ export const adminRoutes = new Hono<AppEnv>()
           belumBayar: number;
           berhenti: number;
         }>(),
+      // MRR per paket (Fase 53a). Sampai fase ini MRR dihitung sebagai
+      // "jumlah pelanggan × satu harga", dan itu benar selama paketnya memang
+      // satu. Dengan tiga paket rumus itu diam-diam menjadi salah — dan
+      // salahnya ke arah yang paling berbahaya: MRR terlihat wajar, hanya
+      // nilainya keliru, sehingga tidak ada yang curiga.
+      c.env.DB.prepare(
+        `SELECT plan, COUNT(*) AS n FROM tenants
+         WHERE status IN ('active', 'past_due') AND subscription_ends_at IS NOT NULL
+         GROUP BY plan`,
+      ).all<{ plan: string; n: number }>(),
       // Umur langganan rata-rata (hari sejak mendaftar) untuk tenant yang
       // BENAR-BENAR membayar. Comped dikecualikan: mereka tidak pernah
       // memutuskan untuk bertahan, jadi memasukkannya membuat angka ini
@@ -167,7 +179,14 @@ export const adminRoutes = new Hono<AppEnv>()
     // tidak pernah ditagih bukan pendapatan, dan angka MRR yang digelembungkan
     // olehnya adalah cara paling mudah menipu diri sendiri.
     const pelangganMembayar = berbayar + tenggang;
-    const mrr = pelangganMembayar * PLAN_LIMITS.lengkap.pricePerMonth;
+    const perPaket = Object.fromEntries(PLANS.map((p) => [p, 0])) as Record<Plan, number>;
+    for (const r of bayarPerPaket.results) {
+      if ((PLANS as readonly string[]).includes(r.plan)) perPaket[r.plan as Plan] = r.n;
+    }
+    const mrrPerPaket = Object.fromEntries(
+      PLANS.map((p) => [p, perPaket[p] * PLAN_LIMITS[p].pricePerMonth]),
+    ) as Record<Plan, number>;
+    const mrr = PLANS.reduce((t, p) => t + mrrPerPaket[p], 0);
     const dasarChurn = pelangganMembayar + (churnBulanan?.n ?? 0);
     return c.json({
       totals: { users: users?.n ?? 0, tenants: tenants?.n ?? 0, feedbackBaru: feedbackNew?.n ?? 0 },
@@ -185,7 +204,8 @@ export const adminRoutes = new Hono<AppEnv>()
       growth: growth.results.reverse(),
       bisnis: {
         mrr,
-        hargaPerBulan: PLAN_LIMITS.lengkap.pricePerMonth,
+        mrrPerPaket,
+        pelangganPerPaket: perPaket,
         pelangganMembayar,
         berbayar,
         tenggang,
