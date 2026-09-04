@@ -1,9 +1,9 @@
-import { PLAN_LIMITS } from "@erpindo/shared";
+import { PAKET_MASUK, PLAN_LIMITS } from "@erpindo/shared";
 import { Link } from "@tanstack/react-router";
 import { Check, Mail, Minus, ShieldCheck } from "lucide-react";
 import { L, PublicFooter, PublicHeader, PublicShell } from "../../components/publik";
 import { Button } from "../../components/ui";
-import { pick, useLang, type Dual } from "../../i18n";
+import { isi, pick, useLang, type Dual } from "../../i18n";
 import { formatRupiah } from "../landing/sections";
 import {
   BULAN_TIGA_TAHUN,
@@ -98,7 +98,7 @@ function Isi({ children }: { children: React.ReactNode }) {
 
 export function HargaPage() {
   const lang = useLang();
-  const bulanan = PLAN_LIMITS.lengkap.pricePerMonth;
+  const bulanan = PLAN_LIMITS[PAKET_MASUK].pricePerMonth;
   return (
     <PublicShell>
       <PublicHeader />
@@ -142,7 +142,7 @@ export function HargaPage() {
             {pick(T_HARGA.tigaTahunPengantar, lang)}
           </p>
           <div className="mt-4 rounded-card border border-line bg-surface p-5">
-            <p className="text-sm text-ink-muted">{pick(T_HARGA.tigaTahunBaris, lang)}</p>
+            <p className="text-sm text-ink-muted">{isi(pick(T_HARGA.tigaTahunBaris, lang), formatRupiah(bulanan))}</p>
             <p className="num mt-1.5 text-3xl font-bold text-ink">
               {formatRupiah(bulanan * BULAN_TIGA_TAHUN)}
             </p>

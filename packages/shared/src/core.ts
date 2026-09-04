@@ -133,55 +133,248 @@ export type TenantStatus = (typeof TENANT_STATUSES)[number];
 // ---------------------------------------------------------------------------
 
 /**
- * Fase 30: **SATU paket saja.** Pemaketan bertingkat (Starter/Business/
- * Enterprise, Fase 13a) dibubarkan atas keputusan pemilik.
+ * Fase 53a: **tiga paket, dibedakan KAPASITAS — bukan modul.**
  *
- * Alasannya bukan penyederhanaan kode, melainkan penjualan: pembedanya dulu
- * adalah "kedalaman operasional", dan calon pelanggan tidak bisa menilai
- * kedalaman yang belum pernah dipakainya. Yang benar-benar terjadi adalah UKM
- * membeli Starter, menemukan penggajian terkunci di bulan kedua, lalu merasa
- * dijebak. Satu harga menghapus seluruh kelas kekecewaan itu.
+ * Fase 30 membubarkan pemaketan bertingkat Starter/Business/Enterprise karena
+ * pembedanya waktu itu adalah penguncian modul: UKM membeli Starter, menemukan
+ * penggajian terkunci di bulan kedua, lalu merasa dijebak. Keputusan itu
+ * **tidak dibatalkan di sini**; yang kembali hanyalah nama paketnya.
  *
- * Daftar ini tetap berbentuk array meski isinya satu: `plan` adalah kolom
- * control-plane yang sudah terisi di baris tenant yang ada, dan bentuk jamak
- * membuat migrasi nilai lama (`starter`/`business`/`enterprise` → `lengkap`)
- * bisa dinyatakan tanpa mengubah tipe di seluruh repo sekaligus.
+ * Perbedaannya tegas, dan seluruh berkas ini bergantung padanya:
+ *
+ * - Fase 13a membedakan paket lewat **apa yang boleh dibuka**. Itu tetap mati,
+ *   dan `paket-tunggal.test.ts` masih menjaganya tetap mati.
+ * - Fase 53a membedakan paket lewat **seberapa besar perusahaannya**: jumlah
+ *   badan usaha, lokasi, dan karyawan yang digaji. Seluruh modul tetap terbuka
+ *   di paket termurah, termasuk penggajian, manufaktur, dan konsolidasi.
+ *
+ * Sumbu yang satu menjebak pembeli, sumbu yang lain tidak, dan sebabnya bisa
+ * dinyatakan dalam satu kalimat: perusahaan tahu berapa lokasi yang dimilikinya
+ * sebelum membeli, tetapi tidak tahu apakah ia membutuhkan modul manufaktur
+ * sebelum memakainya.
  */
-export const PLANS = ["lengkap"] as const;
+export const PLANS = ["starter", "business", "enterprise"] as const;
 export type Plan = (typeof PLANS)[number];
 
 /**
- * Satu paket, satu harga, per perusahaan per bulan.
- *
- * Yang SENGAJA tidak ada di sini lagi:
- *
- * - `maxEntities` — dihapus karena **tidak pernah ditegakkan satu baris pun**.
- *   Ia hanya dicetak di landing ("Enterprise mencakup 3 entitas") dan di kartu
- *   langganan. Yang benar-benar membatasi penambahan perusahaan adalah pagar
- *   anti-abuse `belumBayar` di `routes/auth.ts`, dan itu tetap ada. Menyisakan
- *   "batas" yang tidak membatasi apa pun adalah jebakan bagi pembaca
- *   berikutnya — dan lebih buruk lagi, janji yang bisa dibantah pelanggan.
- * - Penguncian modul — lihat catatan pencabutan `MODULE_MIN_PLAN` di bawah.
- *
- * `maxUsers` DIPERTAHANKAN meski nilainya tak terhingga: penjaganya nyata di
- * `routes/tenants.ts` dan angka inilah yang menyatakan janji inti produk —
- * pengguna tak terbatas, pembeda utama melawan ERP yang menagih per kepala.
+ * Periode tagihan. Tahunan dibayar di muka seharga SEPULUH bulan — dua bulan
+ * hemat, dinyatakan sekali di `BULAN_DIBAYAR_TAHUNAN` agar halaman harga,
+ * checkout, dan uji tidak pernah menghitungnya sendiri-sendiri.
  */
-export const PLAN_LIMITS: Record<
-  Plan,
-  { label: string; pricePerMonth: number; aiDailyLimit: number; maxUsers: number }
-> = {
-  lengkap: {
-    label: "Lengkap",
-    pricePerMonth: 499_000,
-    // Kuota harian asisten AI per perusahaan. Angka Business lama (100) dipakai
-    // sebagai nilai tunggal: cukup longgar untuk pemakaian nyata, tetapi tetap
-    // menjadi pagar keadilan agar satu tenant tidak menghabiskan alokasi
-    // Workers AI (10.000 neuron/hari) milik seluruh akun.
-    aiDailyLimit: 100,
-    maxUsers: Number.MAX_SAFE_INTEGER,
+/**
+ * Nilai yang berarti "tanpa batas" pada `BatasPaket`.
+ *
+ * Diberi nama karena `Number.isFinite(Number.MAX_SAFE_INTEGER)` bernilai TRUE —
+ * jebakan yang sudah memakan korban di fase ini sendiri: kartu harga menuliskan
+ * "9007199254740991 lokasi" alih-alih "Lokasi tak terbatas", dan penjaga
+ * kapasitas memakai `!Number.isFinite()` yang tidak pernah terpicu. Bandingkan
+ * dengan konstanta ini, jangan dengan keterhinggaan.
+ */
+export const TAK_TERBATAS = Number.MAX_SAFE_INTEGER;
+
+/** Apakah sebuah batas berarti tanpa batas. */
+export function takTerbatas(n: number): boolean {
+  return n >= TAK_TERBATAS;
+}
+
+export const PERIODE_TAGIHAN = ["bulanan", "tahunan"] as const;
+export type PeriodeTagihan = (typeof PERIODE_TAGIHAN)[number];
+
+/** Tahunan = 10 × bulanan. Satu angka, satu tempat. */
+export const BULAN_DIBAYAR_TAHUNAN = 10;
+
+/** Karyawan penggajian di atas jatah paket, per orang per tahun. */
+export const HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN = 150_000;
+
+/** Paket termurah — dipakai naskah "mulai dari". */
+export const PAKET_MASUK: Plan = "starter";
+
+/** Paket yang ditandai "Paling sesuai" di halaman harga. */
+export const PAKET_DISARANKAN: Plan = "business";
+
+export type BatasPaket = {
+  label: string;
+  /** Harga bulanan, ditagih per bulan. */
+  pricePerMonth: number;
+  /**
+   * Pengguna TAK TERBATAS di semua paket, dan ini bukan kelalaian.
+   *
+   * Lisensi per kepala adalah jalur pendapatan paling lazim di industri ini
+   * (Odoo menagih per pengguna per bulan; MASERP menagih jutaan per pengguna
+   * tambahan), dan menolaknya adalah pembeda utama ERPindo — tertulis di
+   * landing, JSON-LD, `llms.txt`, dan kalkulator perbandingan. Membatasi
+   * pengguna per paket akan membatalkan janji itu di 30-an tempat sekaligus,
+   * dan menyerahkan kembali satu-satunya senjata yang paling tajam.
+   *
+   * Ada alasan kedua yang khusus ERP: batas pengguna mendorong satu akun
+   * dipakai beramai-ramai, dan jejak audit yang mencatat "siapa memposting
+   * jurnal ini" langsung kehilangan arti.
+   */
+  maxUsers: number;
+  /** Kuota harian asisten AI per perusahaan. Harus berhingga — lihat uji. */
+  aiDailyLimit: number;
+  /** Badan usaha (PT/CV) dalam satu akun. Konsolidasi menuntut lebih dari satu. */
+  maxBadanUsaha: number;
+  /** Lokasi, gudang, atau outlet POS. */
+  maxLokasi: number;
+  /** Karyawan penggajian yang sudah termasuk; selebihnya ditagih per orang. */
+  karyawanTermasuk: number;
+  /** Kuota lampiran dokumen, dalam gigabyte. */
+  lampiranGb: number;
+  /** Kanal dukungan yang dijanjikan. */
+  kanalDukungan: "email" | "whatsapp" | "prioritas";
+  /** Janji waktu balas, dalam jam kerja. */
+  responsJamKerja: number;
+  /** Jam pendampingan yang termasuk, per tahun. */
+  pendampinganJamPerTahun: number;
+};
+
+/**
+ * PERINGATAN yang dibayar mahal sekali (Fase 30, dicatat ulang di sini).
+ *
+ * `maxEntities` dulu dihapus bukan karena tidak berguna, melainkan karena
+ * **tidak pernah ditegakkan satu baris pun**: ia hanya dicetak di landing
+ * ("Enterprise mencakup 3 entitas") sementara tidak ada kode yang memeriksanya.
+ * Batas yang diumumkan tetapi tidak ditegakkan bukan sekadar kode mati — ia
+ * janji yang bisa dibantah pelanggan.
+ *
+ * `maxBadanUsaha`, `maxLokasi`, dan `karyawanTermasuk` di bawah ini berada
+ * dalam keadaan itu SEKARANG: terdefinisi, belum ditegakkan. Karena itu
+ * urutan fasenya sengaja dibalik dari rencana semula — penegakannya (53c)
+ * mendahului halaman harga publik (53d), sehingga tidak pernah ada satu hari
+ * pun ketika naskah menjanjikan batas yang kodenya tidak periksa.
+ */
+export const PLAN_LIMITS: Record<Plan, BatasPaket> = {
+  starter: {
+    label: "Starter",
+    pricePerMonth: 750_000,
+    maxUsers: TAK_TERBATAS,
+    aiDailyLimit: 50,
+    maxBadanUsaha: 1,
+    maxLokasi: 2,
+    karyawanTermasuk: 10,
+    lampiranGb: 5,
+    kanalDukungan: "email",
+    responsJamKerja: 16,
+    pendampinganJamPerTahun: 0,
+  },
+  business: {
+    label: "Business",
+    pricePerMonth: 1_500_000,
+    maxUsers: TAK_TERBATAS,
+    aiDailyLimit: 150,
+    maxBadanUsaha: 1,
+    maxLokasi: 10,
+    karyawanTermasuk: 50,
+    lampiranGb: 25,
+    kanalDukungan: "whatsapp",
+    responsJamKerja: 8,
+    pendampinganJamPerTahun: 4,
+  },
+  enterprise: {
+    label: "Enterprise",
+    pricePerMonth: 3_000_000,
+    maxUsers: TAK_TERBATAS,
+    aiDailyLimit: 400,
+    maxBadanUsaha: 5,
+    maxLokasi: TAK_TERBATAS,
+    karyawanTermasuk: 200,
+    lampiranGb: 100,
+    kanalDukungan: "prioritas",
+    responsJamKerja: 4,
+    pendampinganJamPerTahun: 12,
   },
 };
+
+/**
+ * Kapasitas yang boleh ditimpa per tenant. Sengaja HANYA kapasitas.
+ *
+ * Harga tidak ada di sini, dan itu keputusan: harga yang bisa ditimpa per baris
+ * database berarti tidak ada satu pun tempat yang bisa menjawab "berapa harga
+ * paket Business" dengan pasti. Kesepakatan harga khusus dicatat di invoice,
+ * bukan dengan membengkokkan daftar harga.
+ */
+export const batasDapatDitimpaSchema = z
+  .object({
+    maxBadanUsaha: z.number().int().positive(),
+    maxLokasi: z.number().int().positive(),
+    karyawanTermasuk: z.number().int().nonnegative(),
+    aiDailyLimit: z.number().int().positive(),
+    lampiranGb: z.number().int().positive(),
+  })
+  .partial();
+
+export type BatasDitimpa = z.infer<typeof batasDapatDitimpaSchema>;
+
+/**
+ * Batas yang BERLAKU untuk sebuah tenant: paketnya, ditimpa pengecualiannya.
+ *
+ * JSON yang rusak atau berisi kunci asing tidak menggagalkan apa pun — ia
+ * diabaikan dan tenant jatuh ke batas paketnya. Alasannya: kolom ini diisi
+ * tangan saat menutup kesepakatan, dan satu salah ketik di sana tidak boleh
+ * membuat perusahaan tidak bisa membuat faktur.
+ */
+export function batasEfektif(plan: Plan, overridesJson?: string | null): BatasPaket {
+  const dasar = PLAN_LIMITS[plan];
+  if (!overridesJson) return dasar;
+  try {
+    const hasil = batasDapatDitimpaSchema.safeParse(JSON.parse(overridesJson));
+    return hasil.success ? { ...dasar, ...hasil.data } : dasar;
+  } catch {
+    return dasar;
+  }
+}
+
+/** Harga satu periode tagihan penuh. Tahunan = 10 bulan. */
+export function hargaPaket(plan: Plan, periode: PeriodeTagihan): number {
+  const bulanan = PLAN_LIMITS[plan].pricePerMonth;
+  return periode === "tahunan" ? bulanan * BULAN_DIBAYAR_TAHUNAN : bulanan;
+}
+
+/** Rupiah yang dihemat setahun dengan membayar tahunan, bukan 12× bulanan. */
+export function hematTahunan(plan: Plan): number {
+  return PLAN_LIMITS[plan].pricePerMonth * (12 - BULAN_DIBAYAR_TAHUNAN);
+}
+
+/**
+ * Biaya karyawan penggajian di atas jatah paket, per tahun.
+ *
+ * Sengaja TIDAK berbentuk jurang. Ambang yang tiba-tiba menagih di karyawan
+ * ke-51 mendorong perusahaan menahan daftarnya di angka 50 dan menggaji
+ * sisanya di luar sistem — dan begitu itu terjadi, laporan PPh 21 yang
+ * dihasilkan ERPindo diam-diam menjadi salah. Kelebihan dihitung per kepala
+ * agar tidak pernah ada satu karyawan pun yang mahal untuk dicatat.
+ */
+export function biayaKaryawanTambahan(plan: Plan, jumlahKaryawan: number): number {
+  const kelebihan = Math.max(0, Math.floor(jumlahKaryawan) - PLAN_LIMITS[plan].karyawanTermasuk);
+  return kelebihan * HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN;
+}
+
+export type ProfilPerusahaan = {
+  badanUsaha: number;
+  lokasi: number;
+  karyawan: number;
+};
+
+/**
+ * Paket termurah yang memuat profil perusahaan tertentu.
+ *
+ * `karyawan` sengaja TIDAK ikut menentukan: kelebihannya ditagih per kepala di
+ * paket mana pun, jadi ia tidak pernah memaksa naik paket. Yang memaksa naik
+ * hanyalah batas yang benar-benar keras — badan usaha dan lokasi.
+ *
+ * Mengembalikan `null` bila tidak ada paket yang memuatnya; pemanggil
+ * menampilkannya sebagai ajakan menghubungi, bukan sebagai kegagalan.
+ */
+export function paketTerkecilUntuk(profil: ProfilPerusahaan): Plan | null {
+  return (
+    PLANS.find(
+      (p) =>
+        profil.badanUsaha <= PLAN_LIMITS[p].maxBadanUsaha &&
+        profil.lokasi <= PLAN_LIMITS[p].maxLokasi,
+    ) ?? null
+  );
+}
 
 /**
  * Masa tenggang (Fase 20c): hari akun MASIH BISA MENULIS setelah masa
@@ -230,9 +423,9 @@ export function sisaTenggang(habisPada: string, nowMs: number = Date.now()): num
   return Math.max(Math.ceil((Date.parse(habisPada) + GRACE_DAYS * HARI_MS - nowMs) / HARI_MS), 0);
 }
 
-export const PLAN_LABELS: Record<Plan, string> = {
-  lengkap: PLAN_LIMITS.lengkap.label,
-};
+export const PLAN_LABELS: Record<Plan, string> = Object.fromEntries(
+  PLANS.map((p) => [p, PLAN_LIMITS[p].label]),
+) as Record<Plan, string>;
 
 /**
  * Paket yang bisa dibeli. Identik dengan `PLANS` — seluruh paket dijual.
@@ -444,9 +637,16 @@ export type BillingStatus = {
   invoices: ApiSubscriptionInvoice[];
 };
 
-/** Pilih paket berbayar yang akan di-checkout (Fase 13b). */
+/**
+ * Pilih paket berbayar yang akan di-checkout (Fase 13b, periode di Fase 53e).
+ *
+ * `periode` berdefault `bulanan` supaya pemanggil lama — dan uji yang sudah
+ * ada — tetap sah tanpa diubah. Yang tidak boleh berdefault adalah harganya:
+ * itu selalu dihitung dari `hargaPaket()`.
+ */
 export const checkoutSchema = z.object({
   plan: z.enum(PAID_PLANS),
+  periode: z.enum(PERIODE_TAGIHAN).default("bulanan"),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 

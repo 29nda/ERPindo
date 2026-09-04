@@ -1,4 +1,14 @@
-import { ASSUMED_PER_USER_PRICE, perUserMonthlyCost, PLAN_LIMITS } from "@erpindo/shared";
+import {
+  ASSUMED_PER_USER_PRICE,
+  HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN,
+  hargaPaket,
+  PAKET_DISARANKAN,
+  PAKET_MASUK,
+  perUserMonthlyCost,
+  PLAN_LIMITS,
+  PLANS,
+  takTerbatas,
+} from "@erpindo/shared";
 import { Link } from "@tanstack/react-router";
 import { Check, Eye, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -168,8 +178,9 @@ function Hero() {
               tombol. Sebelumnya dua paragraf terpisah di bawahnya, dan keduanya
               mendorong peragaan keluar dari layar pertama. */}
           <p className="text-sm text-ink-muted">
+            {L(lang, "Mulai", "From")}{" "}
             <span className="num font-semibold text-ink">
-              {formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}
+              {formatRupiah(PLAN_LIMITS[PAKET_MASUK].pricePerMonth)}
             </span>{" "}
             {L(
               lang,
@@ -380,11 +391,11 @@ function PerUserCalculator() {
   const lang = useLang();
   const [users, setUsers] = useState(20);
   const perUser = perUserMonthlyCost(users);
-  const hemat = Math.max(0, perUser - PLAN_LIMITS.lengkap.pricePerMonth);
+  const hemat = Math.max(0, perUser - PLAN_LIMITS[PAKET_MASUK].pricePerMonth);
   // Pengguna pertama yang membuat ERPindo lebih murah — dihitung dari fungsi
   // biaya yang sama, bukan angka yang ditulis tangan lalu basi saat harga bergeser.
   const impas = (() => {
-    for (let n = 1; n <= 100; n++) if (perUserMonthlyCost(n) > PLAN_LIMITS.lengkap.pricePerMonth) return n;
+    for (let n = 1; n <= 100; n++) if (perUserMonthlyCost(n) > PLAN_LIMITS[PAKET_MASUK].pricePerMonth) return n;
     return 100;
   })();
   return (
@@ -424,8 +435,8 @@ function PerUserCalculator() {
         </div>
         <div className="rounded border border-brand-500 bg-brand-surface p-3">
           <div className="text-[11px] text-brand-ink">{L(lang, "Dengan ERPindo", "With ERPindo")}</div>
-          <div className="num mt-1 text-xl font-bold text-brand-ink">{formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}</div>
-          <div className="text-[11px] text-ink-muted">{L(lang, "satu harga, berapa pun jumlah tim", "one price, whatever your team size")}</div>
+          <div className="num mt-1 text-xl font-bold text-brand-ink">{formatRupiah(PLAN_LIMITS[PAKET_MASUK].pricePerMonth)}</div>
+          <div className="text-[11px] text-ink-muted">{L(lang, "harga per perusahaan, berapa pun jumlah tim", "priced per company, whatever your team size")}</div>
         </div>
       </div>
       {/* Fase 27a: di bawah titik impas, rumus lama menampilkan "Hemat sekitar
@@ -498,72 +509,148 @@ function Pricing() {
     <section id="harga" className="scroll-mt-16 border-t border-line bg-surface">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:py-20 sm:px-6">
         <h2 className="judul text-[2rem] sm:text-[2.5rem]">
-          {L(lang, "Satu harga. Tidak ada paket yang lebih mahal.", "One price. There is no pricier tier.")}
+          {L(lang, "Tiga paket. Seluruh modul terbuka di ketiganya.", "Three plans. Every module is open in all three.")}
         </h2>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-ink-soft">
           {L(lang, "Pengguna", "Users are")} <span className="font-semibold">{L(lang, "selalu tak terbatas", "always unlimited")}</span>{" "}
-          {L(lang, "dan semua fitur terbuka. Tidak dihitung per orang, tidak ada yang dikunci. Lihat dulu demonya sebelum memutuskan.", "and every feature is open. Not charged per person, nothing locked away. Look at the demo first before you decide.")}
+          {L(
+            lang,
+            "dan tidak ada satu pun fitur yang dikunci di paket termurah. Yang membedakan paket adalah ukuran perusahaannya, bukan apa yang boleh dibukanya. Lihat dulu demonya sebelum memutuskan.",
+            "and not a single feature is locked in the cheapest plan. Plans differ by how large your company is, never by what it may open. Look at the demo first before you decide.",
+          )}
         </p>
 
-        {/* Satu kartu, di tengah (Fase 30). Kisi tiga kolom dibubarkan bersama
-            paketnya: tanpa paket lain untuk dibandingkan, membiarkan kartu
-            tunggal melebar penuh membuatnya terbaca seperti spanduk, bukan
-            seperti harga. Lebar dijepit dan dipusatkan agar tetap terbaca
-            sebagai satu penawaran yang tegas. */}
-        <div className="mt-10 flex justify-center">
-          <div className="relative flex w-full max-w-md flex-col rounded-card border border-brand-500 bg-surface p-6 shadow-md ring-1 ring-brand-500/20">
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-semibold">{PLAN_LIMITS.lengkap.label}</h3>
-              {/* Lencana TANPA `uppercase`: asersi ui-sim membaca innerText, dan
-                  `text-transform` ikut mengubah nilainya. */}
-              <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white">
-                {L(lang, "Satu paket untuk semua", "One plan for everything")}
-              </span>
-            </div>
-            {/* Fase 35a — klaim "seluruh modul terbuka" dikembalikan ke sini.
-            
-                Ia dulu ikut di baris harga hero, dan hilang saat baris itu
-                dirapatkan agar peragaan masuk layar pertama. Kehilangan itu
-                nyata: klaim tersebut adalah seluruh isi argumen harga tunggal —
-                tanpa paket yang lebih mahal, tidak ada fitur yang terkunci.
-                
-                Seksi Harga memang tempatnya yang benar, dan asersi ui-sim F15
-                menangkap hilangnya dalam satu kali jalan. */}
-            <p className="mt-0.5 text-xs text-ink-muted">
-              {L(
-                lang,
-                "Seluruh modul terbuka dan pengguna tak terbatas, dari satu badan usaha sampai grup perusahaan",
-                "Every module unlocked, unlimited users — from your first shop to a group of companies",
-              )}
-            </p>
-            <div className="mt-3 flex items-end gap-1">
-              <span className="num text-3xl font-bold">{formatRupiah(PLAN_LIMITS.lengkap.pricePerMonth)}</span>
-              <span className="pb-1 text-[13px] font-normal text-ink-faint">
-                {L(lang, "/bulan/perusahaan", "/month/company")}
-              </span>
-            </div>
-            <ul className="mt-4 flex-1 divide-y divide-line text-[13px]">
-              {PAKET_FITUR.map((f) => (
-                <li key={f.id} className="flex items-start gap-2 py-1.5">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden /> {f[lang]}
-                </li>
-              ))}
-            </ul>
-            {/* Tautan biasa (bukan <Link>): repo ini belum memakai
-                `validateSearch` di rute mana pun. Navigasi keras tidak merugikan
-                — ini langkah pindah halaman, bukan interaksi dalam halaman. */}
-            <a href="/daftar" className="mt-4">
-              <Button variant="primary" className="w-full">
-                {L(lang, "Mulai Berlangganan", "Start subscribing")}
-              </Button>
-            </a>
-          </div>
+        {/* Tiga kartu (Fase 53a) menggantikan kartu tunggal Fase 30.
+        
+            Yang SENGAJA tidak dicantumkan di kartu: angka kapasitas — jumlah
+            badan usaha, lokasi, dan karyawan penggajian. Angka itu sudah
+            terdefinisi di `PLAN_LIMITS`, tetapi belum ada satu baris kode pun
+            yang menegakkannya. Fase 30 menghapus `maxEntities` justru karena
+            kesalahan itu: batas yang diumumkan tetapi tidak diperiksa bukan
+            kode mati, melainkan janji yang bisa dibantah pelanggan. Angkanya
+            baru muncul di sini setelah penegakannya ada. */}
+        <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          {PLANS.map((plan) => {
+            const batas = PLAN_LIMITS[plan];
+            const disarankan = plan === PAKET_DISARANKAN;
+            return (
+              <div
+                key={plan}
+                data-testid={`kartu-paket-${plan}`}
+                className={`relative flex flex-col rounded-card border bg-surface p-6 ${
+                  disarankan ? "border-brand-500 shadow-md ring-1 ring-brand-500/20" : "border-line"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-semibold">{batas.label}</h3>
+                  {/* Lencana TANPA `uppercase`: asersi ui-sim membaca innerText,
+                      dan `text-transform` ikut mengubah nilainya. */}
+                  {disarankan ? (
+                    <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white">
+                      {L(lang, "Paling sesuai", "Best fit")}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-3 flex items-end gap-1">
+                  <span className="num text-3xl font-bold">{formatRupiah(batas.pricePerMonth)}</span>
+                  <span className="pb-1 text-[13px] font-normal text-ink-faint">
+                    {L(lang, "/bulan/perusahaan", "/month/company")}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-ink-muted">
+                  {L(lang, "atau", "or")}{" "}
+                  <span className="num font-medium text-ink">{formatRupiah(hargaPaket(plan, "tahunan"))}</span>{" "}
+                  {L(lang, "per tahun — hemat dua bulan", "per year — two months free")}
+                </p>
+                {/* Angka kapasitas baru terbit di sini setelah Fase 53c
+                    menegakkannya dan 53e menagih kelebihan karyawannya. Fase 30
+                    menghapus `maxEntities` justru karena ia diumumkan lebih
+                    dulu daripada kodenya. */}
+                <ul className="mt-4 flex-1 space-y-1.5 border-t border-line pt-3 text-[13px]">
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden />
+                    {batas.maxBadanUsaha === 1
+                      ? L(lang, "1 badan usaha", "1 legal entity")
+                      : L(
+                          lang,
+                          `Sampai ${batas.maxBadanUsaha} badan usaha + konsolidasi`,
+                          `Up to ${batas.maxBadanUsaha} entities + consolidation`,
+                        )}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden />
+                    {!takTerbatas(batas.maxLokasi)
+                      ? L(
+                          lang,
+                          `${batas.maxLokasi} lokasi, gudang, atau outlet`,
+                          `${batas.maxLokasi} locations, warehouses, or outlets`,
+                        )
+                      : L(lang, "Lokasi tak terbatas", "Unlimited locations")}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden />
+                    {L(
+                      lang,
+                      `${batas.karyawanTermasuk} karyawan penggajian termasuk`,
+                      `${batas.karyawanTermasuk} payroll employees included`,
+                    )}
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden />
+                    {L(lang, "Pengguna tak terbatas", "Unlimited users")}
+                  </li>
+                </ul>
+                <a href="/daftar" className="mt-4">
+                  <Button variant={disarankan ? "primary" : "secondary"} className="w-full">
+                    {L(lang, "Mulai Berlangganan", "Start subscribing")}
+                  </Button>
+                </a>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 rounded-card border border-line bg-surface-sunken p-5">
+          <h3 className="text-sm font-semibold">{L(lang, "Termasuk di semua paket", "Included in every plan")}</h3>
+          <ul className="mt-3 grid gap-x-6 gap-y-1.5 text-[13px] sm:grid-cols-2">
+            {PAKET_FITUR.map((f) => (
+              <li key={f.id} className="flex items-start gap-2">
+                <Check className="mt-0.5 size-3.5 shrink-0 text-ok-ink" aria-hidden /> {f[lang]}
+              </li>
+            ))}
+          </ul>
         </div>
 
         <p className="mt-4 text-[13px] text-ink-muted">
-          {L(lang, "Termasuk:", "Included:")} {SINGLE_PLAN_MODULES.slice(0, 6).map((m) => pick(m, lang)).join(" · ")}
-          {L(lang, ", dan banyak lagi. Harga belum termasuk PPN.", ", and much more. Prices exclude VAT.")}
+          {L(
+            lang,
+            `Karyawan di atas jatah paket ditagih ${formatRupiah(HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN)} per orang per tahun — per kepala, tanpa lompatan tagihan.`,
+            `Payroll employees beyond your plan's allowance are billed ${formatRupiah(HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN)} per person per year — per head, with no jump in your bill.`,
+          )}
         </p>
+
+        <p className="mt-2 text-[13px] text-ink-muted">
+          {L(lang, "Termasuk:", "Included:")} {SINGLE_PLAN_MODULES.slice(0, 6).map((m) => pick(m, lang)).join(" · ")}
+          {L(lang, ", dan banyak lagi. Harga sudah final, tanpa tambahan apa pun.", ", and much more. Prices are final, with nothing added on top.")}
+        </p>
+
+        {/* Kartu bantuan migrasi (Fase 53a). Ketakutan terbesar saat pindah
+            aplikasi akuntansi bukan harganya, melainkan apakah angkanya akan
+            berubah di tengah jalan — jadi janji yang ditawarkan di sini adalah
+            janji yang bisa diperiksa: sampai neraca pembukanya cocok. */}
+        <div className="mt-12 rounded-card border border-line bg-surface-sunken p-5">
+          <h3 className="text-base font-semibold">{L(lang, "Pindah dari aplikasi lama?", "Moving from another system?")}</h3>
+          <p className="mt-2 max-w-3xl text-[13px] text-ink-soft">
+            {L(
+              lang,
+              "Kami membantu memindahkan data pembukuan Anda — daftar akun, saldo awal, pelanggan, produk, dan persediaan — sampai neraca pembukanya cocok dengan catatan lama Anda. Bentuk dan jumlah data setiap perusahaan berbeda, jadi rencananya kami susun bersama.",
+              "We help migrate your books — chart of accounts, opening balances, customers, products, and inventory — until your opening balance sheet matches your previous records. Every company's data differs in shape and size, so we plan the move together.",
+            )}
+          </p>
+          <a href="/kontak" className="mt-3 inline-block">
+            <Button variant="secondary">{L(lang, "Konsultasi migrasi data", "Talk to us about migrating")}</Button>
+          </a>
+        </div>
 
         <PerUserCalculator />
 
@@ -579,8 +666,8 @@ function Pricing() {
           <p className="mt-2 max-w-3xl text-[13px] text-ink-soft">
             {L(
               lang,
-              "Kelola beberapa badan usaha dalam satu akun, lengkap dengan laporan konsolidasi lintas perusahaan dan dimensi per cabang. Tidak ada paket khusus untuk ini, karena memang tidak ada paket khusus. Tiap perusahaan berlangganan sendiri dengan harga yang sama.",
-              "Manage several entities from one account with cross-company consolidated reports and per-branch dimensions — no special plan needed, because there is no special plan. Each company subscribes on its own at the same price.",
+              "Kelola beberapa badan usaha dalam satu akun, lengkap dengan laporan konsolidasi lintas perusahaan dan dimensi per cabang. Modulnya terbuka di paket mana pun — yang berbeda hanya berapa badan usaha yang muat di dalam satu langganan.",
+              "Manage several entities from one account, with cross-company consolidated reports and per-branch dimensions. The module is open on every plan; what differs is how many entities fit inside one subscription.",
             )}
           </p>
         </div>

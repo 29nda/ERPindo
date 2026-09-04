@@ -1,4 +1,4 @@
-import { escapeHtml, FAQ_LANDING, FITUR_UTAMA, PLAN_LIMITS, renderMarkdown } from "@erpindo/shared";
+import { PAKET_MASUK, escapeHtml, FAQ_LANDING, FITUR_UTAMA, PLAN_LIMITS, renderMarkdown } from "@erpindo/shared";
 import { Hono } from "hono";
 import { kerangkaHtml } from "../lib/kerangkaPublik";
 import type { AppEnv, Env } from "../env";
@@ -193,12 +193,12 @@ ${renderMarkdown(post.body_md)}
    */
   .get("/llms.txt", (c) => {
     const base = origin(c.env, c.req.url);
-    const harga = PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID");
+    const harga = PLAN_LIMITS[PAKET_MASUK].pricePerMonth.toLocaleString("id-ID");
     const tanya = FAQ_LANDING.map((f) => `### ${f.q.id}\n\n${f.a.id}`).join("\n\n");
     return c.text(
       `# ERPindo
 
-> ERPindo adalah perangkat lunak ERP berbasis web untuk perusahaan di Indonesia. Satu aplikasi mencakup akuntansi double-entry, kasir (POS), stok multi-gudang, pembelian, penggajian dengan PPh 21 metode TER, PPN, dan ekspor e-Faktur ke Coretax DJP. Harganya Rp ${harga} per perusahaan per bulan untuk pengguna tak terbatas, seluruh modul terbuka, tanpa biaya implementasi dan tanpa lisensi per pengguna.
+> ERPindo adalah perangkat lunak ERP berbasis web untuk perusahaan di Indonesia. Satu aplikasi mencakup akuntansi double-entry, kasir (POS), stok multi-gudang, pembelian, penggajian dengan PPh 21 metode TER, PPN, dan ekspor e-Faktur ke Coretax DJP. Harganya mulai Rp ${harga} per perusahaan per bulan untuk pengguna tak terbatas, seluruh modul terbuka, dan tanpa lisensi per pengguna.
 
 Situs ini berbahasa Indonesia dan Inggris. Bahasa dapat diganti lewat pemilih bahasa di tiap halaman.
 

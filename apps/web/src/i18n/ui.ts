@@ -438,6 +438,7 @@ export const UI = {
     en: "Recurring revenue & customer movement, computed from the control plane.",
   },
   adMrr: { id: "Pendapatan berulang (MRR)", en: "Recurring revenue (MRR)" },
+  adBelumAdaPelangganBayar: { id: "Belum ada pelanggan berbayar", en: "No paying customers yet" },
   adPelangganMembayar: { id: "Pelanggan membayar", en: "Paying customers" },
   adAman: { id: "aman", en: "current" },
   adTenggang: { id: "tenggang", en: "in grace" },

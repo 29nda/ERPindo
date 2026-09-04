@@ -1,4 +1,4 @@
-import { FAQ_RICH_RESULT, FITUR_UTAMA, PLAN_LIMITS, PLANS } from "@erpindo/shared";
+import { PAKET_MASUK, FAQ_RICH_RESULT, FITUR_UTAMA, PLAN_LIMITS, PLANS } from "@erpindo/shared";
 import { Hono, type Context } from "hono";
 import type { AppEnv, Env } from "../env";
 
@@ -47,7 +47,7 @@ const FAQ = FAQ_RICH_RESULT;
  * Konstanta ini menutup celahnya di sumbernya — tidak ada lagi ekspresi di dalam
  * naskah yang bisa ter-escape — dan smoke kini menolak `${` mentah di <noscript>.
  */
-const HARGA_ID = PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID");
+const HARGA_ID = PLAN_LIMITS[PAKET_MASUK].pricePerMonth.toLocaleString("id-ID");
 
 /**
  * Tangkapan layar yang diumumkan ke schema.org.
@@ -71,9 +71,10 @@ const TANGKAPAN_LAYAR = ["dasbor", "kasir", "laba-rugi", "penggajian"];
  * memperlihatkan isinya kepada manusia.
  */
 function jsonLd(base: string, jalur: string): string {
-  // Satu paket, satu penawaran (Fase 30). Tetap berbentuk daftar karena
-  // schema.org `offers` memang menerima daftar, dan bentuknya tidak perlu
-  // berubah bila suatu saat ada penawaran tahunan.
+  // Satu penawaran per paket (Fase 53a). Bentuk daftarnya sudah benar sejak
+  // Fase 30 — memetakan `PLANS` — jadi tiga paket langsung tersaji tanpa satu
+  // baris pun berubah di sini. Yang berubah hanya asersinya: smoke dulu
+  // menuntut TEPAT satu Offer, dan sekarang menuntut satu per paket.
   const priceOffer = PLANS.map((p) => ({
     "@type": "Offer",
     name: PLAN_LIMITS[p].label,
@@ -188,7 +189,7 @@ const DEFINISI =
   `ERPindo adalah perangkat lunak ERP berbasis web untuk perusahaan di Indonesia. ` +
   `Satu aplikasi mencakup akuntansi double-entry, kasir (POS), stok multi-gudang, ` +
   `pembelian, penggajian dengan PPh 21 metode TER, PPN, dan ekspor e-Faktur ke Coretax DJP. ` +
-  `Harganya Rp ${HARGA_ID} per perusahaan per bulan untuk pengguna tak terbatas, ` +
+  `Harganya mulai Rp ${HARGA_ID} per perusahaan per bulan untuk pengguna tak terbatas, ` +
   `seluruh modul terbuka, tanpa biaya implementasi dan tanpa lisensi per pengguna.`;
 
 /** Konten teks minimal untuk crawler tanpa JS (SPA butuh JS untuk render penuh). */
@@ -198,7 +199,7 @@ function noscriptBlock(base: string): string {
 <h1>ERPindo — ERP untuk perusahaan Indonesia</h1>
 <p>${DEFINISI}</p>
 <p>Akuntansi double-entry, kasir POS, stok, penggajian (PPh 21 TER), dan pajak (PPN, e-Faktur/Coretax) dalam satu aplikasi. Pengguna tak terbatas. Telusuri demo publik berisi data nyata lintas seluruh modul tanpa mendaftar.</p>
-<p>Satu paket, satu harga: Rp ${HARGA_ID} per perusahaan per bulan — seluruh modul terbuka, pengguna tak terbatas.</p>
+<p>Tiga paket, mulai Rp ${HARGA_ID} per perusahaan per bulan — seluruh modul terbuka di semua paket, pengguna tak terbatas.</p>
 <h2>Untuk siapa ERPindo dibuat</h2>
 <p>Perusahaan di Indonesia yang pembukuannya sudah melampaui spreadsheet: distributor, ritel dan jaringan toko, manufaktur skala kecil dan menengah, kontraktor dan perusahaan jasa, serta grup usaha dengan lebih dari satu badan usaha yang perlu laporan konsolidasi.</p>
 <h2>Yang membedakan ERPindo</h2>
@@ -265,7 +266,7 @@ ${isi}
 const RINGKAS_PUBLIK: Record<string, [judul: string, isi: string]> = {
   "/harga": [
     "Harga ERPindo",
-    `Rp ${PLAN_LIMITS.lengkap.pricePerMonth.toLocaleString("id-ID")} per bulan per perusahaan. Pengguna tak terbatas, seluruh modul terbuka, tanpa biaya implementasi dan tanpa lisensi per pengguna. Biaya kepemilikan tiga tahun adalah 36 kali biaya bulanan, tanpa baris lain di bawahnya.`,
+    `Mulai Rp ${HARGA_ID} per bulan per perusahaan. Pengguna tak terbatas dan seluruh modul terbuka di semua paket, tanpa lisensi per pengguna. Paket dibedakan kapasitas — jumlah badan usaha, lokasi, dan karyawan penggajian — bukan fitur yang dikunci.`,
   ],
   "/keamanan": [
     "Keamanan ERPindo",

@@ -2,6 +2,7 @@ import { contactSchema, importRowsSchema, priceGroupSchema, productSchema, wareh
 import { Hono } from "hono";
 import type { z } from "zod";
 import type { AppEnv } from "../env";
+import { periksaKuotaLokasi } from "../lib/kapasitas";
 import { audit } from "../lib/audit";
 import { CustomFieldError, nilaiKustomBanyak, simpanNilaiKustom } from "../lib/customFields";
 import { getTenantDb } from "../lib/tenantDb";
@@ -15,6 +16,15 @@ import { clientIp } from "./auth";
  */
 
 type EntityConfig<S extends z.ZodTypeAny> = {
+  /**
+   * Kuota kapasitas paket yang membatasi entitas ini (Fase 53c).
+   *
+   * Diletakkan di konfigurasi, bukan sebagai cek di dalam satu handler, karena
+   * `crudRoutes` punya DUA jalur yang menyisipkan baris — POST biasa dan
+   * POST /import. Cek yang ditulis di salah satunya saja akan membuat impor
+   * massal menjadi pintu belakang yang melewati kuota tanpa terlihat.
+   */
+  kuotaLokasi?: true;
   table: string;
   auditPrefix: string;
   schema: S;
@@ -91,6 +101,11 @@ function crudRoutes<S extends z.ZodTypeAny>(path: string, cfg: EntityConfig<S>) 
       const tenant = c.get("tenant");
       const db = getTenantDb(c.env, tenant.dbRef);
       const row = cfg.toRow(parsed.data);
+
+      if (cfg.kuotaLokasi) {
+        const kuota = await periksaKuotaLokasi(c.env, tenant.id, db);
+        if (!kuota.boleh) return c.json(kuota.tolakan, 402);
+      }
 
       if (cfg.uniqueField) {
         const value = row[cfg.uniqueField.column];
@@ -199,6 +214,19 @@ function crudRoutes<S extends z.ZodTypeAny>(path: string, cfg: EntityConfig<S>) 
 
       const tenant = c.get("tenant");
       const db = getTenantDb(c.env, tenant.dbRef);
+
+      /**
+       * Kuota diperiksa untuk SELURUH batch sekaligus, bukan per baris.
+       *
+       * Memeriksa per baris akan menyisipkan sebagian lalu berhenti di tengah,
+       * dan pengguna mendapat impor separuh jadi yang harus dibereskan tangan.
+       * Menolak seluruhnya lebih jujur: ia menyatakan berapa yang muat sebelum
+       * satu baris pun ditulis.
+       */
+      if (cfg.kuotaLokasi) {
+        const kuota = await periksaKuotaLokasi(c.env, tenant.id, db, body.rows.length);
+        if (!kuota.boleh) return c.json(kuota.tolakan, 402);
+      }
 
       let inserted = 0;
       const errors: { row: number; message: string }[] = [];
@@ -330,6 +358,7 @@ export const masterDataRoutes = new Hono<AppEnv>()
     "/",
     crudRoutes("warehouses", {
       table: "warehouses",
+      kuotaLokasi: true,
       auditPrefix: "masterdata.warehouse",
       schema: warehouseSchema,
       uniqueField: { column: "code", input: "Kode" },

@@ -301,28 +301,35 @@ const company = await step("buat perusahaan PT Demo Sejahtera", "POST", "/api/au
 const T = `/api/tenants/${company.tenantId}`;
 
 /**
- * Penjaga paket (Fase 25b) — perusahaan demo HARUS enterprise.
+ * Penjaga paket (Fase 25b, ditulis ulang di Fase 53a) — demo HARUS comped.
  *
- * `POST /auth/companies` memberi paket `enterprise` hanya bila akunnya ada di
- * `COMPED_EMAILS`; selain itu `starter`. Di starter, modul CRM ke atas menolak
- * dengan 403 `plan-upgrade-required` — dan seed ini baru menyentuh CRM setelah
- * ±9 menit, jadi kegagalannya muncul di tengah jalan dan meninggalkan demo
- * separuh terisi: penjualan & kasir ada, CRM/HR/proyek/manufaktur/helpdesk dan
- * perusahaan kedua tidak. Itu terjadi sungguhan 14 Agustus 2026.
+ * `POST /auth/companies` memberi paket teratas hanya bila akunnya terdaftar di
+ * `COMPED_EMAILS`; selain itu paket masuk. Cacat aslinya: seed baru menyentuh
+ * CRM setelah ±9 menit, jadi kegagalan paket muncul di tengah jalan dan
+ * meninggalkan demo separuh terisi — penjualan & kasir ada, CRM/HR/proyek/
+ * manufaktur/helpdesk dan perusahaan kedua tidak. Itu terjadi sungguhan pada
+ * 14 Agustus 2026.
  *
- * Diperiksa di sini, sebelum satu pun data ditulis, supaya operator tahu apa
- * yang harus diperbaiki alih-alih menonton seed mati pelan-pelan.
+ * Yang berubah di Fase 53a hanyalah SEBAB kegagalannya, bukan perlunya penjaga.
+ * Penguncian modul sudah tidak ada, jadi seed tidak akan lagi ditolak 403 di
+ * tengah jalan. Yang menggantikannya adalah batas kapasitas: demo memakai
+ * beberapa gudang dan dua badan usaha, dan paket masuk tidak memuat keduanya.
+ *
+ * Diperiksa sebelum satu pun data ditulis, supaya operator tahu apa yang harus
+ * diperbaiki alih-alih menonton seed mati pelan-pelan.
  */
+const PAKET_DEMO = "enterprise";
 const meSetelah = await api("GET", "/api/auth/me");
 const paketDemo = (meSetelah.json?.memberships ?? []).find((m) => m.tenantId === company.tenantId)?.plan;
-if (paketDemo !== "lengkap") {
+if (paketDemo !== PAKET_DEMO) {
   console.error(
-    `\nBERHENTI: perusahaan demo lahir berpaket '${paketDemo}', bukan 'lengkap'.\n\n` +
-      `Sejak Fase 30 hanya ada SATU paket, jadi nilai lain berarti barisnya belum\n` +
-      `dinormalkan migrasi control-plane 0017_paket_tunggal — bukan masalah paket,\n` +
-      `melainkan migrasi yang belum jalan di lingkungan ini.\n\n` +
-      `Perbaiki dengan menjalankan migrasi control-plane (deploy ulang Worker atau\n` +
-      `panggil endpoint mana pun sekali) lalu ulangi seed ini.\n`,
+    `\nBERHENTI: perusahaan demo lahir berpaket '${paketDemo}', bukan '${PAKET_DEMO}'.\n\n` +
+      `Artinya akun seed ini TIDAK terdaftar di COMPED_EMAILS. Demo memakai\n` +
+      `beberapa gudang dan dua badan usaha, dan paket masuk tidak memuat\n` +
+      `keduanya — seed akan mati di tengah jalan dan meninggalkan demo separuh\n` +
+      `terisi.\n\n` +
+      `Perbaiki dengan menambahkan alamat email seed ke COMPED_EMAILS, lalu\n` +
+      `ulangi seed ini.\n`,
   );
   process.exit(1);
 }
@@ -704,9 +711,9 @@ await step("pelunasan faktur tahun lalu", "POST", `${T}/payments`, {
 await purchase("kulakan grosir bulan ini (12 hari lalu)", {
   contactId: suppAneka.id, invoiceDate: daysAgo(12), taxRate: 0, warehouseId: whUtama.id,
   lines: [
-    { productId: kopi.id, qty: 490, unitPrice: 55_000 },
+    { productId: kopi.id, qty: 620, unitPrice: 55_000 },
     { productId: teh.id, qty: 250, unitPrice: 28_000 },
-    { productId: keripik.id, qty: 620, unitPrice: 14_000 },
+    { productId: keripik.id, qty: 840, unitPrice: 14_000 },
     { productId: gula.id, qty: 260, unitPrice: 38_000 },
     { productId: madu.id, qty: 80, unitPrice: 80_000 },
     { productId: sirup.id, qty: 310, unitPrice: 24_000 },
@@ -750,8 +757,29 @@ for (const [nama, cust, back, lines] of [
   // Fase 51c tidak sekadar menambal, tetapi memberi margin yang LEGA lalu
   // menagihnya lewat ambang di ui-sim — supaya pengikisan berikutnya
   // ketahuan selagi masih ada sisa, bukan setelah menembus nol.
-  ["grosir katering (kopi + gula + madu + sirup)", custToko, 6, [
-    { productId: kopi.id, qty: 60, unitPrice: 85_000 },
+  //
+  // FASE 53a — dan ambang itu memang berbunyi, tepat seperti maksudnya:
+  // pada 4 September 2026 laba bulan berjalan turun ke Rp 1.969.416, masih
+  // positif tetapi di bawah ambang. Ini KETIGA kalinya, jadi menambal saja
+  // sudah terbukti tidak cukup.
+  //
+  // Sebab strukturalnya akhirnya terukur, dan bukan yang diduga sebelumnya:
+  // bulan berjalan justru beromzet LEBIH TINGGI dari bulan riwayat
+  // (Rp 89,6 jt vs ±Rp 82 jt), tetapi bebannya Rp 8 juta lebih besar. Beban
+  // itu nyata dan memang hanya ada di bulan berjalan — bonus kinerja, THR,
+  // lembur, komisi, pesangon — sementara bulan riwayat tidak menanggung
+  // satu pun. Jadi bulan berjalan akan SELALU lebih tipis, dan tiap fase HR
+  // baru akan menipiskannya lagi.
+  //
+  // Karena itu dua hal diubah sekaligus: omzet grosirnya dinaikkan sepadan
+  // dengan beban tambahan itu, DAN ambangnya berhenti berupa angka rupiah
+  // tetap. Ambang rupiah harus disetel ulang tiap kali skala demo bergeser —
+  // yang berarti ia menagih perhatian justru saat tidak ada yang salah.
+  // Penggantinya membandingkan MARGIN bulan berjalan terhadap bulan riwayat,
+  // sehingga ia ikut berskala sendiri.
+  ["grosir katering (kopi + keripik + gula + madu + sirup)", custToko, 6, [
+    { productId: kopi.id, qty: 190, unitPrice: 85_000 },
+    { productId: keripik.id, qty: 220, unitPrice: 25_000 },
     { productId: gula.id, qty: 50, unitPrice: 60_000 },
     { productId: madu.id, qty: 15, unitPrice: 120_000 },
     { productId: sirup.id, qty: 50, unitPrice: 40_000 },

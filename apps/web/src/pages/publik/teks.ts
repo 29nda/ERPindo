@@ -88,10 +88,13 @@ export const T_HARGA = {
 
   tigaTahunJudul: { id: "Biaya kepemilikan tiga tahun", en: "Three-year cost of ownership" },
   tigaTahunPengantar: {
-    id: "Angka yang biasanya diminta bagian pengadaan. Tidak ada baris pemasangan, tidak ada biaya lisensi per orang, dan tidak ada biaya naik versi, jadi seluruh kolomnya hanya perkalian.",
-    en: "The figure procurement usually asks for. There is no implementation line, no per-seat licence, and no upgrade fee — so the whole column is a multiplication.",
+    id: "Angka yang biasanya diminta bagian pengadaan, dihitung dari paket masuk. Tidak ada biaya lisensi per orang dan tidak ada biaya naik versi, jadi seluruh kolomnya hanya perkalian.",
+    en: "The figure procurement usually asks for, based on the entry plan. There is no per-seat licence and no upgrade fee, so the whole column is a multiplication.",
   },
-  tigaTahunBaris: { id: "36 bulan × Rp 499.000", en: "36 months × Rp 499,000" },
+  // Angkanya diisi saat render dari `PLAN_LIMITS`, bukan dieja di sini —
+  // naskah harga yang mengeja angkanya sendiri akan menyimpang dari harga
+  // yang benar-benar ditagih, dan tidak ada gerbang yang bisa melihatnya.
+  tigaTahunBaris: { id: "36 bulan × {0}", en: "36 months × {0}" },
   tigaTahunCatatan: {
     id: "Yang membuat angka ini bisa dipegang bukan besarnya, melainkan tidak adanya baris lain di bawahnya.",
     en: "What makes this figure dependable is not its size, but the absence of any line beneath it.",

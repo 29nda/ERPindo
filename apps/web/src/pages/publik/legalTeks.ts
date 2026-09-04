@@ -77,8 +77,8 @@ export const SYARAT: BagianLegal[] = [
   {
     judul: "4. Biaya berlangganan",
     paragraf: [
-      "Biaya berlangganan adalah Rp 499.000 per bulan per perusahaan, ditagih di muka untuk masa satu bulan.",
-      "Tidak ada biaya implementasi, biaya lisensi per pengguna, maupun biaya peningkatan versi.",
+      "Biaya berlangganan mengikuti paket yang dipilih sebagaimana tercantum pada halaman harga, ditagih di muka untuk satu masa berlangganan penuh — satu bulan atau satu tahun.",
+      "Tidak ada biaya lisensi per pengguna maupun biaya peningkatan versi. Bantuan migrasi data dari aplikasi lama tidak termasuk dalam biaya berlangganan dan ditawarkan terpisah.",
       "Berhenti berlangganan dapat dilakukan kapan saja. Masa berlangganan yang sudah dibayar tetap berjalan sampai habis, dan tidak ada pengembalian dana untuk masa yang belum terpakai.",
       "Penyelenggara dapat mengubah biaya berlangganan dengan pemberitahuan sekurang-kurangnya 30 hari sebelum berlaku bagi pelanggan yang sudah berjalan.",
     ],

@@ -1,10 +1,11 @@
 import type { ApiSubscriptionInvoice, BillingStatus, Plan, Role, TenantStatus } from "@erpindo/shared";
-import { checkoutSchema, PLAN_LABELS, PLAN_LIMITS } from "@erpindo/shared";
+import { biayaKaryawanTambahan, checkoutSchema, hargaPaket, PLAN_LABELS, PLAN_LIMITS } from "@erpindo/shared";
+import { hitungKaryawanDiAtasJatah } from "../lib/kapasitas";
 import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { audit } from "../lib/audit";
 import { samaAman } from "../lib/crypto";
-import { pastikanTenantTerprovisi, TANPA_DB } from "../lib/tenantDb";
+import { getTenantDb, pastikanTenantTerprovisi, TANPA_DB } from "../lib/tenantDb";
 import { requireAuth } from "../middleware/auth";
 import { appOrigin, clientIp } from "./auth";
 
@@ -254,19 +255,49 @@ export const billingRoutes = new Hono<AppEnv>()
     const parsed = checkoutSchema.safeParse(await c.req.json().catch(() => ({})));
     if (!parsed.success) return c.json({ error: "Paket tidak valid." }, 400);
     const plan = parsed.data.plan;
+    const periode = parsed.data.periode;
     if (!billingConfigured(c.env)) {
       return c.json({ error: "Pembayaran online belum dikonfigurasi. Hubungi kami untuk aktivasi." }, 503);
     }
 
     const user = c.get("user");
-    const amount = PLAN_LIMITS[plan].pricePerMonth;
+    const bulan = periode === "tahunan" ? 12 : 1;
+
+    /**
+     * Kelebihan karyawan penggajian ikut ditagih (Fase 53e).
+     *
+     * Tanpa ini, "termasuk N karyawan, selebihnya Rp 150.000 per orang per
+     * tahun" akan menjadi angka di halaman harga yang tidak punya satu pun
+     * mekanisme di belakangnya — persis kesalahan `maxEntities` yang dihapus
+     * Fase 30. Dihitung dari jumlah karyawan AKTIF saat checkout, bukan saat
+     * langganan dibuat: yang ditagih adalah keadaan sekarang.
+     *
+     * Untuk periode bulanan, tarif tahunan dibagi dua belas dan dibulatkan ke
+     * atas — pembulatan ke bawah membuat dua belas tagihan bulanan lebih murah
+     * daripada satu tagihan tahunan, dan selisih diam-diam itu akan menjadi
+     * pertanyaan yang tidak enak dijawab.
+     */
+    // Tenant `provisioning` BELUM punya database — dan checkout pertama justru
+    // terjadi tepat saat itu. `getTenantDb(env, TANPA_DB)` melempar, jadi
+    // memanggilnya tanpa syarat akan mematikan satu-satunya jalur uang yang
+    // ada, untuk pelanggan yang baru pertama kali membayar. Kelas cacat yang
+    // sama dengan enam yang dijaring Fase 52c.
+    const karyawan =
+      m.row.db_ref === TANPA_DB
+        ? { terpakai: 0, termasuk: 0, kelebihan: 0 }
+        : await hitungKaryawanDiAtasJatah(c.env, m.tenantId, getTenantDb(c.env, m.row.db_ref));
+    const tambahanTahunan = biayaKaryawanTambahan(plan, karyawan.terpakai);
+    const tambahan = periode === "tahunan" ? tambahanTahunan : Math.ceil(tambahanTahunan / 12);
+    const amount = hargaPaket(plan, periode) + tambahan;
     const orderId = `sub-${m.tenantId.slice(0, 8)}-${Date.now()}`;
     const invoiceId = crypto.randomUUID();
 
     const bayar = await buatInvoiceXendit(c.env, {
       orderId,
       amount,
-      itemName: `Langganan ERPindo ${PLAN_LABELS[plan]} (1 bulan)`,
+      itemName:
+        `Langganan ERPindo ${PLAN_LABELS[plan]} (${periode === "tahunan" ? "1 tahun" : "1 bulan"})` +
+        (karyawan.kelebihan > 0 ? ` + ${karyawan.kelebihan} karyawan tambahan` : ""),
       customerEmail: user.email,
       customerName: user.name,
       finishUrl: `${appOrigin(c)}/app/pengaturan`,
@@ -276,18 +307,24 @@ export const billingRoutes = new Hono<AppEnv>()
 
     await c.env.DB.prepare(
       `INSERT INTO subscription_invoices (id, tenant_id, order_id, amount, period_months, status, plan, redirect_url, created_by)
-       VALUES (?, ?, ?, ?, 1, 'pending', ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
     )
-      .bind(invoiceId, m.tenantId, orderId, amount, plan, redirectUrl, user.id)
+      .bind(invoiceId, m.tenantId, orderId, amount, bulan, plan, redirectUrl, user.id)
+      .run();
+    // Periode disimpan di tenant supaya perpanjangan tidak perlu menyimpulkan
+    // "ini tahunan atau bulanan" dari nominal invoice — cara yang pasti salah
+    // setelah harga berubah.
+    await c.env.DB.prepare(`UPDATE tenants SET billing_period = ? WHERE id = ?`)
+      .bind(periode, m.tenantId)
       .run();
     await audit(c.env, {
       action: "billing.checkout",
       userId: user.id,
       tenantId: m.tenantId,
-      detail: { orderId, amount, plan },
+      detail: { orderId, amount, plan, periode, karyawanTambahan: karyawan.kelebihan },
       ip: clientIp(c),
     });
-    return c.json({ orderId, redirectUrl }, 201);
+    return c.json({ orderId, redirectUrl, amount, periode }, 201);
   })
 
   // --- PENCABUTAN ganti paket (Fase 30) -------------------------------------

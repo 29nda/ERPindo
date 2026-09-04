@@ -280,7 +280,17 @@ export const api = {
       /** Metrik bisnis (Fase 30f): pendapatan berulang & pergerakan pelanggan. */
       bisnis: {
         mrr: number;
-        hargaPerBulan: number;
+        /**
+         * Rincian MRR per paket (Fase 53a) menggantikan `hargaPerBulan`.
+         *
+         * Field lama sengaja DIHAPUS, bukan disisakan bernilai nol: selama ia
+         * masih diumumkan di kontrak ini, `pnpm typecheck` tetap hijau meski
+         * server berhenti mengirimnya — dan halaman admin melempar
+         * `undefined.toLocaleString` di layar pemilik. Itu benar-benar terjadi
+         * di fase ini, dan yang menemukannya ui-sim, bukan pemeriksa tipe.
+         */
+        mrrPerPaket: Record<string, number>;
+        pelangganPerPaket: Record<string, number>;
         pelangganMembayar: number;
         berbayar: number;
         tenggang: number;

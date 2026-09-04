@@ -1,6 +1,7 @@
 import {
   FEEDBACK_STATUSES,
   PLAN_LABELS,
+  PLANS,
   renderMarkdown,
   type ApiBlogPost,
   type Plan,
@@ -189,7 +190,9 @@ function OverviewTab() {
                 Rp {b.mrr.toLocaleString("id-ID")}
               </div>
               <div className="text-xs text-ink-muted">
-                {b.pelangganMembayar} × Rp {b.hargaPerBulan.toLocaleString("id-ID")}
+                {PLANS.filter((p) => (b.pelangganPerPaket?.[p] ?? 0) > 0)
+                  .map((p) => `${b.pelangganPerPaket[p]} ${PLAN_LABELS[p]}`)
+                  .join(" · ") || u("adBelumAdaPelangganBayar")}
               </div>
             </div>
             <div>

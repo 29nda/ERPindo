@@ -44,11 +44,35 @@ membuang cookie diam-diam, dan **seluruh smoke runtuh di langkah login**.
 
 ## 2. Produk & harga
 
-**Satu paket, satu harga: Rp499.000 per perusahaan per bulan** (Fase A/30).
-Seluruh modul terbuka, pengguna tak terbatas. `MODULE_MIN_PLAN`,
-`PLAN_ACCESS_RANK`, `planIncludesModule`, dan prorata dihapus seluruhnya — bukan
-dinonaktifkan. Harga per perusahaan, bukan per pengguna: menambah karyawan tidak
-menambah tagihan.
+**Tiga paket, dibedakan KAPASITAS — bukan modul** (Fase 53a, menggantikan
+harga tunggal Fase A/30). Starter Rp 750.000, Business Rp 1.500.000, Enterprise
+Rp 3.000.000 per perusahaan per bulan; tahunan dibayar sepuluh bulan.
+
+Yang **tidak** dibalik oleh fase ini, dan ini pembedaan yang menentukan:
+`MODULE_MIN_PLAN`, `PLAN_ACCESS_RANK`, `planIncludesModule`, dan penguncian
+modul tetap terhapus seluruhnya. Fase 30 membubarkan pemaketan karena
+pembedanya waktu itu adalah **apa yang boleh dibuka** — UKM membeli Starter,
+menemukan penggajian terkunci di bulan kedua, lalu merasa dijebak. Yang kembali
+hanyalah nama paketnya, dan sumbunya berganti menjadi **seberapa besar
+perusahaannya**: badan usaha, lokasi, karyawan penggajian. Perusahaan tahu
+berapa lokasi yang dimilikinya sebelum membeli; ia tidak tahu apakah
+membutuhkan modul manufaktur sebelum memakainya.
+
+Dijaga `paket-tidak-menjual-modul` di `scripts/sapu-istilah.mjs` — yang
+menggantikan aturan lama yang melarang nama paket, karena aturan itu menjaga
+ejaan, bukan keputusan.
+
+**Pengguna tetap tak terbatas di SEMUA paket.** Ditinjau ulang di Fase 53a dan
+sengaja dipertahankan: batas per paket akan membatalkan klaim "tanpa lisensi per
+kepala" di 30-an tempat sekaligus — landing, JSON-LD, `llms.txt`, blog, dan
+kalkulator perbandingan — dan menyerahkan kembali senjata terkuat melawan Odoo
+(per pengguna per bulan) dan MASERP (jutaan per pengguna tambahan). Alasan
+kedua khusus ERP: batas pengguna mendorong satu akun dipakai beramai-ramai, dan
+jejak audit "siapa memposting jurnal ini" langsung kehilangan arti.
+
+**Harga tidak boleh dieja di naskah.** Dibaca dari `PLAN_LIMITS`, disisipkan
+lewat template literal di `shared` atau lubang `{0}` + `isi()` di kamus web.
+Dijaga `harga-paket-literal`.
 
 **Tidak ada masa coba gratis** (Fase 24). Diganti demo publik berisi data
 setahun penuh di seluruh modul, bisa ditelusuri tanpa mendaftar. Akun yang belum
