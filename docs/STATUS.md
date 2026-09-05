@@ -5,7 +5,44 @@
 
 **Terakhir diperbarui:** 5 September 2026
 
-## Yang baru saja selesai — Fase 54a: audit alur uang & integritas jurnal
+## Yang baru saja selesai — Fase 54b: audit kepatuhan pajak
+
+Bagian 3 dari sepuluh bagian audit.
+
+**Satu temuan yang perlu Anda bawa ke konsultan pajak.** Tabel tarif PPh 21
+(TER) punya satu pita yang menyilang: untuk gaji bulanan antara **Rp 8.850.001
+dan Rp 9.200.000**, karyawan berstatus K/3 — yang tanggungannya paling banyak —
+dikenai 1,25% sementara karyawan dengan tanggungan lebih sedikit hanya 1%. Itu
+membalik seluruh maksud PTKP.
+
+Dugaan saya ini salah salin saat menyusun tabelnya, bukan bunyi peraturannya:
+dua kategori lain punya tarif 1,25%, sedangkan kategori yang bermasalah
+melompatinya. Dampaknya kecil — sekitar Rp 22.500 sebulan untuk karyawan di
+pita itu — tetapi arahnya salah, dan yang dirugikan justru karyawan dengan
+tanggungan terbanyak.
+
+**Saya sengaja tidak menebak angka penggantinya.** Tarif pajak karangan bisa
+salah ke segala arah tanpa batas, sementara cacat ini kecil dan terbatas. Yang
+saya lakukan: memagari pita itu dengan tepat, dan membuat pagarnya otomatis
+meminta dicabut begitu tabelnya diperbaiki — supaya pengecualian ini tidak
+pelan-pelan berubah menjadi perilaku resmi.
+
+**Yang perlu Anda lakukan:** cocokkan tiga baris tarif kategori B di sekitar
+Rp 7–11 juta dengan lampiran PMK 168/2023 bersama konsultan pajak Anda.
+
+**Temuan kedua, sudah diperbaiki.** Ambang persetujuan pembelian mengabaikan
+diskon baris. Dengan diskon 50%, Anda diminta menyetujui pembelian bernilai
+Rp 555.000 terhadap ambang Rp 1.000.000 yang Anda tetapkan sendiri. Ambang yang
+berbunyi tanpa sebab akan lama-lama diabaikan, jadi rumusnya disamakan.
+
+**Batas yang saya tetapkan sendiri:** tabel TER berisi 125 baris tarif. Saya
+tidak membandingkannya satu per satu dengan peraturan aslinya dan tidak
+berpura-pura melakukannya — itu menuntut dokumen resmi di tangan. Yang saya
+audit adalah strukturnya, dan ternyata itu cukup untuk menemukan anomali di
+atas. Format ekspor e-Faktur dan e-Bupot juga belum diaudit isinya, dengan
+alasan yang sama.
+
+## Sebelumnya — Fase 54a: audit alur uang & integritas jurnal
 
 Ini bagian 1 dan 2 dari sepuluh bagian audit menyeluruh yang kita sepakati.
 
@@ -309,8 +346,8 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.171** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.330** |
+| Uji unit | 923 | **1.202** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.331** |
 | Simulasi klik di peramban nyata | 431 | **491** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
@@ -793,7 +830,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.330 skenario ujian end-to-end + 1.171 unit test + 491 cek simulasi UI browser nyata**, totalnya **2.992 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.331 skenario ujian end-to-end + 1.202 unit test + 491 cek simulasi UI browser nyata**, totalnya **3.024 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

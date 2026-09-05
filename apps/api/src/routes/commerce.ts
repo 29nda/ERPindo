@@ -169,9 +169,28 @@ export const commerceRoutes = new Hono<AppEnv>()
     // Gerbang persetujuan: pembelian ≥ ambang oleh non-Owner masuk antrean,
     // TANPA jurnal & TANPA stok — baru diposting saat Owner menyetujui.
     const threshold = await approvalThreshold(db);
-    const previewTotal =
-      input.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0) +
-      Math.round((input.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0) * input.taxRate) / 100);
+    /**
+     * Pratinjau total untuk ambang persetujuan (Fase 54b).
+     *
+     * Sebelumnya rumus ini MENGABAIKAN diskon baris, sementara total yang
+     * benar-benar diposting (`commercePosting.ts`) menerapkannya. Dua tempat
+     * menghitung "total" dengan cara berbeda, dan yang satu tidak pernah
+     * memeriksa yang lain.
+     *
+     * Arah selisihnya kebetulan aman — pratinjau selalu LEBIH BESAR, jadi
+     * pembelian bisa masuk antrean persetujuan tanpa perlu, tidak sebaliknya.
+     * Tetapi "kebetulan aman" bukan alasan membiarkannya: begitu ada diskon
+     * besar, pemilik diminta menyetujui pembelian yang nilainya sebenarnya
+     * jauh di bawah ambangnya sendiri, dan ambang yang berbunyi tanpa sebab
+     * adalah ambang yang lama-lama diabaikan.
+     *
+     * Pembulatan per baris disamakan pula dengan jalur posting.
+     */
+    const previewSubtotal = input.lines.reduce(
+      (t, l) => t + Math.round(l.qty * l.unitPrice * (1 - (l.discountPct ?? 0) / 100)),
+      0,
+    );
+    const previewTotal = previewSubtotal + Math.round((previewSubtotal * input.taxRate) / 100);
     if (threshold > 0 && previewTotal >= threshold && tenant.role !== "owner") {
       const requestNo = await nextDocNo(db, "approval_requests", "APR");
       const id = crypto.randomUUID();
