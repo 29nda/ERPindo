@@ -480,6 +480,109 @@ function ProyeksiArusKasCard() {
 // Umur Piutang / Utang (aging)
 // ---------------------------------------------------------------------------
 
+/**
+ * Rekonsiliasi buku besar vs buku pembantu (Fase 54a).
+ *
+ * Laporan yang diminta akuntan tiap penutupan buku, dan satu-satunya yang bisa
+ * melihat posting yang seimbang tetapi salah arah — neraca saldo tetap hijau
+ * menghadapi kesalahan semacam itu.
+ */
+export function RekonsiliasiPage() {
+  const u = useUi();
+  const { tenant } = useWorkspace();
+  const h = useHeading("rekonsiliasi");
+  const query = useQuery({
+    queryKey: ["rekonsiliasi", tenant.tenantId],
+    queryFn: () => api.rekonsiliasi(tenant.tenantId),
+  });
+  const data = query.data;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="judul text-[1.75rem]">{h.title}</h1>
+        <p className="mt-2 max-w-3xl text-sm text-ink-soft">{h.desc}</p>
+      </div>
+
+      <Card>
+        <CardBody>
+          {query.isLoading ? (
+            <Spinner />
+          ) : !data ? null : (
+            <>
+              <Alert tone={data.cocok ? "success" : "warning"}>
+                {data.cocok ? u("rekonSemuaCocok") : u("rekonAdaSelisih")}
+              </Alert>
+              <Table className="mt-4">
+                <Thead>
+                  <tr>
+                    <Th>{u("rekonPos")}</Th>
+                    <Th numeric>{u("rekonBukuBesar")}</Th>
+                    <Th numeric>{u("rekonBukuPembantu")}</Th>
+                    <Th numeric>{u("rekonSelisih")}</Th>
+                  </tr>
+                </Thead>
+                <tbody>
+                  {data.pos.map((p) => (
+                    <Tr key={p.kodeAkun}>
+                      <Td label={u("rekonPos")}>
+                        {p.nama} <span className="text-ink-faint">{p.kodeAkun}</span>
+                        {p.toleransi > 0 ? (
+                          <span className="block text-[11px] text-ink-faint">
+                            {u("rekonToleransi")} {formatIDR(p.toleransi)}
+                          </span>
+                        ) : null}
+                      </Td>
+                      <Td numeric label={u("rekonBukuBesar")}>{formatIDR(p.bukuBesar)}</Td>
+                      <Td numeric label={u("rekonBukuPembantu")}>{formatIDR(p.bukuPembantu)}</Td>
+                      <Td numeric label={u("rekonSelisih")}>
+                        <span className={p.cocok ? "text-ink-muted" : "font-semibold text-danger-ink"}>
+                          {p.selisih === 0 ? "—" : formatIDR(p.selisih)}
+                        </span>
+                      </Td>
+                    </Tr>
+                  ))}
+                </tbody>
+              </Table>
+            </>
+          )}
+        </CardBody>
+      </Card>
+
+      {(data?.entriTimpang.length ?? 0) > 0 ? (
+        <Card>
+          <CardHeader title={u("rekonJurnalTimpang")} />
+          <CardBody>
+            <ul className="space-y-1 text-sm">
+              {data!.entriTimpang.map((e) => (
+                <li key={e.entryNo}>
+                  <span className="font-medium">{e.entryNo}</span> · {formatDate(e.entryDate)} ·{" "}
+                  <span className="text-danger-ink">{formatIDR(e.selisih)}</span>
+                </li>
+              ))}
+            </ul>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {(data?.entriKosong.length ?? 0) > 0 ? (
+        <Card>
+          <CardHeader title={u("rekonJurnalKosong")} />
+          <CardBody>
+            <ul className="space-y-1 text-sm">
+              {data!.entriKosong.map((e) => (
+                <li key={e.entryNo}>
+                  <span className="font-medium">{e.entryNo}</span> · {formatDate(e.entryDate)}
+                </li>
+              ))}
+            </ul>
+          </CardBody>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
 export function AgingPage() {
   const u = useUi();
   const { tenant } = useWorkspace();

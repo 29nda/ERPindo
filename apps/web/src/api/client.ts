@@ -593,6 +593,22 @@ export const api = {
     ),
   aging: (tenantId: string, type: "receivable" | "payable") =>
     request<{ rows: ApiAgingRow[]; grandTotal: number }>("GET", `/api/tenants/${tenantId}/reports/aging?type=${type}`),
+  /** Rekonsiliasi akun kontrol vs buku pembantu (Fase 54a). */
+  rekonsiliasi: (tenantId: string) =>
+    request<{
+      pos: {
+        nama: string;
+        kodeAkun: string;
+        bukuBesar: number;
+        bukuPembantu: number;
+        toleransi: number;
+        selisih: number;
+        cocok: boolean;
+      }[];
+      entriTimpang: { entryNo: string; entryDate: string; selisih: number }[];
+      entriKosong: { entryNo: string; entryDate: string }[];
+      cocok: boolean;
+    }>("GET", `/api/tenants/${tenantId}/reports/rekonsiliasi`),
   efaktur: (tenantId: string, from: string, to: string) =>
     request<ApiEfakturReport>("GET", `/api/tenants/${tenantId}/reports/efaktur?from=${from}&to=${to}`),
   efakturXml: (tenantId: string, from: string, to: string) =>

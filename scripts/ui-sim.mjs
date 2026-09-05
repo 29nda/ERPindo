@@ -484,6 +484,34 @@ try {
     .waitFor({ timeout: 15_000 });
   check("widget Ringkasan mingguan AI tampil dengan fallback/narasi (tanpa error)", true);
 
+  // F54a — halaman Rekonsiliasi (Fase 54a).
+  //
+  // Diuji lewat ANGKA, bukan sekadar "halaman terbuka": laporan yang merender
+  // tabel kosong akan lolos cek keberadaan dan tetap tidak berguna.
+  await gotoRoute("/app/keuangan/rekonsiliasi", 900);
+  const rekonBody = await page.innerText("body");
+  check(
+    "F54a halaman Rekonsiliasi memuat ketiga akun kontrol",
+    /Piutang Usaha/.test(rekonBody) && /Utang Usaha/.test(rekonBody) && /Persediaan/.test(rekonBody),
+    `→ pos tidak lengkap`,
+  );
+  check(
+    "F54a Rekonsiliasi menyatakan seluruh akun kontrol cocok",
+    /cocok dengan buku pembantunya/i.test(rekonBody),
+    `→ pernyataan kecocokan tidak ditemukan`,
+  );
+  check(
+    "F54a Rekonsiliasi menampilkan kolom buku besar dan buku pembantu",
+    /Buku besar/i.test(rekonBody) && /Buku pembantu/i.test(rekonBody),
+    `→ kolom tidak lengkap`,
+  );
+  check("F54a halaman Rekonsiliasi bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+  // Kembali ke dasbor: asersi berikutnya (F0b) memeriksa teks dasbor, dan
+  // meninggalkan peramban di halaman lain membuatnya memerah karena alasan
+  // yang tidak ada hubungannya dengan yang diujinya.
+  await gotoRoute("/app", 700);
+
+
   // Multibahasa aplikasi (Fase 13e): toggle EN → menu sidebar + dashboard Inggris.
   resetErrors();
   await page.locator("aside").getByRole("button", { name: "EN", exact: true }).first().click();

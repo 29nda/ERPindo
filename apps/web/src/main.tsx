@@ -32,7 +32,7 @@ import { HelpdeskPage } from "./pages/helpdesk";
 import { CatatPage } from "./pages/catat";
 import { KasBankPage } from "./pages/kasbank";
 import { AccountsPage, JournalPage, LedgerPage, TrialBalancePage } from "./pages/finance";
-import { AgingPage, BalanceSheetPage, CashFlowPage, EfakturPage, IncomeStatementPage, SalesReportPage } from "./pages/reports";
+import { AgingPage, BalanceSheetPage, CashFlowPage, EfakturPage, IncomeStatementPage, RekonsiliasiPage, SalesReportPage } from "./pages/reports";
 import { ContactsPage, ProductsPage, WarehousesPage } from "./pages/masterdata";
 import { ApprovalsPage } from "./pages/approvals";
 import { PajakPage } from "./pages/pajak";
@@ -150,6 +150,7 @@ const appChildren = [
   createRoute({ getParentRoute: () => appRoute, path: "/keuangan/neraca-saldo", component: TrialBalancePage }),
   createRoute({ getParentRoute: () => appRoute, path: "/keuangan/laba-rugi", component: IncomeStatementPage }),
   createRoute({ getParentRoute: () => appRoute, path: "/keuangan/neraca", component: BalanceSheetPage }),
+  createRoute({ getParentRoute: () => appRoute, path: "/keuangan/rekonsiliasi", component: RekonsiliasiPage }),
   createRoute({ getParentRoute: () => appRoute, path: "/keuangan/umur-tagihan", component: AgingPage }),
   createRoute({ getParentRoute: () => appRoute, path: "/keuangan/arus-kas", component: CashFlowPage }),
   createRoute({ getParentRoute: () => appRoute, path: "/keuangan/e-faktur", component: EfakturPage }),

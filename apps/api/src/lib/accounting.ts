@@ -154,15 +154,46 @@ export async function postJournal(
     )
     .bind(id, entryNo, input.entryDate, input.memo ?? null, input.createdBy, input.projectId ?? null)
     .run();
-  for (const line of input.lines) {
-    await db
-      .prepare(
-        `INSERT INTO journal_lines (id, entry_id, account_id, description, debit, credit, cost_center_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(crypto.randomUUID(), id, line.accountId, line.description ?? null, line.debit, line.credit, line.costCenterId ?? null)
-      .run();
-  }
+  /**
+   * Seluruh baris disisipkan dalam SATU pernyataan (Fase 54a).
+   *
+   * Sebelumnya tiap baris punya `prepare().run()` sendiri. `SqlExecutor` tidak
+   * menyediakan `batch()`, jadi tidak ada transaksi yang membungkusnya — dan
+   * setiap `run()` menutup dirinya sendiri. Akibatnya kegagalan di tengah loop
+   * meninggalkan jurnal berstatus `posted` yang debitnya tidak sama dengan
+   * kreditnya, permanen dan senyap.
+   *
+   * Kegagalan itu bukan hipotesis: `journal_lines` punya FK ke `accounts` dan
+   * dua CHECK (`debit >= 0`, dan debit-kredit tidak boleh sama-sama positif).
+   * Pemeriksaan keseimbangan di atas menjumlahkan seluruh baris, jadi dua baris
+   * yang sama-sama negatif tetap lolos ke tahap penyisipan lalu ditolak CHECK
+   * di baris kedua.
+   *
+   * Satu pernyataan `INSERT ... VALUES (...), (...)` bersifat atomik menurut
+   * definisi SQLite: seluruh barisnya masuk, atau tidak satu pun. Cara ini
+   * dipilih karena bekerja identik di kedua pelaksana — D1 binding lokal maupun
+   * `HttpD1Executor` lewat REST — tanpa menambah metode baru ke antarmuka.
+   *
+   * Yang TERSISA setelah ini: entri tanpa baris sama sekali, bila justru
+   * pernyataan inilah yang gagal. Itu tidak merusak neraca saldo (nol baris
+   * menyumbang nol), tetapi tetap sampah — dan laporan rekonsiliasi
+   * (`reports/rekonsiliasi`) menjaringnya sebagai `entriKosong`.
+   */
+  const kolom = "(id, entry_id, account_id, description, debit, credit, cost_center_id)";
+  const nilai = input.lines.map(() => "(?, ?, ?, ?, ?, ?, ?)").join(", ");
+  const bindLines = input.lines.flatMap((line) => [
+    crypto.randomUUID(),
+    id,
+    line.accountId,
+    line.description ?? null,
+    line.debit,
+    line.credit,
+    line.costCenterId ?? null,
+  ]);
+  await db
+    .prepare(`INSERT INTO journal_lines ${kolom} VALUES ${nilai}`)
+    .bind(...bindLines)
+    .run();
   return { id, entryNo };
 }
 

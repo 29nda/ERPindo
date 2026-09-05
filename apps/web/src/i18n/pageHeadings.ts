@@ -244,6 +244,13 @@ export const PAGE_HEADINGS = {
   kasirPos: {
     title: { id: "Kasir (POS)", en: "Cashier (POS)" },
   },
+  rekonsiliasi: {
+    title: { id: "Rekonsiliasi Buku Besar", en: "Ledger Reconciliation" },
+    desc: {
+      id: "Neraca saldo yang seimbang belum membuktikan pembukuan benar: sebuah jurnal bisa seimbang tetapi memasukkan angka ke akun yang keliru. Halaman ini membandingkan saldo akun kontrol dengan buku pembantunya, dan itulah yang menangkapnya.",
+      en: "A balanced trial balance does not prove the books are right: an entry can balance while still posting to the wrong account. This page compares each control account against its subledger, which is what catches that.",
+    },
+  },
   umurPiutang: {
     title: { id: "Umur Piutang", en: "Receivables Aging" },
   },

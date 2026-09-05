@@ -13,6 +13,7 @@ import {
 } from "@erpindo/shared";
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
+import { SYS_ACCOUNTS } from "../lib/accounting";
 import { computeBalanceSheet, computeIncomeStatement, detectSpendAnomalies, monthStart, profitLoss } from "../lib/reports";
 import { getTenantDb } from "../lib/tenantDb";
 import { requireAuth, requireTenantRole } from "../middleware/auth";
@@ -410,6 +411,153 @@ export const reportRoutes = new Hono<AppEnv>()
   })
 
   // -------------------------------------------------------------------------
+  // Rekonsiliasi buku besar vs buku pembantu (Fase 54a)
+  // -------------------------------------------------------------------------
+  //
+  // ## Kenapa laporan ini ada
+  //
+  // Neraca saldo yang seimbang TIDAK membuktikan pembukuan benar. Komentar di
+  // `postForexRevaluation` sudah menyatakannya sejak Fase 21f: "keseimbangan
+  // itu invarian yang murah, arah yang mahal". Sebuah jurnal bisa seimbang
+  // sempurna sambil memasukkan angka ke akun yang salah, dan neraca saldo tetap
+  // hijau.
+  //
+  // Yang benar-benar menangkapnya adalah rekonsiliasi akun kontrol: saldo buku
+  // besar Piutang harus sama dengan jumlah sisa faktur, saldo Utang dengan sisa
+  // tagihan pemasok, dan saldo Persediaan dengan nilai stok. Begitu salah satu
+  // berpisah, ada posting yang salah arah — dan inilah satu-satunya laporan yang
+  // bisa melihatnya.
+  //
+  // Ini juga laporan yang diminta akuntan di tiap penutupan buku, jadi ia bukan
+  // alat internal melainkan fitur yang dipakai pelanggan.
+  //
+  // Bagian `entriTimpang` menjaga hal yang berbeda dan lebih mendasar: tiap
+  // jurnal harus seimbang SENDIRI. Neraca saldo menjumlahkan seluruh entri,
+  // sehingga dua entri yang rusak ke arah berlawanan saling menutupi dan
+  // totalnya tetap balance. `postJournal` menyisipkan entri lalu barisnya lewat
+  // pernyataan TERPISAH — bukan batch — jadi kegagalan di tengah loop
+  // meninggalkan tepat keadaan itu.
+  .get("/:tenantId/reports/rekonsiliasi", requireAuth, requireTenantRole("viewer"), heavyLimit(), async (c) => {
+    const db = getTenantDb(c.env, c.get("tenant").dbRef);
+
+    /** Saldo buku besar sebuah akun sistem, bertanda sesuai sifat normalnya. */
+    const saldoAkun = async (kode: string, sifat: "debit" | "kredit") => {
+      const row = await db
+        .prepare(
+          `SELECT COALESCE(SUM(jl.debit), 0) AS d, COALESCE(SUM(jl.credit), 0) AS k
+           FROM journal_lines jl
+           JOIN journal_entries je ON je.id = jl.entry_id
+           JOIN accounts a ON a.id = jl.account_id
+           WHERE a.code = ? AND je.status = 'posted'`,
+        )
+        .bind(kode)
+        .first<{ d: number; k: number }>();
+      const d = row?.d ?? 0;
+      const k = row?.k ?? 0;
+      return sifat === "debit" ? d - k : k - d;
+    };
+
+    /**
+     * Sisa buku pembantu, dijumlahkan PER DOKUMEN dengan lantai nol.
+     *
+     * Lantai itu bukan kosmetik. Faktur yang sudah lunas lalu diretur penuh
+     * dengan pengembalian TUNAI menghasilkan `total - paid - returned` bernilai
+     * negatif — padahal piutangnya memang nol, dan retur itu benar mengkredit
+     * kas, bukan piutang. Menjumlahkan angka negatif itu membuat buku pembantu
+     * terlihat lebih kecil daripada buku besar, dan laporan ini akan menuduh
+     * pembukuan yang sebenarnya benar.
+     *
+     * Ditemukan justru oleh laporan ini pada jalan pertamanya, terhadap
+     * INV-00003 di smoke: lunas 166.500, diretur 166.500, sisa −166.500.
+     */
+    const sisaDokumen = async (tabel: "invoices" | "purchases") => {
+      const row = await db
+        .prepare(
+          `SELECT COALESCE(SUM(MAX(total - paid_amount - returned_amount, 0)), 0) AS sisa
+           FROM ${tabel} WHERE voided_at IS NULL`,
+        )
+        .first<{ sisa: number }>();
+      return row?.sisa ?? 0;
+    };
+
+    const [glPiutang, glUtang, glPersediaan, subPiutang, subUtang, stokRow, timpangRows, kosongRows] = await Promise.all([
+      saldoAkun(SYS_ACCOUNTS.PIUTANG, "debit"),
+      saldoAkun(SYS_ACCOUNTS.HUTANG, "kredit"),
+      saldoAkun(SYS_ACCOUNTS.PERSEDIAAN, "debit"),
+      sisaDokumen("invoices"),
+      sisaDokumen("purchases"),
+      db.prepare(`SELECT COALESCE(SUM(qty * avg_cost), 0) AS value FROM stock_levels`).first<{ value: number }>(),
+      db
+        .prepare(
+          `SELECT je.entry_no, je.entry_date, SUM(jl.debit) - SUM(jl.credit) AS selisih
+           FROM journal_entries je JOIN journal_lines jl ON jl.entry_id = je.id
+           WHERE je.status = 'posted'
+           GROUP BY je.id HAVING selisih != 0
+           ORDER BY je.entry_date DESC LIMIT 50`,
+        )
+        .all<{ entry_no: string; entry_date: string; selisih: number }>(),
+      // Entri tanpa satu baris pun. Tidak merusak neraca saldo — nol baris
+      // menyumbang nol — jadi tidak ada gerbang lain yang bisa melihatnya.
+      // Sisa risiko setelah penyisipan baris dibuat atomik di Fase 54a.
+      db
+        .prepare(
+          `SELECT je.entry_no, je.entry_date FROM journal_entries je
+           WHERE je.status = 'posted'
+             AND NOT EXISTS (SELECT 1 FROM journal_lines jl WHERE jl.entry_id = je.id)
+           ORDER BY je.entry_date DESC LIMIT 50`,
+        )
+        .all<{ entry_no: string; entry_date: string }>(),
+    ]);
+
+    /**
+     * Piutang dan Utang harus cocok PERSIS: keduanya jumlah bilangan bulat,
+     * tanpa satu pun pembagian, jadi selisih serupiah pun berarti ada posting
+     * yang salah arah.
+     *
+     * Persediaan berbeda sifatnya. Buku pembantunya `qty x avg_cost`, dan harga
+     * rata-rata bergerak selalu menyisakan pembulatan; buku besar membawa
+     * bilangan bulat yang benar-benar diposting. Selisih beberapa rupiah di
+     * sana adalah sifat metode rata-rata, bukan cacat — setiap ERP berbasis
+     * average cost mengalaminya.
+     *
+     * Toleransinya sengaja RELATIF (satu per sepuluh ribu dari saldo), bukan
+     * angka rupiah tetap. Ambang tetap harus disetel ulang tiap kali skala
+     * pembukuan berubah — dan ambang yang menuntut perhatian saat tidak ada
+     * yang salah adalah ambang yang lama-lama diabaikan.
+     */
+    const toleransiPembulatan = (saldo: number) => Math.max(100, Math.round(Math.abs(saldo) / 10_000));
+
+    const pos = [
+      { nama: "Piutang Usaha", kodeAkun: SYS_ACCOUNTS.PIUTANG, bukuBesar: glPiutang, bukuPembantu: subPiutang, toleransi: 0 },
+      { nama: "Utang Usaha", kodeAkun: SYS_ACCOUNTS.HUTANG, bukuBesar: glUtang, bukuPembantu: subUtang, toleransi: 0 },
+      {
+        nama: "Persediaan",
+        kodeAkun: SYS_ACCOUNTS.PERSEDIAAN,
+        bukuBesar: glPersediaan,
+        bukuPembantu: stokRow?.value ?? 0,
+        toleransi: toleransiPembulatan(glPersediaan),
+      },
+    ].map((p) => {
+      const selisih = p.bukuBesar - p.bukuPembantu;
+      return { ...p, selisih, cocok: Math.abs(selisih) <= p.toleransi };
+    });
+
+    const entriTimpang = timpangRows.results.map((r) => ({
+      entryNo: r.entry_no,
+      entryDate: r.entry_date,
+      selisih: r.selisih,
+    }));
+
+    const entriKosong = kosongRows.results.map((r) => ({ entryNo: r.entry_no, entryDate: r.entry_date }));
+
+    return c.json({
+      pos,
+      entriTimpang,
+      entriKosong,
+      cocok: pos.every((p) => p.cocok) && entriTimpang.length === 0 && entriKosong.length === 0,
+    });
+  })
+
   // Umur piutang/utang (aging) per kontak, berdasarkan tanggal jatuh tempo
   // -------------------------------------------------------------------------
   .get("/:tenantId/reports/aging", requireAuth, requireTenantRole("viewer"), heavyLimit(), async (c) => {

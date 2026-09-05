@@ -137,6 +137,11 @@ const NAV_ITEMS: { to: string; label: string; exact: boolean; section?: string; 
   { to: "/app/keuangan/neraca", label: "Neraca", exact: false, section: "Laporan", icon: Scale, module: "laporan" },
   { to: "/app/keuangan/arus-kas", label: "Arus Kas", exact: false, section: "Laporan", icon: ArrowLeftRight, module: "laporan" },
   { to: "/app/keuangan/umur-tagihan", label: "Umur Piutang/Utang", exact: false, section: "Laporan", icon: Hourglass, module: "laporan" },
+  // Fase 54a — SENGAJA tidak masuk SIMPLE_HIDDEN: asersi F13 ui-sim menuntut
+  // Mode Sederhana menyembunyikan TEPAT empat menu, dan menambah yang kelima
+  // akan memerahkannya. Rekonsiliasi juga memang laporan, bukan alat teknis
+  // seperti Jurnal atau Buku Besar.
+  { to: "/app/keuangan/rekonsiliasi", label: "Rekonsiliasi", exact: false, section: "Laporan", icon: Scale, module: "laporan" },
   { to: "/app/laporan/penjualan", label: "Laporan Penjualan", exact: false, section: "Laporan", icon: BarChart3, module: "laporan" },
   { to: "/app/keuangan/aset", label: "Aset Tetap", exact: false, section: "Aset & Pajak", icon: Landmark, module: "keuangan" },
   { to: "/app/maintenance", label: "Pemeliharaan", exact: false, section: "Aset & Pajak", icon: Wrench, module: "proyek" },
@@ -183,6 +188,7 @@ const NAV_LABEL_EN: Record<string, string> = {
   "/app/keuangan/neraca": "Balance Sheet",
   "/app/keuangan/arus-kas": "Cash Flow",
   "/app/keuangan/umur-tagihan": "AR/AP Aging",
+  "/app/keuangan/rekonsiliasi": "Ledger Reconciliation",
   "/app/laporan/penjualan": "Sales Report",
   "/app/keuangan/aset": "Fixed Assets",
   "/app/maintenance": "Maintenance",
