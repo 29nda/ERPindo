@@ -5,7 +5,38 @@
 
 **Terakhir diperbarui:** 5 September 2026
 
-## Yang baru saja selesai — Fase 54b: audit kepatuhan pajak
+## Yang baru saja selesai — Fase 54c: audit penggajian
+
+Bagian 4 dari sepuluh bagian audit.
+
+**Hasilnya sebagian besar bersih, dan itu perlu saya nyatakan apa adanya.** Tiga
+puluh dua pemeriksaan baru dijalankan terhadap lembur, pesangon, THR,
+kompensasi PKWT, cuti tahunan, dan perhitungan masa kerja — seluruhnya lulus
+pada jalan pertama. Menemukan nol cacat di bagian yang ditulis hati-hati adalah
+hasil yang sah; yang tersisa nilainya adalah pagarnya, supaya perubahan
+berikutnya tidak diam-diam melanggarnya.
+
+Yang paling penting terjaga: **jam lembur yang dibayar selalu berjumlah persis
+sama dengan jam yang dimasukkan**. Tangga pengali yang tumpang tindih akan
+membayar satu jam dua kali, yang berlubang tidak membayarnya sama sekali — dan
+keduanya tidak terlihat dari membaca tabelnya.
+
+**Satu cacat ditemukan, dan letaknya tidak diduga: di layar, bukan di rumusnya.**
+Halaman penggajian menuliskan angka pembagi upah harian (25) sendiri, alih-alih
+membacanya dari satu sumber. Angka itu justru dirancang untuk bisa berubah —
+25 adalah asumsi pekan enam hari kerja. Begitu diubah, perhitungan memakai angka
+baru sementara layar tetap membagi 25, sehingga rincian yang dilihat karyawan
+tidak lagi sama dengan uang yang dibayarkan — pada komponen pesangon yang justru
+paling sering disengketakan. Sudah diperbaiki dan dipagari.
+
+**Satu keterbatasan yang perlu Anda ketahui:** pembagi 25 itu asumsi, bukan
+ketentuan peraturan, dan belum ada cara mengubahnya per perusahaan. Untuk
+pelanggan berpekan lima hari kerja, uang penggantian sisa cuti terhitung sekitar
+19% lebih rendah daripada yang lazim. Kodenya jujur menyatakan asumsinya dan
+layar menampilkan angkanya, jadi ini bukan kesalahan tersembunyi — tetapi layak
+diketahui sebelum menjual ke perusahaan berpekan lima hari.
+
+## Sebelumnya — Fase 54b: audit kepatuhan pajak
 
 Bagian 3 dari sepuluh bagian audit.
 
@@ -346,7 +377,7 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.202** |
+| Uji unit | 923 | **1.237** |
 | Uji ujung-ke-ujung (smoke) | 1.173 | **1.331** |
 | Simulasi klik di peramban nyata | 431 | **491** |
 
@@ -830,7 +861,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.331 skenario ujian end-to-end + 1.202 unit test + 491 cek simulasi UI browser nyata**, totalnya **3.024 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.331 skenario ujian end-to-end + 1.237 unit test + 491 cek simulasi UI browser nyata**, totalnya **3.059 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 
