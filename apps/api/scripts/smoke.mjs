@@ -2518,6 +2518,32 @@ try {
     `→ ${JSON.stringify(bigPurchase.json)}`,
   );
 
+  // --- Fase 54b: ambang persetujuan menghitung diskon ------------------------
+  //
+  // Nominal yang sama seperti bigPurchase (1.110.000 setelah PPN) tetapi
+  // berdiskon 50%, sehingga total sebenarnya 555.000 — di BAWAH ambang
+  // 1.000.000. Sebelum Fase 54b, pratinjau ambang mengabaikan diskon dan
+  // pembelian ini masuk antrean tanpa perlu: pemilik diminta menyetujui angka
+  // yang nilainya separuh ambangnya sendiri.
+  // Produk BERBEDA dari `prodBarang` secara sengaja: pembelian ini benar-benar
+  // diposting bila lolos ambang, dan memakai produk yang sama akan menggeser
+  // jumlah stok yang diasersi belasan cek di bawahnya.
+  const prodDiskon = await owner("POST", `/api/tenants/${tenantId}/products`, {
+    sku: "BRG-DISK", name: "Barang Uji Diskon", unit: "pcs", price: 100_000, cost: 100_000,
+  });
+  const diskonBesar = await admin("POST", `/api/tenants/${tenantId}/purchases`, {
+    contactId: supplier.json.id,
+    invoiceDate: "2026-07-03",
+    taxRate: 11,
+    warehouseId: whUtama.id,
+    lines: [{ productId: prodDiskon.json.id, qty: 10, unitPrice: 100_000, discountPct: 50 }],
+  });
+  check(
+    "54b pembelian berdiskon 50% (555.000) TIDAK masuk antrean persetujuan",
+    diskonBesar.status === 201,
+    `→ ${diskonBesar.status} ${JSON.stringify(diskonBesar.json)}`,
+  );
+
   let stockPending = await owner("GET", `/api/tenants/${tenantId}/stock`);
   check(
     "stok & jurnal TIDAK berubah saat menunggu (4 pcs setelah pembelian kecil)",
