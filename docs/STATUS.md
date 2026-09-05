@@ -5,7 +5,43 @@
 
 **Terakhir diperbarui:** 5 September 2026
 
-## Yang baru saja selesai — Fase 54d: audit persediaan & HPP
+## Yang baru saja selesai — Fase 54e: otorisasi & isolasi antar-perusahaan
+
+Bagian 6 dari sepuluh bagian audit.
+
+**Bagian ini yang paling sudah dipikirkan di seluruh aplikasi, dan itu perlu
+saya nyatakan lebih dulu.** Tiap perusahaan punya database sendiri, jadi data
+satu perusahaan tidak bisa bocor ke perusahaan lain karena satu baris kode yang
+lupa menyaring. Setiap alamat di aplikasi juga wajib punya penjaga, dan mesin
+yang memeriksanya sudah ada sejak lama — alamat publik baru tidak bisa lahir
+tanpa seseorang menyatakannya publik dengan sengaja.
+
+**Temuan utamanya: aplikasi punya dua pintu masuk, dan hanya satu yang
+menjaga.** Selain lewat layar, data bisa dijangkau lewat "kunci API" — cara
+program lain (mis. toko online) menyambung ke ERPindo. Pintu kunci API itu
+melewatkan tiga aturan yang berlaku di pintu layar. Yang paling terasa: **saat
+langganan berakhir, layar berubah menjadi baca-saja, tetapi kunci API berskop
+tulis milik perusahaan yang sama tetap bisa membuat data tanpa batas waktu.**
+Sekarang keduanya menanyakan aturan yang sama ke satu tempat.
+
+Ini juga saya buktikan, bukan diperkirakan: gerbangnya saya cabut sementara,
+lalu uji dijalankan penuh — kunci tulis pada perusahaan menunggak benar-benar
+berhasil membuat data.
+
+**Temuan kedua: janji keamanan yang hanya berlaku di sebagian layar.**
+Perusahaan yang menyalakan "wajib 2FA" ternyata tetap bisa dibuka anggotanya
+tanpa 2FA lewat halaman langganan dan halaman penagihan pelanggan — dua halaman
+yang sengaja dikecualikan dari penjaga biasa supaya perusahaan yang menunggak
+tetap bisa membayar. Sudah ditegakkan sekarang.
+
+Satu pengecualian saya pertahankan dengan sengaja: **halaman pembayaran tetap
+terjangkau dari alamat internet mana pun**, walaupun perusahaan membatasi
+alamat. Kewajiban 2FA selalu bisa dipenuhi sendiri lewat Profil; alamat
+internet tidak — dan mengunci pelanggan di luar kasirnya sendiri berarti
+langganannya berakhir karena kebijakan keamanannya sendiri, tanpa cara
+memperbaikinya dari tempat ia berada.
+
+## Sebelumnya — Fase 54d: audit persediaan & HPP
 
 Bagian 5 dari sepuluh bagian audit.
 
@@ -410,8 +446,8 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.244** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.340** |
+| Uji unit | 923 | **1.255** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.346** |
 | Simulasi klik di peramban nyata | 431 | **494** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
@@ -894,7 +930,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.340 skenario ujian end-to-end + 1.244 unit test + 494 cek simulasi UI browser nyata**, totalnya **3.078 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.346 skenario ujian end-to-end + 1.255 unit test + 494 cek simulasi UI browser nyata**, totalnya **3.095 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

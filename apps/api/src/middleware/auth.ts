@@ -1,5 +1,4 @@
 import {
-  ipAllowed,
   izinRute,
   PERMISSION_LABELS,
   PRESET_PERMISSIONS,
@@ -12,7 +11,7 @@ import { getCookie } from "hono/cookie";
 import type { MiddlewareHandler } from "hono";
 import type { AppEnv } from "../env";
 import { sha256Hex } from "../lib/crypto";
-import { ensureTenantMigrated, TENANT_SCHEMA_VERSION } from "../lib/tenantDb";
+import { gerbangTenant, kebijakanKeamanan } from "../lib/gerbangTenant";
 
 export const SESSION_COOKIE = "erpindo_sid";
 
@@ -106,37 +105,6 @@ export function requireTenantRole(minRole: Role): MiddlewareHandler<AppEnv> {
       }>();
 
     if (!row) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
-    if (row.status === "suspended") {
-      return c.json({ error: "Langganan perusahaan ini sedang ditangguhkan." }, 402);
-    }
-
-    /**
-     * Fase 24 — perusahaan yang belum berlangganan belum punya database.
-     *
-     * Penjaganya sengaja menguji `db_ref`, BUKAN status. Status bisa sudah
-     * `active` sementara databasenya belum sempat dibuat (webhook tiba saat
-     * pool penuh), dan justru keadaan itulah yang paling berbahaya: blok
-     * auto-migrasi di bawah memanggil `ensureTenantMigrated` yang akan meledak
-     * pada `db_ref` kosong, sehingga pelanggan melihat 500 alih-alih penjelasan.
-     *
-     * Karena itu penjaga ini WAJIB berada di atas blok migrasi, dan menolak
-     * SEMUA method termasuk GET — tidak ada data untuk dibaca. Endpoint billing
-     * tidak terpengaruh: ia memakai `requireAuth` + cek keanggotaan sendiri,
-     * jadi jalur pembayarannya tetap terbuka. Tanpa itu, penjaga ini akan
-     * mengunci pelanggan di luar halaman pembayarannya sendiri.
-     */
-    if (row.db_ref === "") {
-      const belumBayar = row.status === "provisioning";
-      return c.json(
-        {
-          error: belumBayar
-            ? "Perusahaan ini belum berlangganan. Aktifkan langganan untuk mulai mencatat transaksi."
-            : "Perusahaan ini sedang disiapkan. Buka halaman Langganan sebentar lagi.",
-          detail: belumBayar ? "belum-berlangganan" : "sedang-disiapkan",
-        },
-        402,
-      );
-    }
 
     // Keamanan enterprise (Fase 13g). Endpoint pengaturan keamanan sendiri
     // (…/security) SELALU dikecualikan dari pembatasan IP DAN dari kewajiban 2FA
@@ -144,50 +112,32 @@ export function requireTenantRole(minRole: Role): MiddlewareHandler<AppEnv> {
     // tanpa TOTP tetap bisa membukanya kembali. Ekspor audit (…/security/audit.csv)
     // BUKAN katup ini (tidak berakhir "/security") sehingga tetap ditegakkan.
     const isSecurityConfig = c.req.path.endsWith("/security");
-    if (!isSecurityConfig && row.allowed_ips) {
-      let list: string[] = [];
-      try {
-        list = JSON.parse(row.allowed_ips) as string[];
-      } catch {
-        list = [];
-      }
-      const ip = c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown";
-      if (!ipAllowed(ip, list)) {
-        return c.json(
-          { error: "Akses dari alamat IP ini diblokir oleh kebijakan keamanan perusahaan.", detail: "ip-not-allowed" },
-          403,
-        );
-      }
-    }
-    // 2FA wajib: anggota tanpa TOTP aktif harus menyiapkannya lebih dulu
-    // (endpoint /api/auth/totp/* berada di luar cakupan tenant, tetap terjangkau).
-    if (!isSecurityConfig && row.require_2fa === 1 && row.totp_enabled !== 1) {
-      return c.json(
-        { error: "Perusahaan ini mewajibkan verifikasi 2 langkah (2FA). Aktifkan 2FA di Profil untuk melanjutkan.", detail: "2fa-required" },
-        403,
-      );
+    const tolakKeamanan = kebijakanKeamanan(row, {
+      ip: c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown",
+      periksaIp: !isSecurityConfig,
+      periksa2fa: !isSecurityConfig,
+    });
+    if (tolakKeamanan) {
+      return c.json({ error: tolakKeamanan.pesan, detail: tolakKeamanan.detail }, tolakKeamanan.status);
     }
 
-    // Auto-migrasi malas: bila database tenant ini tertinggal skema (mis. baru
-    // saja rilis migrasi baru), terapkan sebelum modul menyentuhnya. Idempoten &
-    // hanya bekerja saat versi tertinggal. Kegagalan migrasi tidak boleh memutus
-    // akses total — dicatat lalu request lanjut (versi tetap tertinggal → dicoba
-    // ulang pada request berikutnya), sehingga bersifat swasembuh.
-    if (row.schema_version < TENANT_SCHEMA_VERSION) {
-      try {
-        await ensureTenantMigrated(c.env, { id: row.id, dbRef: row.db_ref, schemaVersion: row.schema_version });
-      } catch (err) {
-        console.error(`[db] auto-migrasi tenant ${row.id} gagal:`, err);
-      }
-    }
-    // Menunggak (trial berakhir / tagihan lewat jatuh tempo): data tetap bisa
-    // dibaca, tetapi semua perubahan diblokir sampai langganan aktif kembali.
-    if (row.status === "past_due" && c.req.method !== "GET") {
-      return c.json(
-        { error: "Masa trial/langganan telah berakhir — akun dalam mode baca-saja. Silakan aktifkan langganan." },
-        402,
-      );
-    }
+    /*
+     * Keadaan perusahaan (ditangguhkan · belum punya database · skema
+     * tertinggal · menunggak) ditanyakan ke `gerbangTenant` — satu tempat yang
+     * dipakai bersama pintu API key, supaya keduanya tidak bisa lagi berbeda
+     * pendapat.
+     *
+     * Letaknya SESUDAH pemeriksaan IP dan 2FA, sama seperti sebelum fase ini:
+     * perusahaan yang memblokir sebuah alamat harus menerima jawaban tentang
+     * alamatnya, bukan jawaban tentang tagihannya — dan auto-migrasi di dalam
+     * gerbang tidak perlu dijalankan untuk permintaan yang toh akan ditolak.
+     *
+     * Endpoint billing tidak lewat sini: ia memakai `requireAuth` + cek
+     * keanggotaan sendiri, jadi jalur pembayarannya tetap terbuka bagi
+     * perusahaan yang justru sedang berusaha membayar.
+     */
+    const tolak = await gerbangTenant(c.env, row, c.req.method);
+    if (tolak) return c.json({ error: tolak.pesan, detail: tolak.detail }, tolak.status);
     if (ROLE_LEVEL[row.role] < ROLE_LEVEL[minRole]) {
       return c.json({ error: "Anda tidak memiliki hak akses untuk aksi ini." }, 403);
     }

@@ -2,6 +2,7 @@ import type { ApiPaymentLink, Role } from "@erpindo/shared";
 import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
 import { audit } from "../lib/audit";
+import { kebijakanKeamanan, type BarisKeamanan } from "../lib/gerbangTenant";
 import { getTenantDb } from "../lib/tenantDb";
 import { requireAuth } from "../middleware/auth";
 import { appOrigin, clientIp } from "./auth";
@@ -45,17 +46,37 @@ function toApiLink(r: LinkRow): ApiPaymentLink {
  */
 async function loadMembership(
   c: { env: Env; get: (k: "user") => { id: string }; req: { param: (k: string) => string | undefined } },
-): Promise<{ id: string; name: string; dbRef: string; role: Role } | null> {
+): Promise<{ id: string; name: string; dbRef: string; role: Role; keamanan: BarisKeamanan } | null> {
   const tenantId = c.req.param("tenantId");
   if (!tenantId) return null;
   const row = await c.env.DB.prepare(
-    `SELECT t.id, t.name, t.db_ref, m.role
-     FROM memberships m JOIN tenants t ON t.id = m.tenant_id
+    `SELECT t.id, t.name, t.db_ref, t.require_2fa, t.allowed_ips, u.totp_enabled, m.role
+     FROM memberships m JOIN tenants t ON t.id = m.tenant_id JOIN users u ON u.id = m.user_id
      WHERE m.user_id = ? AND m.tenant_id = ?`,
   )
     .bind(c.get("user").id, tenantId)
-    .first<{ id: string; name: string; db_ref: string; role: Role }>();
-  return row ? { id: row.id, name: row.name, dbRef: row.db_ref, role: row.role } : null;
+    .first<{
+      id: string;
+      name: string;
+      db_ref: string;
+      require_2fa: number;
+      allowed_ips: string | null;
+      totp_enabled: number;
+      role: Role;
+    }>();
+  return row
+    ? {
+        id: row.id,
+        name: row.name,
+        dbRef: row.db_ref,
+        role: row.role,
+        keamanan: {
+          require_2fa: row.require_2fa,
+          allowed_ips: row.allowed_ips,
+          totp_enabled: row.totp_enabled,
+        },
+      }
+    : null;
 }
 
 export const collectionRoutes = new Hono<AppEnv>()
@@ -63,6 +84,11 @@ export const collectionRoutes = new Hono<AppEnv>()
   .get("/:tenantId/invoices/:id/payment-link", requireAuth, async (c) => {
     const m = await loadMembership(c);
     if (!m) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
+    // Fase 54e: jalur ini memeriksa keanggotaan sendiri, jadi kebijakan
+    // keamanan perusahaan harus ikut diperiksa di sini — kalau tidak, ia hanya
+    // berlaku di layar yang kebetulan memakai requireTenantRole.
+    const tolakKeamanan = kebijakanKeamanan(m.keamanan, { ip: clientIp(c) });
+    if (tolakKeamanan) return c.json({ error: tolakKeamanan.pesan, detail: tolakKeamanan.detail }, 403);
     const row = await c.env.DB.prepare(
       `SELECT order_id, amount, status, redirect_url, paid_at, created_at
        FROM payment_links WHERE tenant_id = ? AND invoice_id = ? ORDER BY created_at DESC LIMIT 1`,
@@ -76,6 +102,10 @@ export const collectionRoutes = new Hono<AppEnv>()
   .post("/:tenantId/invoices/:id/payment-link", requireAuth, async (c) => {
     const m = await loadMembership(c);
     if (!m) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
+    const tolakKeamananTulis = kebijakanKeamanan(m.keamanan, { ip: clientIp(c) });
+    if (tolakKeamananTulis) {
+      return c.json({ error: tolakKeamananTulis.pesan, detail: tolakKeamananTulis.detail }, 403);
+    }
     if (m.role === "viewer") return c.json({ error: "Peran Anda tidak dapat membuat tagihan." }, 403);
     // Fase 52c: perusahaan yang belum selesai diprovisi tidak punya database,
     // dan `getTenantDb(env, "")` akan melempar sebelum sempat menjelaskan apa
