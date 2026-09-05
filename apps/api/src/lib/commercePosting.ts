@@ -738,8 +738,23 @@ export async function voidDoc(
     // yang lebih baru pada produk+gudang yang sama (sudah terjual/ditransfer/
     // dibeli lagi → biaya rata-rata sudah tercampur, koreksi harus via retur).
     const productIds = [...new Set(movements.map((m) => m.product_id))];
+    /*
+     * Penjaga ini menolak produk berlot karena pembalikan di bawah menghitung
+     * `stock_levels` secara manual dan TIDAK menyentuh `stock_lots` — saldo
+     * turun sementara barisan lot tetap utuh, meninggalkan lot hantu yang
+     * mengaku menyimpan barang yang sudah tidak ada.
+     *
+     * Fase 54d: yang ditanyakan kini KEBERADAAN BARIS LOT-nya, bukan tanda
+     * `track_expiry` pada produknya. Tanda itu bisa dimatikan kapan saja lewat
+     * layar Produk — dan begitu dimatikan, pembelian lama yang sudah terlanjur
+     * membentuk lot lolos dari penjaga ini. Baris lotnya tidak ikut hilang
+     * hanya karena tandanya dicabut.
+     */
     const { results: tracked } = await db
-      .prepare(`SELECT id FROM products WHERE track_expiry = 1 AND id IN (${productIds.map(() => "?").join(",")})`)
+      .prepare(
+        `SELECT DISTINCT product_id AS id FROM stock_lots
+          WHERE qty > 0 AND product_id IN (${productIds.map(() => "?").join(",")})`,
+      )
       .bind(...productIds)
       .all<{ id: string }>();
     if (tracked.length > 0) {

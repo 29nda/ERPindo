@@ -13,6 +13,7 @@ import {
   accountIdByCode,
   InsufficientStockError,
   nextDocNo,
+  pindahStokAntarGudang,
   postJournal,
   stockIn,
   stockOut,
@@ -497,11 +498,12 @@ export const manufacturingRoutes = new Hono<AppEnv>()
         .all<{ id: string }>();
       if (!qcWhRows[0]) return c.json({ error: "Gudang karantina tidak ditemukan. Muat ulang halaman, lalu pilih dari daftar terbaru." }, 400);
 
-      let cost: number;
       try {
-        cost = await stockOut(db, {
+        // Karantina adalah pemindahan gudang biasa: lot ikut pindah.
+        await pindahStokAntarGudang(db, {
           productId: order.product_id,
-          warehouseId: order.warehouse_id,
+          dariGudangId: order.warehouse_id,
+          keGudangId: input.warehouseId,
           qty: order.qty,
           refType: "adjustment",
           refId: orderId,
@@ -510,14 +512,6 @@ export const manufacturingRoutes = new Hono<AppEnv>()
         if (err instanceof InsufficientStockError) return c.json({ error: err.message }, 400);
         throw err;
       }
-      await stockIn(db, {
-        productId: order.product_id,
-        warehouseId: input.warehouseId,
-        qty: order.qty,
-        unitCost: Math.round(cost / order.qty),
-        refType: "adjustment",
-        refId: orderId,
-      });
       await db
         .prepare(`UPDATE production_orders SET qc_status = 'quarantined', qc_warehouse_id = ? WHERE id = ?`)
         .bind(input.warehouseId, orderId)

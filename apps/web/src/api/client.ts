@@ -607,6 +607,13 @@ export const api = {
       }[];
       entriTimpang: { entryNo: string; entryDate: string; selisih: number }[];
       entriKosong: { entryNo: string; entryDate: string }[];
+      /** Rekonsiliasi kuantitas persediaan (Fase 54d). */
+      persediaan: {
+        kartuStok: { sku: string; produk: string; gudang: string; saldo: number; kartu: number; selisih: number }[];
+        saldoMinus: { sku: string; produk: string; gudang: string; saldo: number }[];
+        lotHantu: { sku: string; produk: string; gudang: string; saldo: number; lot: number }[];
+        lotBelumDidata: { sku: string; produk: string; gudang: string; saldo: number; lot: number }[];
+      };
       cocok: boolean;
     }>("GET", `/api/tenants/${tenantId}/reports/rekonsiliasi`),
   efaktur: (tenantId: string, from: string, to: string) =>

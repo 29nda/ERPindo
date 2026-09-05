@@ -579,7 +579,89 @@ export function RekonsiliasiPage() {
           </CardBody>
         </Card>
       ) : null}
+
+      {data ? (
+        <>
+          <DaftarSelisihStok
+            judul={u("rekonKartuStok")}
+            baris={data.persediaan.kartuStok.map((r) => ({
+              ...r,
+              angka: [
+                { label: u("rekonSaldo"), nilai: r.saldo },
+                { label: u("rekonKartu"), nilai: r.kartu },
+              ],
+            }))}
+          />
+          <DaftarSelisihStok
+            judul={u("rekonSaldoMinus")}
+            baris={data.persediaan.saldoMinus.map((r) => ({
+              ...r,
+              angka: [{ label: u("rekonSaldo"), nilai: r.saldo }],
+            }))}
+          />
+          <DaftarSelisihStok
+            judul={u("rekonLotHantu")}
+            baris={data.persediaan.lotHantu.map((r) => ({
+              ...r,
+              angka: [
+                { label: u("rekonSaldo"), nilai: r.saldo },
+                { label: u("rekonLot"), nilai: r.lot },
+              ],
+            }))}
+          />
+          <DaftarSelisihStok
+            judul={u("rekonLotBelumDidata")}
+            petunjuk={u("rekonLotBelumDidataPetunjuk")}
+            baris={data.persediaan.lotBelumDidata.map((r) => ({
+              ...r,
+              angka: [
+                { label: u("rekonSaldo"), nilai: r.saldo },
+                { label: u("rekonLot"), nilai: r.lot },
+              ],
+            }))}
+          />
+        </>
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * Satu daftar selisih kuantitas persediaan. Menghilang saat kosong — kartu
+ * bertuliskan "tidak ada temuan" empat kali berturut-turut membuat halaman ini
+ * terlihat sibuk padahal tidak ada apa-apa; ringkasan hijau di atas sudah
+ * mengatakannya sekali.
+ */
+function DaftarSelisihStok({
+  judul,
+  petunjuk,
+  baris,
+}: {
+  judul: string;
+  petunjuk?: string;
+  baris: { sku: string; produk: string; gudang: string; angka: { label: string; nilai: number }[] }[];
+}) {
+  if (baris.length === 0) return null;
+  return (
+    <Card>
+      <CardHeader title={judul} description={petunjuk} />
+      <CardBody>
+        <ul className="space-y-1 text-sm">
+          {baris.map((r) => (
+            <li key={`${r.sku}-${r.gudang}`}>
+              <span className="font-mono text-xs">{r.sku}</span> <span className="font-medium">{r.produk}</span> ·{" "}
+              {r.gudang} ·{" "}
+              {r.angka.map((a, i) => (
+                <span key={a.label}>
+                  {i > 0 ? " · " : null}
+                  {a.label} <span className="font-semibold text-danger-ink">{a.nilai.toLocaleString("id-ID")}</span>
+                </span>
+              ))}
+            </li>
+          ))}
+        </ul>
+      </CardBody>
+    </Card>
   );
 }
 

@@ -5,7 +5,40 @@
 
 **Terakhir diperbarui:** 5 September 2026
 
-## Yang baru saja selesai — Fase 54c: audit penggajian
+## Yang baru saja selesai — Fase 54d: audit persediaan & HPP
+
+Bagian 5 dari sepuluh bagian audit.
+
+**Temuan utamanya menyangkut pelanggan yang menjual barang kedaluwarsa** —
+apotek, distributor makanan, bahan kimia. Untuk mereka, tanggal kedaluwarsa
+bukan keterangan tambahan; itu satu-satunya alasan modul stoknya dipakai.
+
+Memindahkan barang dari satu gudang ke gudang lain **menghapus tanggal
+kedaluwarsanya**. Jumlahnya sampai, nilainya benar, pembukuannya seimbang —
+yang hilang hanya tanggalnya. Akibatnya halaman Kedaluwarsa di gudang tujuan
+kosong, dan barang yang paling dekat kedaluwarsa justru terjual paling akhir.
+Ini berlaku untuk transfer gudang maupun karantina hasil QC produksi. Sudah
+diperbaiki: lot dan tanggalnya kini ikut pindah, dan keduanya memakai satu
+fungsi yang sama supaya jalur pemindahan berikutnya tidak mengulang cacat yang
+sama.
+
+**Barang yang kembali lewat retur juga tidak lagi hilang dari buku lot.** Retur
+tidak menyebut lot mana yang kembali — memang tidak ada yang bisa menyebutnya —
+sehingga dulu barangnya masuk saldo tanpa masuk buku lot. Kini barang itu tetap
+tercatat sebagai "lot tanpa tanggal", dan laporan Rekonsiliasi menyebut persis
+produk, gudang, dan jumlah yang perlu didata ulang lewat Stok › Penyesuaian.
+Tanggal kedaluwarsanya sendiri tetap tidak bisa diketahui sistem — hanya orang
+yang memegang barangnya yang tahu.
+
+**Laporan Rekonsiliasi sekarang juga memeriksa jumlah barangnya, bukan hanya
+nilainya.** Tiga hal yang sebelumnya tidak diperiksa siapa pun: saldo stok yang
+tidak sama dengan kartu stoknya, saldo minus, dan buku lot yang mengaku
+menyimpan lebih banyak daripada yang ada. Ketiganya tidak terlihat dari neraca
+yang seimbang — dan itu dibuktikan, bukan diperkirakan: pencatatan kartu stok
+sengaja dilumpuhkan, ke-36 pemeriksaan "neraca tetap seimbang" tetap hijau,
+dan hanya gerbang baru ini yang menyalak.
+
+## Sebelumnya — Fase 54c: audit penggajian
 
 Bagian 4 dari sepuluh bagian audit.
 
@@ -377,9 +410,9 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.237** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.331** |
-| Simulasi klik di peramban nyata | 431 | **491** |
+| Uji unit | 923 | **1.244** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.340** |
+| Simulasi klik di peramban nyata | 431 | **494** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
@@ -861,7 +894,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.331 skenario ujian end-to-end + 1.237 unit test + 491 cek simulasi UI browser nyata**, totalnya **3.059 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.340 skenario ujian end-to-end + 1.244 unit test + 494 cek simulasi UI browser nyata**, totalnya **3.078 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 
