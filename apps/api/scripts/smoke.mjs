@@ -5294,6 +5294,26 @@ try {
   );
   const stillSecurity = await owner("GET", `/api/tenants/${tenant2}/security`);
   check("keamanan: /security tetap terjangkau walau 2FA wajib (katup pengaman)", stillSecurity.status === 200, `→ ${stillSecurity.status}`);
+
+  // --- Fase 54e: jalur ber-cek-keanggotaan-sendiri ikut menegakkan 2FA ------
+  //
+  // Billing dan penagihan pelanggan sengaja tidak memakai requireTenantRole
+  // (supaya perusahaan menunggak tetap bisa membayar dan menagih) — dan karena
+  // itu keduanya dulu ikut melewatkan kewajiban 2FA sepenuhnya. Perusahaan
+  // yang menyalakan "wajib 2FA" tetap melihat anggotanya membuka data faktur
+  // dari kedua jalur itu tanpa 2FA.
+  const billing2fa = await owner("GET", `/api/tenants/${tenant2}/billing`);
+  check(
+    "54e halaman langganan ikut menegakkan 2FA wajib (403)",
+    billing2fa.status === 403 && billing2fa.json?.detail === "2fa-required",
+    `→ ${billing2fa.status} ${JSON.stringify(billing2fa.json)}`,
+  );
+  const tagih2fa = await owner("GET", `/api/tenants/${tenant2}/invoices/tidak-ada/payment-link`);
+  check(
+    "54e status link pembayaran ikut menegakkan 2FA wajib (403)",
+    tagih2fa.status === 403 && tagih2fa.json?.detail === "2fa-required",
+    `→ ${tagih2fa.status} ${JSON.stringify(tagih2fa.json)}`,
+  );
   // Matikan lagi 2FA wajib.
   await owner("PATCH", `/api/tenants/${tenant2}/security`, { require2fa: false, allowedIps: [] });
   const unblocked = await owner("GET", `/api/tenants/${tenant2}/accounts`);
@@ -5311,6 +5331,28 @@ try {
   check("keamanan: IP dalam rentang CIDR → 200", ipAllowed.status === 200, `→ ${ipAllowed.status}`);
   const secConfigFromBadIp = await owner("GET", `/api/tenants/${tenant2}/security`, undefined, { "cf-connecting-ip": "198.51.100.9" });
   check("keamanan: /security terjangkau dari IP mana pun (katup pengaman)", secConfigFromBadIp.status === 200, `→ ${secConfigFromBadIp.status}`);
+
+  // 54e — pembatasan IP berlaku untuk penagihan pelanggan, tetapi SENGAJA tidak
+  // untuk halaman pembayaran: 2FA selalu bisa dipenuhi sendiri lewat Profil,
+  // sementara alamat IP tidak. Mengunci pelanggan di luar kasirnya sendiri
+  // berarti langganannya berakhir karena kebijakan keamanannya sendiri, tanpa
+  // cara memperbaikinya dari tempat ia berada.
+  const tagihBadIp = await owner("GET", `/api/tenants/${tenant2}/invoices/tidak-ada/payment-link`, undefined, {
+    "cf-connecting-ip": "198.51.100.9",
+  });
+  check(
+    "54e penagihan pelanggan ikut menegakkan pembatasan IP (403)",
+    tagihBadIp.status === 403 && tagihBadIp.json?.detail === "ip-not-allowed",
+    `→ ${tagihBadIp.status} ${JSON.stringify(tagihBadIp.json)}`,
+  );
+  const billingBadIp = await owner("GET", `/api/tenants/${tenant2}/billing`, undefined, {
+    "cf-connecting-ip": "198.51.100.9",
+  });
+  check(
+    "54e halaman pembayaran TETAP terjangkau dari IP mana pun (jalan keluar)",
+    billingBadIp.status === 200,
+    `→ ${billingBadIp.status} ${JSON.stringify(billingBadIp.json)}`,
+  );
 
   // Ekspor audit CSV (dari IP yang diizinkan) → text/csv berisi header.
   const auditCsv = await owner("GET", `/api/tenants/${tenant2}/security/audit.csv`, undefined, { "cf-connecting-ip": "203.0.113.42" });
@@ -7163,6 +7205,25 @@ try {
     buyPrice: 1,
   });
   check("mode baca-saja: MENULIS ditolak 402", writeWhilePastDue.status === 402);
+
+  // --- Fase 54e: mode baca-saja berlaku juga di pintu API key ---------------
+  //
+  // Dua pintu masuk konteks tenant, satu aturan. Sebelum fase ini pintu API key
+  // hanya memeriksa "ditangguhkan", sehingga kunci berskop TULIS milik
+  // perusahaan yang sama tetap bisa membuat data tanpa batas waktu — sementara
+  // pemiliknya melihat layar yang mengatakan akunnya baca-saja.
+  const v1BacaPastDue = await v1("GET", "/products", undefined, writeKey);
+  check(
+    "54e API key: MEMBACA tetap boleh saat menunggak (200)",
+    v1BacaPastDue.status === 200,
+    `→ ${v1BacaPastDue.status}`,
+  );
+  const v1TulisPastDue = await v1("POST", "/contacts", { type: "customer", name: "Lewat API saat menunggak" }, writeKey);
+  check(
+    "54e API key berskop tulis DITOLAK 402 saat menunggak (mode baca-saja)",
+    v1TulisPastDue.status === 402 && v1TulisPastDue.json?.detail === "baca-saja",
+    `→ ${v1TulisPastDue.status} ${JSON.stringify(v1TulisPastDue.json)}`,
+  );
 
   // Anti lock-in (Fase 8b): data TETAP bisa diekspor walau langganan berakhir.
   const expPastDue = await owner("GET", `/api/tenants/${tenantId}/export/full`);

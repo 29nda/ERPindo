@@ -77,7 +77,7 @@ const DIKECUALIKAN = new Map([
     "kunci API publik — memeriksa `db_ref` di jalurnya sendiri",
   ],
   [
-    "SELECT t.id, t.name, t.db_ref, m.role",
+    "SELECT t.id, t.name, t.db_ref, t.require_2fa",
     "`collections.ts` — rutenya memeriksa `m.dbRef` sendiri dan menjawab 409",
   ],
   [

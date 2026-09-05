@@ -6,6 +6,7 @@ import type { AppEnv, Env } from "../env";
 import { audit } from "../lib/audit";
 import { samaAman } from "../lib/crypto";
 import { getTenantDb, pastikanTenantTerprovisi, TANPA_DB } from "../lib/tenantDb";
+import { kebijakanKeamanan } from "../lib/gerbangTenant";
 import { requireAuth } from "../middleware/auth";
 import { appOrigin, clientIp } from "./auth";
 
@@ -177,6 +178,8 @@ async function loadMembership(
     trial_ends_at: string | null;
     subscription_ends_at: string | null;
     pending_plan: Plan | null;
+    require_2fa: number;
+    totp_enabled: number;
     role: Role;
   };
 } | null> {
@@ -184,8 +187,8 @@ async function loadMembership(
   if (!tenantId) return null;
   const row = await c.env.DB.prepare(
     `SELECT t.id, t.status, t.plan, t.legacy_full_access, t.db_ref, t.trial_ends_at, t.subscription_ends_at,
-            t.pending_plan, m.role
-     FROM memberships m JOIN tenants t ON t.id = m.tenant_id
+            t.pending_plan, t.require_2fa, u.totp_enabled, m.role
+     FROM memberships m JOIN tenants t ON t.id = m.tenant_id JOIN users u ON u.id = m.user_id
      WHERE m.user_id = ? AND m.tenant_id = ?`,
   )
     .bind(c.get("user").id, tenantId)
@@ -198,9 +201,24 @@ async function loadMembership(
       trial_ends_at: string | null;
       subscription_ends_at: string | null;
       pending_plan: Plan | null;
+      require_2fa: number;
+      totp_enabled: number;
       role: Role;
     }>();
   return row ? { tenantId, row } : null;
+}
+
+/**
+ * Kebijakan keamanan untuk jalur pembayaran (Fase 54e).
+ *
+ * Kewajiban 2FA ditegakkan; pembatasan IP TIDAK. Perbedaannya disengaja dan
+ * bukan kelonggaran: 2FA selalu bisa dipenuhi sendiri oleh yang bersangkutan
+ * lewat Profil, sementara alamat IP tidak — dan mengunci pelanggan di luar
+ * kasirnya sendiri berarti langganannya berakhir karena kebijakan keamanannya
+ * sendiri, tanpa cara memperbaikinya dari tempat ia berada.
+ */
+function keamananBilling(row: { require_2fa: number; totp_enabled: number }) {
+  return kebijakanKeamanan({ ...row, allowed_ips: null }, { ip: "", periksaIp: false });
 }
 
 // Endpoint tenant (di-mount di /api/tenants) — pola requireAuth + cek keanggotaan
@@ -209,6 +227,8 @@ export const billingRoutes = new Hono<AppEnv>()
   .get("/:tenantId/billing", requireAuth, async (c) => {
     const m = await loadMembership(c);
     if (!m) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
+    const tolakKeamanan = keamananBilling(m.row);
+    if (tolakKeamanan) return c.json({ error: tolakKeamanan.pesan, detail: tolakKeamanan.detail }, 403);
 
     // Pemulihan-diri (Fase 24). Webhook Xendit-lah yang biasanya membuatkan
     // database setelah pembayaran, tetapi ia bisa tiba saat pool sedang penuh —
@@ -249,6 +269,8 @@ export const billingRoutes = new Hono<AppEnv>()
   .post("/:tenantId/billing/checkout", requireAuth, async (c) => {
     const m = await loadMembership(c);
     if (!m) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
+    const tolakKeamanan = keamananBilling(m.row);
+    if (tolakKeamanan) return c.json({ error: tolakKeamanan.pesan, detail: tolakKeamanan.detail }, 403);
     if (m.row.role !== "owner") return c.json({ error: "Hanya Pemilik yang dapat mengatur langganan." }, 403);
     // Paket yang dibeli (Fase 13b). Sejak Fase 30 hanya ada satu — "lengkap" —
     // dan harganya tetap dibaca dari PLAN_LIMITS, bukan ditulis ulang di sini.

@@ -15,6 +15,7 @@ import type { MiddlewareHandler } from "hono";
 import type { AppEnv } from "../env";
 import { audit } from "../lib/audit";
 import { generateToken, sha256Hex } from "../lib/crypto";
+import { gerbangTenant } from "../lib/gerbangTenant";
 import { getTenantDb } from "../lib/tenantDb";
 import { runWebhookDeliveries } from "../lib/webhooks";
 import { requireAuth, requireTenantRole } from "../middleware/auth";
@@ -49,7 +50,8 @@ export function requireApiKey(minScope: ApiScope): MiddlewareHandler<AppEnv> {
 
     const keyHash = await sha256Hex(token);
     const key = await c.env.DB.prepare(
-      `SELECT k.id AS key_id, k.scope, t.id, t.name, t.slug, t.db_ref, t.status, t.plan, t.legacy_full_access
+      `SELECT k.id AS key_id, k.scope, t.id, t.name, t.slug, t.db_ref, t.status, t.plan, t.legacy_full_access,
+              t.schema_version
        FROM api_keys k JOIN tenants t ON t.id = k.tenant_id
        WHERE k.key_hash = ? AND k.revoked_at IS NULL`,
     )
@@ -64,10 +66,30 @@ export function requireApiKey(minScope: ApiScope): MiddlewareHandler<AppEnv> {
         status: string;
         plan: Plan;
         legacy_full_access: number;
+        schema_version: number;
       }>();
 
     if (!key) return c.json({ error: "API key tidak valid atau dicabut.", detail: "invalid-api-key" }, 401);
-    if (key.status === "suspended") return c.json({ error: "Langganan perusahaan ditangguhkan.", detail: "suspended" }, 402);
+
+    /*
+     * Fase 54e — keadaan perusahaan ditanyakan ke gerbang yang sama dengan
+     * pintu sesi. Sebelum ini pintu API key hanya memeriksa "ditangguhkan",
+     * sehingga tiga aturan lain diam-diam tidak berlaku di sini:
+     *
+     * - MODE BACA-SAJA saat menunggak. Halaman aplikasi memblokir tiap
+     *   perubahan dengan 402, sementara API key berskop tulis milik perusahaan
+     *   yang sama tetap bisa membuat faktur tanpa batas waktu.
+     * - Perusahaan TANPA DATABASE. `getTenantDb(env, "")` melempar sebelum
+     *   sempat menjelaskan apa pun — pemanggil menerima 500, bukan alasan.
+     * - AUTO-MIGRASI. Tenant yang skemanya tertinggal menerima galat SQL
+     *   ("no such column") sampai ada orang yang kebetulan membuka aplikasi
+     *   webnya.
+     *
+     * Ketiganya bukan keputusan; hanya tidak ada satu tempat yang memaksa kedua
+     * pintu sepakat. Sekarang ada.
+     */
+    const tolak = await gerbangTenant(c.env, key, c.req.method);
+    if (tolak) return c.json({ error: tolak.pesan, detail: tolak.detail }, tolak.status);
 
     // Fase 30: API publik dulu terkunci paket Enterprise. Dengan satu paket,
     // gerbang itu dicabut — kuncinya kini semata-mata kepemilikan API key yang
