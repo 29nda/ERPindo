@@ -506,6 +506,26 @@ try {
     `→ kolom tidak lengkap`,
   );
   check("F54a halaman Rekonsiliasi bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
+
+  // F54d — rekonsiliasi KUANTITAS persediaan (Fase 54d), dijalankan terhadap
+  // tenant demo yang tersemai penuh. Ketiga judul di bawah hanya muncul saat
+  // ada temuan, jadi ketiadaannya adalah pernyataan yang sebenarnya: pada data
+  // sebesar ini pun saldo, kartu stok, dan buku lot masih saling menjelaskan.
+  check(
+    "F54d Rekonsiliasi: tidak ada saldo stok yang berpisah dari kartu stoknya",
+    !/tidak sama dengan kartu stoknya/i.test(rekonBody),
+    `→ ada selisih kartu stok di data demo`,
+  );
+  check(
+    "F54d Rekonsiliasi: tidak ada saldo stok minus",
+    !/Saldo stok minus/i.test(rekonBody),
+    `→ ada saldo minus di data demo`,
+  );
+  check(
+    "F54d Rekonsiliasi: tidak ada lot yang mengaku lebih banyak daripada saldonya",
+    !/mengaku lebih banyak daripada saldonya/i.test(rekonBody),
+    `→ ada lot hantu di data demo`,
+  );
   // Kembali ke dasbor: asersi berikutnya (F0b) memeriksa teks dasbor, dan
   // meninggalkan peramban di halaman lain membuatnya memerah karena alasan
   // yang tidak ada hubungannya dengan yang diujinya.

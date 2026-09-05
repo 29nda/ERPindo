@@ -550,11 +550,109 @@ export const reportRoutes = new Hono<AppEnv>()
 
     const entriKosong = kosongRows.results.map((r) => ({ entryNo: r.entry_no, entryDate: r.entry_date }));
 
+    /*
+     * ------------------------------------------------------------------------
+     * Rekonsiliasi PERSEDIAAN (Fase 54d)
+     * ------------------------------------------------------------------------
+     *
+     * Tiga pertanyaan yang tidak dijawab siapa pun sebelum ini, dan tak satu
+     * pun tampak dari neraca saldo — nilainya bisa persis benar sementara
+     * kuantitasnya sudah tidak masuk akal.
+     *
+     * 1. KARTU STOK vs SALDO. `stock_levels.qty` seharusnya sama persis dengan
+     *    jumlah seluruh `stock_movements.qty` untuk produk+gudang yang sama:
+     *    saldo adalah kartu stok yang dijumlahkan, bukan angka yang berdiri
+     *    sendiri. Selisih berarti ada jalur yang menulis salah satunya saja —
+     *    dan jalur seperti itu memang pernah ada (pembalikan pembelian
+     *    menghitung level manual).
+     *
+     * 2. SALDO MINUS. Mustahil secara fisik. `stockOut` menolaknya, tetapi
+     *    penolakan itu baru berumur sejak Fase 29a; data yang lahir sebelumnya
+     *    tidak ikut terbetulkan sendiri.
+     *
+     * 3. LOT vs SALDO. Buku lot tidak boleh mengaku menyimpan lebih banyak
+     *    daripada saldonya (lot hantu — barang yang sudah tidak ada tetapi
+     *    masih dijanjikan FEFO). Kebalikannya, lot yang lebih sedikit daripada
+     *    saldo pada produk berpelacakan, BUKAN kerusakan melainkan data yang
+     *    belum lengkap: barang retur yang kembali tanpa keterangan lot. Itu
+     *    didaftar terpisah sebagai pekerjaan gudang, bukan sebagai selisih.
+     */
+    const [kartuRows, minusRows, lotRows] = await Promise.all([
+      db
+        .prepare(
+          `SELECT p.sku, p.name AS produk, w.name AS gudang, s.qty AS saldo,
+                  COALESCE(m.total, 0) AS kartu
+           FROM stock_levels s
+           JOIN products p ON p.id = s.product_id
+           JOIN warehouses w ON w.id = s.warehouse_id
+           LEFT JOIN (SELECT product_id, warehouse_id, SUM(qty) AS total
+                      FROM stock_movements GROUP BY product_id, warehouse_id) m
+             ON m.product_id = s.product_id AND m.warehouse_id = s.warehouse_id
+           WHERE s.qty != COALESCE(m.total, 0)
+           ORDER BY p.sku LIMIT 50`,
+        )
+        .all<{ sku: string; produk: string; gudang: string; saldo: number; kartu: number }>(),
+      db
+        .prepare(
+          `SELECT p.sku, p.name AS produk, w.name AS gudang, s.qty AS saldo
+           FROM stock_levels s
+           JOIN products p ON p.id = s.product_id
+           JOIN warehouses w ON w.id = s.warehouse_id
+           WHERE s.qty < 0 ORDER BY s.qty LIMIT 50`,
+        )
+        .all<{ sku: string; produk: string; gudang: string; saldo: number }>(),
+      db
+        .prepare(
+          `SELECT p.sku, p.name AS produk, p.track_expiry, w.name AS gudang, s.qty AS saldo,
+                  COALESCE(l.total, 0) AS lot
+           FROM stock_levels s
+           JOIN products p ON p.id = s.product_id
+           JOIN warehouses w ON w.id = s.warehouse_id
+           LEFT JOIN (SELECT product_id, warehouse_id, SUM(qty) AS total
+                      FROM stock_lots GROUP BY product_id, warehouse_id) l
+             ON l.product_id = s.product_id AND l.warehouse_id = s.warehouse_id
+           WHERE (COALESCE(l.total, 0) > s.qty)
+              OR (p.track_expiry = 1 AND COALESCE(l.total, 0) < s.qty)
+           ORDER BY p.sku LIMIT 50`,
+        )
+        .all<{ sku: string; produk: string; track_expiry: number; gudang: string; saldo: number; lot: number }>(),
+    ]);
+
+    const persediaan = {
+      kartuStok: kartuRows.results.map((r) => ({
+        sku: r.sku,
+        produk: r.produk,
+        gudang: r.gudang,
+        saldo: r.saldo,
+        kartu: r.kartu,
+        selisih: r.saldo - r.kartu,
+      })),
+      saldoMinus: minusRows.results.map((r) => ({
+        sku: r.sku,
+        produk: r.produk,
+        gudang: r.gudang,
+        saldo: r.saldo,
+      })),
+      lotHantu: lotRows.results
+        .filter((r) => r.lot > r.saldo)
+        .map((r) => ({ sku: r.sku, produk: r.produk, gudang: r.gudang, saldo: r.saldo, lot: r.lot })),
+      lotBelumDidata: lotRows.results
+        .filter((r) => r.lot < r.saldo)
+        .map((r) => ({ sku: r.sku, produk: r.produk, gudang: r.gudang, saldo: r.saldo, lot: r.lot })),
+    };
+
     return c.json({
       pos,
       entriTimpang,
       entriKosong,
-      cocok: pos.every((p) => p.cocok) && entriTimpang.length === 0 && entriKosong.length === 0,
+      persediaan,
+      cocok:
+        pos.every((p) => p.cocok) &&
+        entriTimpang.length === 0 &&
+        entriKosong.length === 0 &&
+        persediaan.kartuStok.length === 0 &&
+        persediaan.saldoMinus.length === 0 &&
+        persediaan.lotHantu.length === 0,
     });
   })
 

@@ -3022,6 +3022,73 @@ try {
   const lotsByViewer = await viewer("GET", `/api/tenants/${tenantId}/stock-lots`);
   check("viewer boleh melihat daftar lot", lotsByViewer.status === 200);
 
+  // --- Fase 54d: lot tidak boleh menguap saat barang berpindah/kembali ------
+  //
+  // Sisa di Gudang Utama pada titik ini: LOT-B sebanyak 3.
+  //
+  // Pemindahan antar gudang dulunya `stockOut` di asal + `stockIn` di tujuan
+  // tanpa keterangan lot: kuantitas dan nilainya benar, tanggal kedaluwarsanya
+  // hilang. Tidak ada gerbang yang bisa melihatnya — jurnalnya memang nol.
+  const trfLot = await owner("POST", `/api/tenants/${tenantId}/stock-transfers`, {
+    productId: prodExp.json.id,
+    fromWarehouseId: whUtama.id,
+    toWarehouseId: wh2.json.id,
+    qty: 2,
+  });
+  lotsRes = await owner("GET", `/api/tenants/${tenantId}/stock-lots`);
+  expLots = (lotsRes.json?.lots ?? []).filter((l) => l.sku === "BRG-EXP");
+  const lotCabang = expLots.find((l) => l.warehouseName === "Gudang Cabang");
+  check(
+    "54d transfer antar gudang membawa serta lot & tanggal kedaluwarsanya",
+    trfLot.status === 201 && lotCabang?.lotNo === "LOT-B" && lotCabang?.expiryDate === expFar && lotCabang?.qty === 2,
+    `→ ${JSON.stringify(expLots)}`,
+  );
+  check(
+    "54d gudang asal menyisakan lot yang sama, bukan baris baru",
+    expLots.filter((l) => l.warehouseName !== "Gudang Cabang").every((l) => l.lotNo === "LOT-B") &&
+      expLots.find((l) => l.warehouseName !== "Gudang Cabang")?.qty === 1,
+    `→ ${JSON.stringify(expLots)}`,
+  );
+
+  // Dikembalikan agar keadaan stok sesudah blok ini sama persis seperti sebelumnya.
+  await owner("POST", `/api/tenants/${tenantId}/stock-transfers`, {
+    productId: prodExp.json.id,
+    fromWarehouseId: wh2.json.id,
+    toWarehouseId: whUtama.id,
+    qty: 2,
+  });
+  lotsRes = await owner("GET", `/api/tenants/${tenantId}/stock-lots`);
+  expLots = (lotsRes.json?.lots ?? []).filter((l) => l.sku === "BRG-EXP");
+  check(
+    "54d transfer balik menyatu ke lot yang sama (satu baris, 3 pcs)",
+    expLots.length === 1 && expLots[0]?.lotNo === "LOT-B" && expLots[0]?.qty === 3,
+    `→ ${JSON.stringify(expLots)}`,
+  );
+
+  // Retur penjualan mengembalikan barang tanpa menyebut lot — memang tidak ada
+  // yang bisa menyebutnya. Dulu barang itu masuk saldo tanpa masuk buku lot,
+  // dan halaman Kedaluwarsa berhenti menjelaskan sisa yang ada di rak.
+  const returExp = await owner("POST", `/api/tenants/${tenantId}/returns`, {
+    refType: "invoice",
+    refId: sellFefo2.json.id,
+    warehouseId: whUtama.id,
+    returnDate: "2026-07-05",
+    lines: [{ productId: prodExp.json.id, qty: 1 }],
+  });
+  lotsRes = await owner("GET", `/api/tenants/${tenantId}/stock-lots`);
+  expLots = (lotsRes.json?.lots ?? []).filter((l) => l.sku === "BRG-EXP");
+  const lotTanpaTanggal = expLots.find((l) => l.expiryDate === null);
+  check(
+    "54d retur tanpa keterangan lot tetap muncul di buku lot sebagai lot tanpa tanggal",
+    returExp.status === 201 && lotTanpaTanggal?.qty === 1 && lotTanpaTanggal?.lotNo === null,
+    `→ ${returExp.status} ${JSON.stringify(expLots)}`,
+  );
+  check(
+    "54d buku lot menjelaskan SELURUH saldo produk berpelacakan (3 + 1 = 4)",
+    expLots.reduce((t, l) => t + l.qty, 0) === 4,
+    `→ ${JSON.stringify(expLots)}`,
+  );
+
   const tbAfterLots = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
   check("neraca saldo TETAP seimbang setelah alur lot/FEFO", tbAfterLots.json?.balanced === true);
 
@@ -8571,6 +8638,30 @@ try {
     "54a rekonsiliasi menyatakan dirinya cocok",
     rekon.json?.cocok === true,
     `→ ${JSON.stringify(rekon.json?.pos)}`,
+  );
+
+  // --- Fase 54d: rekonsiliasi KUANTITAS persediaan --------------------------
+  //
+  // Pos "Persediaan" di atas membandingkan NILAI-nya. Tiga pemeriksaan berikut
+  // membandingkan kuantitasnya, dan itu pertanyaan yang berbeda: nilai bisa
+  // persis benar sementara saldo, kartu stok, dan buku lot sudah saling
+  // bertentangan.
+  const psd = rekon.json?.persediaan ?? {};
+  check(
+    "54d saldo stok sama dengan jumlah kartu stoknya di semua gudang",
+    (psd.kartuStok ?? []).length === 0,
+    `→ ${JSON.stringify(psd.kartuStok)}`,
+  );
+  check("54d tidak ada saldo stok minus", (psd.saldoMinus ?? []).length === 0, `→ ${JSON.stringify(psd.saldoMinus)}`);
+  check(
+    "54d tidak ada lot hantu (buku lot melebihi saldonya)",
+    (psd.lotHantu ?? []).length === 0,
+    `→ ${JSON.stringify(psd.lotHantu)}`,
+  );
+  check(
+    "54d lot yang belum didata terlihat oleh laporan, bukan hilang diam-diam",
+    Array.isArray(psd.lotBelumDidata),
+    `→ ${JSON.stringify(psd.lotBelumDidata)}`,
   );
 
   console.log("15. Logout");

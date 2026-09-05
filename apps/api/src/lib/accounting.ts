@@ -302,9 +302,32 @@ export async function journalSourceDoc(db: SqlExecutor, entryId: string): Promis
   return null;
 }
 
+/** Satu baris lot: nomor batch + tanggal kedaluwarsa, boleh dua-duanya kosong. */
+export type LotStok = { lotNo: string | null; expiryDate: string | null };
+
 /**
  * Barang masuk: catat mutasi dan perbarui level stok dengan moving average:
  * avg_baru = (qty_lama×avg_lama + qty_masuk×biaya_masuk) / (qty_lama+qty_masuk)
+ *
+ * ## Barang masuk TANPA keterangan lot pada produk berpelacakan (Fase 54d)
+ *
+ * Retur penjualan, refund POS, dan pembatalan faktur mengembalikan barang ke
+ * gudang tanpa menyebut lot mana yang kembali — memang tidak ada yang
+ * menanyakannya, dan struk pelanggan tidak menyimpannya.
+ *
+ * Sebelumnya barang itu masuk ke `stock_levels` saja. Buku lot berhenti
+ * menjelaskan saldo yang ada: apotek yang meretur 10 boks melihat stoknya
+ * kembali 10, sementara halaman Kedaluwarsa tidak menyebut satu pun dari
+ * kesepuluhnya. Barangnya ada di rak, tanggal kedaluwarsanya lenyap dari
+ * sistem, dan tidak ada satu pun layar yang mengatakan begitu.
+ *
+ * Kini barang tanpa keterangan tetap masuk buku lot sebagai lot **tanpa
+ * tanggal** — terlihat di halaman Kedaluwarsa dengan tanda tanya, bukan hilang
+ * darinya. Rekonsiliasi Persediaan menghitungnya sebagai "lot belum didata"
+ * supaya petugas gudang tahu persis berapa banyak yang perlu didata ulang.
+ *
+ * Hanya berlaku untuk produk `track_expiry` — barang yang memang tidak dilacak
+ * kedaluwarsanya tidak perlu baris lot sama sekali.
  */
 export async function stockIn(
   db: SqlExecutor,
@@ -316,16 +339,25 @@ export async function stockIn(
     refType: string;
     refId: string;
     /** Opsional: lot/batch + tanggal kedaluwarsa (produk berpelacakan). */
-    lot?: { lotNo: string | null; expiryDate: string | null };
+    lot?: LotStok;
   },
 ): Promise<void> {
-  if (input.lot) {
+  let lot = input.lot;
+  if (!lot) {
+    const { results: pr } = await db
+      .prepare(`SELECT track_expiry FROM products WHERE id = ?`)
+      .bind(input.productId)
+      .all<{ track_expiry: number }>();
+    if (pr[0]?.track_expiry === 1) lot = { lotNo: null, expiryDate: null };
+  }
+
+  if (lot) {
     const { results } = await db
       .prepare(
         `SELECT id FROM stock_lots WHERE product_id = ? AND warehouse_id = ?
            AND COALESCE(lot_no,'') = COALESCE(?,'') AND COALESCE(expiry_date,'') = COALESCE(?,'')`,
       )
-      .bind(input.productId, input.warehouseId, input.lot.lotNo, input.lot.expiryDate)
+      .bind(input.productId, input.warehouseId, lot.lotNo, lot.expiryDate)
       .all<{ id: string }>();
     if (results[0]) {
       await db.prepare(`UPDATE stock_lots SET qty = qty + ? WHERE id = ?`).bind(input.qty, results[0].id).run();
@@ -334,7 +366,7 @@ export async function stockIn(
         .prepare(
           `INSERT INTO stock_lots (id, product_id, warehouse_id, lot_no, expiry_date, qty) VALUES (?, ?, ?, ?, ?, ?)`,
         )
-        .bind(crypto.randomUUID(), input.productId, input.warehouseId, input.lot.lotNo, input.lot.expiryDate, input.qty)
+        .bind(crypto.randomUUID(), input.productId, input.warehouseId, lot.lotNo, lot.expiryDate, input.qty)
         .run();
     }
   }
@@ -459,7 +491,24 @@ export async function stockOutMulti(
  */
 export async function stockOut(
   db: SqlExecutor,
-  input: { productId: string; warehouseId: string; qty: number; refType: string; refId: string },
+  input: {
+    productId: string;
+    warehouseId: string;
+    qty: number;
+    refType: string;
+    refId: string;
+    /**
+     * Wadah keluaran opsional: bila diisi, lot yang benar-benar dikonsumsi
+     * FEFO ditambahkan ke sini beserta qty-nya. Dipakai `pindahStokAntarGudang`
+     * untuk membangun kembali lot yang sama di gudang tujuan.
+     *
+     * Sengaja berupa wadah, bukan nilai kembalian: `stockOut` dipanggil di
+     * delapan tempat yang semuanya hanya membutuhkan HPP-nya, dan mengubah
+     * bentuk kembaliannya berarti menyentuh kedelapan tempat itu tanpa
+     * menambah apa pun di sana.
+     */
+    lotTerpakai?: (LotStok & { qty: number })[];
+  },
 ): Promise<number> {
   const { results } = await db
     .prepare(`SELECT qty, avg_cost FROM stock_levels WHERE product_id = ? AND warehouse_id = ?`)
@@ -513,18 +562,92 @@ export async function stockOut(
   let remaining = input.qty;
   const { results: lots } = await db
     .prepare(
-      `SELECT id, qty FROM stock_lots
+      `SELECT id, qty, lot_no, expiry_date FROM stock_lots
        WHERE product_id = ? AND warehouse_id = ? AND qty > 0
        ORDER BY expiry_date IS NULL, expiry_date ASC, created_at ASC`,
     )
     .bind(input.productId, input.warehouseId)
-    .all<{ id: string; qty: number }>();
+    .all<{ id: string; qty: number; lot_no: string | null; expiry_date: string | null }>();
   for (const lot of lots) {
     if (remaining <= 0) break;
     const take = Math.min(lot.qty, remaining);
     await db.prepare(`UPDATE stock_lots SET qty = qty - ? WHERE id = ?`).bind(take, lot.id).run();
+    input.lotTerpakai?.push({ lotNo: lot.lot_no, expiryDate: lot.expiry_date, qty: take });
     remaining -= take;
   }
 
   return input.qty * level.avg_cost;
+}
+
+/**
+ * Pindah stok antar gudang pada biaya rata-rata gudang asal (Fase 54d).
+ *
+ * ## Kenapa ini perlu jadi satu fungsi
+ *
+ * Ada DUA jalur pemindahan antar gudang — transfer gudang di modul Stok, dan
+ * karantina hasil QC di modul Produksi — dan keduanya ditulis dengan pola yang
+ * sama: `stockOut` di gudang asal lalu `stockIn` di gudang tujuan.
+ *
+ * Pola itu MENGHAPUS LOT. `stockOut` mengonsumsi lot FEFO di gudang asal,
+ * sementara `stockIn` di tujuan dipanggil tanpa keterangan lot sama sekali.
+ * Barangnya sampai, kuantitasnya benar, nilainya benar — tetapi tanggal
+ * kedaluwarsanya tidak ikut pindah. Untuk distributor obat atau makanan (satu-
+ * satunya jenis pelanggan yang menyalakan pelacakan kedaluwarsa), memindahkan
+ * barang dari gudang pusat ke gudang cabang cukup untuk membuat tanggal
+ * kedaluwarsanya lenyap. Laporan FEFO cabang kosong, dan barang yang paling
+ * dekat kedaluwarsa justru terjual paling akhir.
+ *
+ * Tidak ada gerbang yang bisa melihatnya: jurnalnya nol (nilai perusahaan tidak
+ * berubah), saldo stoknya benar, dan neraca tetap seimbang.
+ *
+ * Di sini lot yang benar-benar dikonsumsi di gudang asal dibangun kembali satu
+ * per satu di gudang tujuan. Sisa yang tidak berlot (produk tanpa pelacakan)
+ * masuk sebagai satu baris biasa.
+ */
+export async function pindahStokAntarGudang(
+  db: SqlExecutor,
+  input: {
+    productId: string;
+    dariGudangId: string;
+    keGudangId: string;
+    qty: number;
+    refType: string;
+    refId: string;
+  },
+): Promise<number> {
+  const lotTerpakai: (LotStok & { qty: number })[] = [];
+  const biaya = await stockOut(db, {
+    productId: input.productId,
+    warehouseId: input.dariGudangId,
+    qty: input.qty,
+    refType: input.refType,
+    refId: input.refId,
+    lotTerpakai,
+  });
+  const unitCost = input.qty > 0 ? Math.round(biaya / input.qty) : 0;
+
+  let sisa = input.qty;
+  for (const lot of lotTerpakai) {
+    await stockIn(db, {
+      productId: input.productId,
+      warehouseId: input.keGudangId,
+      qty: lot.qty,
+      unitCost,
+      refType: input.refType,
+      refId: input.refId,
+      lot: { lotNo: lot.lotNo, expiryDate: lot.expiryDate },
+    });
+    sisa -= lot.qty;
+  }
+  if (sisa > 0) {
+    await stockIn(db, {
+      productId: input.productId,
+      warehouseId: input.keGudangId,
+      qty: sisa,
+      unitCost,
+      refType: input.refType,
+      refId: input.refId,
+    });
+  }
+  return biaya;
 }

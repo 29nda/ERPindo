@@ -18,6 +18,7 @@ import {
   InsufficientStockError,
   nextDocNo,
   PeriodLockedError,
+  pindahStokAntarGudang,
   postJournal,
   reverseJournal,
   stockIn,
@@ -794,9 +795,11 @@ export const commerceRoutes = new Hono<AppEnv>()
     const transferId = crypto.randomUUID();
     let cost: number;
     try {
-      cost = await stockOut(db, {
+      // Lot & tanggal kedaluwarsa ikut pindah — lihat `pindahStokAntarGudang`.
+      cost = await pindahStokAntarGudang(db, {
         productId: input.productId,
-        warehouseId: input.fromWarehouseId,
+        dariGudangId: input.fromWarehouseId,
+        keGudangId: input.toWarehouseId,
         qty: input.qty,
         refType: "adjustment",
         refId: transferId,
@@ -805,14 +808,6 @@ export const commerceRoutes = new Hono<AppEnv>()
       if (err instanceof InsufficientStockError) return c.json({ error: err.message }, 400);
       throw err;
     }
-    await stockIn(db, {
-      productId: input.productId,
-      warehouseId: input.toWarehouseId,
-      qty: input.qty,
-      unitCost: Math.round(cost / input.qty),
-      refType: "adjustment",
-      refId: transferId,
-    });
 
     await audit(c.env, {
       action: "inventory.transferred",
