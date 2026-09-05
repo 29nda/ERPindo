@@ -3,9 +3,48 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 4 September 2026
+**Terakhir diperbarui:** 5 September 2026
 
-## Yang baru saja selesai — Fase 53a: tiga paket menggantikan harga tunggal
+## Yang baru saja selesai — Fase 54a: audit alur uang & integritas jurnal
+
+Ini bagian 1 dan 2 dari sepuluh bagian audit menyeluruh yang kita sepakati.
+
+**Yang paling perlu Anda ketahui:** neraca saldo yang seimbang **tidak**
+membuktikan pembukuan benar. Sebuah jurnal bisa seimbang tetapi memasukkan
+angka ke akun yang keliru, dan sampai fase ini tidak ada satu pun pemeriksaan
+di aplikasi yang bisa melihatnya.
+
+Sekarang ada. Halaman baru **Laporan → Rekonsiliasi** membandingkan saldo akun
+kontrol dengan buku pembantunya: Piutang Usaha dengan sisa faktur, Utang Usaha
+dengan sisa tagihan pemasok, Persediaan dengan nilai stok. Begitu salah satu
+berpisah, ada posting yang salah arah — dan halaman ini satu-satunya yang bisa
+menunjukkannya. Ini juga laporan yang diminta akuntan tiap penutupan buku, jadi
+ia berguna untuk pelanggan Anda, bukan cuma untuk pemeriksaan internal.
+
+Untuk membuktikan penjaga ini benar-benar bekerja, saya sengaja merusak satu
+posting retur penjualan supaya masuk ke akun yang salah, dengan jurnal yang
+tetap seimbang. Hasilnya: **neraca saldo tetap hijau, rekonsiliasi yang
+menangkapnya.** Itu seluruh alasan halaman ini ada.
+
+**Satu perbaikan di jantung pembukuan.** Baris jurnal dulu disimpan satu per
+satu tanpa transaksi yang membungkusnya, sehingga kegagalan di tengah proses
+bisa meninggalkan jurnal yang tersimpan permanen dengan debit dan kredit tidak
+sama. Sekarang seluruh barisnya masuk sekaligus atau tidak sama sekali.
+
+**Catatan kejujuran.** Tiga dugaan awal saya keliru — kodenya ternyata sudah
+menjaga hal-hal yang saya curigai. Dan cacat pertama yang ditemukan laporan
+baru ini justru **milik laporan itu sendiri**: rumusnya salah menghitung faktur
+yang sudah lunas lalu diretur tunai sebagai "piutang negatif". Saya nyaris
+melaporkannya sebagai kesalahan pembukuan Anda. Diperbaiki, dan sebabnya
+dicatat di dalam kodenya supaya tidak terulang.
+
+### Sisa bagian audit
+
+Delapan bagian lagi: kepatuhan pajak, penggajian, persediaan & HPP, otorisasi
+dan isolasi antar-perusahaan, alur pengguna ujung-ke-ujung, ketahanan saat
+gagal, naskah & pengalaman pakai, dan situs publik.
+
+## Sebelumnya — Fase 53a: tiga paket menggantikan harga tunggal
 
 Harga ERPindo kini bertiga: **Starter Rp 750.000, Business Rp 1.500.000,
 Enterprise Rp 3.000.000** per perusahaan per bulan. Bayar tahunan di muka
@@ -271,8 +310,8 @@ boleh naik:
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
 | Uji unit | 923 | **1.171** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.321** |
-| Simulasi klik di peramban nyata | 431 | **487** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.330** |
+| Simulasi klik di peramban nyata | 431 | **491** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
@@ -754,7 +793,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.321 skenario ujian end-to-end + 1.171 unit test + 487 cek simulasi UI browser nyata**, totalnya **2.979 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.330 skenario ujian end-to-end + 1.171 unit test + 491 cek simulasi UI browser nyata**, totalnya **2.992 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

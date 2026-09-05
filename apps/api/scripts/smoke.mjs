@@ -500,6 +500,41 @@ try {
   });
   check("jurnal TIDAK seimbang DITOLAK 400", badJournal.status === 400);
 
+  // --- Fase 54a: akun tak dikenal TIDAK boleh meninggalkan jurnal timpang ----
+  //
+  // `postJournal` memeriksa keseimbangan SEBELUM menyisipkan, lalu menyisipkan
+  // entri dan tiap barisnya lewat pernyataan TERPISAH — bukan batch. Kolom
+  // `journal_lines.account_id` punya FK ke `accounts(id)`, jadi baris dengan
+  // akun tak dikenal melempar SAAT INSERT, setelah entri dan baris-baris
+  // sebelumnya sudah tersimpan.
+  //
+  // Akibatnya jurnal berstatus `posted` yang debitnya tidak sama dengan
+  // kreditnya, permanen, dan tidak terlihat sampai ada yang menyadari neraca
+  // saldo tidak balance. Endpoint ini memvalidasi `projectId` dan
+  // `costCenterId` ada, tetapi tidak `accountId`.
+  const akunHantu = await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
+    entryDate: "2026-07-02",
+    memo: "Akun tidak ada di baris kedua",
+    lines: [
+      { accountId: kas.id, debit: 1_000_000, credit: 0 },
+      { accountId: "akun-yang-tidak-ada", debit: 0, credit: 1_000_000 },
+    ],
+  });
+  check(
+    "54a jurnal dengan akun tak dikenal ditolak 400, bukan 500",
+    akunHantu.status === 400,
+    `→ ${akunHantu.status} ${JSON.stringify(akunHantu.json)}`,
+  );
+  // Penjaga yang sesungguhnya: buku besar tidak boleh menyimpan sisa jurnal
+  // separuh jadi. Diperiksa lewat neraca saldo — kalau ada entri timpang,
+  // total debit dan kreditnya berbeda.
+  const nsSetelahHantu = await owner("GET", `/api/tenants/${tenantId}/trial-balance`);
+  check(
+    "54a neraca saldo tetap balance setelah percobaan akun hantu",
+    nsSetelahHantu.status === 200 && nsSetelahHantu.json?.balanced === true,
+    `→ ${JSON.stringify({ balanced: nsSetelahHantu.json?.balanced, d: nsSetelahHantu.json?.totalDebit, k: nsSetelahHantu.json?.totalCredit })}`,
+  );
+
   await owner("POST", `/api/tenants/${tenantId}/journal-entries`, {
     entryDate: "2026-07-03",
     memo: "Penjualan tunai",
@@ -8477,6 +8512,41 @@ try {
   );
 
   // --- Logout -----------------------------------------------------------------
+  // --- Fase 54a: rekonsiliasi buku besar vs buku pembantu -------------------
+  //
+  // Dijalankan DI SINI, setelah seluruh transaksi smoke terbentuk — faktur,
+  // pembayaran, retur, pembelian, POS, produksi, penggajian, aset, valas — jadi
+  // yang diuji adalah buku yang penuh, bukan buku kosong yang selalu cocok.
+  //
+  // Invarian ini menangkap kelas yang TIDAK bisa dilihat neraca saldo: posting
+  // yang seimbang tetapi salah arah. Neraca saldo tetap hijau saat faktur
+  // menambah Piutang sementara pelunasannya mengurangi akun lain.
+  console.log("14z. Rekonsiliasi buku besar vs buku pembantu (Fase 54a)");
+  const rekon = await owner("GET", `/api/tenants/${tenantId}/reports/rekonsiliasi`);
+  check("54a laporan rekonsiliasi 200", rekon.status === 200, `→ ${rekon.status}`);
+  for (const pos of rekon.json?.pos ?? []) {
+    check(
+      `54a ${pos.nama}: buku besar cocok dengan buku pembantu`,
+      pos.cocok === true,
+      `→ BB ${pos.bukuBesar} vs BP ${pos.bukuPembantu} (selisih ${pos.selisih}, toleransi ${pos.toleransi})`,
+    );
+  }
+  check(
+    "54a tidak ada jurnal berstatus posted tanpa satu baris pun",
+    (rekon.json?.entriKosong ?? []).length === 0,
+    `→ ${JSON.stringify(rekon.json?.entriKosong)}`,
+  );
+  check(
+    "54a tidak ada jurnal berstatus posted yang timpang sendiri",
+    (rekon.json?.entriTimpang ?? []).length === 0,
+    `→ ${JSON.stringify(rekon.json?.entriTimpang)}`,
+  );
+  check(
+    "54a rekonsiliasi menyatakan dirinya cocok",
+    rekon.json?.cocok === true,
+    `→ ${JSON.stringify(rekon.json?.pos)}`,
+  );
+
   console.log("15. Logout");
   const out = await owner("POST", "/api/auth/logout");
   check("logout 200", out.status === 200);
