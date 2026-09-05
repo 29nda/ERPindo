@@ -1,4 +1,5 @@
 import {
+  PEMBAGI_UPAH_HARIAN,
   PTKP_STATUSES,
   type ApiEmployee,
   type ApiLeaveRequest,
@@ -2407,7 +2408,7 @@ function SeveranceCard({ tenantId, employees }: { tenantId: string; employees: A
                       <Tr>
                         <Td label={u("komponen")}>{u("uangPenggantianCuti")}</Td>
                         <Td label={u("dasarPerhitungan")}>
-                          {s.sisaCutiHari} {u("hariSatuan")} × {formatIDR(Math.round(s.upahSebulan / 25))}
+                          {s.sisaCutiHari} {u("hariSatuan")} × {formatIDR(Math.round(s.upahSebulan / PEMBAGI_UPAH_HARIAN))}
                         </Td>
                         <Td label={u("jumlah")} numeric>
                           {formatIDR(s.uphCuti)}
