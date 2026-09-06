@@ -5,7 +5,111 @@
 
 **Terakhir diperbarui:** 6 September 2026
 
-## Yang baru saja selesai — Fase 54i: situs publik
+## Laporan akhir — audit sepuluh bagian (Fase 54a–54i)
+
+Audit yang Anda minta sudah selesai seluruhnya, sepuluh bagian. Halaman ini
+merangkumnya: apa yang dicari, apa yang ditemukan, dan — bagian yang paling
+penting — apa yang **masih terbuka**.
+
+### Cara kerjanya, dan kenapa berubah di tengah bagian pertama
+
+Tiga tebakan pertama saya salah. Ketiganya "cacat" yang ternyata sudah dijaga
+di baris tepat di atas yang saya baca. Menebak satu per satu memang cara yang
+buruk untuk memeriksa kode yang ditulis hati-hati.
+
+Metodenya diganti: bukan lagi "apakah baris ini benar", melainkan **"sifat apa
+yang harus selalu berlaku, dan adakah yang bisa melanggarnya"** — lalu sifat
+itu dijadikan penjaga permanen. Itu sebabnya tiap bagian meninggalkan penjaga,
+bukan hanya perbaikan. Perbaikan menyelesaikan satu kasus; penjaga
+menyelesaikan kelasnya.
+
+Tiap penjaga dibuktikan dengan cara yang sama: kodenya **sengaja dirusak** dan
+penjaganya harus memerah. Penjaga yang tidak pernah dibuktikan memerah hanyalah
+penjaga yang belum ketahuan tidak bekerja.
+
+### Sepuluh bagian, satu kalimat masing-masing
+
+| # | Bagian | Temuan terpenting |
+|---|---|---|
+| 1–2 | **Uang & jurnal** | Neraca yang seimbang tidak membuktikan pembukuan benar — jurnal bisa seimbang sempurna sambil memasukkan angka ke akun yang salah. Dibangun laporan **Rekonsiliasi** yang membandingkan Piutang, Utang, dan Persediaan dengan buku pembantunya. Penyisipan jurnal dibuat atomik: sebelumnya kegagalan di tengah bisa meninggalkan jurnal timpang yang permanen dan senyap |
+| 3 | **Pajak** | Tarif PPh 21 TER kategori B menyilang kategori C pada satu pita sempit — karyawan dengan tanggungan lebih banyak membayar lebih besar. Ambang persetujuan pembelian mengabaikan diskon baris |
+| 4 | **Penggajian** | 32 pemeriksaan dijalankan, **seluruhnya lulus** pada jalan pertama. Satu cacat justru ada di layar: angka pembagi upah harian diketik ulang, jadi rincian yang dilihat karyawan bisa berbeda dari uang yang dibayarkan |
+| 5 | **Persediaan & HPP** | Kartu stok bisa berhenti dicatat tanpa satu pun dari 36 pemeriksaan neraca memerah. Perpindahan barang antar-gudang kehilangan nomor lot dan tanggal kedaluwarsanya |
+| 6 | **Hak akses & isolasi** | Aturan "perusahaan ini boleh menulis atau tidak" tersebar di banyak tempat dan tidak semuanya sama. Disatukan ke satu pintu; API publik ternyata melewatkan sebagian aturannya |
+| 7 | **Alur pengguna** | Dibuka sebagai pelanggan baru sungguhan di peramban. Perusahaan yang belum berlangganan melihat modul kosong tanpa penjelasan — keadaan yang belum pernah dibuka satu pun pengujian, karena akun uji selalu berlangganan |
+| 8 | **Ketahanan saat gagal** | Kedua jalur uang membuat tagihan di Xendit **sebelum** mencatatnya. Satu gangguan singkat bisa membuat pelanggan membayar tagihan yang tidak kita kenali — uang masuk, langganan tidak aktif, tanpa jejak. Satu perusahaan yang gagal juga bisa membatalkan seluruh pekerjaan terjadwal platform |
+| 9 | **Naskah & pengalaman pakai** | Lima kendali tanpa nama terbaca pembaca layar. Server sudah tahu kolom mana yang salah saat formulir ditolak, lalu membuangnya: hanya 3 dari ±40 halaman menampilkannya |
+| 10 | **Situs publik** | Tiga paket dijual, satu yang benar-benar bisa dibeli. Halaman "Harga" masih menjual satu paket, sembilan fase setelah paketnya menjadi tiga |
+
+### Pola yang berulang di sepuluh bagian
+
+Tiga kali sepuluh bagian ini menemukan hal yang sama, dan itu layak Anda
+ketahui karena ia akan terjadi lagi:
+
+1. **Yang sudah diputuskan lalu berubah, tetapi tidak semua tempat ikut
+   berubah.** Paket satu menjadi tiga, dan halaman Harga tertinggal. Angka
+   pembagi upah harian ada di dua tempat. Harga paket dieja di naskah. Selalu
+   sama bentuknya: satu angka atau satu keputusan dipikul dua tempat, dan tidak
+   ada yang memeriksa yang lain.
+2. **Penjaga yang benar, diterapkan pada sebagian tempat saja.** Penyapu naskah
+   yang tidak turun ke subfolder. Pengecualian penanda yang hanya berlaku untuk
+   satu cara penulisan. Penjaga angka yang hanya menyapu dua dokumen. Semuanya
+   hijau, dan semuanya tidak melihat sebagian tempat.
+3. **Sampel bukan sapuan.** Di bagian 9 saya memeriksa dua belas halaman
+   tersibuk dan melaporkan "satu masalah di seluruh aplikasi". Penjaga yang
+   menyapu **setiap** halaman menemukan empat lagi. Di bagian 10, penjaga baru
+   menemukan dua tempat yang tidak saya baca sama sekali.
+
+### Angka pemeriksaan
+
+Audit menambah **160 pemeriksaan otomatis**: dari 2.979 menjadi **3.139**.
+Semuanya wajib lulus sebelum perubahan apa pun bisa masuk.
+
+### Yang MASIH terbuka — daftar jujur
+
+**Perlu keputusan atau tindakan Anda:**
+
+- **Tarif PPh 21 TER kategori B, pita Rp 8.850.001–Rp 9.200.000.** Satu pita
+  tarif yang menyilang kategori C. Dugaan kuat salah salin, bukan bunyi
+  peraturannya — tetapi angka penggantinya **sengaja tidak saya tebak**.
+  Perlu dicocokkan dengan PMK 168/2023 oleh konsultan pajak. Sampai itu terjadi,
+  pita itu terdaftar sebagai pengecualian yang akan menagih dirinya sendiri
+  begitu diperbaiki.
+- **Kunci produksi**: Xendit, domain khusus beserta alamat aplikasinya, Resend
+  (pengiriman surel), Google OAuth, dan token Cloudflare (hanya diperlukan bila
+  perusahaan melewati enam).
+- **Tiga hal yang membedakan paket** — kanal dukungan, waktu respons, jam
+  pendampingan — sudah tertulis di data tetapi tidak diumumkan, karena belum ada
+  mekanisme yang menjaganya. Menjanjikannya adalah keputusan Anda.
+- **Pembagi upah harian** dipatok 25 (asumsi pekan enam hari) tanpa cara
+  mengubahnya per perusahaan. Pelanggan berpekan lima hari akan melihat uang
+  penggantian sisa cuti sekitar 19% lebih rendah daripada yang lazim dipakai.
+
+**Pekerjaan teknis yang tersisa, berurut menurut kepentingannya:**
+
+1. **Mode baca-saja saat langganan berakhir** — ekspor data harus tetap hidup.
+   Ini yang paling mendesak: ia harus ada sebelum pelanggan pertama sampai pada
+   perpanjangan pertamanya.
+2. **Perhitungan prorata saat naik paket.** Pemilih paket yang baru dibuat
+   membeli periode baru penuh; sisa siklus berjalan belum diperhitungkan.
+3. **Halaman Panduan tidak terbaca perayap.** Terdaftar di peta situs untuk
+   Google, tetapi disajikan dengan cara yang membuat mesin pencari dan mesin
+   penjawab hanya menerima halaman kosong. 25 modul panduan — naskah terbesar di
+   situs — tidak terbaca oleh pembaca yang justru kita undang.
+4. **Rekonsiliasi belum mencakup semua akun kontrol.** Hutang Gaji, PPN
+   Masukan/Keluaran, dan Piutang Karyawan belum punya buku pembantu untuk
+   dibandingkan. Masing-masing perlu didefinisikan lebih dulu — mendefinisikannya
+   asal-asalan akan mengulang persis kesalahan rumus yang saya buat sendiri di
+   piutang pada bagian pertama.
+
+**Yang tidak diaudit, dan sebabnya dinyatakan apa adanya:** format ekspor
+e-Faktur/Coretax dan bukti potong e-Bupot. Keduanya menuntut spesifikasi resmi
+DJP untuk dibandingkan, bukan penalaran struktural. Sama seperti nilai tarif
+TER, itu pekerjaan yang perlu dokumen di tangan — dan mengaku sudah
+memeriksanya akan menjadi kebohongan yang tepat berada di tempat paling
+berbahaya, karena pelanggan yang memakai angkanya berurusan dengan kantor pajak.
+
+## Sebelumnya — Fase 54i: situs publik
 
 Bagian 10 dari sepuluh bagian audit — bagian terakhir.
 
