@@ -1,4 +1,12 @@
-import { PAKET_MASUK, PLAN_LIMITS } from "@erpindo/shared";
+import {
+  hargaPaket,
+  HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN,
+  PAKET_DISARANKAN,
+  PLAN_LIMITS,
+  PLANS,
+  takTerbatas,
+  type Plan,
+} from "@erpindo/shared";
 import { Link } from "@tanstack/react-router";
 import { Check, Mail, Minus, ShieldCheck } from "lucide-react";
 import { L, PublicFooter, PublicHeader, PublicShell } from "../../components/publik";
@@ -98,28 +106,69 @@ function Isi({ children }: { children: React.ReactNode }) {
 
 export function HargaPage() {
   const lang = useLang();
-  const bulanan = PLAN_LIMITS[PAKET_MASUK].pricePerMonth;
+  /**
+   * Seluruh angka di halaman ini dibaca dari `PLAN_LIMITS`, tidak satu pun
+   * dieja. Versi sebelumnya mengeja satu paket dan bertahan sembilan fase
+   * setelah paketnya menjadi tiga — lihat komentar `T_HARGA` di `teks.ts`.
+   */
+  const barisBatas: [Dual, (p: Plan) => string][] = [
+    [T_HARGA.batasBadanUsaha, (p) => String(PLAN_LIMITS[p].maxBadanUsaha)],
+    [
+      T_HARGA.batasLokasi,
+      (p) =>
+        takTerbatas(PLAN_LIMITS[p].maxLokasi)
+          ? pick(T_HARGA.batasTakTerbatas, lang)
+          : String(PLAN_LIMITS[p].maxLokasi),
+    ],
+    [T_HARGA.batasKaryawan, (p) => String(PLAN_LIMITS[p].karyawanTermasuk)],
+    [T_HARGA.batasLampiran, (p) => `${PLAN_LIMITS[p].lampiranGb} GB`],
+    [T_HARGA.batasAi, (p) => String(PLAN_LIMITS[p].aiDailyLimit)],
+  ];
   return (
     <PublicShell>
       <PublicHeader />
       <Kepala judul={T_HARGA.judul} pengantar={T_HARGA.pengantar} />
       <Isi>
         <section className="py-8">
-          <div className="rounded-card border border-brand-line bg-brand-surface p-6">
-            <p className="text-sm font-medium text-ink-muted">{pick(T_HARGA.kartuJudul, lang)}</p>
-            <p className="num mt-2 text-4xl font-bold text-ink">{formatRupiah(bulanan)}</p>
-            <p className="mt-1 text-sm text-ink-soft">{pick(T_HARGA.kartuSatuan, lang)}</p>
-            <p className="mt-4 text-[13px] text-ink-muted">{pick(T_HARGA.kartuCatatan, lang)}</p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link to="/daftar">
-                <Button>{L(lang, "Daftar & Berlangganan", "Sign up & subscribe")}</Button>
-              </Link>
-              <a href="/#harga">
-                <Button variant="secondary">
-                  {L(lang, "Bandingkan dengan biaya per pengguna", "Compare against per-user pricing")}
-                </Button>
-              </a>
-            </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {PLANS.map((plan) => {
+              const batas = PLAN_LIMITS[plan];
+              const disarankan = plan === PAKET_DISARANKAN;
+              return (
+                <div
+                  key={plan}
+                  data-testid={`harga-paket-${plan}`}
+                  className={`rounded-card border p-5 ${
+                    disarankan ? "border-brand-500 bg-brand-surface" : "border-line bg-surface"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-ink">{batas.label}</p>
+                    {disarankan ? (
+                      <span className="rounded bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {pick(T_HARGA.kartuDisarankan, lang)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="num mt-2 text-3xl font-bold text-ink">{formatRupiah(batas.pricePerMonth)}</p>
+                  <p className="mt-1 text-sm text-ink-soft">{pick(T_HARGA.kartuSatuan, lang)}</p>
+                  <p className="mt-1 text-[13px] text-ink-muted">
+                    {isi(pick(T_HARGA.kartuTahunan, lang), formatRupiah(hargaPaket(plan, "tahunan")))}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-4 text-[13px] text-ink-muted">{pick(T_HARGA.kartuCatatan, lang)}</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link to="/daftar">
+              <Button>{pick(T_HARGA.kartuAjakan, lang)}</Button>
+            </Link>
+            <a href="/#harga">
+              <Button variant="secondary">
+                {L(lang, "Bandingkan dengan biaya per pengguna", "Compare against per-user pricing")}
+              </Button>
+            </a>
           </div>
         </section>
 
@@ -131,21 +180,64 @@ export function HargaPage() {
           <p className="text-[15px] leading-relaxed text-ink-soft">
             {pick(T_HARGA.batasPengantar, lang)}
           </p>
-          <p className="mt-3 flex items-start gap-3 text-[15px] leading-relaxed text-ink-soft">
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[28rem] text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-line text-ink-muted">
+                  <th className="py-2 pr-3 font-medium">{pick(T_HARGA.batasPaket, lang)}</th>
+                  {PLANS.map((plan) => (
+                    <th key={plan} className="py-2 pr-3 font-medium">
+                      {PLAN_LIMITS[plan].label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {barisBatas.map(([label, nilai]) => (
+                  <tr key={label.id} className="border-b border-line last:border-0">
+                    <td className="py-2 pr-3 text-ink-soft">{pick(label, lang)}</td>
+                    {PLANS.map((plan) => (
+                      <td key={plan} className="num py-2 pr-3 text-ink">
+                        {nilai(plan)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 flex items-start gap-3 text-[13px] leading-relaxed text-ink-muted">
             <Minus className="mt-1 size-4 shrink-0 text-awas-ink" aria-hidden />
-            <span>{pick(T_HARGA.batasAi, lang)}</span>
+            <span>{isi(pick(T_HARGA.batasKelebihan, lang), formatRupiah(HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN))}</span>
           </p>
+          <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">{pick(T_HARGA.batasAiAlasan, lang)}</p>
         </Bagian>
 
         <Bagian judul={T_HARGA.tigaTahunJudul}>
           <p className="text-[15px] leading-relaxed text-ink-soft">
             {pick(T_HARGA.tigaTahunPengantar, lang)}
           </p>
-          <div className="mt-4 rounded-card border border-line bg-surface p-5">
-            <p className="text-sm text-ink-muted">{isi(pick(T_HARGA.tigaTahunBaris, lang), formatRupiah(bulanan))}</p>
-            <p className="num mt-1.5 text-3xl font-bold text-ink">
-              {formatRupiah(bulanan * BULAN_TIGA_TAHUN)}
-            </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {PLANS.map((plan) => {
+              const bulanan = PLAN_LIMITS[plan].pricePerMonth;
+              return (
+                <div key={plan} className="rounded-card border border-line bg-surface p-5">
+                  <p className="text-sm font-medium text-ink">{PLAN_LIMITS[plan].label}</p>
+                  <p className="mt-2 text-[13px] text-ink-muted">
+                    {isi(pick(T_HARGA.tigaTahunBulanan, lang), formatRupiah(bulanan))}
+                  </p>
+                  <p className="num mt-0.5 text-2xl font-bold text-ink">
+                    {formatRupiah(bulanan * BULAN_TIGA_TAHUN)}
+                  </p>
+                  <p className="mt-3 text-[13px] text-ink-muted">
+                    {isi(pick(T_HARGA.tigaTahunTahunan, lang), formatRupiah(hargaPaket(plan, "tahunan")))}
+                  </p>
+                  <p className="num mt-0.5 text-2xl font-bold text-ink">
+                    {formatRupiah(hargaPaket(plan, "tahunan") * (BULAN_TIGA_TAHUN / 12))}
+                  </p>
+                </div>
+              );
+            })}
           </div>
           <p className="mt-3 text-[13px] text-ink-muted">{pick(T_HARGA.tigaTahunCatatan, lang)}</p>
         </Bagian>

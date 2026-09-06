@@ -4,15 +4,21 @@ import {
   CUSTOM_FIELD_MODULES,
   CUSTOM_FIELD_TYPES,
   DOC_TYPES,
+  hargaPaket,
   isValidDocPattern,
+  PAID_PLANS,
+  PERIODE_TAGIHAN,
   PLAN_LABELS,
   PLAN_LIMITS,
+  PLANS,
   renderDocNumber,
+  takTerbatas,
   type ApiDocNumbering,
   type CustomFieldModule,
   type CustomFieldType,
   type DocType,
-  type Plan,
+  type PaidPlan,
+  type PeriodeTagihan,
 } from "@erpindo/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
@@ -128,8 +134,17 @@ export function SubscriptionCard() {
   const isOwner = tenant.role === "owner";
   const billing = useQuery({ queryKey: ["billing", tenant.tenantId], queryFn: () => api.billing(tenant.tenantId) });
 
+  /**
+   * Paket yang boleh dipilih sendiri oleh pelanggan: paket yang sedang dipakai
+   * ke atas. Penurunan dikeluarkan dengan sengaja — lihat komentar di kartunya.
+   */
+  const PAKET_DAPAT_DIPILIH = PAID_PLANS.slice(PAID_PLANS.indexOf(tenant.plan as PaidPlan));
+  const [paket, setPaket] = useState<PaidPlan>(tenant.plan as PaidPlan);
+  const [periode, setPeriode] = useState<PeriodeTagihan>(PERIODE_TAGIHAN[0]);
+
   const checkout = useMutation({
-    mutationFn: (plan: Plan) => api.billingCheckout(tenant.tenantId, plan),
+    mutationFn: (pilihan: { plan: PaidPlan; periode: PeriodeTagihan }) =>
+      api.billingCheckout(tenant.tenantId, pilihan.plan, pilihan.periode),
     onSuccess: (r) => {
       // Alur redirect ke halaman bayar Xendit — aman terhadap CSP (tidak ada
       // skrip gerbang pembayaran yang disuntikkan ke halaman kita).
@@ -173,12 +188,21 @@ export function SubscriptionCard() {
           </p>
         ) : null}
 
-        {/* Kartu paket yang SEDANG dipakai tenant ini (Fase 53a).
-            Sampai fase ini kartu ini menyebut satu paket yang ditulis mati,
-            dan itu benar selama paketnya memang satu. Dengan tiga paket,
-            angka yang ditulis mati akan menampilkan harga paket lain kepada
-            pelanggan — jadi seluruhnya kini dibaca dari `tenant.plan`.
-            Pemilihan antar paket ada di halaman harga publik, bukan di sini. */}
+        {/* PEMILIH PAKET & PERIODE (Fase 54i).
+            Sampai fase ini kartu ini hanya bisa membeli paket yang SEDANG
+            dipakai, selalu bulanan — dan komentarnya menyatakan "pemilihan
+            antar paket ada di halaman harga publik". Halaman itu tidak pernah
+            punya tombol beli: tombolnya menuju pendaftaran, dan pendaftaran
+            selalu memberi paket masuk. Akibatnya beranda menawarkan tiga paket
+            dan harga tahunan "hemat dua bulan" yang tidak bisa dibeli di mana
+            pun; menaikkan paket hanya mungkin lewat admin platform.
+            Servernya menerima keduanya sejak Fase 53a — yang tidak ada hanya
+            tempat memilihnya, dan itulah yang ditambahkan di sini.
+
+            Menurunkan paket sengaja TIDAK dibuka di sini: kapasitas yang sudah
+            terpakai (badan usaha, lokasi) bisa melampaui paket yang lebih
+            kecil, dan penurunan diam-diam akan meninggalkan perusahaan dalam
+            keadaan melewati batasnya sendiri. */}
         <div className="rounded-xl border border-brand-line bg-brand-surface p-4">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-ink">{PLAN_LIMITS[tenant.plan].label}</span>
@@ -193,22 +217,89 @@ export function SubscriptionCard() {
             <li>{u("seluruhModulTerbuka")}</li>
             <li>{u("aiPerHari")} {PLAN_LIMITS[tenant.plan].aiDailyLimit}/{u("hariSuffix")}</li>
           </ul>
-          {b?.configured && isOwner ? (
+        </div>
+
+        {b?.configured && isOwner ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium text-ink">{u("paketPilihJudul")}</span>
+              <div className="flex rounded-lg border border-line p-0.5" role="group" aria-label={u("paketPeriodeLabel")}>
+                {PERIODE_TAGIHAN.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    data-testid={`periode-${p}`}
+                    aria-pressed={periode === p}
+                    onClick={() => setPeriode(p)}
+                    className={`rounded-md px-2.5 py-1 text-xs ${
+                      periode === p ? "bg-brand-600 font-medium text-white" : "text-ink-muted"
+                    }`}
+                  >
+                    {p === "tahunan" ? u("paketPeriodeTahunan") : u("paketPeriodeBulanan")}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+              {PAKET_DAPAT_DIPILIH.map((p) => {
+                const batas = PLAN_LIMITS[p];
+                const dipilih = p === paket;
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    data-testid={`pilih-paket-${p}`}
+                    aria-pressed={dipilih}
+                    onClick={() => setPaket(p)}
+                    className={`rounded-xl border p-3 text-left ${
+                      dipilih ? "border-brand-500 bg-brand-surface ring-1 ring-brand-line" : "border-line bg-surface"
+                    }`}
+                  >
+                    <div className="font-medium text-ink">{batas.label}</div>
+                    <div className="mt-0.5 text-base font-bold tabular-nums text-ink">
+                      Rp {hargaPaket(p, periode).toLocaleString("id-ID")}
+                      <span className="text-[11px] font-normal text-ink-muted">
+                        /{periode === "tahunan" ? u("perTahunSingkat") : u("perBulanSingkat")}
+                      </span>
+                    </div>
+                    <ul className="mt-1.5 space-y-0.5 text-[11px] text-ink-muted">
+                      <li>{isi(u("paketBadanUsaha"), String(batas.maxBadanUsaha))}</li>
+                      <li>
+                        {takTerbatas(batas.maxLokasi)
+                          ? u("paketLokasiTakTerbatas")
+                          : isi(u("paketLokasi"), String(batas.maxLokasi))}
+                      </li>
+                      <li>{isi(u("paketKaryawan"), String(batas.karyawanTermasuk))}</li>
+                    </ul>
+                  </button>
+                );
+              })}
+            </div>
+
             <Button
-              className="mt-3 h-8 w-full text-xs"
+              className="h-8 w-full text-xs"
               variant="primary"
               data-testid="beli-langganan"
-              onClick={() => checkout.mutate(tenant.plan)}
+              onClick={() => checkout.mutate({ plan: paket, periode })}
               disabled={checkout.isPending}
             >
               {checkout.isPending
                 ? u("mengalihkanEllipsis")
-                : langgananAktif
-                  ? u("perpanjangLangganan")
-                  : u("pilihPaket")}
+                : paket !== tenant.plan
+                  ? isi(u("naikKePaket"), PLAN_LIMITS[paket].label)
+                  : langgananAktif
+                    ? u("perpanjangLangganan")
+                    : u("pilihPaket")}
             </Button>
-          ) : null}
-        </div>
+
+            {/* Ditulis karena ketiadaannya akan terbaca sebagai penurunan yang
+                mungkin tetapi tersembunyi, bukan sebagai keputusan. */}
+            {PAKET_DAPAT_DIPILIH.length < PLANS.length ? (
+              <p className="text-xs text-ink-muted">{u("paketTurunLewatDukungan")}</p>
+            ) : null}
+          </div>
+        ) : null}
 
         {!b?.configured ? (
           <p className="text-ink-muted">

@@ -341,7 +341,9 @@ for (const file of process.argv.slice(2)) {
    * Sengaja hanya `data-*`: `aria-label` memang teks tampilan (dibacakan
    * pembaca layar) dan tetap dijaga lewat ATRIBUT_TAMPILAN di bawah.
    */
-  const nilaiDataAttr = (awal) => /\bdata-[a-z-]+=$/.test(src.slice(Math.max(0, awal - 40), awal));
+  // `{?` (Fase 54i): nilainya bisa untai langsung (`data-testid="a"`) atau
+  // ekspresi JSX (``data-testid={`a-${x}`}``). Keduanya penanda yang sama.
+  const nilaiDataAttr = (awal) => /\bdata-[a-z-]+=\{?$/.test(src.slice(Math.max(0, awal - 40), awal));
 
   /**
    * Nilai `id=` / `htmlFor=` (Fase 22c) — PENGENAL elemen, bukan teks layar.
@@ -363,7 +365,7 @@ for (const file of process.argv.slice(2)) {
    * akan mematahkan ui-sim yang mencarinya.
    */
   const nilaiPengenal = (awal) =>
-    /\b(?:id|htmlFor|testId)\s*=\s*$/.test(src.slice(Math.max(0, awal - 40), awal));
+    /\b(?:id|htmlFor|testId)\s*=\s*\{?$/.test(src.slice(Math.max(0, awal - 40), awal));
 
   for (const m of src.matchAll(/(?:^|[^\w])"((?:[^"\\]|\\.)*)"/gm)) {
     const akhir = m.index + m[0].length;
@@ -373,9 +375,21 @@ for (const file of process.argv.slice(2)) {
     if (nilaiPengenal(awalKutip)) continue;
     if (isID(m[1])) add(jenisDari(m.index, akhir), m[1], m.index);
   }
-  for (const m of src.matchAll(/`((?:[^`\\]|\\.)*)`/gs))
+  /*
+   * Fase 54i — pengecualian `data-*` dan pengenal berlaku juga di sini.
+   *
+   * Kedua pengecualian di atas hanya diterapkan pada untai berkutip ganda,
+   * sehingga `data-testid="kartu-a"` dikecualikan tetapi
+   * ``data-testid={`kartu-${x}`}`` tidak — penanda gerbang yang sama, hanya
+   * ditulis dengan sintaks lain. Kelas yang sama dengan glob `pages/*.tsx`
+   * yang tidak turun ke subfolder (Fase 20m): aturan yang benar, diterapkan
+   * pada sebagian tempat saja, dan selisihnya tidak terlihat siapa pun.
+   */
+  for (const m of src.matchAll(/`((?:[^`\\]|\\.)*)`/gs)) {
+    if (nilaiDataAttr(m.index) || nilaiPengenal(m.index)) continue;
     for (const seg of potonganStatis(m[1]))
       if (isID(seg)) add(jenisDari(m.index, m.index + m[0].length), seg, m.index);
+  }
   /**
    * Potongan yang jelas KODE, bukan teks JSX (Fase 43a).
    *

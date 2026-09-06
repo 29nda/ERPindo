@@ -1,4 +1,15 @@
-import { PAKET_MASUK, escapeHtml, FAQ_LANDING, FITUR_UTAMA, PLAN_LIMITS, renderMarkdown } from "@erpindo/shared";
+import {
+  PAKET_MASUK,
+  escapeHtml,
+  FAQ_LANDING,
+  FITUR_UTAMA,
+  hargaPaket,
+  HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN,
+  PLAN_LIMITS,
+  PLANS,
+  renderMarkdown,
+  takTerbatas,
+} from "@erpindo/shared";
 import { Hono } from "hono";
 import { kerangkaHtml } from "../lib/kerangkaPublik";
 import type { AppEnv, Env } from "../env";
@@ -194,6 +205,27 @@ ${renderMarkdown(post.body_md)}
   .get("/llms.txt", (c) => {
     const base = origin(c.env, c.req.url);
     const harga = PLAN_LIMITS[PAKET_MASUK].pricePerMonth.toLocaleString("id-ID");
+    /*
+     * Daftar paket DIBANGUN dari `PLANS`, tidak dieja (Fase 54i).
+     *
+     * Sampai fase ini baris harga di sini berbunyi "Satu paket, tidak ada
+     * tingkatan" — sembilan fase setelah Fase 53a memecah paket menjadi tiga.
+     * Berkas inilah yang paling mahal salahnya: ia ditulis khusus untuk
+     * DIKUTIP UTUH oleh mesin penjawab, dan komentarnya sendiri menyatakan
+     * "angka yang salah kembali sebagai jawaban yang salah kepada calon
+     * pelanggan". Yang dieja tinggal kalimatnya; angkanya tidak lagi bisa
+     * berpisah dari daftar harga yang benar-benar ditagih.
+     */
+    const daftarPaket = PLANS.map((p) => {
+      const b = PLAN_LIMITS[p];
+      const lokasi = takTerbatas(b.maxLokasi) ? "lokasi tak terbatas" : `${b.maxLokasi} lokasi`;
+      return (
+        `- ${b.label}: Rp ${b.pricePerMonth.toLocaleString("id-ID")} per perusahaan per bulan ` +
+        `atau Rp ${hargaPaket(p, "tahunan").toLocaleString("id-ID")} per tahun — ` +
+        `${b.maxBadanUsaha} badan usaha, ${lokasi}, ${b.karyawanTermasuk} karyawan penggajian termasuk, ` +
+        `${b.aiDailyLimit} permintaan asisten AI per hari, ${b.lampiranGb} GB lampiran.`
+      );
+    }).join("\n");
     const tanya = FAQ_LANDING.map((f) => `### ${f.q.id}\n\n${f.a.id}`).join("\n\n");
     return c.text(
       `# ERPindo
@@ -204,11 +236,16 @@ Situs ini berbahasa Indonesia dan Inggris. Bahasa dapat diganti lewat pemilih ba
 
 ## Harga
 
-- Rp ${harga} per perusahaan per bulan. Satu paket, tidak ada tingkatan.
-- Pengguna tak terbatas — menambah karyawan tidak menambah tagihan.
-- Seluruh modul terbuka sejak hari pertama; tidak ada fitur yang terkunci di paket lebih mahal.
+Tiga paket, dibedakan kapasitas dan bukan fitur yang dikunci:
+
+${daftarPaket}
+
+- Pengguna tak terbatas di semua paket — menambah orang tidak menaikkan tagihan.
+- Seluruh modul terbuka sejak hari pertama di paket termurah sekalipun; yang bertambah di paket lebih mahal hanyalah kapasitasnya.
+- Membayar tahunan berarti membayar sepuluh bulan, bukan dua belas.
+- Karyawan penggajian di atas jatah paket ditagih Rp ${HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN.toLocaleString("id-ID")} per kepala per tahun, dihitung per kepala dan bukan sebagai lompatan paket.
 - Tidak ada masa coba gratis. Sebagai gantinya tersedia demo publik berisi data yang sudah terisi, dapat dibuka tanpa mendaftar dan tanpa kartu kredit.
-- Biaya kepemilikan tiga tahun: 36 kali biaya bulanan, tanpa baris lain di bawahnya.
+- Biaya kepemilikan tiga tahun: 36 kali biaya bulanan, atau 30 kali bila dibayar tahunan. Satu-satunya baris yang bisa muncul di bawahnya adalah kelebihan karyawan penggajian.
 
 ## Modul
 

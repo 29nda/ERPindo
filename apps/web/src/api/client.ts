@@ -3,6 +3,7 @@ import type {
   CustomFieldDefInput,
   CustomFieldModule,
   PaidPlan,
+  PeriodeTagihan,
   ApiAccount,
   IntercompanyInput,
   ApiAgingRow,
@@ -318,8 +319,22 @@ export const api = {
   // --- Dukungan/masukan + admin platform + blog (Fase 10e) -------------------
   // Billing langganan Xendit (Fase 25a; sebelumnya Midtrans, Fase 11b).
   billing: (tenantId: string) => request<BillingStatus>("GET", `/api/tenants/${tenantId}/billing`),
-  billingCheckout: (tenantId: string, plan: PaidPlan) =>
-    request<{ orderId: string; redirectUrl: string }>("POST", `/api/tenants/${tenantId}/billing/checkout`, { plan }),
+  /**
+   * Beli/perpanjang langganan (Fase 54i: paket & periode kini ikut dikirim).
+   *
+   * Sampai fase ini pemanggilnya hanya mengirim `plan`, dan `periode` jatuh ke
+   * bawaan `"bulanan"` di skema server. Itu benar selama paketnya satu dan
+   * periodenya satu — tetapi sejak Fase 53a beranda menawarkan TIGA paket dan
+   * harga tahunan "hemat dua bulan", sementara satu-satunya jalur beli tidak
+   * punya cara menyebut keduanya. Servernya sudah menerima keduanya sejak
+   * awal; yang tidak ada adalah tempat memilihnya.
+   */
+  billingCheckout: (tenantId: string, plan: PaidPlan, periode: PeriodeTagihan = "bulanan") =>
+    request<{ orderId: string; redirectUrl: string; amount: number; periode: PeriodeTagihan }>(
+      "POST",
+      `/api/tenants/${tenantId}/billing/checkout`,
+      { plan, periode },
+    ),
   // Fase 30: `billingProrata` & `billingChangePlan` dicabut bersama paket
   // bertingkat — endpoint servernya sudah tidak ada.
 
