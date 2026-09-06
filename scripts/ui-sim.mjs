@@ -4247,6 +4247,69 @@ try {
     await page.waitForTimeout(200);
   }
 
+  // -------------------------------------------------------------------------
+  // F54f — apa yang DILIHAT pelanggan yang baru mendaftar (Fase 54f)
+  // -------------------------------------------------------------------------
+  //
+  // Keadaan yang dilalui SETIAP pelanggan sebelum membayar adalah satu-satunya
+  // keadaan yang tidak pernah dibuka satu pun cek peramban: akun simulasi ini
+  // bersifat comped (`COMPED_EMAILS` di atas), jadi ia aktif otomatis dan
+  // layar itu tak pernah muncul dalam 494 cek sebelumnya.
+  //
+  // Yang tersembunyi di sana bukan hal kecil. Sebelum fase ini seluruh aplikasi
+  // tetap bisa dijelajahi tanpa database, dan tiap layar berbohong dengan cara
+  // yang sama: "Belum ada faktur penjualan" (padahal belum BISA ada), tombol
+  // "Isi contoh data" yang pasti ditolak, wisaya empat langkah yang tiap
+  // simpanannya ditolak, dan tur sambutan di atas dasbor yang belum hidup.
+  //
+  // Dijalankan di KONTEKS PERAMBAN TERPISAH supaya sesi utama di atas tidak
+  // tersentuh — pelajaran Fase 54a: blok yang disisipkan ke tengah alur lain
+  // memerahkan uji yang tidak ada hubungannya.
+  const emailBaru = `baru-${Date.now()}@contoh.id`;
+  const regBaru = await fetch(`${BASE}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ companyName: "PT Pelanggan Baru", name: "Rina", email: emailBaru, password: PASSWORD }),
+  });
+  check("F54f pendaftaran pelanggan baru berhasil (201)", regBaru.status === 201, `→ ${regBaru.status}`);
+
+  const ctxBaru = await browser.newContext({ viewport: { width: 1360, height: 900 }, locale: "id-ID" });
+  const pageBaru = await ctxBaru.newPage();
+  await pageBaru.goto(`${BASE}/masuk`, { waitUntil: "domcontentloaded" });
+  await pageBaru.fill("#email", emailBaru);
+  await pageBaru.fill("#password", PASSWORD);
+  await pageBaru.click("button[type=submit]");
+  await pageBaru.waitForTimeout(2500);
+
+  await pageBaru.goto(`${BASE}/app/penjualan`, { waitUntil: "domcontentloaded" });
+  await pageBaru.waitForTimeout(2000);
+  const isiJual = await pageBaru.innerText("main");
+  check(
+    "F54f modul ditutup dengan penjelasan, bukan dibiarkan tampak kosong",
+    /Aktifkan langganan untuk mulai/.test(isiJual) && !/Belum ada faktur penjualan/.test(isiJual),
+    `→ ${isiJual.replace(/\s+/g, " ").slice(0, 160)}`,
+  );
+
+  const toastBaru = await pageBaru.evaluate(() => {
+    const wadah = document.querySelector("div.fixed.inset-x-0.bottom-4");
+    return [...(wadah?.children ?? [])].map((e) => e.textContent?.trim()).filter(Boolean);
+  });
+  check(
+    "F54f tanpa toast yang mengulang kalimat layarnya sendiri",
+    toastBaru.length === 0,
+    `→ ${JSON.stringify(toastBaru)}`,
+  );
+
+  await pageBaru.getByText("Pilih paket langganan").first().click();
+  await pageBaru.waitForTimeout(2500);
+  const isiPengaturan = await pageBaru.innerText("main");
+  check(
+    "F54f tombolnya mendarat di kartu Langganan, bukan di tab Akun",
+    pageBaru.url().includes("tab=perusahaan") && /Paket, status, dan pembayaran/.test(isiPengaturan),
+    `→ ${pageBaru.url()} · ${isiPengaturan.replace(/\s+/g, " ").slice(0, 160)}`,
+  );
+  await ctxBaru.close();
+
   await ctx.close();
   await browser.close();
   browser = undefined;

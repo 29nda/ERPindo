@@ -446,6 +446,21 @@ export const UI = {
   rekonJurnalTimpang: { id: "Jurnal yang tidak seimbang sendiri", en: "Entries that do not balance on their own" },
   rekonJurnalKosong: { id: "Jurnal tanpa satu baris pun", en: "Entries with no lines at all" },
   rekonToleransi: { id: "toleransi pembulatan", en: "rounding tolerance" },
+  shDitangguhkan: {
+    id: "Langganan perusahaan ini sedang ditangguhkan. Hubungi kami untuk mengaktifkannya kembali.",
+    en: "This company's subscription is suspended. Contact us to reactivate it.",
+  },
+  siapJudulBelumBayar: { id: "Aktifkan langganan untuk mulai", en: "Activate your subscription to begin" },
+  siapPesanBelumBayar: {
+    id: "Pendaftaran perusahaan Anda berhasil. Pencatatan transaksi baru bisa dimulai setelah paket dipilih — sampai saat itu belum ada buku yang bisa diisi.",
+    en: "Your company is registered. Bookkeeping starts once you pick a plan — until then there are no books to fill in.",
+  },
+  siapTombolPilihPaket: { id: "Pilih paket langganan", en: "Choose a subscription plan" },
+  siapJudulDisiapkan: { id: "Perusahaan Anda sedang disiapkan", en: "Your company is being set up" },
+  siapPesanDisiapkan: {
+    id: "Pembayaran sudah kami terima dan databasenya sedang dibuat. Muat ulang halaman ini sebentar lagi — tidak ada yang perlu Anda kerjakan.",
+    en: "Your payment is in and the database is being created. Reload this page shortly — nothing is needed from you.",
+  },
   rekonKartuStok: { id: "Saldo stok tidak sama dengan kartu stoknya", en: "Stock balance does not equal its stock card" },
   rekonSaldoMinus: { id: "Saldo stok minus", en: "Negative stock balance" },
   rekonLotHantu: { id: "Lot mengaku lebih banyak daripada saldonya", en: "Lots claim more than the balance holds" },

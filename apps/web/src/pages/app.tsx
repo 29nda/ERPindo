@@ -1,4 +1,4 @@
-import { type ApiMembership, type MeResponse, type PermissionKey } from "@erpindo/shared";
+import { type ApiMembership, type MeResponse, type PermissionKey, type TenantStatus } from "@erpindo/shared";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
@@ -468,6 +468,59 @@ function NotificationBell({ tenantId }: { tenantId: string }) {
   );
 }
 
+/**
+ * Jalur yang tetap terbuka meski perusahaan belum punya database (Fase 54f).
+ *
+ * Pengaturan memuat kartu Langganan — satu-satunya jalan keluar dari keadaan
+ * ini, jadi menutupnya berarti mengunci pelanggan di luar kasirnya sendiri.
+ * Dukungan dan dasbor admin platform tidak menyentuh database tenant sama
+ * sekali.
+ */
+const JALUR_TETAP_TERBUKA = ["/app/pengaturan", "/app/dukungan", "/app/admin"];
+
+/**
+ * Layar tunggal untuk perusahaan yang belum punya database (Fase 54f).
+ *
+ * ## Kenapa modulnya ditutup, bukan sekadar dibiarkan kosong
+ *
+ * Sebelum fase ini seluruh aplikasi tetap bisa dijelajahi dalam keadaan ini,
+ * dan tiap layar berbohong dengan cara yang sama: halaman Penjualan berbunyi
+ * "Belum ada faktur penjualan" — padahal faktur belum BISA ada; halaman Produk
+ * menawarkan tombol "Isi contoh data" yang pasti ditolak; wisaya Mulai Cepat
+ * menuntun empat langkah yang tiap simpanannya ditolak; dan tur sambutan
+ * berjalan di atas dasbor yang belum bisa hidup.
+ *
+ * Itu kelas cacat yang sama dengan yang ditutup Fase 51b — "gagal memuat tidak
+ * bisa dibedakan dari tidak ada data" — hanya sebabnya 402, bukan galat
+ * jaringan. Bedanya, di sini pengguna bukan cuma salah paham: ia diundang
+ * mengerjakan lima hal yang semuanya akan ditolak.
+ *
+ * Menambal tiap halaman berarti menyentuh lima puluh berkas untuk satu
+ * kesalahpahaman yang sama, dan halaman kelima puluh satu akan lahir tanpa
+ * penjaga. Jadi pintunya yang ditutup, sekali, di sini.
+ */
+function PerusahaanBelumSiap({ status }: { status: TenantStatus }) {
+  const u = useUi();
+  const belumBayar = status === "provisioning";
+  return (
+    <div className="mx-auto max-w-xl py-10 text-center">
+      <h1 className="judul text-[1.6rem]">{belumBayar ? u("siapJudulBelumBayar") : u("siapJudulDisiapkan")}</h1>
+      <p className="mt-3 text-sm text-ink-muted">
+        {belumBayar ? u("siapPesanBelumBayar") : u("siapPesanDisiapkan")}
+      </p>
+      {belumBayar ? (
+        <Link
+          to="/app/pengaturan"
+          search={{ tab: "perusahaan" }}
+          className="mt-6 inline-flex items-center rounded-control bg-brand-solid px-4 py-2 text-sm font-medium text-brand-teks"
+        >
+          {u("siapTombolPilihPaket")}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 export function AppShell() {
   const u = useUi();
   const navigate = useNavigate();
@@ -893,10 +946,24 @@ export function AppShell() {
             </div>
           ) : null}
 
-          {tenant.tenantStatus === "past_due" ? (
+          {/* Fase 54f: `suspended` sebelumnya TIDAK punya spanduk sama sekali —
+              satu-satunya kabar yang diterima pengguna adalah toast merah yang
+              hilang sendiri dalam beberapa detik. Sekarang keadaan itu punya
+              kalimatnya, dan itu prasyarat untuk membungkam toast 402 yang lain:
+              membungkam yang tidak dijelaskan di mana pun akan membuat
+              penangguhan menjadi kegagalan senyap. */}
+          {tenant.tenantStatus === "suspended" ? (
+            <div className="border-b border-galat-line bg-galat-surface px-4 py-2 text-sm text-galat-ink">
+              {u("shDitangguhkan")}
+            </div>
+          ) : tenant.tenantStatus === "past_due" ? (
             <div className="border-b border-galat-line bg-galat-surface px-4 py-2 text-sm text-galat-ink">
               {u("shLanggananBerakhir")} <strong>{u("shModeBacaSaja")}</strong>{u("shAktifkanDi")}{" "}
-              <Link to="/app/pengaturan" className="font-medium underline">
+              {/* Fase 54f: `?tab=perusahaan` — kartu Langganan ada di tab itu,
+                  dan tanpa parameter ini tautannya mendarat di tab Akun berisi
+                  nama & password. Satu-satunya jalan maju punya langkah
+                  tambahan yang tidak diberitahukan kepada siapa pun. */}
+              <Link to="/app/pengaturan" search={{ tab: "perusahaan" }} className="font-medium underline">
                 {u("shPengaturan")}
               </Link>
               .
@@ -907,7 +974,7 @@ export function AppShell() {
             // bukan peringatan melainkan satu-satunya jalan ke depan.
             <div className="border-b border-awas-line bg-awas-surface px-4 py-2 text-sm text-awas-ink">
               {u("shBelumBerlanggananPesan")}{" "}
-              <Link to="/app/pengaturan" className="font-medium underline">
+              <Link to="/app/pengaturan" search={{ tab: "perusahaan" }} className="font-medium underline">
                 {u("shPengaturan")}
               </Link>
               .
@@ -928,7 +995,11 @@ export function AppShell() {
           ) : null}
 
           <main className="flex-1 p-3 sm:p-4">
-            <Outlet />
+            {tenant.tenantSiap || JALUR_TETAP_TERBUKA.some((j) => pathname.startsWith(j)) ? (
+              <Outlet />
+            ) : (
+              <PerusahaanBelumSiap status={tenant.tenantStatus} />
+            )}
           </main>
         </div>
       </div>

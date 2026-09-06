@@ -4,6 +4,7 @@
 // me-re-export SettingsPage, dashboard.tsx tetap mengimpor AUDIT_ACTION_LABELS.
 // ---------------------------------------------------------------------------
 import { useState } from "react";
+import { useRouterState } from "@tanstack/react-router";
 import { Tabs } from "../../components/ui";
 import { useUi } from "../../i18n/ui";
 import { useWorkspace } from "../app";
@@ -17,13 +18,27 @@ import { ApiIntegrationCard, CloseBooksCard } from "./integrations";
 export { AUDIT_ACTION_LABELS, friendlyAuditDetail } from "./data";
 
 type SettingsTab = "akun" | "perusahaan" | "tim" | "data" | "lainnya";
+const TAB_KEYS: SettingsTab[] = ["akun", "perusahaan", "tim", "data", "lainnya"];
 
 export function SettingsPage() {
   const u = useUi();
   const { tenant } = useWorkspace();
   const isAdmin = tenant.role === "owner" || tenant.role === "admin";
   const isOwner = tenant.role === "owner";
-  const [tab, setTab] = useState<SettingsTab>("akun");
+  /*
+   * Tab awal boleh ditentukan pemanggil lewat `?tab=` (Fase 54f).
+   *
+   * Spanduk "belum berlangganan" dan layar penggantinya menyuruh pengguna
+   * "pilih paket di Pengaturan" — dan sebelum ini tautannya mendarat di tab
+   * Akun, berisi nama dan password pengguna. Kartu Langganan ada satu tab di
+   * sebelahnya, tanpa satu pun petunjuk. Satu-satunya jalan maju bagi pelanggan
+   * baru punya langkah tambahan yang tidak diberitahukan.
+   */
+  const tabDariUrl = useRouterState({
+    select: (s) => (s.location.search as { tab?: string } | undefined)?.tab,
+  });
+  const tabAwal: SettingsTab = TAB_KEYS.includes(tabDariUrl as SettingsTab) ? (tabDariUrl as SettingsTab) : "akun";
+  const [tab, setTab] = useState<SettingsTab>(tabAwal);
 
   // Kartu tetap sama & id tak berubah (Fase 10g) — hanya dikelompokkan ke tab.
   const tabs: { key: SettingsTab; label: string }[] = [

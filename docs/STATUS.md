@@ -5,7 +5,45 @@
 
 **Terakhir diperbarui:** 5 September 2026
 
-## Yang baru saja selesai — Fase 54e: otorisasi & isolasi antar-perusahaan
+## Yang baru saja selesai — Fase 54f: apa yang dilihat pelanggan baru
+
+Bagian 7 dari sepuluh bagian audit.
+
+Bagian ini tidak bisa diaudit dengan membaca kode — yang diperiksa adalah **apa
+yang dilihat orang**. Jadi saya membuka aplikasinya di peramban sungguhan:
+mendaftar sebagai pelanggan baru, masuk, lalu berkeliling seperti orang yang
+baru membayar dan ingin tahu apa yang dibelinya.
+
+**Temuannya: perusahaan yang belum berlangganan diperlakukan sebagai perusahaan
+kosong** — dan itu keadaan yang dilalui SETIAP pelanggan sebelum membayar.
+Halaman Penjualan berbunyi "Belum ada faktur penjualan" padahal faktur belum
+*bisa* ada. Halaman Produk menawarkan tombol "Isi contoh data" yang pasti
+ditolak. Wisaya Mulai Cepat menuntun empat langkah yang tiap simpanannya
+ditolak. Tur sambutan berjalan di atas dasbor yang belum hidup. Dan di setiap
+halaman ada toast merah yang mengulang kalimat spanduk di atasnya.
+
+Jadi pengguna baru bukan cuma bingung — ia **diundang mengerjakan lima hal yang
+semuanya akan ditolak**.
+
+Kenapa ini lolos sekian lama: keadaan itu satu-satunya yang tidak pernah dibuka
+uji peramban. Akun yang dipakai simulasi selalu aktif otomatis, jadi layar
+pertama pelanggan sungguhan tidak pernah ada dalam 494 cek.
+
+**Sudah diperbaiki dengan menutup pintunya, bukan menambal lima puluh halaman.**
+Selama perusahaan belum punya database, seluruh modul diganti satu layar yang
+mengatakan keadaannya apa adanya dan memberi satu tombol menuju pilihan paket.
+Pengaturan tetap terbuka — menutupnya berarti mengunci pelanggan di luar
+kasirnya sendiri.
+
+**Dua temuan ikutan.** Spanduk "Pilih paket di Pengaturan" ternyata mendarat di
+tab Akun berisi nama dan password; kartu Langganan ada satu tab di sebelahnya
+tanpa petunjuk — sekarang tautannya membawa langsung ke sana. Dan status
+"ditangguhkan" ternyata tidak punya kalimat sama sekali: satu-satunya kabar yang
+diterima pengguna adalah toast yang hilang sendiri dalam beberapa detik. Itu
+saya perbaiki lebih dulu, karena membungkam toast tanpa spanduknya akan membuat
+penangguhan menjadi kegagalan yang benar-benar senyap.
+
+## Sebelumnya — Fase 54e: otorisasi & isolasi antar-perusahaan
 
 Bagian 6 dari sepuluh bagian audit.
 
@@ -446,9 +484,9 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.257** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.346** |
-| Simulasi klik di peramban nyata | 431 | **494** |
+| Uji unit | 923 | **1.259** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.348** |
+| Simulasi klik di peramban nyata | 431 | **498** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
@@ -930,7 +968,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.346 skenario ujian end-to-end + 1.257 unit test + 494 cek simulasi UI browser nyata**, totalnya **3.097 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.348 skenario ujian end-to-end + 1.259 unit test + 498 cek simulasi UI browser nyata**, totalnya **3.105 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

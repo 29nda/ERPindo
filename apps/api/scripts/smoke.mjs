@@ -1623,6 +1623,21 @@ try {
     meBelumBayar.json?.memberships?.[0]?.tenantStatus === "provisioning",
     `→ ${meBelumBayar.json?.memberships?.[0]?.tenantStatus}`,
   );
+  // Fase 54f — aplikasi web perlu tahu "apakah perusahaan ini bisa dipakai
+  // sekarang", dan STATUS tidak bisa menjawabnya: perusahaan yang sudah
+  // membayar berstatus `active` sementara databasenya bisa saja belum sempat
+  // dibuat. Satu boolean yang menjawabnya langsung.
+  check(
+    "54f /me menyatakan perusahaan belum siap dipakai (tanpa database)",
+    meBelumBayar.json?.memberships?.[0]?.tenantSiap === false,
+    `→ ${JSON.stringify(meBelumBayar.json?.memberships?.[0]?.tenantSiap)}`,
+  );
+  const meOwnerSiap = await owner("GET", "/api/auth/me");
+  check(
+    "54f /me menyatakan perusahaan berlangganan SIAP dipakai",
+    meOwnerSiap.json?.memberships?.every((m) => m.tenantSiap === true) === true,
+    `→ ${JSON.stringify(meOwnerSiap.json?.memberships?.map((m) => m.tenantSiap))}`,
+  );
   // INTI Fase 24: mendaftar TIDAK memakan slot pool. Kalau ini merah, seluruh
   // alasan menghapus trial ikut batal.
   const infraSebelum = await owner("GET", "/api/admin/infra");

@@ -181,6 +181,16 @@ export class ApiRequestError extends Error {
     message: string,
     public issues?: Record<string, string[]>,
     public twoFactorRequired?: boolean,
+    /**
+     * Kode `detail` dari server (Fase 54f) — mis. `belum-berlangganan`,
+     * `sedang-disiapkan`, `baca-saja`, `kuota-paket`.
+     *
+     * Status HTTP saja tidak cukup untuk memutuskan apakah sebuah kegagalan
+     * layak mengganggu pengguna: 402 bisa berarti "perusahaan ini memang belum
+     * bisa dipakai" (sudah dijelaskan layarnya sendiri) atau "langganannya
+     * ditangguhkan" (tidak dijelaskan di mana pun).
+     */
+    public detail?: string,
   ) {
     super(message);
   }
@@ -209,10 +219,21 @@ async function request<T>(method: string, path: string, body?: unknown, opts?: {
     if (timer) clearTimeout(timer);
   }
   const json = (await res.json().catch(() => null)) as
-    | (Record<string, unknown> & { error?: string; issues?: Record<string, string[]>; twoFactorRequired?: boolean })
+    | (Record<string, unknown> & {
+        error?: string;
+        issues?: Record<string, string[]>;
+        twoFactorRequired?: boolean;
+        detail?: string;
+      })
     | null;
   if (!res.ok) {
-    throw new ApiRequestError(res.status, json?.error ?? "Terjadi kesalahan.", json?.issues, json?.twoFactorRequired);
+    throw new ApiRequestError(
+      res.status,
+      json?.error ?? "Terjadi kesalahan.",
+      json?.issues,
+      json?.twoFactorRequired,
+      json?.detail,
+    );
   }
   return json as T;
 }

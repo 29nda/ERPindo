@@ -81,6 +81,12 @@ const DIKECUALIKAN = new Map([
     "`collections.ts` — rutenya memeriksa `m.dbRef` sendiri dan menjawab 409",
   ],
   [
+    "SELECT t.id AS tenant_id, t.name, t.slug, t.status",
+    "`/api/auth/me` — justru HARUS melihatnya: `tenantSiap` yang dikirimnya " +
+      "adalah cara aplikasi web tahu perusahaan mana yang belum bisa dipakai " +
+      "(Fase 54f)",
+  ],
+  [
     "SELECT CASE WHEN db_ref = ''",
     "sebaran jenis referensi di Admin → Infra — ember `tanpa-db` justru ADA " +
       "supaya tenant tanpa database terlihat, bukan tersembunyi (Fase 50e)",
