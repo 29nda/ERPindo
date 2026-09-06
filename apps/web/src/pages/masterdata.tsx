@@ -462,8 +462,16 @@ function IndustryTemplateCard() {
       <CardHeader title={u("mulaiCepat")} description={u("descMulaiCepat")} />
       <CardBody className="flex flex-wrap items-end gap-3">
         <div>
-          <Label>{u("jenisUsaha")}</Label>
+          {/*
+            Fase 54h: `htmlFor`/`id` — tanpa keduanya labelnya hanya TERLIHAT
+            menempel. Pembaca layar membacakan "kotak pilih" tanpa menyebut
+            memilih apa, dan mengeklik labelnya tidak memindahkan fokus. Ini
+            satu-satunya kendali tanpa nama yang tersisa di dua belas halaman
+            yang disapu; sisanya sudah benar.
+          */}
+          <Label htmlFor="jenis-usaha">{u("jenisUsaha")}</Label>
           <Select
+            id="jenis-usaha"
             value={industry}
             onChange={(e) => setIndustry(e.target.value as IndustryKey)}
             className="w-56"
@@ -476,7 +484,7 @@ function IndustryTemplateCard() {
           </Select>
         </div>
         <Button onClick={() => apply.mutate()} disabled={apply.isPending}>
-          {apply.isPending ? "Mengisi…" : "Isi contoh data"}
+          {apply.isPending ? u("sedangMengisi") : u("isiContohData")}
         </Button>
       </CardBody>
     </Card>

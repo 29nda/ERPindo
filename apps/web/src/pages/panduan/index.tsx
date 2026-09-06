@@ -161,6 +161,11 @@ export function PanduanIndexPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={pick({ id: "Cari panduan… (mis. PPN, gaji, stok)", en: "Search guides… (e.g. VAT, payroll, stock)" }, lang)}
+              // Fase 54h: placeholder BUKAN nama — ia hilang begitu orang mulai
+              // mengetik, tepat saat ia paling butuh tahu sedang mengisi apa.
+              // Panduan dalam aplikasi sudah memakai aria-label sejak lama;
+              // halaman publiknya terlewat.
+              aria-label={pick({ id: "Cari panduan", en: "Search the guide" }, lang)}
               className="h-11 w-full rounded-xl border border-line-strong bg-surface pl-9 pr-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
           </div>

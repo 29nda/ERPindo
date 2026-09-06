@@ -450,6 +450,9 @@ export const UI = {
     id: "Langganan perusahaan ini sedang ditangguhkan. Hubungi kami untuk mengaktifkannya kembali.",
     en: "This company's subscription is suspended. Contact us to reactivate it.",
   },
+  jumlahKomponen: { id: "Jumlah komponen", en: "Component quantity" },
+  isiContohData: { id: "Isi contoh data", en: "Fill with sample data" },
+  sedangMengisi: { id: "Mengisi…", en: "Filling…" },
   siapJudulBelumBayar: { id: "Aktifkan langganan untuk mulai", en: "Activate your subscription to begin" },
   siapPesanBelumBayar: {
     id: "Pendaftaran perusahaan Anda berhasil. Pencatatan transaksi baru bisa dimulai setelah paket dipilih — sampai saat itu belum ada buku yang bisa diisi.",

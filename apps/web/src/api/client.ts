@@ -196,6 +196,48 @@ export class ApiRequestError extends Error {
   }
 }
 
+/**
+ * Bawaan zod berbahasa Inggris — dilewati, bukan ditampilkan (Fase 54h).
+ *
+ * Skema repo ini menulis 257 pesan sendiri dalam bahasa Indonesia yang menyebut
+ * medannya masing-masing ("Kode wajib diisi", "Nama akun minimal 2 karakter",
+ * "Akun wajib dipilih"). Yang tersisa adalah medan tanpa pesan kustom, dan zod
+ * menjawabnya dengan "Required" atau "Expected number, received string" —
+ * menempelkan itu ke pesan pengguna lebih buruk daripada tidak menempelkan apa
+ * pun.
+ */
+const BAWAAN_ZOD = /^(Required|Invalid|Expected|String must|Number must|Array must|Too small|Too big)/i;
+
+/**
+ * Sertakan alasan per-medan ke dalam pesan galat (Fase 54h).
+ *
+ * ## Temuan yang melahirkannya
+ *
+ * 113 endpoint API mengembalikan `issues` — peta medan → alasan, dihitung zod,
+ * dalam kalimat Indonesia yang bisa langsung dibaca. **Tiga halaman** dari
+ * sekitar empat puluh benar-benar menampilkannya. Sisanya membuang seluruh
+ * rincian itu dan menoast "Data tidak valid", sehingga pengguna tahu formulirnya
+ * ditolak tetapi tidak tahu medan mana yang salah — padahal servernya sudah
+ * menghitungnya dan sudah mengirimkannya.
+ *
+ * Menambal empat puluh halaman satu per satu berarti churn besar untuk satu
+ * kelemahan yang sama, dan halaman keempat puluh satu akan lahir tanpa
+ * rinciannya. Jadi rinciannya dimasukkan ke PESANNYA, sekali, di sini — dan
+ * seluruh halaman yang sudah ada ikut membaik tanpa disentuh.
+ *
+ * Dibatasi dua alasan: tiga atau lebih membuat toast lebih panjang daripada
+ * yang sempat dibaca orang sebelum ia menghilang.
+ */
+export function pesanDenganMedan(pesan: string, issues?: Record<string, string[]>): string {
+  if (!issues) return pesan;
+  const alasan = Object.values(issues)
+    .flat()
+    .filter((a): a is string => typeof a === "string" && a.trim().length > 0 && !BAWAAN_ZOD.test(a));
+  if (alasan.length === 0) return pesan;
+  const dipakai = [...new Set(alasan)].slice(0, 2);
+  return `${pesan.replace(/\.$/, "")} — ${dipakai.join("; ")}`;
+}
+
 async function request<T>(method: string, path: string, body?: unknown, opts?: { timeoutMs?: number }): Promise<T> {
   // Timeout klien opsional (mis. panggilan AI yang bisa lambat/menggantung di
   // server) — tanpa ini UI bisa "menggantung" selamanya bila server tak merespons.
@@ -229,7 +271,7 @@ async function request<T>(method: string, path: string, body?: unknown, opts?: {
   if (!res.ok) {
     throw new ApiRequestError(
       res.status,
-      json?.error ?? "Terjadi kesalahan.",
+      pesanDenganMedan(json?.error ?? "Terjadi kesalahan.", json?.issues),
       json?.issues,
       json?.twoFactorRequired,
       json?.detail,
