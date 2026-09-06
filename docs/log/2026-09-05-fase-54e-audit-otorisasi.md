@@ -102,6 +102,33 @@ penagihan, sehingga pengecualian yang terdaftar untuknya berhenti cocok. Uji itu
 menolak pengecualian yang tidak lagi melindungi apa pun — persis kelas
 "pengecualian basi yang diam-diam melindungi kueri yang sudah berubah".
 
+## Koreksi — saya mengulangi kelalaian yang sudah tercatat di repo ini
+
+PR pertama fase ini **memerah di CI**, dan penyebabnya bukan kodenya melainkan
+saya.
+
+`apps/api/tsconfig.json` memakai `types: ["@cloudflare/workers-types"]`, yang
+bentrok dengan tipe Node. Uji struktural yang membuka berkas lewat `node:fs`
+karena itu harus didaftarkan di `exclude` — vitest tetap menjalankannya penuh;
+yang dilewati hanya pemeriksaan tipenya. Saya menulis `gerbangTenant.test.ts`
+dengan `node:fs` dan tidak mendaftarkannya.
+
+Yang membuat ini layak dicatat: **komentar di berkas itu sudah menceritakan
+kejadian yang sama persis.** Fase 38g menulis `token-publik.test.ts`,
+memvalidasinya dengan vitest saja, dan menyatakan typecheck hijau padahal tidak;
+baru ketahuan di Fase 38q. Peringatannya sudah ditulis di tempat yang tepat, dan
+tetap tidak cukup — karena yang menulis uji baru tidak membaca tsconfig.
+
+Ada satu sebab tambahan yang murni kecerobohan: saya menjalankan
+`pnpm typecheck 2>&1 | tail -3` yang dirangkai dengan perintah lain, lalu
+membaca keluaran perintah berikutnya sebagai bukti typecheck hijau. Gerbang yang
+hasilnya tidak dibaca sama saja dengan gerbang yang tidak dijalankan.
+
+Diperbaiki, dan kali ini diberi gerbang: `ujiPembacaSumber.test.ts` membaca
+`tsconfig.json` sendiri dan menolak uji pembaca berkas yang belum terdaftar —
+juga entri yang sudah basi. Diuji-negatif: entrinya dicabut, uji memerah sambil
+menyebut nama berkasnya.
+
 ## Yang sengaja tidak diubah
 
 - **API key tidak tunduk pembatasan IP maupun 2FA.** Keduanya tentang manusia
@@ -117,10 +144,10 @@ menolak pengecualian yang tidak lagi melindungi apa pun — persis kelas
 | Gerbang | Hasil |
 |---|---|
 | typecheck · build · lint | lulus |
-| uji unit | **1.255** (dari 1.244) |
+| uji unit | **1.257** (dari 1.244) |
 | smoke | **1.346** (dari 1.340) |
 | ui-sim | 494/494 (tidak berubah — perubahannya di sisi API) |
 | sapu-warna · istilah · gaya · i18n | 0 pelanggaran |
 | tautan dokumen | lulus |
 
-Total **3.095** pemeriksaan.
+Total **3.097** pemeriksaan.
