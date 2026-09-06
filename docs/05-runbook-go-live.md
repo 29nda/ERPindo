@@ -172,7 +172,7 @@ akan membuat aplikasi gagal keras.
 ## 4. Checklist pra-peluncuran
 
 **Gerbang mutu (harus hijau — sudah otomatis di CI):**
-- [ ] `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` (**1.348 smoke · 1.259 unit**)
+- [ ] `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` (**1.348 smoke · 1.267 unit**)
 - [ ] `node scripts/ui-sim.mjs` (**498 cek browser**)
 - [ ] `pnpm lint`
 

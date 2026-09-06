@@ -131,6 +131,19 @@ export const collectionRoutes = new Hono<AppEnv>()
     if (outstanding <= 0) return c.json({ error: "Faktur ini sudah lunas." }, 400);
 
     const orderId = `inv-${m.id.slice(0, 8)}-${Date.now()}`;
+    const id = crypto.randomUUID();
+
+    // CATAT DULU, BARU BUAT KEWAJIBANNYA (Fase 54g) — alasan lengkapnya di
+    // `routes/billing.ts`, dan berlaku sama persis di sini: tagihan Xendit yang
+    // terbit untuk pesanan yang tidak tercatat berarti uang pelanggan masuk ke
+    // faktur yang tidak pernah ditandai lunas.
+    await c.env.DB.prepare(
+      `INSERT INTO payment_links (id, tenant_id, invoice_id, invoice_no, order_id, amount, status, redirect_url, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', NULL, ?)`,
+    )
+      .bind(id, m.id, invoiceId, inv.invoice_no, orderId, outstanding, c.get("user").id)
+      .run();
+
     const bayar = await buatInvoiceXendit(c.env, {
       orderId,
       amount: outstanding,
@@ -138,14 +151,12 @@ export const collectionRoutes = new Hono<AppEnv>()
       customerName: inv.contact_name,
       finishUrl: `${appOrigin(c)}/app/penjualan`,
     });
-    if (!bayar.ok) return c.json({ error: bayar.error }, 502);
-
-    const id = crypto.randomUUID();
-    await c.env.DB.prepare(
-      `INSERT INTO payment_links (id, tenant_id, invoice_id, invoice_no, order_id, amount, status, redirect_url, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
-    )
-      .bind(id, m.id, invoiceId, inv.invoice_no, orderId, outstanding, bayar.redirectUrl, c.get("user").id)
+    if (!bayar.ok) {
+      await c.env.DB.prepare(`UPDATE payment_links SET status = 'failed' WHERE id = ?`).bind(id).run();
+      return c.json({ error: bayar.error }, 502);
+    }
+    await c.env.DB.prepare(`UPDATE payment_links SET redirect_url = ? WHERE id = ?`)
+      .bind(bayar.redirectUrl, id)
       .run();
     await audit(c.env, {
       action: "collection.link_created",

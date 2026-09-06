@@ -269,6 +269,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
     .bind(batasBacaSajaIso)
     .all<{ id: string; name: string }>();
   for (const tenant of lapsed) {
+   try {
     await env.DB.prepare(`UPDATE tenants SET status = 'past_due' WHERE id = ?`).bind(tenant.id).run();
     await env.DB.prepare(
       `INSERT INTO audit_logs (id, tenant_id, user_id, action, detail, ip, created_at)
@@ -283,6 +284,9 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
         text: `Halo ${owner.name},\n\nLangganan ${tenant.name} di ERPindo telah berakhir dan akun kini dalam mode baca-saja. Perpanjang langganan lewat menu Pengaturan agar operasional kembali normal — data Anda tetap aman.\n\n— Tim ERPindo`,
       }, "cron.langganan_berakhir");
     }
+   } catch (err) {
+     console.error(`[cron] penurunan ke baca-saja tenant ${tenant.id} gagal:`, err);
+   }
   }
   if (lapsed.length > 0) console.log(`[cron] ${lapsed.length} langganan berakhir → past_due`);
 
@@ -310,6 +314,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
       .all<{ id: string; name: string; status: string }>();
 
     for (const tenant of tenggang) {
+     try {
       const kvKey = `notified:dunning:tenggang:${tenant.id}`;
       if (await env.RATE_KV.get(kvKey)) continue;
       const tautan = tautanPengaturan(env.APP_URL, "Buka menu Pengaturan.");
@@ -322,6 +327,9 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
       }
       await env.RATE_KV.put(kvKey, "1", { expirationTtl: (GRACE_DAYS + 4) * 86_400 });
       console.log(`[cron] tenggang dimulai → ${tenant.name} (${tenant.status})`);
+     } catch (err) {
+       console.error(`[cron] susulan masa tenggang tenant ${tenant.id} gagal:`, err);
+     }
     }
   }
 
@@ -349,6 +357,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
       .all<{ id: string; name: string; status: string; habis_pada: string }>();
 
     for (const tenant of akanHabis) {
+     try {
       const kvKey = `notified:dunning:${tag}:${tenant.id}`;
       if (await env.RATE_KV.get(kvKey)) continue;
       const sisaHari = Math.max(Math.ceil((Date.parse(tenant.habis_pada) - Date.now()) / 86_400_000), 0);
@@ -366,6 +375,9 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
       // terkirim dua kali, tetapi tetap kedaluwarsa sebelum siklus berikutnya.
       await env.RATE_KV.put(kvKey, "1", { expirationTtl: (hari + 2) * 86_400 });
       console.log(`[cron] dunning ${tag} → ${tenant.name} (${tenant.status}, ${sisaHari} hari lagi)`);
+     } catch (err) {
+       console.error(`[cron] pengingat ${tag} tenant ${tenant.id} gagal:`, err);
+     }
     }
   }
 
@@ -400,6 +412,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
       .all<{ id: string; name: string }>();
 
     for (const tenant of tertunggak) {
+     try {
       const kvKey = `notified:dunning:p3:${tenant.id}`;
       if (await env.RATE_KV.get(kvKey)) continue;
       const tautan = tautanPengaturan(env.APP_URL, "Buka menu Pengaturan untuk mengaktifkan kembali.");
@@ -412,6 +425,9 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
       }
       await env.RATE_KV.put(kvKey, "1", { expirationTtl: 30 * 86_400 });
       console.log(`[cron] dunning p3 → ${tenant.name} (masih past_due)`);
+     } catch (err) {
+       console.error(`[cron] susulan baca-saja tenant ${tenant.id} gagal:`, err);
+     }
     }
   }
 

@@ -5,7 +5,41 @@
 
 **Terakhir diperbarui:** 5 September 2026
 
-## Yang baru saja selesai — Fase 54f: apa yang dilihat pelanggan baru
+## Yang baru saja selesai — Fase 54g: ketahanan saat ada yang gagal
+
+Bagian 8 dari sepuluh bagian audit.
+
+Pertanyaannya bukan lagi "apakah kodenya benar" — tujuh bagian sebelumnya sudah
+menanyakan itu. Bagian ini menanyakan **apa yang tersisa ketika sesuatu gagal di
+tengah jalan**: jaringan putus di antara dua langkah, database tersendat sesaat,
+Xendit menerima permintaan lalu koneksinya terputus.
+
+**Temuan yang paling mahal menyangkut uang.** Saat pelanggan menekan tombol
+bayar, aplikasi membuat tagihan di Xendit **lebih dulu**, baru mencatatnya. Bila
+pencatatan itu gagal — satu gangguan database sudah cukup — pelanggan memegang
+tagihan yang hidup untuk pesanan yang tidak kita kenali. Ia membayar; sistem
+mencari pesanan itu, tidak menemukannya, lalu membalas "diterima" sehingga
+Xendit berhenti mengulang. **Uang masuk, langganan tidak pernah aktif, dan tidak
+ada satu pun jejak.** Urutannya sudah dibalik: dicatat dulu, baru ditagih.
+
+**Dan sekarang uang yang masuk tanpa pesanan meninggalkan jejak.** Sebelumnya
+satu-satunya cara mengetahuinya adalah membandingkan dasbor Xendit dengan
+database secara manual — yang artinya tidak pernah.
+
+**Temuan ketiga: satu perusahaan yang bermasalah bisa membatalkan pekerjaan
+harian seluruh platform.** Tiap malam sistem menyapu semua perusahaan:
+menurunkan langganan yang habis ke mode baca-saja, mengirim pengingat tagihan,
+memposting penyusutan aset, mengirim rekap bulanan, mencadangkan data,
+menagih kontrak, menutup buku. Empat bagian penyapuan itu tidak punya pelindung,
+sehingga satu gangguan kecil pada satu perusahaan menghentikan **semuanya** —
+termasuk yang paling mahal: perusahaan yang langganannya sudah habis tetap bisa
+menulis, diam-diam, sampai ada yang menyadarinya.
+
+Pelindungnya sudah dipakai lima kali di berkas yang sama; hanya tidak merata.
+Sekarang merata, dan ada uji yang menolak penyapuan baru yang lahir tanpa
+pelindung.
+
+## Sebelumnya — Fase 54f: apa yang dilihat pelanggan baru
 
 Bagian 7 dari sepuluh bagian audit.
 
@@ -484,7 +518,7 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.259** |
+| Uji unit | 923 | **1.267** |
 | Uji ujung-ke-ujung (smoke) | 1.173 | **1.348** |
 | Simulasi klik di peramban nyata | 431 | **498** |
 
@@ -968,7 +1002,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.348 skenario ujian end-to-end + 1.259 unit test + 498 cek simulasi UI browser nyata**, totalnya **3.105 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.348 skenario ujian end-to-end + 1.267 unit test + 498 cek simulasi UI browser nyata**, totalnya **3.113 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 
