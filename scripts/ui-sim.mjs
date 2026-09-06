@@ -3646,6 +3646,38 @@ try {
     `→ biaya 3 tahun tidak ditemukan`,
   );
 
+  // --- F54i: halaman harga menjual paket yang benar-benar ada -----------------
+  //
+  // Kedua cek F51 di atas tetap hijau selama sembilan fase setelah paketnya
+  // menjadi tiga — keduanya membaca angka paket masuk, dan angka itu memang
+  // tidak berubah. Halamannya sendiri masih berjudul "Satu harga" dan memuat
+  // satu kartu. Itulah kelas cacat yang ditutup di sini: gerbang yang benar
+  // karena kebetulan, bukan karena ia menanyakan hal yang penting.
+  const kartuHarga = await page.locator('[data-testid^="harga-paket-"]').count();
+  check(
+    "F54i /harga menampilkan satu kartu untuk TIAP paket yang dijual",
+    kartuHarga === 3,
+    `→ ${kartuHarga} kartu`,
+  );
+  check(
+    "F54i /harga memuat harga ketiga paket, bukan hanya paket masuk",
+    ["Rp 750.000", "Rp 1.500.000", "Rp 3.000.000"].every((h) => hargaText.includes(h)),
+    `→ ${["Rp 750.000", "Rp 1.500.000", "Rp 3.000.000"].filter((h) => !hargaText.includes(h)).join(", ")} hilang`,
+  );
+  check(
+    "F54i /harga menawarkan harga tahunan yang beranda iklankan",
+    hargaText.includes("Rp 7.500.000") && /hemat dua bulan/.test(hargaText),
+    `→ tahunan tidak ditemukan`,
+  );
+  // Tabel batas menggantikan kalimat "Yang dibatasi: hanya ada satu" yang
+  // menyebut kuota AI 100/hari — angka yang tidak dimiliki paket mana pun
+  // (50/150/400), pada halaman yang menyatakan batasnya hanya satu dari lima.
+  check(
+    "F54i /harga memuat batas pembeda per paket, bukan satu kalimat",
+    ["50", "150", "400"].every((n) => hargaText.includes(n)) && !/hanya ada satu/i.test(hargaText),
+    `→ tabel batas tidak lengkap`,
+  );
+
   await gotoRoute("/keamanan", 700);
   const amanText = await page.innerText("body");
   // Seksi "yang belum ada" adalah yang membuat halaman keamanan layak

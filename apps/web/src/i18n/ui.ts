@@ -498,6 +498,22 @@ export const UI = {
   mengalihkanEllipsis: { id: "Mengalihkan…", en: "Redirecting…" },
   pilihPaket: { id: "Pilih paket", en: "Choose plan" },
   paketAnda: { id: "Paket Anda", en: "Your plan" },
+  // Fase 54i — pemilih paket & periode. Sebelum ini beranda menawarkan tiga
+  // paket dan harga tahunan yang tidak bisa dibeli di mana pun.
+  paketPilihJudul: { id: "Pilih paket dan periode", en: "Choose plan and period" },
+  paketPeriodeLabel: { id: "Periode tagihan", en: "Billing period" },
+  paketPeriodeBulanan: { id: "Bulanan", en: "Monthly" },
+  paketPeriodeTahunan: { id: "Tahunan — hemat dua bulan", en: "Annual — two months free" },
+  perTahunSingkat: { id: "thn", en: "yr" },
+  paketBadanUsaha: { id: "{0} badan usaha", en: "{0} legal entities" },
+  paketLokasi: { id: "{0} lokasi, gudang, atau outlet", en: "{0} locations, warehouses, or outlets" },
+  paketLokasiTakTerbatas: { id: "Lokasi tak terbatas", en: "Unlimited locations" },
+  paketKaryawan: { id: "{0} karyawan penggajian termasuk", en: "{0} payroll employees included" },
+  naikKePaket: { id: "Naik ke {0}", en: "Move up to {0}" },
+  paketTurunLewatDukungan: {
+    id: "Menurunkan paket dilakukan lewat Dukungan supaya kapasitas yang sudah terpakai diperiksa lebih dulu.",
+    en: "Moving to a smaller plan goes through Support so the capacity already in use is checked first.",
+  },
   descBillingBelumSiap: {
     id: "Pembayaran langganan online sedang disiapkan — untuk saat ini hubungi kami untuk aktivasi paket.",
     en: "Online subscription payment is being set up — for now, contact us to activate a plan.",
@@ -2701,9 +2717,20 @@ export const UI = {
     id: "Database terpisah untuk tiap perusahaan — data Anda benar-benar terisolasi",
     en: "A separate database per company — your data really is isolated",
   },
+  // Angka ini DIPAKSA `scripts/lib/angka-gerbang.mjs` sejak Fase 54i.
+  //
+  // Sebelumnya berbunyi "1.300+ uji otomatis" sementara uji unitnya 1.273 —
+  // klaim yang melebihi kenyataannya, di halaman yang dilihat setiap orang
+  // yang mendaftar. Ia lolos karena gerbang angka Fase 50a hanya menyapu dua
+  // dokumen; naskah aplikasi tidak pernah ikut disapu, dan angka di naskah
+  // tidak pernah memunculkan galat.
+  //
+  // Aturannya sekarang: ribuan bulat TERDEKAT DI BAWAH total pemeriksaan yang
+  // tertulis di docs/STATUS.md. Deterministik, jadi ia hanya berubah ketika
+  // sebuah tonggak benar-benar terlampaui.
   authManfaat4: {
-    id: "1.300+ uji otomatis menjaga setiap rilis, dan angka pembukuan selalu seimbang",
-    en: "1,300+ automated tests guard every release; the books always balance",
+    id: "3.000+ pemeriksaan otomatis menjaga setiap rilis, dan angka pembukuan selalu seimbang",
+    en: "3,000+ automated checks guard every release; the books always balance",
   },
   authGoogleDibatalkan: { id: "Masuk via Google dibatalkan.", en: "Google sign-in was cancelled." },
   authGoogleGagalToken: {

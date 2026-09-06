@@ -31,36 +31,67 @@ import type { Dual } from "../../i18n";
 /** Alamat surel yang dipasang di halaman kontak dan kaki halaman. */
 export const SUREL_KONTAK = "halo@erpindo.id";
 
-/** Harga bulanan, dikalikan untuk biaya kepemilikan tiga tahun. */
+/**
+ * Lama komitmen yang dihitung di seksi biaya kepemilikan: tiga tahun kalender.
+ * Dikalikan dengan harga bulanan; untuk pembayaran tahunan yang dikalikan
+ * adalah `BULAN_DIBAYAR_TAHUNAN`, bukan angka ini.
+ */
 export const BULAN_TIGA_TAHUN = 36;
 
+/**
+ * Naskah `/harga`.
+ *
+ * Fase 54i menulis ulang seluruh blok ini. Sampai fase itu halaman bernama
+ * "Harga" masih menjual SATU paket: judulnya "Satu harga, tanpa biaya
+ * tambahan", satu kartu berisi harga paket masuk tanpa menyebut namanya,
+ * seksi "Yang dibatasi" yang menyatakan batasnya "hanya ada satu" lalu
+ * menyebut kuota AI 100 per hari, dan janji "beberapa badan usaha beserta
+ * konsolidasi" di daftar "yang termasuk".
+ *
+ * Empat-empatnya sudah tidak benar sejak Fase 53a memecah paket menjadi tiga:
+ * harganya tiga, kuota AI-nya 50/150/400 per paket, batasnya lima, dan badan
+ * usaha lebih dari satu justru hanya ada di paket terbesar. Beranda ikut
+ * diperbarui pada 53d; halaman ini tidak — sehingga situsnya membantah
+ * dirinya sendiri, dan yang membantah adalah halaman yang justru dibuat untuk
+ * diteruskan ke bagian pengadaan.
+ *
+ * Tidak ada gerbang yang bisa melihatnya: penyapu memeriksa ejaan dan bentuk
+ * kalimat, smoke memeriksa halaman ini tersaji dan ber-canonical, dan ui-sim
+ * memeriksa dua angka yang kebetulan tetap benar. Tidak satu pun menanyakan
+ * apakah kalimatnya masih menggambarkan produknya.
+ *
+ * Karena itu angka di halaman ini TIDAK dieja di sini. Yang dieja hanya
+ * kalimat berlubang; angkanya diisi saat render dari `PLAN_LIMITS`.
+ */
 export const T_HARGA = {
-  judul: { id: "Satu harga, tanpa biaya tambahan", en: "One price, no extra charges" },
+  judul: { id: "Tiga paket, dibedakan kapasitas", en: "Three plans, separated by capacity" },
   pengantar: {
-    id: "Biayanya satu angka, dan halaman ini menyebutkannya di baris pertama. Di bawahnya tertulis apa saja yang sudah termasuk, dan satu-satunya hal yang dibatasi.",
-    en: "The cost is a single figure, and this page states it in the first line. Below it you will find what is already included, and the one thing that is limited.",
+    id: "Yang membedakan paket bukan fitur yang dikunci, melainkan berapa banyak badan usaha, lokasi, dan karyawan penggajian yang muat di dalamnya. Seluruh modul terbuka di ketiganya, dan jumlah pengguna tidak pernah ikut menentukan tagihan.",
+    en: "Plans are separated not by locked features but by how many legal entities, locations, and payroll employees fit inside them. Every module is open in all three, and the number of users never affects the bill.",
   },
 
-  kartuJudul: { id: "Berlangganan ERPindo", en: "ERPindo subscription" },
   kartuSatuan: { id: "per bulan, per perusahaan", en: "per month, per company" },
+  kartuTahunan: { id: "atau {0} per tahun — hemat dua bulan", en: "or {0} per year — two months free" },
+  kartuDisarankan: { id: "Paling sesuai", en: "Best fit" },
   kartuCatatan: {
-    id: "Ditagih bulanan. Berhenti kapan saja tanpa penalti.",
-    en: "Billed monthly. Cancel any time without penalty.",
+    id: "Ditagih bulanan atau tahunan, dan periodenya dipilih saat berlangganan. Berhenti kapan saja tanpa penalti.",
+    en: "Billed monthly or annually, and the period is chosen at checkout. Cancel any time without penalty.",
   },
+  kartuAjakan: { id: "Daftar & Berlangganan", en: "Sign up & subscribe" },
 
-  termasukJudul: { id: "Yang termasuk", en: "What is included" },
+  termasukJudul: { id: "Yang termasuk di semua paket", en: "Included in every plan" },
   termasuk: [
     {
       id: "Pengguna tak terbatas. Menambah orang tidak menaikkan tagihan, jadi melatih seluruh tim tidak menambah biaya.",
       en: "Unlimited users. Adding people does not raise the bill, so training the whole team is not penalised.",
     },
     {
-      id: "Seluruh modul terbuka sejak hari pertama. Tidak ada kemampuan yang baru muncul setelah menaikkan paket.",
-      en: "Every module is open from day one. No capability appears only after an upgrade.",
+      id: "Seluruh modul terbuka sejak hari pertama, di paket termurah sekalipun. Tidak ada kemampuan yang baru muncul setelah menaikkan paket — yang bertambah hanyalah kapasitasnya.",
+      en: "Every module is open from day one, even on the cheapest plan. No capability appears only after an upgrade — what grows is capacity.",
     },
     {
-      id: "Beberapa badan usaha, masing-masing dengan basis data terpisah, beserta konsolidasi dan eliminasi antar-perusahaan.",
-      en: "Multiple legal entities, each with its own database, plus consolidation and intercompany elimination.",
+      id: "Basis data terpisah untuk tiap perusahaan, beserta konsolidasi dan eliminasi antar-perusahaan bagi paket yang memuat lebih dari satu badan usaha.",
+      en: "A separate database for each company, plus consolidation and intercompany elimination on plans that hold more than one legal entity.",
     },
     {
       id: "Pajak Indonesia sudah terhitung di dalamnya: PPN, PPh 21 dengan tarif efektif rata-rata, BPJS, bukti potong 1721-A1, dan ekspor XML Coretax.",
@@ -76,28 +107,37 @@ export const T_HARGA = {
     },
   ],
 
-  batasJudul: { id: "Yang dibatasi", en: "What is limited" },
+  batasJudul: { id: "Yang dibatasi, beserta angkanya", en: "What is limited, with the figures" },
   batasPengantar: {
-    id: "Hanya ada satu, dan kami sebutkan di sini supaya Anda tidak menemukannya sendiri di bulan kedua.",
-    en: "There is only one, and it is stated here so it is not discovered in month two.",
+    id: "Inilah yang membedakan ketiga paket. Seluruhnya ditegakkan di sisi server, bukan sekadar tercetak di halaman ini.",
+    en: "These are what separate the three plans, and all of them are enforced on the server — not merely printed on this page.",
   },
-  batasAi: {
-    id: "Asisten AI dibatasi 100 permintaan per hari per perusahaan. Batas ini menjaga satu pelanggan tidak menghabiskan alokasi model milik seluruh layanan. Seluruh modul lain tidak berkuota.",
-    en: "The AI assistant is capped at 100 requests per day per company. The cap keeps one customer from consuming the model allocation shared by the whole service. No other module has a quota.",
+  batasPaket: { id: "Paket", en: "Plan" },
+  batasBadanUsaha: { id: "Badan usaha", en: "Legal entities" },
+  batasLokasi: { id: "Lokasi, gudang, atau outlet", en: "Locations, warehouses, or outlets" },
+  batasKaryawan: { id: "Karyawan penggajian termasuk", en: "Payroll employees included" },
+  batasLampiran: { id: "Ruang lampiran", en: "Attachment storage" },
+  batasAi: { id: "Permintaan asisten AI per hari", en: "AI assistant requests per day" },
+  batasTakTerbatas: { id: "Tak terbatas", en: "Unlimited" },
+  batasKelebihan: {
+    id: "Karyawan di atas jatah paket ditagih {0} per kepala per tahun. Dihitung per kepala, bukan sebagai lompatan paket, supaya tidak pernah ada satu karyawan pun yang mahal untuk dicatat.",
+    en: "Employees beyond a plan's allowance are billed {0} per head per year. Counted per head rather than as a jump to the next plan, so no single employee is ever expensive to record.",
+  },
+  batasAiAlasan: {
+    id: "Kuota asisten AI ada supaya satu pelanggan tidak menghabiskan alokasi model milik seluruh layanan. Seluruh modul lain tidak berkuota.",
+    en: "The AI quota exists so one customer cannot consume the model allocation shared by the whole service. No other module has a quota.",
   },
 
   tigaTahunJudul: { id: "Biaya kepemilikan tiga tahun", en: "Three-year cost of ownership" },
   tigaTahunPengantar: {
-    id: "Angka yang biasanya diminta bagian pengadaan, dihitung dari paket masuk. Tidak ada biaya lisensi per orang dan tidak ada biaya naik versi, jadi seluruh kolomnya hanya perkalian.",
-    en: "The figure procurement usually asks for, based on the entry plan. There is no per-seat licence and no upgrade fee, so the whole column is a multiplication.",
+    id: "Angka yang biasanya diminta bagian pengadaan. Tidak ada biaya lisensi per orang dan tidak ada biaya naik versi, jadi kolomnya hanya perkalian. Membayar tahunan memangkas enam bulan dari tiga puluh enam.",
+    en: "The figure procurement usually asks for. There is no per-seat licence and no upgrade fee, so the column is a multiplication — and paying annually removes six months out of thirty-six.",
   },
-  // Angkanya diisi saat render dari `PLAN_LIMITS`, bukan dieja di sini —
-  // naskah harga yang mengeja angkanya sendiri akan menyimpang dari harga
-  // yang benar-benar ditagih, dan tidak ada gerbang yang bisa melihatnya.
-  tigaTahunBaris: { id: "36 bulan × {0}", en: "36 months × {0}" },
+  tigaTahunBulanan: { id: "36 bulan × {0}", en: "36 months × {0}" },
+  tigaTahunTahunan: { id: "3 tagihan tahunan × {0}", en: "3 annual bills × {0}" },
   tigaTahunCatatan: {
-    id: "Yang membuat angka ini bisa dipegang bukan besarnya, melainkan tidak adanya baris lain di bawahnya.",
-    en: "What makes this figure dependable is not its size, but the absence of any line beneath it.",
+    id: "Satu-satunya baris yang bisa muncul di bawah angka ini adalah kelebihan karyawan penggajian, dan tarifnya tertulis di seksi sebelumnya.",
+    en: "The only line that can appear beneath this figure is payroll employees beyond the allowance, and its rate is stated in the section above.",
   },
 
   bandingJudul: { id: "Terhadap kategori, bukan terhadap nama", en: "Against the category, not against names" },

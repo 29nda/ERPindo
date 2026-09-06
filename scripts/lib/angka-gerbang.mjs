@@ -83,6 +83,26 @@ const BLOK = [
       },
     ],
   },
+  {
+    // Naskah layar masuk/daftar (Fase 54i).
+    //
+    // Ditambahkan setelah gerbang klaim-paket menemukan "1.300+ uji otomatis"
+    // di halaman yang dilihat setiap pendaftar, sementara uji unitnya 1.273 —
+    // klaim yang MELEBIHI kenyataannya. Gerbang Fase 50a hanya menyapu dua
+    // dokumen; naskah aplikasi tidak pernah ikut, dan angka di naskah tidak
+    // pernah memunculkan galat.
+    //
+    // `lantai` berarti angkanya bukan jumlah persis melainkan ribuan bulat
+    // TERDEKAT DI BAWAH total. Deterministik — tidak ada toleransi yang bisa
+    // ditawar — jadi ia berubah hanya ketika satu tonggak benar-benar lewat.
+    id: "layar-masuk",
+    berkas: "apps/web/src/i18n/ui.ts",
+    lantai: true,
+    kutipan: [
+      { gerbang: "total", pola: /"([\d.]+)\+ pemeriksaan otomatis menjaga setiap rilis/ },
+      { gerbang: "total", pola: /"([\d,]+)\+ automated checks guard every release/ },
+    ],
+  },
 ];
 
 const NAMA = {
@@ -94,7 +114,7 @@ const NAMA = {
 
 /** "1.299" → 1299. Pemisah ribuan Indonesia adalah titik. */
 function keAngka(teks) {
-  return Number(teks.replace(/\./g, ""));
+  return Number(teks.replace(/[.,]/g, ""));
 }
 
 /** 1299 → "1.299". Dipakai untuk pesan galat yang bisa langsung disalin. */
@@ -131,6 +151,7 @@ function bacaKutipan() {
         berkas: blok.berkas,
         blok: blok.id,
         total: blok.total === true,
+        lantai: blok.lantai === true,
         gerbang: k.gerbang,
         nilai: keAngka(cocok[1]),
       });
@@ -151,7 +172,8 @@ export function periksaAngkaGerbang(nyata) {
   const { hasil, galat } = bacaKutipan();
   const pesan = [...galat];
 
-  for (const { berkas, blok, gerbang, nilai } of hasil) {
+  for (const { berkas, blok, gerbang, nilai, lantai } of hasil) {
+    if (lantai) continue; // diperiksa terhadap total tertulis, di bawah
     const benar = nyata[gerbang];
     if (benar === undefined) continue;
     if (nilai !== benar) {
@@ -177,6 +199,23 @@ export function periksaAngkaGerbang(nyata) {
           `tapi ${keTeks(tertulis.smoke)} + ${keTeks(tertulis.unit)} + ` +
           `${keTeks(tertulis.browser)} = ${keTeks(jumlah)}`,
       );
+    }
+  }
+
+  // Klaim "N+ pemeriksaan otomatis" di naskah aplikasi: ribuan bulat terdekat
+  // DI BAWAH total tertulis. Dilewati bila totalnya sendiri tidak terbaca —
+  // barisnya sudah memerah sendiri di atas, dan menumpuk galat turunan hanya
+  // menyamarkan sebab pertamanya.
+  if (tertulis.total !== undefined) {
+    const lantaiBenar = Math.floor(tertulis.total / 1000) * 1000;
+    for (const { berkas, blok, nilai, lantai } of hasil) {
+      if (!lantai) continue;
+      if (nilai !== lantaiBenar) {
+        pesan.push(
+          `${berkas} (${blok}): klaim tertulis ${keTeks(nilai)}+, seharusnya ` +
+            `${keTeks(lantaiBenar)}+ — ribuan bulat terdekat di bawah total ${keTeks(tertulis.total)}`,
+        );
+      }
     }
   }
 

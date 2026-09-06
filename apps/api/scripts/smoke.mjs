@@ -8599,6 +8599,28 @@ try {
     "39a /llms.txt menyebut modul, FAQ, dan peta halaman",
     llmsTxt.includes("## Modul") && llmsTxt.includes("## Pertanyaan yang sering diajukan") && llmsTxt.includes("## Halaman"),
   );
+  // Fase 54i — berkas ini berbunyi "Satu paket, tidak ada tingkatan" selama
+  // sembilan fase setelah paketnya menjadi tiga. Ia ditulis khusus untuk
+  // DIKUTIP UTUH mesin penjawab, jadi kalimat itu kembali sebagai jawaban yang
+  // salah kepada calon pelanggan — bukan sekadar halaman yang basi.
+  check(
+    "54i /llms.txt menyebut ketiga paket beserta harga bulanan & tahunannya",
+    ["Starter: Rp 750.000", "Business: Rp 1.500.000", "Enterprise: Rp 3.000.000"].every((t) =>
+      llmsTxt.includes(t),
+    ) && llmsTxt.includes("Rp 7.500.000 per tahun"),
+    `→ ${llmsTxt.slice(llmsTxt.indexOf("## Harga"), llmsTxt.indexOf("## Harga") + 200).replace(/\n/g, " ")}`,
+  );
+  check(
+    "54i /llms.txt tidak lagi menyatakan daftar harga berisi satu pilihan",
+    !llmsTxt.includes("Satu paket") && !llmsTxt.includes("tidak ada tingkatan"),
+  );
+  // Kelebihan karyawan adalah SATU-SATUNYA baris yang bisa muncul di bawah
+  // harga paket. Berkas ini dulu menyatakan "tanpa baris lain di bawahnya",
+  // yang sudah tidak benar sejak Fase 53e menagihnya.
+  check(
+    "54i /llms.txt menyebut tagihan kelebihan karyawan, bukan menyangkalnya",
+    llmsTxt.includes("Rp 150.000 per kepala per tahun"),
+  );
   // Bagian "Yang BELUM ada" adalah yang membuat berkas ini berguna, bukan
   // sekadar brosur: model yang mengutipnya akan ikut menyebut batasannya, dan
   // calon pelanggan tidak datang membawa harapan yang tidak bisa dipenuhi.

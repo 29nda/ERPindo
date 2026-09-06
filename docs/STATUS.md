@@ -3,9 +3,71 @@
 > Halaman ini ditulis untuk pemilik produk (non-teknis). Selalu diperbarui setiap ada kemajuan.
 > Log teknis per fase ada di folder [docs/log/](./log/).
 
-**Terakhir diperbarui:** 5 September 2026
+**Terakhir diperbarui:** 6 September 2026
 
-## Yang baru saja selesai — Fase 54h: naskah & pengalaman pakai
+## Yang baru saja selesai — Fase 54i: situs publik
+
+Bagian 10 dari sepuluh bagian audit — bagian terakhir.
+
+Saya mencari klaim di halaman publik yang tidak lagi cocok dengan produknya.
+Yang saya temukan bukan soal naskah.
+
+**Tiga paket dijual, satu yang benar-benar bisa dibeli.** Halaman depan memasang
+tiga kartu — Starter, Business, Enterprise — lengkap dengan harga tahunan "hemat
+dua bulan". Tetapi di dalam aplikasi, satu-satunya tombol berlangganan hanya bisa
+membeli paket yang **sedang** dipakai, dan selalu bulanan. Pendaftaran selalu
+memberi paket termurah. Artinya: pelanggan yang ingin Business tidak punya cara
+membelinya, dan harga tahunan yang kita iklankan tidak bisa dipilih di mana pun.
+Naik paket hanya mungkin bila saya melakukannya dari sisi admin.
+
+Bagian yang mengejutkan: sistem pembayarannya **sudah bisa** melakukan keduanya
+sejak paketnya dipecah menjadi tiga. Yang tidak pernah dibuat hanyalah tempat
+memilihnya. Sekarang ada: kartu langganan memuat pemilih paket dan pemilih
+periode. Menurunkan paket sengaja tidak dibuka sendiri — kapasitas yang sudah
+terpakai bisa melampaui paket yang lebih kecil — jadi itu lewat Dukungan, dan
+layarnya mengatakan begitu.
+
+**Halaman "Harga" masih menjual satu paket.** Halaman itu dibuat justru supaya
+ada tautan yang layak diteruskan ke bagian pengadaan calon pelanggan. Isinya
+masih: judul "Satu harga, tanpa biaya tambahan", satu kartu berisi Rp 750.000
+tanpa menyebut nama paketnya, dan kalimat "yang dibatasi hanya ada satu" yang
+menyebut kuota AI 100 per hari — angka yang tidak dimiliki paket mana pun.
+Halaman depan sudah benar; halaman Harga membantahnya. Sudah ditulis ulang: tiga
+kartu, tabel batas per paket, dan biaya tiga tahun untuk pembayaran bulanan
+maupun tahunan. Tidak satu angka pun diketik di naskah — seluruhnya dibaca dari
+daftar harga.
+
+**Berkas yang dibaca mesin penjawab menyatakan harga yang sudah dicabut.** Ada
+satu berkas yang sengaja ditulis untuk dikutip ChatGPT, Perplexity, dan ringkasan
+AI Google. Isinya masih "Satu paket, tidak ada tingkatan". Berkas itulah yang
+paling mahal salahnya, karena kalimatnya kembali sebagai jawaban kepada calon
+pelanggan yang bertanya tentang ERPindo. Sudah diperbaiki, dan sekarang dibangun
+dari daftar harga sehingga tidak bisa berpisah lagi.
+
+**Dua hal lagi ditemukan oleh penjaganya, bukan oleh saya.** Setelah semuanya
+saya tambal, penjaga baru itu dijalankan dan langsung memerah di dua tempat yang
+tidak saya baca: satu jawaban di daftar tanya-jawab halaman depan yang menyangkal
+adanya biaya tambahan (padahal kelebihan karyawan penggajian memang ditagih), dan
+klaim "1.300+ uji otomatis" di halaman masuk — padahal jumlah sebenarnya saat itu
+1.273. Klaim yang melebihi kenyataannya, di halaman yang dilihat setiap orang
+yang mendaftar. Angka itu kini dipaksa penjaga angka, jadi ia tidak bisa
+mendahului kenyataan lagi.
+
+**Yang sengaja saya tinggalkan, dan sebabnya:**
+
+- Halaman **Panduan** terdaftar di peta situs untuk Google, tetapi disajikan
+  dengan cara yang membuat perayap dan mesin penjawab hanya menerima halaman
+  kosong. 25 modul panduan — badan naskah terbesar di situs ini — tidak terbaca
+  oleh pembaca yang justru kita undang. Memperbaikinya berarti memindahkan isi
+  panduan ke tempat yang bisa dibaca server; itu pekerjaan tersendiri, bukan
+  tambalan di ujung audit.
+- Tiga hal yang membedakan paket — kanal dukungan, waktu respons, jam
+  pendampingan — sudah tertulis di data tetapi **tidak** saya umumkan. Ketiganya
+  janji layanan yang belum punya mekanisme apa pun di belakangnya, dan
+  mengumumkannya berarti menjanjikan sesuatu yang tidak dijaga. Itu keputusan
+  Anda, bukan keputusan yang boleh saya ambil sambil memperbaiki naskah.
+
+## Sebelumnya — Fase 54h: naskah & pengalaman pakai
 
 Bagian 9 dari sepuluh bagian audit.
 
@@ -552,9 +614,9 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.273** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.348** |
-| Simulasi klik di peramban nyata | 431 | **501** |
+| Uji unit | 923 | **1.283** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.351** |
+| Simulasi klik di peramban nyata | 431 | **505** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
@@ -1036,7 +1098,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.348 skenario ujian end-to-end + 1.273 unit test + 501 cek simulasi UI browser nyata**, totalnya **3.122 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.351 skenario ujian end-to-end + 1.283 unit test + 505 cek simulasi UI browser nyata**, totalnya **3.139 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

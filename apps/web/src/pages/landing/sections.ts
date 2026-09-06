@@ -350,8 +350,8 @@ export const PERTANYAAN_SEBELUM_MULAI: { tanya: Dual; jawaban: Dual }[] = [
   {
     tanya: { id: "Nanti ada biaya tambahan?", en: "Will there be extra charges later?" },
     jawaban: {
-      id: "Satu harga per perusahaan per bulan, dan seluruh modul sudah terbuka sejak hari pertama. Tidak ada fitur yang dikunci untuk dijual menyusul, dan menambah pengguna tidak menambah tagihan.",
-      en: "One price per company per month, with every module unlocked from day one. No feature is held back to be sold later, and adding users does not add to the bill.",
+      id: "Tagihannya harga paket per perusahaan per bulan, dan seluruh modul sudah terbuka sejak hari pertama di paket mana pun. Tidak ada fitur yang dikunci untuk dijual menyusul, dan menambah pengguna tidak menambah tagihan. Satu-satunya tambahan adalah karyawan penggajian di atas jatah paket, yang ditagih per kepala per tahun dan tarifnya tertulis di halaman harga.",
+      en: "The bill is the plan price per company per month, with every module unlocked from day one on any plan. No feature is held back to be sold later, and adding users does not add to the bill. The only addition is payroll employees beyond a plan's allowance, billed per head per year at the rate stated on the pricing page.",
     },
   },
   {
