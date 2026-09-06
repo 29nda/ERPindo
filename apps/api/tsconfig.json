@@ -20,6 +20,8 @@
     "test/kodeAkunUnik.test.ts",
     "test/fiturTertinggal.test.ts",
     "test/angkaAcuanDokumen.test.ts",
-    "test/tenantTanpaDb.test.ts"
+    "test/tenantTanpaDb.test.ts",
+    "test/gerbangTenant.test.ts",
+    "test/ujiPembacaSumber.test.ts"
   ]
 }
