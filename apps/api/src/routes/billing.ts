@@ -314,6 +314,33 @@ export const billingRoutes = new Hono<AppEnv>()
     const orderId = `sub-${m.tenantId.slice(0, 8)}-${Date.now()}`;
     const invoiceId = crypto.randomUUID();
 
+    /*
+     * CATAT DULU, BARU BUAT KEWAJIBANNYA (Fase 54g).
+     *
+     * Urutan sebelumnya memanggil Xendit lebih dulu lalu menyimpan barisnya.
+     * Bila penyimpanan itu gagal — satu gangguan D1 sudah cukup — pelanggan
+     * memegang tagihan Xendit yang HIDUP untuk pesanan yang tidak kita kenali.
+     * Ia membayar; webhook mencari `order_id` itu, tidak menemukannya, lalu
+     * membalas 200 karena balasan itulah yang benar untuk ping tak dikenal —
+     * sehingga Xendit berhenti mengulang. Uang diterima, langganan tidak
+     * pernah aktif, dan tidak ada satu pun jejak.
+     *
+     * Berkas ini sudah menyebut akibat itu sebagai kegagalan terburuk yang
+     * bisa dihasilkan alur ini — untuk sebab yang berbeda (token webhook
+     * hilang), yang memang sudah dijaga. Sebab yang ini belum.
+     *
+     * Dibalik: barisnya ditulis lebih dulu tanpa `redirect_url`, lalu diisi
+     * setelah Xendit menjawab. Bila Xendit gagal, yang tersisa hanyalah baris
+     * pending tanpa tautan — tidak ada uang yang bisa masuk untuknya, dan ia
+     * terlihat di daftar tagihan alih-alih menghilang.
+     */
+    await c.env.DB.prepare(
+      `INSERT INTO subscription_invoices (id, tenant_id, order_id, amount, period_months, status, plan, redirect_url, created_by)
+       VALUES (?, ?, ?, ?, ?, 'pending', ?, NULL, ?)`,
+    )
+      .bind(invoiceId, m.tenantId, orderId, amount, bulan, plan, user.id)
+      .run();
+
     const bayar = await buatInvoiceXendit(c.env, {
       orderId,
       amount,
@@ -324,14 +351,17 @@ export const billingRoutes = new Hono<AppEnv>()
       customerName: user.name,
       finishUrl: `${appOrigin(c)}/app/pengaturan`,
     });
-    if (!bayar.ok) return c.json({ error: bayar.error }, 502);
+    if (!bayar.ok) {
+      // Tagihannya tidak pernah terbit, jadi barisnya ditandai gagal — bukan
+      // dibiarkan pending selamanya di daftar tagihan pelanggan.
+      await c.env.DB.prepare(`UPDATE subscription_invoices SET status = 'failed' WHERE id = ?`)
+        .bind(invoiceId)
+        .run();
+      return c.json({ error: bayar.error }, 502);
+    }
     const redirectUrl = bayar.redirectUrl;
-
-    await c.env.DB.prepare(
-      `INSERT INTO subscription_invoices (id, tenant_id, order_id, amount, period_months, status, plan, redirect_url, created_by)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
-    )
-      .bind(invoiceId, m.tenantId, orderId, amount, bulan, plan, redirectUrl, user.id)
+    await c.env.DB.prepare(`UPDATE subscription_invoices SET redirect_url = ? WHERE id = ?`)
+      .bind(redirectUrl, invoiceId)
       .run();
     // Periode disimpan di tenant supaya perpanjangan tidak perlu menyimpulkan
     // "ini tahunan atau bulanan" dari nominal invoice — cara yang pasti salah
@@ -402,7 +432,32 @@ export const billingWebhookRoutes = new Hono<AppEnv>().post("/notification", asy
     )
       .bind(n.external_id)
       .first<{ id: string; tenant_id: string; invoice_no: string; status: string }>();
-    if (!link) return c.json({ ignored: true }); // benar-benar tak dikenal / ping
+    if (!link) {
+      /*
+       * Pesanan tak dikenal (Fase 54g).
+       *
+       * Balasan 200 tetap benar: Xendit mengirim ping dan peristiwa lain ke URL
+       * yang sama, dan membalas non-2xx hanya memanen enam percobaan ulang untuk
+       * keadaan yang tidak akan membaik.
+       *
+       * Yang salah sebelumnya adalah SENYAPNYA. Pesanan tak dikenal yang
+       * berstatus LUNAS berarti uang benar-benar berpindah untuk sesuatu yang
+       * tidak ada di database kita — dan satu-satunya cara mengetahuinya adalah
+       * membandingkan dasbor Xendit dengan database secara manual, yang berarti
+       * tidak pernah. Sekarang ia meninggalkan jejak yang bisa dicari.
+       *
+       * Ping dan peristiwa non-lunas tetap diabaikan tanpa catatan; mencatat
+       * semuanya akan membuat catatan ini ikut tidak terbaca.
+       */
+      if (XENDIT_LUNAS.has(n.status ?? "")) {
+        await audit(c.env, {
+          action: "billing.pesanan_tak_dikenal",
+          detail: { orderId: n.external_id, status: n.status, jumlah: n.paid_amount, xenditId: n.id },
+        });
+        console.error(`[billing] pembayaran untuk pesanan tak dikenal: ${n.external_id}`);
+      }
+      return c.json({ ignored: true });
+    }
     const lts = n.status;
     const lSettled = XENDIT_LUNAS.has(lts ?? "");
     if (lSettled) {

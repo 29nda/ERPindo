@@ -253,6 +253,30 @@ describe("webhook notifikasi billing", () => {
     expect(state.tenant.status).toBe("past_due");
   });
 
+  it("pesanan TAK DIKENAL yang berstatus lunas meninggalkan jejak (Fase 54g)", async () => {
+    // Uang benar-benar berpindah untuk sesuatu yang tidak ada di database kita.
+    // Balasan 200 tetap benar (Xendit mengirim ping ke URL yang sama), tetapi
+    // SENYAPNYA tidak: satu-satunya cara mengetahuinya dulu adalah
+    // membandingkan dasbor Xendit dengan database secara manual.
+    const state = { invoice: null, tenant: { status: "active", plan: "starter", subscription_ends_at: null }, audits: [] as unknown[] };
+    const call = appWithDb(envXendit({ DB: fakeDb(state) as unknown as Env["DB"] }));
+    const res = await call(notif({ external_id: "sub-entah-1" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ignored: true });
+    const aksi = state.audits.map((a) => (a as unknown[])[3]);
+    expect(aksi).toContain("billing.pesanan_tak_dikenal");
+  });
+
+  it("pesanan tak dikenal yang BUKAN pembayaran tetap diabaikan tanpa catatan", async () => {
+    // Ping dan peristiwa non-lunas datang rutin. Mencatat semuanya membuat
+    // catatan yang penting ikut tidak terbaca.
+    const state = { invoice: null, tenant: { status: "active", plan: "starter", subscription_ends_at: null }, audits: [] as unknown[] };
+    const call = appWithDb(envXendit({ DB: fakeDb(state) as unknown as Env["DB"] }));
+    const res = await call(notif({ external_id: "sub-entah-2", status: "EXPIRED" }));
+    expect(res.status).toBe(200);
+    expect(state.audits).toEqual([]);
+  });
+
   it("PAID + token sah → invoice lunas + tenant aktif + langganan diperpanjang", async () => {
     const state = { invoice: { id: "i1", order_id: "sub-abc-1", tenant_id: "t1", status: "pending", period_months: 1, plan: "business" }, tenant: { status: "provisioning", plan: "starter", subscription_ends_at: null as string | null }, audits: [] as unknown[] };
     const call = appWithDb(envXendit({ DB: fakeDb(state) as unknown as Env["DB"] }));

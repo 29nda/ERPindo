@@ -22,6 +22,8 @@
     "test/angkaAcuanDokumen.test.ts",
     "test/tenantTanpaDb.test.ts",
     "test/gerbangTenant.test.ts",
-    "test/ujiPembacaSumber.test.ts"
+    "test/ujiPembacaSumber.test.ts",
+    "test/cronKetahanan.test.ts",
+    "test/catatSebelumTagih.test.ts"
   ]
 }
