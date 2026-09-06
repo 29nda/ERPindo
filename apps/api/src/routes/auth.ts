@@ -541,7 +541,8 @@ export const authRoutes = new Hono<AppEnv>()
   .get("/me", requireAuth, async (c) => {
     const user = c.get("user");
     const { results } = await c.env.DB.prepare(
-      `SELECT t.id AS tenant_id, t.name, t.slug, t.status, t.plan, t.trial_ends_at, t.subscription_ends_at, m.role
+      `SELECT t.id AS tenant_id, t.name, t.slug, t.status, t.plan, t.trial_ends_at, t.subscription_ends_at,
+              t.db_ref, m.role
        FROM memberships m JOIN tenants t ON t.id = m.tenant_id
        WHERE m.user_id = ? ORDER BY m.created_at`,
     )
@@ -554,6 +555,7 @@ export const authRoutes = new Hono<AppEnv>()
         plan: Plan;
         trial_ends_at: string | null;
         subscription_ends_at: string | null;
+        db_ref: string;
         role: Role;
       }>();
 
@@ -587,6 +589,9 @@ export const authRoutes = new Hono<AppEnv>()
         plan: r.plan,
         trialEndsAt: r.trial_ends_at,
         subscriptionEndsAt: r.subscription_ends_at,
+        // Fase 54f — satu-satunya jawaban jujur atas "apakah aplikasi ini bisa
+        // dipakai sekarang". Status tidak bisa menjawabnya (lihat ApiMembership).
+        tenantSiap: r.db_ref !== TANPA_DB,
       })),
     };
     return c.json(body);

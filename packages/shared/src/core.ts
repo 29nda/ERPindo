@@ -604,6 +604,17 @@ export type ApiMembership = {
   plan: Plan;
   /** Tanggal langganan berakhir (Fase 11b); NULL untuk akun comped. */
   subscriptionEndsAt?: string | null;
+  /**
+   * Apakah perusahaan ini sudah punya database (Fase 54f).
+   *
+   * `tenantStatus` saja TIDAK cukup untuk menjawabnya. Perusahaan yang sudah
+   * membayar berstatus `active` sementara databasenya bisa saja belum sempat
+   * dibuat (webhook tiba saat pool penuh) — dan di keadaan itu setiap layar
+   * modul menerima 402, persis seperti perusahaan yang belum bayar. Aplikasi
+   * web perlu membedakan "belum bisa dipakai" dari "belum berlangganan" tanpa
+   * menebaknya dari status.
+   */
+  tenantSiap: boolean;
 };
 
 // --- Billing langganan (Fase 11b) ------------------------------------------

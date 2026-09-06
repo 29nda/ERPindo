@@ -24,6 +24,35 @@ describe("perluDitoast — kegagalan mana yang layak mengganggu pengguna", () =>
     expect(perluDitoast(new Error("apa saja"))).toBe(true);
   });
 
+  it("402 yang layarnya sudah menjelaskan sendiri dilewati (Fase 54f)", () => {
+    // Perusahaan belum berlangganan: kerangka aplikasi mengganti SELURUH isi
+    // halaman dengan satu layar berisi penjelasan dan tombolnya. Toast di atas
+    // layar itu mengulang kalimatnya sambil menutupi tombolnya.
+    expect(
+      perluDitoast(
+        new ApiRequestError(402, "Perusahaan ini belum berlangganan.", undefined, undefined, "belum-berlangganan"),
+      ),
+    ).toBe(false);
+    expect(
+      perluDitoast(
+        new ApiRequestError(402, "Perusahaan ini sedang disiapkan.", undefined, undefined, "sedang-disiapkan"),
+      ),
+    ).toBe(false);
+  });
+
+  it("402 yang TIDAK dijelaskan layar mana pun tetap ditoast", () => {
+    // Membungkam seluruh 402 akan membuat penangguhan langganan menjadi
+    // kegagalan senyap. Yang membedakan bukan status, melainkan apakah ada
+    // layar lain yang sudah mengatakannya.
+    expect(perluDitoast(new ApiRequestError(402, "Langganan ditangguhkan.", undefined, undefined, "suspended"))).toBe(
+      true,
+    );
+    expect(perluDitoast(new ApiRequestError(402, "Kuota paket terlampaui.", undefined, undefined, "kuota-paket"))).toBe(
+      true,
+    );
+    expect(perluDitoast(new ApiRequestError(402, "Mode baca-saja."))).toBe(true);
+  });
+
   it("401 dilewati — AppShell sudah memindahkan pengguna ke halaman masuk", () => {
     expect(perluDitoast(new ApiRequestError(401, "Sesi habis"))).toBe(false);
   });

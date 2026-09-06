@@ -20,8 +20,25 @@ import { ApiRequestError } from "../api/client";
  */
 export const STATUS_TANPA_TOAST = new Set([401, 403, 503]);
 
+/**
+ * Keadaan 402 yang layarnya SUDAH menjelaskan sendiri (Fase 54f).
+ *
+ * Perusahaan yang belum berlangganan menerima 402 pada setiap query, dan
+ * kerangka aplikasi sudah menggantikan seluruh isi halaman dengan satu layar
+ * yang menerangkannya beserta tombolnya. Toast di atas layar itu mengulang
+ * kalimat yang sama sambil menyembunyikan tombolnya.
+ *
+ * Yang TIDAK didaftarkan di sini juga disengaja: 402 tanpa `detail` — mis.
+ * langganan ditangguhkan — tetap ditoast, karena tak ada layar lain yang
+ * mengatakannya. Membungkam seluruh 402 akan membuat penangguhan menjadi
+ * kegagalan senyap.
+ */
+export const DETAIL_402_TANPA_TOAST = new Set(["belum-berlangganan", "sedang-disiapkan"]);
+
 export function perluDitoast(err: unknown): boolean {
-  if (err instanceof ApiRequestError) return !STATUS_TANPA_TOAST.has(err.status);
+  if (!(err instanceof ApiRequestError)) return true;
+  if (STATUS_TANPA_TOAST.has(err.status)) return false;
+  if (err.status === 402 && err.detail && DETAIL_402_TANPA_TOAST.has(err.detail)) return false;
   return true;
 }
 
