@@ -5,7 +5,41 @@
 
 **Terakhir diperbarui:** 5 September 2026
 
-## Yang baru saja selesai — Fase 54g: ketahanan saat ada yang gagal
+## Yang baru saja selesai — Fase 54h: naskah & pengalaman pakai
+
+Bagian 9 dari sepuluh bagian audit.
+
+Naskah adalah bagian aplikasi ini yang penjaganya paling banyak — empat penyapu
+berjalan tiap kali kode berubah, memaksa ejaan, istilah, bentuk kalimat, dan
+warna. Jadi yang saya cari bukan naskah yang salah, melainkan **yang tidak
+diukur sama sekali**.
+
+**Aksesibilitas ternyata baik — tetapi tidak sebaik yang saya kira mula-mula.**
+Saya buka dua belas halaman tersibuk dan menemukan **satu** kendali yang tidak
+punya nama terbaca pembaca layar. Lalu saya buat penjaganya, yang menyapu
+**setiap** halaman — dan ia menemukan **empat lagi** yang luput dari sampel saya:
+kotak cari di Panduan, Kontrak, dan Manufaktur yang hanya berlabel teks bayangan
+(teks itu hilang begitu orang mulai mengetik), serta satu kolom jumlah tanpa
+label sama sekali. Kelimanya sudah diperbaiki. Tombol dan gambar memang bersih.
+
+Ada satu kejadian yang membuat penjaganya terbukti lebih berharga daripada
+perbaikannya: dua kotak cari itu **tetap tanpa nama walau sudah saya perbaiki**,
+karena komponen bersamanya diam-diam membuang keterangan yang saya berikan.
+Tanpa pengukuran ulang, saya akan menutup bagian ini dengan yakin keduanya sudah
+beres.
+
+**Temuan kedua: aplikasi sudah tahu medan mana yang salah, lalu membuangnya.**
+Saat sebuah formulir ditolak, server mengirim alasan per kolom dalam kalimat
+Indonesia yang bisa langsung dibaca — "Kode wajib diisi", "Nama akun minimal 2
+karakter". Ada 113 tempat yang mengirimkannya dan **257 kalimat** semacam itu
+sudah ditulis. Tetapi hanya **tiga halaman** dari sekitar empat puluh yang
+menampilkannya; sisanya hanya berkata "Data tidak valid". Pengguna tahu
+formulirnya ditolak, tidak tahu di mana.
+
+Diperbaiki di satu tempat, bukan di empat puluh halaman: alasannya kini ikut ke
+dalam pesannya, jadi semua halaman membaik tanpa satu pun disentuh.
+
+## Sebelumnya — Fase 54g: ketahanan saat ada yang gagal
 
 Bagian 8 dari sepuluh bagian audit.
 
@@ -518,9 +552,9 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.267** |
+| Uji unit | 923 | **1.273** |
 | Uji ujung-ke-ujung (smoke) | 1.173 | **1.348** |
-| Simulasi klik di peramban nyata | 431 | **498** |
+| Simulasi klik di peramban nyata | 431 | **501** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
@@ -1002,7 +1036,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.348 skenario ujian end-to-end + 1.267 unit test + 498 cek simulasi UI browser nyata**, totalnya **3.113 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.348 skenario ujian end-to-end + 1.273 unit test + 501 cek simulasi UI browser nyata**, totalnya **3.122 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

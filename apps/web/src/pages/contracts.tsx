@@ -368,6 +368,7 @@ export function ContractsPage() {
                     value={line.productId}
                     valueLabel={line.productLabel}
                     placeholder={u("cariProdukJasa")}
+                    aria-label={u("cariProdukJasa")}
                     fetchOptions={fetchProductOptions}
                     onSelect={(opt) => pickProduct(i, opt)}
                   />

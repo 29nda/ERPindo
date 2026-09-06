@@ -1522,13 +1522,75 @@ try {
   // 1. Sapu semua rute: render + bebas galat.
   // -------------------------------------------------------------------------
   console.log("1. Sapu seluruh rute aplikasi");
+  /**
+   * F54h — nama yang bisa dibaca pembaca layar (Fase 54h).
+   *
+   * Diukur di sini, bukan di blok terpisah, karena sapuan rute ini SUDAH
+   * membuka setiap halaman aplikasi satu per satu; mengulanginya hanya
+   * menggandakan waktu jalan untuk data yang sama.
+   *
+   * Sifat ini ternyata sudah hampir sepenuhnya benar saat diukur pertama kali:
+   * dari dua belas halaman tersibuk hanya SATU kendali yang tanpa nama, dan
+   * tidak ada satu pun tombol tanpa nama atau gambar tanpa `alt`. Justru itu
+   * alasan memagarinya sekarang — yang tidak diukur akan menurun tanpa ada yang
+   * menyadarinya, dan menambalnya setelah lima puluh halaman jauh lebih mahal
+   * daripada menjaganya tetap nol.
+   *
+   * `placeholder` sengaja TIDAK dihitung sebagai nama. Ia hilang begitu orang
+   * mulai mengetik, jadi tepat pada saat pengguna paling butuh tahu ia sedang
+   * mengisi apa, keterangannya justru tidak ada.
+   */
+  const tanpaNama = { medan: [], tombol: [], gambar: [] };
   for (const [route, name] of AUDIT_ROUTES) {
     resetErrors();
     await gotoRoute(route);
     const text = await page.innerText("body").catch(() => "");
     check(`rute ${name} (${route}) render berisi`, text.replace(/\s+/g, " ").length > 40);
     check(`rute ${name} bebas pageerror/console.error/5xx`, errors.length === 0, `→ ${errors[0] ?? ""}`);
+
+    const a11y = await page.evaluate(() => {
+      const bernama = (el) =>
+        Boolean(
+          el.getAttribute("aria-label")?.trim() ||
+            el.getAttribute("aria-labelledby") ||
+            el.getAttribute("title")?.trim() ||
+            (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) ||
+            el.closest("label"),
+        );
+      const terlihat = (el) => {
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      };
+      const petik = (el) => `${el.tagName.toLowerCase()}#${el.id || "?"}`;
+      return {
+        medan: [...document.querySelectorAll("input:not([type=hidden]), select, textarea")]
+          .filter((el) => terlihat(el) && !bernama(el))
+          .map(petik),
+        tombol: [...document.querySelectorAll("button, a[href]")]
+          .filter((el) => terlihat(el) && !el.textContent?.trim() && !bernama(el))
+          .map((el) => `${el.tagName.toLowerCase()}.${el.className.toString().slice(0, 40)}`),
+        gambar: [...document.querySelectorAll("img")].filter((el) => el.getAttribute("alt") === null).length,
+      };
+    });
+    for (const m of a11y.medan) tanpaNama.medan.push(`${route} ${m}`);
+    for (const t of a11y.tombol) tanpaNama.tombol.push(`${route} ${t}`);
+    if (a11y.gambar > 0) tanpaNama.gambar.push(`${route} (${a11y.gambar})`);
   }
+  check(
+    "F54h tidak ada kolom isian tanpa nama yang bisa dibaca pembaca layar",
+    tanpaNama.medan.length === 0,
+    `→ ${tanpaNama.medan.length} temuan: ${JSON.stringify(tanpaNama.medan)}`,
+  );
+  check(
+    "F54h tidak ada tombol atau tautan tanpa nama",
+    tanpaNama.tombol.length === 0,
+    `→ ${tanpaNama.tombol.length} temuan: ${JSON.stringify(tanpaNama.tombol)}`,
+  );
+  check(
+    "F54h tidak ada gambar tanpa atribut alt",
+    tanpaNama.gambar.length === 0,
+    `→ ${tanpaNama.gambar.length} temuan: ${JSON.stringify(tanpaNama.gambar)}`,
+  );
 
   // -------------------------------------------------------------------------
   // 2. Alur interaktif nyata.

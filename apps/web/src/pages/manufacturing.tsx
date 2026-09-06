@@ -225,6 +225,7 @@ export function ManufacturingPage() {
                         value={line.componentId}
                         valueLabel={line.componentLabel}
                         placeholder={u("cariKomponen")}
+                        aria-label={u("cariKomponen")}
                         fetchOptions={(q) => fetchGoodsOptions(q, bomProduct)}
                         onSelect={(opt) =>
                           setComps((cs) =>
@@ -241,6 +242,7 @@ export function ManufacturingPage() {
                       type="number"
                       min={1}
                       className="w-24"
+                      aria-label={u("jumlahKomponen")}
                       value={line.qty}
                       onChange={(e) =>
                         setComps((cs) =>

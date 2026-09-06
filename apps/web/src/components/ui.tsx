@@ -473,6 +473,7 @@ export function SearchSelect({
   disabled,
   fetchOptions,
   onSelect,
+  "aria-label": ariaLabel,
 }: {
   id?: string;
   /** Nilai terpilih saat ini ("" bila belum ada). */
@@ -484,6 +485,18 @@ export function SearchSelect({
   /** Dipanggil (ter-debounce) dengan teks pencarian; kembalikan daftar opsi. */
   fetchOptions: (q: string) => Promise<SearchSelectOption[]>;
   onSelect: (option: SearchSelectOption) => void;
+  /**
+   * Nama untuk pembaca layar (Fase 54h). Bila tidak diisi, `placeholder` yang
+   * dipakai — dan itu bukan kompromi melainkan perbaikan: placeholder HILANG
+   * begitu orang mulai mengetik, tepat saat ia paling butuh tahu sedang mencari
+   * apa. Menyalinnya ke `aria-label` membuat keterangannya bertahan.
+   *
+   * Komponen ini sebelumnya tidak meneruskan prop ini sama sekali, jadi
+   * pemanggil yang mengirimkannya tidak mendapat apa-apa tanpa satu pun
+   * peringatan — dan itulah yang terjadi saat fase ini pertama kali mencoba
+   * menamai kotak cari di Kontrak dan Manufaktur.
+   */
+  "aria-label"?: string;
 }) {
   const u = useUi();
   const [open, setOpen] = useState(false);
@@ -534,6 +547,7 @@ export function SearchSelect({
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
+        aria-label={ariaLabel ?? placeholder}
         disabled={disabled}
         placeholder={value ? undefined : (placeholder ?? u("cpKetikCari"))}
         value={open ? query : valueLabel}
