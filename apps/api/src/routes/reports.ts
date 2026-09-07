@@ -480,6 +480,37 @@ export const reportRoutes = new Hono<AppEnv>()
       return row?.sisa ?? 0;
     };
 
+    /**
+     * Buku pembantu tiga akun kontrol yang menyusul (Fase 55e).
+     *
+     * Fase 54a menutup laporan ini dengan catatan jujur: "Hutang Gaji, PPN
+     * Masukan/Keluaran, dan Piutang Karyawan layak menyusul, tetapi
+     * masing-masing menuntut definisi buku pembantunya sendiri lebih dulu — dan
+     * mendefinisikannya asal-asalan akan mengulang persis cacat rumus yang baru
+     * saja saya buat sendiri di piutang."
+     *
+     * Definisinya, masing-masing dari tabel yang BUKAN buku besar — itu
+     * syaratnya. Buku pembantu yang ternyata jurnal yang sama ditulis ulang
+     * hanya membuktikan penjumlahan, bukan pembukuan:
+     *
+     * - **Utang Gaji** (2-1200) dikredit potongan PPh 21 & BPJS tiap penggajian
+     *   dan PPh 21 tiap THR. Tidak ada jalur penyetoran ke kas negara di
+     *   aplikasi ini, jadi saldonya menumpuk — dan buku pembantunya adalah
+     *   jumlah potongan seluruh run yang belum dibatalkan.
+     * - **Piutang Karyawan** (1-1210) didebit saat kasbon diberikan dan
+     *   dikredit tiap cicilan potong gaji. Sisa pokoknya hidup di kolomnya
+     *   sendiri, `employee_loans.balance` — buku pembantu yang paling bersih di
+     *   antara ketiganya.
+     * - **PPN Keluaran & Masukan** terkumpul dari pajak tiap faktur penjualan
+     *   dan pembelian, lalu berkurang oleh retur. Kasir memakai tabel
+     *   `invoices` yang sama, jadi penjualan POS ikut tercakup tanpa sumber
+     *   keempat.
+     */
+    const jumlahKolom = async (sql: string) => {
+      const row = await db.prepare(sql).first<{ n: number }>();
+      return row?.n ?? 0;
+    };
+
     const [glPiutang, glUtang, glPersediaan, subPiutang, subUtang, stokRow, timpangRows, kosongRows] = await Promise.all([
       saldoAkun(SYS_ACCOUNTS.PIUTANG, "debit"),
       saldoAkun(SYS_ACCOUNTS.HUTANG, "kredit"),
@@ -527,6 +558,28 @@ export const reportRoutes = new Hono<AppEnv>()
      */
     const toleransiPembulatan = (saldo: number) => Math.max(100, Math.round(Math.abs(saldo) / 10_000));
 
+    const [glUtangGaji, glPiutangKaryawan, glPpnKeluaran, glPpnMasukan] = await Promise.all([
+      saldoAkun(SYS_ACCOUNTS.UTANG_GAJI, "kredit"),
+      saldoAkun(SYS_ACCOUNTS.PIUTANG_KARYAWAN, "debit"),
+      saldoAkun(SYS_ACCOUNTS.PPN_KELUARAN, "kredit"),
+      saldoAkun(SYS_ACCOUNTS.PPN_MASUKAN, "debit"),
+    ]);
+    const [subUtangGaji, subPiutangKaryawan, subPpnKeluaran, subPpnMasukan] = await Promise.all([
+      jumlahKolom(
+        `SELECT (SELECT COALESCE(SUM(total_deductions), 0) FROM payroll_runs WHERE voided_at IS NULL)
+              + (SELECT COALESCE(SUM(total_pph21), 0) FROM thr_runs WHERE voided_at IS NULL) AS n`,
+      ),
+      jumlahKolom(`SELECT COALESCE(SUM(balance), 0) AS n FROM employee_loans WHERE status = 'active'`),
+      jumlahKolom(
+        `SELECT (SELECT COALESCE(SUM(tax_amount), 0) FROM invoices WHERE voided_at IS NULL)
+              - (SELECT COALESCE(SUM(tax_amount), 0) FROM returns WHERE ref_type = 'invoice') AS n`,
+      ),
+      jumlahKolom(
+        `SELECT (SELECT COALESCE(SUM(tax_amount), 0) FROM purchases WHERE voided_at IS NULL)
+              - (SELECT COALESCE(SUM(tax_amount), 0) FROM returns WHERE ref_type = 'purchase') AS n`,
+      ),
+    ]);
+
     const pos = [
       { nama: "Piutang Usaha", kodeAkun: SYS_ACCOUNTS.PIUTANG, bukuBesar: glPiutang, bukuPembantu: subPiutang, toleransi: 0 },
       { nama: "Utang Usaha", kodeAkun: SYS_ACCOUNTS.HUTANG, bukuBesar: glUtang, bukuPembantu: subUtang, toleransi: 0 },
@@ -537,6 +590,19 @@ export const reportRoutes = new Hono<AppEnv>()
         bukuPembantu: stokRow?.value ?? 0,
         toleransi: toleransiPembulatan(glPersediaan),
       },
+      // Keempatnya cocok PERSIS: seluruhnya jumlah bilangan bulat tanpa satu
+      // pun pembagian, jadi selisih serupiah pun berarti ada posting yang salah
+      // arah — bukan pembulatan seperti pada Persediaan.
+      { nama: "Utang Gaji", kodeAkun: SYS_ACCOUNTS.UTANG_GAJI, bukuBesar: glUtangGaji, bukuPembantu: subUtangGaji, toleransi: 0 },
+      {
+        nama: "Piutang Karyawan",
+        kodeAkun: SYS_ACCOUNTS.PIUTANG_KARYAWAN,
+        bukuBesar: glPiutangKaryawan,
+        bukuPembantu: subPiutangKaryawan,
+        toleransi: 0,
+      },
+      { nama: "PPN Keluaran", kodeAkun: SYS_ACCOUNTS.PPN_KELUARAN, bukuBesar: glPpnKeluaran, bukuPembantu: subPpnKeluaran, toleransi: 0 },
+      { nama: "PPN Masukan", kodeAkun: SYS_ACCOUNTS.PPN_MASUKAN, bukuBesar: glPpnMasukan, bukuPembantu: subPpnMasukan, toleransi: 0 },
     ].map((p) => {
       const selisih = p.bukuBesar - p.bukuPembantu;
       return { ...p, selisih, cocok: Math.abs(selisih) <= p.toleransi };

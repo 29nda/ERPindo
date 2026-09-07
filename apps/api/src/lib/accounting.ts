@@ -23,6 +23,18 @@ export const SYS_ACCOUNTS = {
    * sudah tercatat lewat penggajian/biaya operasional supaya tidak dobel.
    */
   PRODUKSI_DISERAP: "5-2100",
+  /**
+   * Utang Gaji & Piutang Karyawan (Fase 55e).
+   *
+   * Keduanya sudah dipakai `routes/payroll.ts` sejak Fase 2o, tetapi kodenya
+   * ditulis sebagai konstanta lokal di berkas itu. Rekonsiliasi akun kontrol
+   * perlu menyebut kode yang SAMA, dan dua tempat yang mengeja kode akun
+   * sendiri-sendiri adalah bentuk cacat yang berulang di sepuluh bagian audit:
+   * begitu salah satunya berubah, yang lain merekonsiliasi akun yang keliru dan
+   * melaporkan "cocok" tentang sesuatu yang tidak diperiksanya.
+   */
+  UTANG_GAJI: "2-1200",
+  PIUTANG_KARYAWAN: "1-1210",
 } as const;
 
 /**
