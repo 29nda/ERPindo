@@ -74,6 +74,12 @@ const PUBLIC_ALLOWLIST = new Set([
   // `/tampilan` (Fase 39d) — halaman tangkapan layar. Publik seperti kedelapan
   // jalur SEO di atasnya; gambarnya ditangkap dari data demo, bukan data tenant.
   'landingSeo.ts GET "/tampilan"',
+  // `/panduan` dan tiap modulnya (Fase 55d) — publik seperti jalur SEO lain di
+  // atasnya. Isinya naskah panduan yang sama untuk semua orang, tidak menyentuh
+  // data tenant mana pun, dan justru DIMAKSUDKAN dibaca perayap: ia terdaftar
+  // di sitemap.xml sejak lama.
+  'landingSeo.ts GET "/panduan"',
+  'landingSeo.ts GET "/panduan/:slug"',
 ]);
 
 /** Endpoint ber-requireAuth yang memang tanpa role gate: ber-scope user

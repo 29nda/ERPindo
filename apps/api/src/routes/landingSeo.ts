@@ -1,4 +1,13 @@
-import { PAKET_MASUK, FAQ_RICH_RESULT, FITUR_UTAMA, PLAN_LIMITS, PLANS } from "@erpindo/shared";
+import {
+  PAKET_MASUK,
+  escapeHtml,
+  FAQ_RICH_RESULT,
+  FITUR_UTAMA,
+  GUIDE_MODULES,
+  guideBySlug,
+  PLAN_LIMITS,
+  PLANS,
+} from "@erpindo/shared";
 import { Hono, type Context } from "hono";
 import type { AppEnv, Env } from "../env";
 
@@ -156,6 +165,11 @@ function jsonLd(base: string, jalur: string): string {
     "/syarat": "Syarat Layanan",
     "/privasi": "Kebijakan Privasi",
     "/tampilan": "Tampilan Aplikasi",
+    // Fase 55d — panduan dan tiap modulnya. Remah rotinya dibangun dari judul
+    // modul, jadi daftar ini tidak perlu memuat dua puluh lima baris tangan
+    // yang akan basi begitu ada modul baru.
+    "/panduan": "Panduan",
+    ...Object.fromEntries(GUIDE_MODULES.map((m) => [`/panduan/${m.slug}`, m.title])),
   };
 
   const blocks: object[] = [organisasi, situs];
@@ -294,6 +308,47 @@ const RINGKAS_PUBLIK: Record<string, [judul: string, isi: string]> = {
   ],
 };
 
+/**
+ * `<noscript>` panduan (Fase 55d) — indeks dan tiap modulnya.
+ *
+ * Sengaja BUKAN menyalin seluruh isi modul. Alasannya sama dengan
+ * `noscriptFitur`: blok ini ada untuk memberi perayap inti maknanya, dan
+ * menyalin ratusan langkah ke shell HTML akan memperbesar setiap muat halaman
+ * bagi pengunjung yang JavaScript-nya normal. Yang tersaji: judul modul,
+ * paragraf pembuka, dan judul tiap seksi — cukup bagi mesin untuk tahu halaman
+ * ini menjawab apa, dan jujur karena ketiganya memang tampil di layar.
+ */
+function noscriptPanduanIndeks(base: string): string {
+  const daftar = GUIDE_MODULES.map(
+    (m) => `<h2><a href="${base}/panduan/${m.slug}">${escapeHtml(m.title)}</a></h2><p>${escapeHtml(m.intro)}</p>`,
+  ).join("");
+  return `<noscript><div>
+<h1>Panduan pemakaian ERPindo</h1>
+<p>Panduan per modul: cara memakai ERPindo untuk pekerjaan sehari-hari, ditulis untuk orang yang menjalankan pembukuannya sendiri. ${GUIDE_MODULES.length} modul, dari mulai cepat sampai pajak dan penggajian.</p>
+${daftar}
+<p><a href="${base}/">Beranda ERPindo</a> · <a href="${base}/fitur">Fitur</a> · <a href="${base}/harga">Harga</a></p>
+</div></noscript>`;
+}
+
+function noscriptPanduanModul(slug: string): (base: string) => string {
+  return (base: string) => {
+    const m = guideBySlug(slug);
+    if (!m) return noscriptPanduanIndeks(base);
+    const seksi = m.sections
+      .map((sec) => {
+        const isi = [...(sec.body ?? []), ...(sec.steps ?? [])].map((t) => `<p>${escapeHtml(t)}</p>`).join("");
+        return `<h2>${escapeHtml(sec.heading)}</h2>${isi}`;
+      })
+      .join("");
+    return `<noscript><div>
+<h1>${escapeHtml(m.title)} — panduan ERPindo</h1>
+<p>${escapeHtml(m.intro)}</p>
+${seksi}
+<p><a href="${base}/panduan">Seluruh panduan</a> · <a href="${base}/">Beranda ERPindo</a></p>
+</div></noscript>`;
+  };
+}
+
 function noscriptPublik(jalur: string): (base: string) => string {
   const [judul, isi] = RINGKAS_PUBLIK[jalur] ?? ["ERPindo", ""];
   return (base: string) =>
@@ -337,4 +392,26 @@ export const landingSeoRoutes = new Hono<AppEnv>()
   // Fase 39d — halaman tangkapan layar. Empat tempat yang sama harus ikut:
   // rute di sini, `run_worker_first` di wrangler.jsonc, sitemap.xml di blog.ts,
   // dan rute SPA di apps/web/src/main.tsx.
-  .get("/tampilan", (c) => sajikan(c, "/tampilan", noscriptPublik("/tampilan")));
+  .get("/tampilan", (c) => sajikan(c, "/tampilan", noscriptPublik("/tampilan")))
+  /*
+   * Fase 55d — `/panduan` dan tiap modulnya.
+   *
+   * `/panduan` sudah terdaftar di `sitemap.xml` sejak lama: kita menyuruh
+   * Google mengindeksnya. Yang tidak pernah ada adalah rute ini dan
+   * pendaftarannya di `run_worker_first`, sehingga perayap menerima cangkang
+   * SPA kosong bertajuk beranda dan tanpa canonical. Dua puluh lima modul —
+   * badan naskah terbesar di situs ini — tidak terbaca oleh pembaca yang justru
+   * diundang `robots.txt` satu per satu.
+   *
+   * Tiap modul mendapat URL-nya sendiri, karena itulah bentuk pertanyaan yang
+   * benar-benar diketik orang: "cara tutup buku ERPindo", bukan "panduan".
+   */
+  .get("/panduan", (c) => sajikan(c, "/panduan", noscriptPanduanIndeks))
+  .get("/panduan/:slug", (c) => {
+    const slug = c.req.param("slug");
+    // Slug tak dikenal tetap dilayani sebagai halaman panduan (SPA yang
+    // menampilkan "modul tidak ditemukan"), bukan 404 dari Worker: yang
+    // menentukan halaman ada atau tidak adalah aplikasinya, dan dua sumber
+    // kebenaran untuk itu adalah cara termudah keduanya berpisah.
+    return sajikan(c, `/panduan/${slug}`, noscriptPanduanModul(slug));
+  });

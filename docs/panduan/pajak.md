@@ -14,7 +14,7 @@ PPN dihitung otomatis di setiap faktur (0/11/12%), dan faktur keluaran bisa diun
 
 PPN keluaran dan masukan dikumpulkan dari faktur yang sudah diposting, selisihnya dihitung, lalu berkasnya dibentuk dalam format yang diterima Coretax.
 
-1. Masa pajak dipilih; fakturnya dikumpulkan dari yang sudah diposting.
+1. Masa pajak dipilih, lalu fakturnya dikumpulkan dari yang sudah diposting.
 2. Selisihnya dihitung, bukan diketik dari hasil rekapitulasi terpisah.
 3. Berkas ekspor dibentuk.
 4. Format XML-nya yang diterima Coretax, jadi tidak perlu disusun ulang.

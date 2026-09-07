@@ -3240,7 +3240,7 @@ export const UI = {
   cpHurufKredit: { id: "K", en: "Cr" },
 
   // — Panduan dalam aplikasi (Fase 19t). Awalan `pd`. —
-  // Hanya KERANGKA-nya yang dwibahasa. Isi panduannya (./panduan/content)
+  // Hanya KERANGKA-nya yang dwibahasa. Isi panduannya (@erpindo/shared)
   // tetap Indonesia, sekeluarga dengan keputusan pemilik soal dokumen cetak:
   // itu korpus dokumentasi untuk UKM Indonesia, bukan teks antarmuka.
   pdCariPanduanPlaceholder: {

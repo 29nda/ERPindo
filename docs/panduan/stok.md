@@ -10,7 +10,7 @@ Tabel stok menampilkan jumlah, biaya rata-rata, dan nilai per produk per gudang 
 
 **Stok yang angkanya tidak perlu dihitung ulang**
 
-Beberapa gudang dalam satu daftar, harga pokok memakai biaya rata-rata bergerak, dan peringatan datang sebelum stok habis atau kedaluwarsa — bukan sesudahnya.
+Beberapa gudang dalam satu daftar, harga pokok memakai biaya rata-rata bergerak, dan peringatan datang sebelum stok habis atau kedaluwarsa, bukan sesudahnya.
 
 1. Tiga gudang dilihat dalam satu daftar, bukan tiga berkas terpisah.
 2. Nilai persediaan terhitung dari biaya rata-rata yang berlaku.

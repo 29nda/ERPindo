@@ -10,6 +10,8 @@ export * from "./hr";
 export * from "./projects";
 export * from "./ops";
 export * from "./reporting";
+// Isi panduan (Fase 55d) — dibaca web DAN Worker yang menyajikannya ke perayap.
+export * from "./panduan";
 export * from "./pos";
 export * from "./salesStaged";
 export * from "./audit";

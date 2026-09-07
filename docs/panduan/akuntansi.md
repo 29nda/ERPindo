@@ -12,7 +12,7 @@ Sebagian besar jurnal dibuat otomatis oleh modul lain. Untuk pencatatan manual (
 
 **Bagan akun yang sudah terpasang, bukan yang harus disusun**
 
-Bagan akun standar Indonesia terpasang saat perusahaan dibuat. Ia bisa ditambah, tetapi tidak perlu disusun dari nol — dan tidak ada proyek berbulan-bulan untuk menetapkannya.
+Bagan akun standar Indonesia terpasang saat perusahaan dibuat. Ia bisa ditambah, tetapi tidak perlu disusun dari nol, dan tidak ada proyek berbulan-bulan untuk menetapkannya.
 
 1. Bagan akun sudah ada sejak perusahaan dibuat.
 2. Akun tambahan bisa dibuat sendiri.

@@ -34,7 +34,26 @@ import { Button } from "../../components/ui";
 import { L, PublicFooter, PublicHeader, PublicShell } from "../../components/publik";
 import { Peragaan, PERAGAAN } from "../../peragaan";
 import { pick, useLang } from "../../i18n";
-import { GUIDE_CATEGORIES, GUIDE_MODULES, guideBySlug, type GuideModule } from "./content";
+import { GUIDE_CATEGORIES, GUIDE_MODULES, guideBySlug, type GuideModule } from "@erpindo/shared";
+import { type PeragaanId } from "../../peragaan";
+import type { Naskah } from "../../peragaan/tipe";
+
+/**
+ * Peragaan untuk satu seksi panduan (Fase 55d).
+ *
+ * Isi panduan pindah ke `@erpindo/shared` supaya Worker bisa membacanya, dan
+ * paket itu tidak boleh bergantung pada `apps/web` — jadi `peragaan` di sana
+ * bertipe `string`, bukan `PeragaanId`. Pencocokannya diperiksa di SINI dengan
+ * `in`, bukan dengan penegasan tipe: penegasan akan mengembalikan persis
+ * ketidakamanan yang baru saja dilepas, dan seksi yang menunjuk peragaan tak
+ * dikenal akan meledak di layar pembaca alih-alih tampil tanpa animasinya.
+ *
+ * `apps/web/test/panduan-peragaan.test.ts` menuntut daftar itu tetap cocok,
+ * jadi cabang "tidak ketemu" adalah jaring pengaman, bukan keadaan normal.
+ */
+function naskahPeragaan(id: string | undefined): Naskah | undefined {
+  return id && id in PERAGAAN ? PERAGAAN[id as PeragaanId] : undefined;
+}
 
 /**
  * Panduan pengguna — halaman publik (tanpa login) yang juga ditautkan dari
@@ -104,9 +123,9 @@ export function GuideSections({ mod }: { mod: GuideModule }) {
               mencocokkan layarnya sendiri, dan gerak berulang mengganggu),
               dan `langkahTampak` menampilkan daftar langkah bernomor di layar
               alih-alih menyembunyikannya bagi mata. */}
-          {s.peragaan ? (
+          {naskahPeragaan(s.peragaan) ? (
             <div className="mt-5 max-w-3xl">
-              <Peragaan naskah={PERAGAAN[s.peragaan]} tinggi="sedang" sekaliJalan langkahTampak />
+              <Peragaan naskah={naskahPeragaan(s.peragaan)!} tinggi="sedang" sekaliJalan langkahTampak />
             </div>
           ) : null}
           {s.tips?.length ? (

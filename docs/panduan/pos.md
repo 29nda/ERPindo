@@ -10,7 +10,7 @@ Layar kasir cepat untuk penjualan tunai di toko: shift kas, pencarian produk kil
 2. Cari produk (ketik nama/SKU), atur jumlah & diskon per item, terima uang tunai — kembalian dihitung otomatis, struk siap cetak.
 3. Tutup shift di akhir hari: hitung kas fisik — selisih kas otomatis dijurnal sehingga pembukuan tetap jujur.
 
-**Kasir yang tidak menyisakan pekerjaan pembukuan**
+**Tutup kasir tanpa menyisakan pekerjaan pembukuan**
 
 Pramuniaga memindai barang dan menerima uang tunai. Jurnal kas, harga pokok, dan selisih kas shift tercatat tanpa ada yang mengetiknya ulang di akhir hari.
 

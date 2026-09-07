@@ -12,7 +12,7 @@ Kelola calon pelanggan dari prospek sampai deal: tahapan funnel, catatan aktivit
 
 **Dari calon pelanggan sampai faktur, tanpa mengetik ulang**
 
-Calon pelanggan bergerak antar-tahapan, penawaran dibuat dari datanya, dan penawaran yang diterima menjadi pesanan lalu faktur — nomor dan harganya terbawa, tidak diketik ulang.
+Calon pelanggan bergerak antar-tahapan, penawaran dibuat dari datanya, dan penawaran yang diterima menjadi pesanan lalu faktur. Nomor dan harganya terbawa, tidak diketik ulang.
 
 1. Calon pelanggan bergerak antar-tahapan dengan cara diseret.
 2. Penawaran yang diterima ditandai menang.

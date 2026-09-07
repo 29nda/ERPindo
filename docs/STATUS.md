@@ -145,6 +145,31 @@ pernah tercapai. Saya buang, karena cabang yang tidak pernah dijalani juga tidak
 pernah diuji — lalu suatu hari berjalan dengan perilaku yang tak pernah dilihat
 siapa pun.
 
+## Sebelumnya — Fase 55d: panduan yang diumumkan ke Google tetapi tidak pernah disajikan
+
+Halaman Panduan terdaftar di peta situs sejak lama — kita **menyuruh Google
+mengindeksnya**. Yang tidak pernah ada adalah cara menyajikannya kepada mesin.
+
+Akibatnya mesin pencari dan mesin penjawab (ChatGPT, Perplexity, ringkasan AI
+Google) menerima halaman kosong bertajuk beranda. **25 modul panduan — naskah
+terbesar di situs Anda** — tidak terbaca oleh pembaca yang justru kita undang
+satu per satu di `robots.txt`.
+
+Yang membuatnya bertahan: tidak ada layar yang memperlihatkannya. Di peramban
+halamannya tampil sempurna; hanya perayap yang melihat yang kosong, dan perayap
+tidak melapor.
+
+Sekarang tiap modul punya alamatnya sendiri dan disajikan lengkap kepada mesin —
+judul, paragraf pembuka, dan tiap langkahnya. Itu bentuk pertanyaan yang
+benar-benar diketik orang: *"cara tutup buku ERPindo"*, bukan *"panduan"*.
+
+Kebalikannya juga diperbaiki: halaman dokumentasi API sudah lama disajikan
+lengkap tetapi tidak pernah diumumkan ke mesin pencari.
+
+Tujuh pemeriksaan baru menuntut **empat tempat** yang menentukan hal ini selalu
+sepakat. Peringatan tertulis tentang ini sudah ada di kode sejak lama; dua cacat
+berlawanan arah membuktikan peringatan saja tidak cukup.
+
 ## Sebelumnya — Fase 55b: layar yang menyebutkan datanya masih milik Anda
 
 Ini fase terpendek yang pernah saya tulis, dan sebagian besarnya adalah koreksi
@@ -833,8 +858,8 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.300** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.362** |
+| Uji unit | 923 | **1.310** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.367** |
 | Simulasi klik di peramban nyata | 431 | **506** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
@@ -1317,7 +1342,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.362 skenario ujian end-to-end + 1.300 unit test + 506 cek simulasi UI browser nyata**, totalnya **3.168 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.367 skenario ujian end-to-end + 1.310 unit test + 506 cek simulasi UI browser nyata**, totalnya **3.183 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

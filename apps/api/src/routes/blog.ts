@@ -3,6 +3,7 @@ import {
   escapeHtml,
   FAQ_LANDING,
   FITUR_UTAMA,
+  GUIDE_MODULES,
   hargaPaket,
   HARGA_KARYAWAN_TAMBAHAN_PER_TAHUN,
   PLAN_LIMITS,
@@ -158,6 +159,15 @@ ${renderMarkdown(post.body_md)}
       // Fase 39d — halaman tangkapan layar.
       `<url><loc>${base}/tampilan</loc></url>`,
       `<url><loc>${base}/panduan</loc></url>`,
+      // Fase 55d — tiap modul panduan punya URL-nya sendiri sejak Worker
+      // menyajikannya. Dibangun dari `GUIDE_MODULES`, bukan dieja: peta situs
+      // yang mengeja dua puluh lima jalur akan berpisah dari panduannya pada
+      // modul berikutnya, dan perpisahan itu tidak berbunyi di mana pun.
+      ...GUIDE_MODULES.map((m) => `<url><loc>${base}/panduan/${m.slug}</loc></url>`),
+      // `/api-docs` disajikan Worker penuh sejak lama tetapi tidak pernah
+      // diumumkan — kebalikan dari cacat `/panduan`, dan sama-sama ditemukan
+      // Fase 54i.
+      `<url><loc>${base}/api-docs</loc></url>`,
       `<url><loc>${base}/blog</loc></url>`,
       ...results.map(
         (p) => `<url><loc>${base}/blog/${escapeHtml(p.slug)}</loc><lastmod>${p.updated_at.slice(0, 10)}</lastmod></url>`,
