@@ -3072,12 +3072,27 @@ export const UI = {
     id: "Email Anda belum diverifikasi. Periksa kotak masuk untuk tautan verifikasi.",
     en: "Your email is not verified yet. Check your inbox for the verification link.",
   },
-  shLanggananBerakhir: {
-    id: "Masa langganan berakhir — akun dalam",
-    en: "Your subscription has ended — this account is in",
+  /**
+   * Spanduk mode baca-saja — SATU kalimat utuh berlubang (Fase 55b).
+   *
+   * Sebelumnya dirakit dari empat potongan kamus, yang mengunci urutan kata
+   * Indonesia ke dalam JSX — larangan yang sudah berlaku untuk toast sejak
+   * Fase 33h, hanya belum menjangkau bentuk ini karena lubangnya berisi tautan
+   * dan bukan untai. Lihat `isiNode()` di `i18n/index.ts`.
+   *
+   * Isinya juga bertambah satu kalimat yang seharusnya sudah ada sejak dulu:
+   * bahwa datanya tetap bisa diunduh. Surel pemberitahuan sudah menjanjikannya
+   * sejak Fase 20b ("data tetap aman dan bisa diekspor"), dan ekspornya memang
+   * bekerja — smoke membuktikannya di kedua pintu masuk. Yang tidak pernah
+   * mengatakannya justru LAYAR, tepat pada saat pemiliknya paling cemas dan
+   * paling mungkin mengira datanya tersandera.
+   */
+  shBacaSajaKalimat: {
+    id: "Masa langganan berakhir — akun dalam mode baca-saja. Data Anda tetap utuh dan bisa diunduh kapan saja lewat {0}. Aktifkan kembali langganan di {1}.",
+    en: "Your subscription has ended — this account is in read-only mode. Your data is intact and can be downloaded any time from {0}. Reactivate your subscription in {1}.",
   },
-  shModeBacaSaja: { id: "mode baca-saja", en: "read-only mode" },
-  shAktifkanDi: { id: ". Aktifkan langganan di", en: ". Reactivate your subscription in" },
+  shTautanUnduhData: { id: "Pengaturan → Data", en: "Settings → Data" },
+  shTautanLangganan: { id: "Pengaturan → Langganan", en: "Settings → Subscription" },
   shPengaturan: { id: "Pengaturan", en: "Settings" },
   shHari: { id: "hari", en: "days" },
   shTenggangPrefix: { id: "Masa berlaku sudah habis — Anda masih bisa mencatat", en: "Your plan has ended — you can still record entries for" },

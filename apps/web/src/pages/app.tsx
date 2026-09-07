@@ -61,7 +61,7 @@ import {
 } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState,  } from "react";
 import { api, ApiRequestError,  } from "../api/client";
-import { useLang } from "../i18n";
+import { isiNode, useLang } from "../i18n";
 import { LangSwitcher } from "../i18n/LangSwitcher";
 import { dalamTenggang, sisaTenggang } from "../lib/tenggang";
 import { useUi } from "../i18n/ui";
@@ -958,15 +958,21 @@ export function AppShell() {
             </div>
           ) : tenant.tenantStatus === "past_due" ? (
             <div className="border-b border-galat-line bg-galat-surface px-4 py-2 text-sm text-galat-ink">
-              {u("shLanggananBerakhir")} <strong>{u("shModeBacaSaja")}</strong>{u("shAktifkanDi")}{" "}
-              {/* Fase 54f: `?tab=perusahaan` — kartu Langganan ada di tab itu,
-                  dan tanpa parameter ini tautannya mendarat di tab Akun berisi
-                  nama & password. Satu-satunya jalan maju punya langkah
-                  tambahan yang tidak diberitahukan kepada siapa pun. */}
-              <Link to="/app/pengaturan" search={{ tab: "perusahaan" }} className="font-medium underline">
-                {u("shPengaturan")}
-              </Link>
-              .
+              {/* Fase 54f: `?tab=…` wajib — tanpa parameter itu tautannya
+                  mendarat di tab Akun berisi nama & password, dan satu-satunya
+                  jalan maju punya langkah tambahan yang tidak diberitahukan
+                  kepada siapa pun.
+                  Fase 55b: kalimatnya utuh (lihat `isiNode`), dan tautan unduh
+                  data ikut disebut — janji yang selama ini hanya ada di surel. */}
+              {isiNode(
+                u("shBacaSajaKalimat"),
+                <Link to="/app/pengaturan" search={{ tab: "data" }} className="font-medium underline">
+                  {u("shTautanUnduhData")}
+                </Link>,
+                <Link to="/app/pengaturan" search={{ tab: "perusahaan" }} className="font-medium underline">
+                  {u("shTautanLangganan")}
+                </Link>,
+              )}
             </div>
           ) : tenant.tenantStatus === "provisioning" ? (
             // Fase 24: tidak ada lagi hitung mundur trial. Akun yang belum
