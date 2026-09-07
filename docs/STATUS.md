@@ -87,9 +87,11 @@ Semuanya wajib lulus sebelum perubahan apa pun bisa masuk.
 
 **Pekerjaan teknis yang tersisa, berurut menurut kepentingannya:**
 
-1. **Mode baca-saja saat langganan berakhir** — ekspor data harus tetap hidup.
-   Ini yang paling mendesak: ia harus ada sebelum pelanggan pertama sampai pada
-   perpanjangan pertamanya.
+1. ~~**Mode baca-saja saat langganan berakhir**~~ — **koreksi: ternyata sudah
+   ada.** Saya menuliskannya sebagai pekerjaan tersisa karena membaca catatan
+   Fase 53 yang menyatakannya belum dikerjakan. Catatan itu basi: perilakunya
+   dibangun jauh sebelumnya dan diuji smoke di kedua pintu masuk. Yang benar-benar
+   kurang hanya satu kalimat di layar, dan itu dikerjakan pada Fase 55b.
 2. **Perhitungan prorata saat naik paket.** Pemilih paket yang baru dibuat
    membeli periode baru penuh; sisa siklus berjalan belum diperhitungkan.
 3. **Halaman Panduan tidak terbaca perayap.** Terdaftar di peta situs untuk
@@ -109,7 +111,43 @@ TER, itu pekerjaan yang perlu dokumen di tangan — dan mengaku sudah
 memeriksanya akan menjadi kebohongan yang tepat berada di tempat paling
 berbahaya, karena pelanggan yang memakai angkanya berurusan dengan kantor pajak.
 
-## Yang baru saja selesai — Fase 55a: demo yang berubah menurut tanggal
+## Yang baru saja selesai — Fase 55b: layar yang menyebutkan datanya masih milik Anda
+
+Ini fase terpendek yang pernah saya tulis, dan sebagian besarnya adalah koreksi
+atas laporan saya sendiri.
+
+**Yang saya kira harus dibangun, ternyata sudah ada.** Daftar pekerjaan tersisa
+yang saya serahkan kemarin menempatkan "mode baca-saja saat langganan berakhir"
+di urutan pertama dan paling mendesak. Saya menuliskannya karena membaca catatan
+Fase 53 yang menyatakannya belum dikerjakan — bukan karena memeriksa kodenya.
+
+Setelah diperiksa: perilakunya sudah ada dan sudah diuji. Saat langganan
+berakhir, akun turun ke mode baca-saja, membaca tetap boleh, menulis ditolak, dan
+**unduh seluruh data tetap bekerja** — diuji otomatis di dua pintu masuk
+sekaligus, termasuk lewat kunci API. Catatan Fase 53 itu yang basi.
+
+Itu pelajaran yang sama persis dengan yang baru saja saya tulis di laporan audit:
+satu keterangan dipikul dua tempat, dan yang saya baca bukan yang menentukan.
+Kali ini korbannya laporan saya sendiri kepada Anda.
+
+**Yang benar-benar kurang, dan sekarang ada.** Surel penagihan sudah berjanji
+sejak lama bahwa "data tetap aman dan bisa diekspor". Layarnya tidak pernah
+mengatakannya. Spanduk merah saat langganan berakhir hanya menyebutkan cara
+membayar — tepat pada saat pemiliknya paling mungkin mengira datanya tersandera,
+dan tepat pada saat ia sedang menimbang apakah mau kembali.
+
+Sekarang spanduk itu menyebutkan bahwa datanya utuh, bisa diunduh kapan saja, dan
+menautkannya langsung ke halaman unduhnya.
+
+**Penjaga yang ditinggalkan.** Ekspor lolos dari mode baca-saja bukan karena ada
+aturan yang menyebutnya, melainkan karena kebetulan ia berupa permintaan "baca".
+Mengubahnya menjadi permintaan "tulis" adalah perubahan yang wajar sekali
+diusulkan, dan tidak akan tampak salah dari berkas yang disunting: ia tetap
+bekerja sempurna untuk setiap pelanggan yang berlangganan. Yang patah hanya
+pelanggan yang sudah berhenti — orang yang menurut definisinya tidak lagi membuka
+aplikasi tiap hari untuk melaporkannya. Empat pemeriksaan baru menjaga itu.
+
+## Sebelumnya — Fase 55a: demo yang berubah menurut tanggal
 
 Ini tidak saya cari. Sebuah pemeriksaan otomatis memerah pada sesuatu yang tidak
 disentuh pekerjaan yang sedang berjalan, dan ternyata menunjuk cacat yang sudah
@@ -761,7 +799,7 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.287** |
+| Uji unit | 923 | **1.291** |
 | Uji ujung-ke-ujung (smoke) | 1.173 | **1.351** |
 | Simulasi klik di peramban nyata | 431 | **506** |
 
@@ -1245,7 +1283,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.351 skenario ujian end-to-end + 1.287 unit test + 506 cek simulasi UI browser nyata**, totalnya **3.144 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.351 skenario ujian end-to-end + 1.291 unit test + 506 cek simulasi UI browser nyata**, totalnya **3.148 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

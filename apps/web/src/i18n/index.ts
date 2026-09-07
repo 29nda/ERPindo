@@ -1,5 +1,5 @@
 import type { HariRaya } from "@erpindo/shared";
-import { useSyncExternalStore } from "react";
+import { createElement, Fragment, useSyncExternalStore, type ReactNode } from "react";
 
 /**
  * i18n ringan tanpa pustaka (Fase 13d). Bahasa default Indonesia; Inggris opsional.
@@ -98,6 +98,48 @@ export function isi(kalimat: string, ...nilai: (string | number)[]): string {
     const v = nilai[Number(i)];
     return v === undefined ? utuh : String(v);
   });
+}
+
+/**
+ * `isi()` untuk lubang yang diisi ELEMEN, bukan teks (Fase 55b).
+ *
+ * Alasannya persis sama dengan `isi()` di atas, dan berlaku untuk kelas yang
+ * belum tercakup: kalimat yang memuat tautan. Spanduk mode baca-saja dirakit
+ * begini sebelum fase ini —
+ *
+ * ```
+ * {u("shLanggananBerakhir")} <strong>{u("shModeBacaSaja")}</strong>{u("shAktifkanDi")}{" "}
+ * <Link …>{u("shPengaturan")}</Link>.
+ * ```
+ *
+ * — empat potongan yang mengunci urutan kata Indonesia ke dalam JSX. Bahasa
+ * lain tidak punya cara memindahkan tautannya ke tempat yang benar menurut tata
+ * bahasanya sendiri, dan tidak ada gerbang yang bisa melihatnya karena tiap
+ * potongnya memang sudah diterjemahkan. Larangan yang sudah berlaku untuk toast
+ * (tiga uji di `test/i18n.test.ts`) tidak pernah menjangkau bentuk ini hanya
+ * karena nilainya elemen, bukan untai.
+ *
+ * Kunci yang dikembalikan berasal dari posisi lubangnya, jadi elemen yang
+ * dikirim pemanggil tidak perlu membawa `key` sendiri.
+ */
+export function isiNode(kalimat: string, ...nilai: ReactNode[]): ReactNode[] {
+  const bagian: ReactNode[] = [];
+  let sisa = kalimat;
+  let n = 0;
+  for (;;) {
+    const cocok = sisa.match(/\{(\d+)\}/);
+    if (!cocok || cocok.index === undefined) break;
+    if (cocok.index > 0) bagian.push(sisa.slice(0, cocok.index));
+    const nilaiKe = nilai[Number(cocok[1])];
+    bagian.push(
+      nilaiKe === undefined
+        ? cocok[0]
+        : createElement(Fragment, { key: `l${n++}-${cocok[1]}` }, nilaiKe),
+    );
+    sisa = sisa.slice(cocok.index + cocok[0].length);
+  }
+  if (sisa) bagian.push(sisa);
+  return bagian;
 }
 
 /**
