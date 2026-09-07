@@ -55,6 +55,7 @@ import {
   postJournal,
   reverseJournal,
   galatAkunKasBank,
+  SYS_ACCOUNTS,
 } from "../lib/accounting";
 import { audit } from "../lib/audit";
 import { getTenantDb } from "../lib/tenantDb";
@@ -79,8 +80,10 @@ const BEBAN_GAJI = "5-2000";
  * bulan yang paling sering diperiksa pemilik.
  */
 const BEBAN_THR = "5-2010";
-const HUTANG_GAJI = "2-1200";
-const PIUTANG_KARYAWAN = "1-1210";
+// Fase 55e: kode akunnya pindah ke SYS_ACCOUNTS supaya rekonsiliasi dan
+// penggajian tidak pernah mengeja akun yang berbeda.
+const HUTANG_GAJI = SYS_ACCOUNTS.UTANG_GAJI;
+const PIUTANG_KARYAWAN = SYS_ACCOUNTS.PIUTANG_KARYAWAN;
 
 type PayrollLine = { accountId: string; description: string; debit: number; credit: number };
 

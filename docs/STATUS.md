@@ -85,24 +85,19 @@ Semuanya wajib lulus sebelum perubahan apa pun bisa masuk.
   mengubahnya per perusahaan. Pelanggan berpekan lima hari akan melihat uang
   penggantian sisa cuti sekitar 19% lebih rendah daripada yang lazim dipakai.
 
-**Pekerjaan teknis yang tersisa, berurut menurut kepentingannya:**
+**Pekerjaan teknis yang tersisa: TIDAK ADA — keempatnya selesai (Fase 55a–55e).**
 
-1. ~~**Mode baca-saja saat langganan berakhir**~~ — **koreksi: ternyata sudah
-   ada.** Saya menuliskannya sebagai pekerjaan tersisa karena membaca catatan
-   Fase 53 yang menyatakannya belum dikerjakan. Catatan itu basi: perilakunya
-   dibangun jauh sebelumnya dan diuji smoke di kedua pintu masuk. Yang benar-benar
-   kurang hanya satu kalimat di layar, dan itu dikerjakan pada Fase 55b.
-2. **Perhitungan prorata saat naik paket.** Pemilih paket yang baru dibuat
-   membeli periode baru penuh; sisa siklus berjalan belum diperhitungkan.
-3. **Halaman Panduan tidak terbaca perayap.** Terdaftar di peta situs untuk
-   Google, tetapi disajikan dengan cara yang membuat mesin pencari dan mesin
-   penjawab hanya menerima halaman kosong. 25 modul panduan — naskah terbesar di
-   situs — tidak terbaca oleh pembaca yang justru kita undang.
-4. **Rekonsiliasi belum mencakup semua akun kontrol.** Hutang Gaji, PPN
-   Masukan/Keluaran, dan Piutang Karyawan belum punya buku pembantu untuk
-   dibandingkan. Masing-masing perlu didefinisikan lebih dulu — mendefinisikannya
-   asal-asalan akan mengulang persis kesalahan rumus yang saya buat sendiri di
-   piutang pada bagian pertama.
+| Yang dulu tersisa | Hasilnya |
+|---|---|
+| Mode baca-saja saat langganan berakhir | **Koreksi: ternyata sudah ada.** Saya menuliskannya karena membaca catatan Fase 53 yang basi, bukan karena memeriksa kodenya. Yang benar-benar kurang hanya satu kalimat di layar — Fase 55b |
+| Prorata saat naik paket | Selesai — Fase 55c. Business → Enterprise dengan sisa 15 hari kini Rp 750.000, bukan Rp 3.000.000 |
+| Panduan tidak terbaca perayap | Selesai — Fase 55d. Tiap modul punya alamatnya sendiri dan disajikan lengkap kepada mesin |
+| Rekonsiliasi belum lengkap | Selesai — Fase 55e. Utang Gaji, Piutang Karyawan, dan kedua PPN masuk, dibuktikan dengan menyuntikkan cacat |
+
+Satu lagi yang tidak ada di daftar mana pun, karena ia ditemukan sendiri oleh
+sebuah pemeriksaan yang memerah: **perusahaan demo menampilkan laba yang
+berbeda-beda menurut tanggal** — cacat yang sudah tiga kali ditambal dengan
+menambah uang tanpa pernah menyentuh sebabnya. Selesai pada Fase 55a.
 
 **Yang tidak diaudit, dan sebabnya dinyatakan apa adanya:** format ekspor
 e-Faktur/Coretax dan bukti potong e-Bupot. Keduanya menuntut spesifikasi resmi
@@ -144,6 +139,37 @@ Rp 25.000, dan sisa terkecil yang mungkin adalah satu hari. Ambangnya tidak akan
 pernah tercapai. Saya buang, karena cabang yang tidak pernah dijalani juga tidak
 pernah diuji — lalu suatu hari berjalan dengan perilaku yang tak pernah dilihat
 siapa pun.
+
+## Yang baru saja selesai — Fase 55e: empat akun kontrol yang tersisa
+
+Laporan **Rekonsiliasi** — yang diminta akuntan tiap penutupan buku — sejak
+awalnya memeriksa tiga akun: Piutang Usaha, Utang Usaha, dan Persediaan. Catatan
+saya waktu itu menyebutkan tiga lagi yang layak menyusul, beserta alasan kenapa
+belum: masing-masing perlu didefinisikan lebih dulu, dan mendefinisikannya
+asal-asalan akan mengulang kesalahan rumus yang saya buat sendiri di piutang.
+
+Sekarang keempatnya masuk: **Utang Gaji, Piutang Karyawan, PPN Keluaran, dan PPN
+Masukan.** Syaratnya satu, dan itu yang membuatnya berarti: pembandingnya harus
+datang dari catatan yang **bukan** jurnal. Pembanding yang ternyata jurnal yang
+sama ditulis ulang hanya membuktikan penjumlahan, bukan pembukuan.
+
+**Ketujuhnya cocok pada jalan pertama — dan itu justru yang harus dicurigai.**
+Pembanding yang selalu cocok bisa berarti dua hal: pembukuannya benar, atau ia
+sedang mengukur dirinya sendiri.
+
+Jadi saya buktikan dengan merusaknya: potongan pajak penggajian saya suntik agar
+masuk ke **Utang Usaha**, bukan Utang Gaji. Jurnalnya tetap seimbang sempurna —
+hanya arahnya yang salah.
+
+| Yang memeriksa | Hasil |
+|---|---|
+| Seluruh pemeriksaan "neraca saldo seimbang" | ✅ **tetap hijau** |
+| Rekonsiliasi — Utang Usaha | ❌ kelebihan Rp 1.889.000 |
+| Rekonsiliasi — Utang Gaji | ❌ kosong, seharusnya Rp 1.889.000 |
+
+Neraca saldo tidak bisa melihatnya. Rekonsiliasi menangkapnya di dua tempat
+sekaligus. Itulah seluruh alasan laporan ini ada, dan ini kali kedua ia
+membuktikan dirinya.
 
 ## Sebelumnya — Fase 55d: panduan yang diumumkan ke Google tetapi tidak pernah disajikan
 
@@ -859,8 +885,8 @@ boleh naik:
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
 | Uji unit | 923 | **1.310** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.367** |
-| Simulasi klik di peramban nyata | 431 | **506** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.371** |
+| Simulasi klik di peramban nyata | 431 | **507** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
@@ -1342,7 +1368,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.367 skenario ujian end-to-end + 1.310 unit test + 506 cek simulasi UI browser nyata**, totalnya **3.183 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.371 skenario ujian end-to-end + 1.310 unit test + 507 cek simulasi UI browser nyata**, totalnya **3.188 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

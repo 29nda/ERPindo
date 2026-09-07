@@ -505,6 +505,14 @@ try {
     /Buku besar/i.test(rekonBody) && /Buku pembantu/i.test(rekonBody),
     `→ kolom tidak lengkap`,
   );
+  // F55e — empat akun kontrol yang menyusul. Fase 54a menutup laporan ini
+  // dengan menyebutkan ketiadaannya sebagai pekerjaan tersisa; ceknya di sini
+  // supaya "menyusul" tidak berhenti sebagai niat di dalam komentar.
+  check(
+    "F55e Rekonsiliasi juga memuat Utang Gaji, Piutang Karyawan, dan kedua PPN",
+    ["Utang Gaji", "Piutang Karyawan", "PPN Keluaran", "PPN Masukan"].every((n) => rekonBody.includes(n)),
+    `→ ${["Utang Gaji", "Piutang Karyawan", "PPN Keluaran", "PPN Masukan"].filter((n) => !rekonBody.includes(n)).join(", ")} hilang`,
+  );
   check("F54a halaman Rekonsiliasi bebas galat halaman", errors.length === 0, `→ ${errors[0] ?? ""}`);
 
   // F54d — rekonsiliasi KUANTITAS persediaan (Fase 54d), dijalankan terhadap

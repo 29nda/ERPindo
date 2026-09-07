@@ -172,8 +172,8 @@ akan membuat aplikasi gagal keras.
 ## 4. Checklist pra-peluncuran
 
 **Gerbang mutu (harus hijau — sudah otomatis di CI):**
-- [ ] `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` (**1.367 smoke · 1.310 unit**)
-- [ ] `node scripts/ui-sim.mjs` (**506 cek browser**)
+- [ ] `pnpm typecheck && pnpm test && pnpm build && pnpm smoke` (**1.371 smoke · 1.310 unit**)
+- [ ] `node scripts/ui-sim.mjs` (**507 cek browser**)
 - [ ] `pnpm lint`
 
 **Urutan pasang kunci (bukan sembarang urutan):**
