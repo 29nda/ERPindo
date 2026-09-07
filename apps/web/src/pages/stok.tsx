@@ -687,7 +687,7 @@ export function StockPage() {
             />
           ) : levels.length === 0 ? (
             <p className="text-sm text-ink-muted">
-              {u("tidakAdaProdukStokKurang")} {lowLimit}.
+              {isi(u("tidakAdaProdukStokKurang"), String(lowLimit))}
             </p>
           ) : (
             <Table>

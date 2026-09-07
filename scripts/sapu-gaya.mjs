@@ -31,7 +31,10 @@ const RINCI = process.argv.includes("--rinci");
 /** Ambang. Turunkan setiap kali sisanya berkurang — JANGAN dinaikkan. */
 const AMBANG = {
   "inggris-dalam-kurung": 0,
-  "empty-state-buntu": 9,
+  // Fase 56a — sembilan menjadi NOL. Ambang yang turun tidak boleh naik lagi:
+  // itu satu-satunya hal yang membedakan utang yang dibayar dari utang yang
+  // dipindahkan.
+  "empty-state-buntu": 0,
   "angka-tanpa-pemisah": 0,
   "klaim-tanpa-bukti": 0,
   merendahkan: 0,
