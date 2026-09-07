@@ -156,6 +156,32 @@ const _kini = new Date();
  * Bulan Ini" kembali merah persis seperti sebelum Fase 19b. Bentuk bugnya sama
  * dengan aritmetika 30 hari yang dibuang Fase 28 (lihat `lib/kalender.mjs`):
  * hanya muncul beberapa hari sebulan, jadi tak pernah terlihat di hari biasa.
+ *
+ * ## Fase 55a — kenapa pemakaiannya diperluas
+ *
+ * Helper ini dipakai HANYA oleh blok grosir selama enam belas fase, sementara
+ * pos "aktivitas terkini" lain tetap memakai `daysAgo()` mentah. Akibatnya
+ * bulan berjalan menampung pendapatan dan bebannya menurut TANGGAL BERAPA
+ * demo disemai:
+ *
+ * | Pos | Nilai | Masuk bulan berjalan mulai tanggal |
+ * |---|---|---|
+ * | Beban listrik Bandung `daysAgo(6)` | Rp 1,2 jt | 7 |
+ * | Beban listrik Jakarta `daysAgo(5)` | Rp 1,8 jt | 6 |
+ * | Faktur ekspor USD `daysAgo(7)` | Rp 2,3 jt | 8 |
+ * | Faktur termin proyek `daysAgo(8)` | Rp 8 jt | 9 |
+ * | Jurnal termin proyek `daysAgo(10)` | Rp 7,5 jt | 11 |
+ *
+ * Bebannya masuk LEBIH DULU daripada pendapatannya. Antara tanggal 6 dan 10
+ * tiap bulan, bulan berjalan menanggung Rp 3 juta beban tanpa Rp 17,8 juta
+ * pendapatan yang menyertainya — dan pada 7 September 2026 marginnya jatuh ke
+ * 2,8%, di bawah kedua penjaga sekaligus.
+ *
+ * Bentuknya sama persis dengan yang sudah diperbaiki dua kali di berkas ini:
+ * cacat yang hanya muncul beberapa hari sebulan, sehingga CI hijau di hari
+ * biasa. Bedanya kali ini ia menjatuhkan penjaga BERSKALA yang ditulis Fase 53a
+ * khusus supaya ambang rupiah tidak perlu disetel keempat kalinya — jadi yang
+ * salah memang bukan ambangnya.
  */
 const awalBulanIni = `${thisMonth}-01`;
 const dalamBulanIni = (n) => {
@@ -487,7 +513,7 @@ const purchKemasan = await purchase("pembelian kemasan hampers (30 hari lalu, PP
   ],
 });
 await purchase("pembelian restock kopi (12 hari lalu)", {
-  contactId: suppKopi.id, invoiceDate: daysAgo(12), taxRate: 11, warehouseId: whUtama.id, dueDate: daysAgo(-18),
+  contactId: suppKopi.id, invoiceDate: dalamBulanIni(12), taxRate: 11, warehouseId: whUtama.id, dueDate: daysAgo(-18),
   lines: [{ productId: kopi.id, qty: 40, unitPrice: 56_000, discountPct: 2 }],
 });
 
@@ -709,7 +735,7 @@ await step("pelunasan faktur tahun lalu", "POST", `${T}/payments`, {
 // punya banyak faktur ber-PPN 11% untuk modul pajak, sementara mengubah total
 // PPN akan menggeser puluhan asersi smoke tanpa menambah nilai demo apa pun.
 await purchase("kulakan grosir bulan ini (12 hari lalu)", {
-  contactId: suppAneka.id, invoiceDate: daysAgo(12), taxRate: 0, warehouseId: whUtama.id,
+  contactId: suppAneka.id, invoiceDate: dalamBulanIni(12), taxRate: 0, warehouseId: whUtama.id,
   lines: [
     { productId: kopi.id, qty: 620, unitPrice: 55_000 },
     { productId: teh.id, qty: 250, unitPrice: 28_000 },
@@ -984,7 +1010,7 @@ const po1 = await step("pesanan pembelian ke CV Petani Kopi", "POST", `${T}/purc
 const poDetail = await step("ambil pesanan untuk penerimaan", "GET", `${T}/purchase-orders`);
 const po1Full = poDetail.orders.find((o) => o.id === po1.id);
 await step("terima barang PO (faktur + stok masuk)", "POST", `${T}/purchase-orders/${po1.id}/receive`, {
-  receiptDate: daysAgo(7),
+  receiptDate: dalamBulanIni(7),
   lines: po1Full.lines.map((l) => ({ poLineId: l.id, qtyReceived: l.qty })),
 });
 // Permintaan menunggu keputusan (untuk demo antrean).
@@ -1010,7 +1036,7 @@ await step("surat jalan pesanan (stok keluar)", "POST", `${T}/sales-orders/${soH
   deliveryDate: daysAgo(3),
 });
 await step("faktur dari pesanan terkirim (uang muka terpakai)", "POST", `${T}/sales-orders/${soHotel.id}/invoice`, {
-  invoiceDate: daysAgo(2), dueDate: daysAgo(-28),
+  invoiceDate: dalamBulanIni(2), dueDate: daysAgo(-28),
 });
 // Pesanan terbuka untuk demo (belum dikirim).
 await step("pesanan penjualan Toko Priangan (menunggu kirim)", "POST", `${T}/sales-orders`, {
@@ -1044,14 +1070,14 @@ await step("peran kustom ber-scope: Manajer Cabang Bandung", "POST", `${T}/roles
 });
 const bebanOpr = acc("5-4000");
 await step("jurnal beban operasional Cabang Bandung (dimensi)", "POST", `${T}/journal-entries`, {
-  entryDate: daysAgo(6), memo: "Listrik & air Cabang Bandung",
+  entryDate: dalamBulanIni(6), memo: "Listrik & air Cabang Bandung",
   lines: [
     { accountId: bebanOpr.id, debit: 1_200_000, credit: 0, costCenterId: ccBdg.id },
     { accountId: bank.id, debit: 0, credit: 1_200_000 },
   ],
 });
 await step("jurnal beban operasional Cabang Jakarta (dimensi)", "POST", `${T}/journal-entries`, {
-  entryDate: daysAgo(5), memo: "Listrik & air Cabang Jakarta",
+  entryDate: dalamBulanIni(5), memo: "Listrik & air Cabang Jakarta",
   lines: [
     { accountId: bebanOpr.id, debit: 1_800_000, credit: 0, costCenterId: ccJkt.id },
     { accountId: bank.id, debit: 0, credit: 1_800_000 },
@@ -1116,13 +1142,13 @@ const printer = await step("aset: printer thermal lama", "POST", `${T}/assets`, 
   acquisitionCost: 2_400_000, usefulLifeMonths: 24, residualValue: 0, cashAccountId: kas.id,
 });
 await step("lepas (jual) printer lama seharga 300rb", "POST", `${T}/assets/${printer.id}/dispose`, {
-  disposalDate: daysAgo(2), proceeds: 300_000, cashAccountId: kas.id,
+  disposalDate: dalamBulanIni(2), proceeds: 300_000, cashAccountId: kas.id,
 });
 
 // --- 15. Proyek -----------------------------------------------------------------------
 const proj = await step("proyek: Hampers Korporat Q3", "POST", `${T}/projects`, { code: "PRJ-HAMPERS", name: "Hampers Korporat Q3", budget: 15_000_000 });
 await step("jurnal termin proyek", "POST", `${T}/journal-entries`, {
-  entryDate: daysAgo(10), memo: "Termin 1 proyek hampers korporat", projectId: proj.id,
+  entryDate: dalamBulanIni(10), memo: "Termin 1 proyek hampers korporat", projectId: proj.id,
   lines: [
     { accountId: bank.id, debit: 7_500_000, credit: 0 },
     { accountId: penjualanAcc.id, debit: 0, credit: 7_500_000 },
@@ -1138,15 +1164,15 @@ const projSvc = await step("proyek jasa: Desain Interior Kafe", "POST", `${T}/pr
 await step("RAB material", "POST", `${T}/projects/${projSvc.id}/budgets`, { category: "Material & furnitur", plannedAmount: 12_000_000 });
 await step("RAB tenaga kerja", "POST", `${T}/projects/${projSvc.id}/budgets`, { category: "Tenaga kerja", plannedAmount: 6_000_000 });
 const termin1 = await step("termin uang muka 40%", "POST", `${T}/projects/${projSvc.id}/milestones`, { name: "Uang muka 40%", amount: 8_000_000 });
-await step("faktur dari termin uang muka", "POST", `${T}/projects/${projSvc.id}/milestones/${termin1.id}/invoice`, { invoiceDate: daysAgo(8), taxRate: 0, warehouseId: whUtama.id });
+await step("faktur dari termin uang muka", "POST", `${T}/projects/${projSvc.id}/milestones/${termin1.id}/invoice`, { invoiceDate: dalamBulanIni(8), taxRate: 0, warehouseId: whUtama.id });
 await step("termin pelunasan 60%", "POST", `${T}/projects/${projSvc.id}/milestones`, { name: "Pelunasan 60%", amount: 12_000_000 });
 await step("tugas: survei lokasi", "POST", `${T}/projects/${projSvc.id}/tasks`, { name: "Survei lokasi & ukur ruang", assigneeId: employees["Agus Prabowo"].id, priority: "medium", dueDate: daysAgo(-1) });
 const projTask2 = await step("tugas: gambar kerja 3D", "POST", `${T}/projects/${projSvc.id}/tasks`, { name: "Buat gambar kerja 3D", assigneeId: employees["Rina Kusuma"].id, priority: "high", dueDate: daysAgo(-5) });
 await step("tugas 3D proses", "PATCH", `${T}/projects/${projSvc.id}/tasks/${projTask2.id}`, { status: "in_progress" });
 const projTask3 = await step("tugas: presentasi konsep", "POST", `${T}/projects/${projSvc.id}/tasks`, { name: "Presentasi konsep ke klien", assigneeId: employees["Rina Kusuma"].id, priority: "high" });
 await step("tugas presentasi selesai", "PATCH", `${T}/projects/${projSvc.id}/tasks/${projTask3.id}`, { status: "done" });
-await step("timesheet Rina", "POST", `${T}/projects/${projSvc.id}/time-entries`, { employeeId: employees["Rina Kusuma"].id, entryDate: daysAgo(6), hours: 8, hourlyRate: 75_000, note: "Survei & konsep desain" });
-await step("timesheet Agus", "POST", `${T}/projects/${projSvc.id}/time-entries`, { employeeId: employees["Agus Prabowo"].id, entryDate: daysAgo(4), hours: 6, hourlyRate: 50_000, note: "Bantu ukur ruang" });
+await step("timesheet Rina", "POST", `${T}/projects/${projSvc.id}/time-entries`, { employeeId: employees["Rina Kusuma"].id, entryDate: dalamBulanIni(6), hours: 8, hourlyRate: 75_000, note: "Survei & konsep desain" });
+await step("timesheet Agus", "POST", `${T}/projects/${projSvc.id}/time-entries`, { employeeId: employees["Agus Prabowo"].id, entryDate: dalamBulanIni(4), hours: 6, hourlyRate: 50_000, note: "Bantu ukur ruang" });
 // Gantt (Fase 7g): jadwal + baseline + dependensi tugas.
 await step("jadwal Gantt: gambar kerja 3D", "PATCH", `${T}/projects/${projSvc.id}/tasks/${projTask2.id}`, { startDate: daysAgo(10), endDate: daysAgo(-3), setBaseline: true });
 await step("jadwal Gantt: presentasi setelah 3D", "PATCH", `${T}/projects/${projSvc.id}/tasks/${projTask3.id}`, { startDate: daysAgo(-2), endDate: daysAgo(-6), predecessorId: projTask2.id, setBaseline: true });
@@ -1154,7 +1180,7 @@ await step("jadwal Gantt: presentasi setelah 3D", "PATCH", `${T}/projects/${proj
 // --- 16. Multi mata uang + faktur valas -------------------------------------------------
 await step("kurs USD 16.200", "PUT", `${T}/currencies`, { code: "USD", name: "Dolar AS", rate: 16_200 });
 await step("faktur ekspor USD", "POST", `${T}/invoices`, {
-  contactId: custHotel.id, invoiceDate: daysAgo(7), dueDate: daysAgo(-23), taxRate: 0,
+  contactId: custHotel.id, invoiceDate: dalamBulanIni(7), dueDate: daysAgo(-23), taxRate: 0,
   warehouseId: whUtama.id, currency: "USD", exchangeRate: 16_200,
   lines: [{ productId: kopi.id, qty: 20, unitPrice: 7 }],
 });
@@ -1191,7 +1217,7 @@ await step("routing rakit selesai (aktual)", "POST", `${T}/production-orders/${p
 await step("routing: kemas & pita (WIP)", "POST", `${T}/production-orders/${prodOrder.id}/routing`, { workCenterId: wcPack.id, name: "Kemas & pasang pita", standardCost: 180_000 });
 await step("QC lulus", "POST", `${T}/production-orders/${prodOrder.id}/qc`, { result: "passed" });
 await step("jual 3 hampers hasil produksi", "POST", `${T}/invoices`, {
-  contactId: custKoperasi.id, invoiceDate: daysAgo(1), taxRate: 11, warehouseId: whUtama.id,
+  contactId: custKoperasi.id, invoiceDate: dalamBulanIni(1), taxRate: 11, warehouseId: whUtama.id,
   lines: [{ productId: hampers.id, qty: 3, unitPrice: 250_000 }],
 });
 
@@ -1269,7 +1295,7 @@ if (staffReg.status === 201) {
   if (token) {
     await staff("POST", "/api/invites/accept", { token });
     const pending = await staff("POST", `${T}/purchases`, {
-      contactId: suppKopi.id, invoiceDate: daysAgo(1), taxRate: 11, warehouseId: whUtama.id,
+      contactId: suppKopi.id, invoiceDate: dalamBulanIni(1), taxRate: 11, warehouseId: whUtama.id,
       lines: [{ productId: kopi.id, qty: 120, unitPrice: 55_000 }],
     });
     if (pending.status === 201 || pending.status === 202) {
@@ -1285,14 +1311,14 @@ if (staffReg.status === 201) {
 
 // --- 23. Jurnal operasional lain-lain ---------------------------------------------------------------
 await step("jurnal beban listrik", "POST", `${T}/journal-entries`, {
-  entryDate: daysAgo(6), memo: "Bayar listrik & air gudang",
+  entryDate: dalamBulanIni(6), memo: "Bayar listrik & air gudang",
   lines: [
     { accountId: bebanListrik.id, debit: 750_000, credit: 0 },
     { accountId: kas.id, debit: 0, credit: 750_000 },
   ],
 });
 await step("jurnal beban iklan digital", "POST", `${T}/journal-entries`, {
-  entryDate: daysAgo(4), memo: "Iklan Instagram & marketplace",
+  entryDate: dalamBulanIni(4), memo: "Iklan Instagram & marketplace",
   lines: [
     { accountId: bebanIklan.id, debit: 1_200_000, credit: 0 },
     { accountId: kas.id, debit: 0, credit: 1_200_000 },
@@ -1307,17 +1333,17 @@ await step("jurnal beban iklan digital", "POST", `${T}/journal-entries`, {
 await step("kas kecil: dana tetap Rp 2.000.000", "PATCH", `${T}/petty-cash`, { danaTetap: 2_000_000 });
 await step("kas kecil: pengisian pertama dari kas", "POST", `${T}/petty-cash/replenish`, {
   sourceAccountId: kas.id,
-  entryDate: daysAgo(20),
+  entryDate: dalamBulanIni(20),
 });
 await step("bon kas kecil: parkir, materai, fotokopi", "POST", `${T}/journal-entries`, {
-  entryDate: daysAgo(12), memo: "Bon kas kecil — parkir, materai, fotokopi",
+  entryDate: dalamBulanIni(12), memo: "Bon kas kecil — parkir, materai, fotokopi",
   lines: [
     { accountId: acc("5-4000").id, debit: 335_000, credit: 0 },
     { accountId: acc("1-1050").id, debit: 0, credit: 335_000 },
   ],
 });
 await step("bon kas kecil: galon & konsumsi rapat", "POST", `${T}/journal-entries`, {
-  entryDate: daysAgo(5), memo: "Bon kas kecil — galon & konsumsi rapat",
+  entryDate: dalamBulanIni(5), memo: "Bon kas kecil — galon & konsumsi rapat",
   lines: [
     { accountId: acc("5-4000").id, debit: 415_000, credit: 0 },
     { accountId: acc("1-1050").id, debit: 0, credit: 415_000 },
@@ -1336,7 +1362,7 @@ await step("template jurnal berulang: sewa ruko bulanan", "POST", `${T}/journal-
   nextRunDate: daysAgo(-20), // terbit otomatis ±20 hari lagi
 });
 await step("jurnal bayar internet kantor (untuk rekonsiliasi)", "POST", `${T}/journal-entries`, {
-  entryDate: daysAgo(2), memo: "Internet kantor",
+  entryDate: dalamBulanIni(2), memo: "Internet kantor",
   lines: [
     { accountId: acc("5-4000").id, debit: 350_000, credit: 0 },
     { accountId: bank.id, debit: 0, credit: 350_000 },
@@ -1372,14 +1398,14 @@ await step("cabang: setoran modal 80 juta", "POST", `${T2}/journal-entries`, {
   ],
 });
 await step("cabang: pendapatan jasa tunai", "POST", `${T2}/journal-entries`, {
-  entryDate: daysAgo(10), memo: "Pendapatan jasa cabang",
+  entryDate: dalamBulanIni(10), memo: "Pendapatan jasa cabang",
   lines: [
     { accountId: acc2("1-1000").id, debit: 12_000_000, credit: 0 },
     { accountId: income2.id, debit: 0, credit: 12_000_000 },
   ],
 });
 await step("cabang: beban operasional", "POST", `${T2}/journal-entries`, {
-  entryDate: daysAgo(6), memo: "Sewa & listrik cabang",
+  entryDate: dalamBulanIni(6), memo: "Sewa & listrik cabang",
   lines: [
     { accountId: acc2("5-3000").id, debit: 4_000_000, credit: 0 },
     { accountId: acc2("1-1100").id, debit: 0, credit: 4_000_000 },

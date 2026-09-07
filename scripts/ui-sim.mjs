@@ -1666,6 +1666,29 @@ try {
   await tutupLembar();
   await barisKontak.getByRole("button", { name: "Ubah", exact: true }).click();
   await page.locator("#k-kredit").waitFor({ state: "visible", timeout: 10_000 });
+  /*
+   * Tunggu formulirnya benar-benar TERISI, bukan sekadar terlihat.
+   *
+   * Medannya diisi setelah data kontaknya tiba, jadi "terlihat" belum berarti
+   * "siap". Bila `#k-kredit` dikosongkan lalu disimpan sebelum itu, yang
+   * terkirim adalah formulir setengah terisi — termin ikut kosong, dan ceknya
+   * memerah pada paruh yang salah sehingga penyelidik berikutnya mengira
+   * penyimpanan batas kreditlah yang rusak.
+   *
+   * Ini terjadi di CI (runner lebih lambat) sementara lokal selalu hijau —
+   * bentuk balapan yang paling mahal dilacak. Menunggu nilainya, bukan
+   * menambah jeda tetap: jeda tetap hanya memindahkan ambangnya.
+   */
+  for (let i = 0; i < 50; i++) {
+    if ((await page.inputValue("#k-termin")) === "30") break;
+    await page.waitForTimeout(100);
+  }
+  const terminSiap = await page.inputValue("#k-termin");
+  check(
+    "F54 formulir sunting terisi nilai tersimpan sebelum disunting lagi",
+    terminSiap === "30",
+    `→ termin di formulir = ${JSON.stringify(terminSiap)}`,
+  );
   await page.fill("#k-kredit", "");
   const kosongPatch = page.waitForResponse((r) => r.url().includes("/contacts/") && r.request().method() === "PUT" && r.ok());
   await page.locator("form", { has: page.locator("#k-kredit") }).getByRole("button", { name: "Simpan", exact: true }).click();
