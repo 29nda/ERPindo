@@ -109,6 +109,49 @@ TER, itu pekerjaan yang perlu dokumen di tangan — dan mengaku sudah
 memeriksanya akan menjadi kebohongan yang tepat berada di tempat paling
 berbahaya, karena pelanggan yang memakai angkanya berurusan dengan kantor pajak.
 
+## Yang baru saja selesai — Fase 55a: demo yang berubah menurut tanggal
+
+Ini tidak saya cari. Sebuah pemeriksaan otomatis memerah pada sesuatu yang tidak
+disentuh pekerjaan yang sedang berjalan, dan ternyata menunjuk cacat yang sudah
+empat kali ditambal tanpa pernah disembuhkan.
+
+**Perusahaan demo Anda menampilkan laba yang berbeda-beda menurut tanggal.**
+Demo yang dibuka calon pelanggan lewat tombol "Lihat Demo" diisi ulang dengan
+tanggal dihitung mundur dari hari ini. Untuk pos yang menentukan bulan sebuah
+angka laba-rugi, artinya bulannya ikut berpindah: beban listrik masuk bulan
+berjalan mulai tanggal 7, sementara faktur termin proyek baru masuk mulai
+tanggal 11.
+
+Bebannya masuk lebih dulu daripada pendapatannya. Jadi ada jendela beberapa hari
+tiap bulan ketika demo menanggung Rp 3 juta beban tanpa Rp 17,8 juta pendapatan
+yang menyertainya — dan pada 7 September, laba bulan berjalan yang terpampang di
+dasbor demo jatuh ke **Rp 2,97 juta atau 2,8%**, jauh di bawah bulan-bulan lain
+yang 4–7%.
+
+Gejala keduanya sudah lama terlihat di tabel tanpa pernah dibaca sebagai gejala:
+Agustus tercatat untung 22% — dua kali lipat bulan mana pun — justru karena ia
+menahan pendapatan yang seharusnya milik September.
+
+**Kenapa baru sekarang ketahuan.** Cacat ini sudah ditambal tiga kali (Fase 21d,
+51c, 53a), dan ketiganya menambah *uang*: menambah faktur, menaikkan omzet. Tidak
+satu pun menyentuh tanggalnya. Jadi tiap kali marginnya dinaikkan, cacatnya hanya
+menunggu pertumbuhan berikutnya menipiskannya lagi. Fase 53a bahkan sudah menulis
+kesimpulan yang benar — "menambal saja terbukti tidak cukup" — tanpa menemukan
+apa yang sebenarnya harus ditambal.
+
+**Yang dikerjakan.** 23 pos dikunci ke bulan berjalan, memakai alat yang
+sebetulnya sudah ada di berkas itu sejak lama tetapi hanya dipakai satu blok.
+Hasilnya:
+
+| Bulan | Sebelum | Sesudah |
+|---|---|---|
+| Agustus — laba | Rp 23,8 jt (22%) | Rp 7,4 jt (8%) |
+| September — laba | **Rp 2,97 jt (2,8%)** | **Rp 19,3 jt (15,5%)** |
+
+Agustus kembali sejajar dengan bulan lain, dan September berhenti bergantung pada
+tanggal. Empat pemeriksaan baru menjaga sebabnya, bukan gejalanya — jadi ini kali
+terakhir angkanya perlu disetel.
+
 ## Sebelumnya — Fase 54i: situs publik
 
 Bagian 10 dari sepuluh bagian audit — bagian terakhir.
@@ -718,7 +761,7 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.283** |
+| Uji unit | 923 | **1.287** |
 | Uji ujung-ke-ujung (smoke) | 1.173 | **1.351** |
 | Simulasi klik di peramban nyata | 431 | **505** |
 
@@ -1202,7 +1245,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.351 skenario ujian end-to-end + 1.283 unit test + 505 cek simulasi UI browser nyata**, totalnya **3.139 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.351 skenario ujian end-to-end + 1.287 unit test + 505 cek simulasi UI browser nyata**, totalnya **3.143 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 
