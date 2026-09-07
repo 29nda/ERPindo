@@ -337,6 +337,111 @@ export function hematTahunan(plan: Plan): number {
 }
 
 /**
+ * Panjang satu siklus tagihan dalam hari (Fase 55c).
+ *
+ * Dipakai HANYA untuk membagi harga menjadi harga per hari saat naik paket di
+ * tengah periode. Sengaja angka tetap, bukan jumlah hari kalender yang
+ * sebenarnya: pelanggan yang naik paket pada Februari tidak boleh membayar
+ * lebih mahal per hari daripada yang naik pada Maret hanya karena bulannya
+ * lebih pendek. Yang dijaga di sini keadilan tarif, bukan ketepatan almanak.
+ */
+export const HARI_SIKLUS: Record<PeriodeTagihan, number> = { bulanan: 30, tahunan: 365 };
+
+/*
+ * TIDAK ADA ambang "tagihan terlalu kecil" di sini, dan itu keputusan (Fase 55c).
+ *
+ * Ambang seperti itu sempat ditulis — prorata sisa satu hari terdengar seperti
+ * angka receh yang tidak layak dikirim ke gerbang pembayaran. Lalu diukur:
+ * selisih per hari yang PALING KECIL pada daftar harga sekarang adalah
+ * Starter → Business, (1.500.000 − 750.000) / 30 = Rp 25.000 sehari. Sisa
+ * terkecil yang mungkin adalah satu hari, jadi tagihan prorata tidak pernah
+ * bisa lebih kecil dari itu.
+ *
+ * Ambangnya karena itu cabang yang tidak pernah dijalani — dan cabang yang
+ * tidak pernah dijalani tidak pernah diuji, lalu membusuk sampai suatu hari ia
+ * berjalan dengan perilaku yang tak pernah dilihat siapa pun. Uji
+ * `prorata.test.ts` menjaga hubungan itu tetap benar: bila kelak ada paket
+ * berselisih di bawah Rp 300.000 sebulan, ujinya memerah dan ambangnya bisa
+ * ditulis SAAT ia benar-benar dibutuhkan.
+ */
+
+export type ProrataInput = {
+  dari: Plan;
+  ke: Plan;
+  periode: PeriodeTagihan;
+  /** Akhir langganan berjalan, ISO. `null` berarti tidak ada siklus berjalan. */
+  berakhirIso: string | null;
+  /** Waktu acuan, ISO. Dipisah supaya bisa diuji tanpa membekukan jam. */
+  sekarangIso: string;
+};
+
+export type ProrataHasil = {
+  /** Sisa hari siklus berjalan, dibulatkan ke ATAS (hari berjalan ikut dibayar). */
+  sisaHari: number;
+  /** Selisih harga per hari antara paket tujuan dan paket sekarang. */
+  selisihPerHari: number;
+  /** Rupiah yang ditagih. 0 bila tidak berlaku. */
+  jumlah: number;
+  /** Boleh diterbitkan? */
+  berlaku: boolean;
+  /** Sebab tidak berlaku — dipakai layar untuk menjelaskan, bukan diam. */
+  alasan: "ok" | "bukan-kenaikan" | "tanpa-siklus";
+};
+
+/**
+ * Selisih yang dibayar saat naik paket di tengah periode berjalan (Fase 55c).
+ *
+ * ## Kenapa selisih, bukan harga penuh
+ *
+ * Fase 30 mencabut seluruh mesin prorata karena dengan satu paket tidak ada
+ * paket lain untuk dituju. Fase 53a mengembalikan tiga paket, dan Fase 54i
+ * membuat ketiganya bisa dibeli — tetapi kenaikan paket masih berarti membeli
+ * periode BARU penuh, sehingga sisa periode yang sudah dibayar hangus. Untuk
+ * pelanggan tahunan yang naik paket di bulan kedua, itu berarti membuang
+ * sepuluh bulan yang sudah dibayar.
+ *
+ * ## Yang SENGAJA tidak dihitung di sini
+ *
+ * Kelebihan karyawan penggajian. Jatahnya memang ikut naik bersama paket
+ * (10 → 50 → 200), sehingga menghitungnya di tengah periode berarti
+ * mengembalikan sebagian tagihan yang sudah lunas — pengembalian dana, bukan
+ * penagihan. Itu keputusan komersial, bukan aritmetika, jadi kelebihan karyawan
+ * diselesaikan pada perpanjangan berikutnya dengan jatah paket yang baru.
+ *
+ * Penurunan paket juga tidak menghasilkan apa pun di sini: `jumlah` nol dan
+ * alasannya `bukan-kenaikan`. Penurunan menyentuh kapasitas yang mungkin sudah
+ * terpakai, dan itu lewat Dukungan.
+ */
+export function hitungProrata(input: ProrataInput): ProrataHasil {
+  const kosong = (alasan: ProrataHasil["alasan"], sisaHari = 0, selisihPerHari = 0): ProrataHasil => ({
+    sisaHari,
+    selisihPerHari,
+    jumlah: 0,
+    berlaku: false,
+    alasan,
+  });
+
+  if (!input.berakhirIso) return kosong("tanpa-siklus");
+  const akhir = Date.parse(input.berakhirIso);
+  const kini = Date.parse(input.sekarangIso);
+  if (!Number.isFinite(akhir) || !Number.isFinite(kini)) return kosong("tanpa-siklus");
+
+  const HARI_MS = 86_400_000;
+  // Dibulatkan ke ATAS: hari yang sedang berjalan sudah dipakai pelanggan pada
+  // paket barunya, jadi ia ikut dibayar. Membulatkan ke bawah membuat kenaikan
+  // di sore hari terasa "gratis sehari", dan itu selisih yang akan ditanyakan.
+  const sisaHari = Math.ceil((akhir - kini) / HARI_MS);
+  if (sisaHari <= 0) return kosong("tanpa-siklus");
+
+  const perHari = (p: Plan) => hargaPaket(p, input.periode) / HARI_SIKLUS[input.periode];
+  const selisihPerHari = perHari(input.ke) - perHari(input.dari);
+  if (selisihPerHari <= 0) return kosong("bukan-kenaikan", sisaHari, selisihPerHari);
+
+  const jumlah = Math.ceil(selisihPerHari * sisaHari);
+  return { sisaHari, selisihPerHari, jumlah, berlaku: true, alasan: "ok" };
+}
+
+/**
  * Biaya karyawan penggajian di atas jatah paket, per tahun.
  *
  * Sengaja TIDAK berbentuk jurang. Ambang yang tiba-tiba menagih di karyawan
@@ -660,6 +765,15 @@ export const checkoutSchema = z.object({
   periode: z.enum(PERIODE_TAGIHAN).default("bulanan"),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
+
+/**
+ * Naik paket di tengah periode (Fase 55c) — dihidupkan kembali setelah dicabut
+ * Fase 30 bersama paket tunggal. Periode TIDAK ikut dikirim: yang dibeli adalah
+ * selisih untuk sisa siklus yang sedang berjalan, jadi periodenya sudah
+ * ditentukan siklus itu sendiri.
+ */
+export const changePlanSchema = z.object({ plan: z.enum(PAID_PLANS) });
+export type ChangePlanInput = z.infer<typeof changePlanSchema>;
 
 /** Set paket tenant manual oleh platform admin (Fase 13b). */
 export const setTenantPlanSchema = z.object({

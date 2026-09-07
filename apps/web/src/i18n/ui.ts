@@ -510,6 +510,15 @@ export const UI = {
   paketLokasiTakTerbatas: { id: "Lokasi tak terbatas", en: "Unlimited locations" },
   paketKaryawan: { id: "{0} karyawan penggajian termasuk", en: "{0} payroll employees included" },
   naikKePaket: { id: "Naik ke {0}", en: "Move up to {0}" },
+  // Fase 55c — naik paket di tengah periode membayar SELISIHNYA saja.
+  prorataPenjelasan: {
+    id: "Naik ke {0} sekarang hanya membayar selisihnya untuk {1} hari yang tersisa.",
+    en: "Moving up to {0} now pays only the difference for the {1} days remaining.",
+  },
+  prorataTanggalTetap: {
+    id: "Tanggal berakhir langganan tidak berubah.",
+    en: "The subscription end date does not change.",
+  },
   paketTurunLewatDukungan: {
     id: "Menurunkan paket dilakukan lewat Dukungan supaya kapasitas yang sudah terpakai diperiksa lebih dulu.",
     en: "Moving to a smaller plan goes through Support so the capacity already in use is checked first.",

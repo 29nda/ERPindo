@@ -8103,6 +8103,47 @@ try {
     `→ ${checkoutTahunan.status} ${JSON.stringify(checkoutTahunan.json)}`,
   );
   check("billing checkout tanpa konfigurasi Xendit → 503", billCheckoutOwner.status === 503, `→ HTTP ${billCheckoutOwner.status}`);
+
+  // --- Fase 55c: prorata naik paket di tengah periode ------------------------
+  //
+  // Pratinjaunya GET dan tidak mengubah apa pun, jadi ia tetap menjawab penuh
+  // walau kunci Xendit tidak terpasang — dan justru itu yang membuatnya bisa
+  // diuji deterministik di sini. Tenant smoke ini belum punya periode berjalan
+  // (langganannya belum pernah dibayar), sehingga jawabannya harus menyebut
+  // SEBABNYA, bukan angka nol yang diam.
+  const prorataTanpaSiklus = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=enterprise`);
+  check(
+    "55c pratinjau prorata menjawab penuh tanpa kunci Xendit (GET, tidak mengubah apa pun)",
+    prorataTanpaSiklus.status === 200,
+    `→ ${prorataTanpaSiklus.status} ${JSON.stringify(prorataTanpaSiklus.json)}`,
+  );
+  check(
+    "55c tanpa periode berjalan: prorata TIDAK berlaku, dan menyebut sebabnya",
+    prorataTanpaSiklus.json?.berlaku === false && prorataTanpaSiklus.json?.alasan === "tanpa-siklus",
+    `→ ${JSON.stringify(prorataTanpaSiklus.json)}`,
+  );
+  // Penurunan paket punya sebab TERSENDIRI: jalan keluarnya berbeda (lewat
+  // Dukungan, karena kapasitas terpakai bisa melampaui paket yang lebih kecil),
+  // jadi menyamakannya dengan "tanpa siklus" akan menyesatkan layarnya.
+  const prorataTurun = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=starter`);
+  check(
+    "55c paket yang sama/lebih rendah bukan kenaikan — sebabnya dibedakan",
+    prorataTurun.status === 200 && prorataTurun.json?.berlaku === false,
+    `→ ${JSON.stringify(prorataTurun.json)}`,
+  );
+  const prorataSalah = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=gratis`);
+  check("55c paket tak dikenal ditolak 400", prorataSalah.status === 400, `→ ${prorataSalah.status}`);
+  // Eksekusinya menolak SEBELUM menyentuh Xendit: tanpa siklus berjalan tidak
+  // ada selisih yang bisa ditagih, dan menerbitkan tagihannya berarti menjual
+  // kenaikan paket seharga nyaris nol.
+  const naikTanpaSiklus = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "enterprise" });
+  check(
+    "55c naik paket tanpa periode berjalan ditolak 400 dengan sebabnya, bukan 503 Xendit",
+    naikTanpaSiklus.status === 400 && naikTanpaSiklus.json?.detail === "tanpa-siklus",
+    `→ ${naikTanpaSiklus.status} ${JSON.stringify(naikTanpaSiklus.json)}`,
+  );
+  const naikOlehAdmin = await admin("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "enterprise" });
+  check("55c naik paket oleh non-Pemilik → 403", naikOlehAdmin.status === 403, `→ ${naikOlehAdmin.status}`);
   // Dewi = anggota admin (bukan owner) di tenant ini → ditolak mengatur langganan.
   const billCheckoutAdmin = await admin("POST", `/api/tenants/${tenantId}/billing/checkout`);
   check("billing checkout oleh non-Pemilik → 403", billCheckoutAdmin.status === 403, `→ HTTP ${billCheckoutAdmin.status}`);
@@ -8133,15 +8174,32 @@ try {
     `→ HTTP ${billWebhookTokenAcak.status}`,
   );
 
-  // --- Fase 30: ganti paket DICABUT ----------------------------------------
-  // Blok ini dulu menguji prorata naik/turun paket. Dengan satu paket tidak ada
-  // paket lain untuk dituju, jadi yang diuji sekarang adalah bahwa endpoint-nya
-  // benar-benar HILANG — bukan sekadar tidak dipanggil UI. Endpoint yang masih
-  // hidup tetapi tak terpakai adalah permukaan serang tanpa pemilik.
-  const proHilang = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=lengkap`);
-  check("30 endpoint pratinjau prorata sudah tidak ada (404)", proHilang.status === 404, `→ ${proHilang.status}`);
-  const gantiHilang = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "business" });
-  check("30 endpoint ganti paket sudah tidak ada (404)", gantiHilang.status === 404, `→ ${gantiHilang.status}`);
+  // --- Fase 30 → 55c: ganti paket DICABUT, lalu dihidupkan kembali -----------
+  //
+  // Blok ini dulu menuntut kedua endpoint prorata menjawab 404. Itu benar
+  // selama paketnya satu: tidak ada paket lain untuk dituju, dan endpoint yang
+  // masih hidup tetapi tak terpakai adalah permukaan serang tanpa pemilik.
+  //
+  // Fase 53a mengembalikan tiga paket dan 54i membuat ketiganya bisa dibeli,
+  // sehingga sebab pencabutannya hilang — dan ketiadaannya berubah menjadi
+  // cacat sendiri: naik paket berarti membeli periode BARU penuh, jadi sisa
+  // periode yang sudah dibayar hangus.
+  //
+  // Yang dituntut sekarang kebalikannya, dan tetap dengan alasan yang sama:
+  // endpointnya ADA dan BERPENJAGA. Paket ngawur ditolak sebelum apa pun
+  // dikerjakan, bukan dijawab 404 yang menyamarkan keberadaannya.
+  const proNgawur = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=lengkap`);
+  check(
+    "55c pratinjau prorata ADA kembali dan menolak paket yang tidak dijual (400, bukan 404)",
+    proNgawur.status === 400,
+    `→ ${proNgawur.status}`,
+  );
+  const gantiNgawur = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "lengkap" });
+  check(
+    "55c ganti paket ADA kembali dan menolak paket yang tidak dijual (400, bukan 404)",
+    gantiNgawur.status === 400,
+    `→ ${gantiNgawur.status}`,
+  );
 
   // Jalur uang yang TERSISA harus tetap utuh: admin platform boleh menyetel
   // periode langganan, dan status billing memantulkannya dengan harga tunggal.
@@ -8174,6 +8232,48 @@ try {
   await owner("POST", `/api/admin/tenants/${tenantId}/plan`, {
     plan: "business", status: "active", subscriptionEndsAt: akhirPeriode,
   });
+
+  // --- Fase 55c: prorata dengan siklus berjalan yang NYATA -------------------
+  //
+  // Barusan admin menyetel periode berakhir 15 hari lagi, jadi di sinilah
+  // angkanya bisa diperiksa terhadap aritmetika yang bisa dihitung tangan —
+  // bukan sekadar "berlaku: true". Bulanan dibagi 30, jadi 15 hari tersisa
+  // adalah separuh selisih harga sebulan:
+  //   (3.000.000 − 1.500.000) / 30 × 15 = 750.000
+  const prorataNyata = await owner("GET", `/api/tenants/${tenantId}/billing/prorata?plan=enterprise`);
+  const sisaHariNyata = prorataNyata.json?.sisaHari;
+  check(
+    "55c dengan siklus berjalan: prorata berlaku dan sisa harinya masuk akal",
+    prorataNyata.status === 200 && prorataNyata.json?.berlaku === true && sisaHariNyata === 15,
+    `→ ${JSON.stringify(prorataNyata.json)}`,
+  );
+  check(
+    "55c jumlahnya = selisih harga per hari × sisa hari, bukan harga periode penuh",
+    prorataNyata.json?.jumlah === Math.ceil(((3_000_000 - 1_500_000) / 30) * 15),
+    `→ ${prorataNyata.json?.jumlah} (harga penuh Enterprise sebulan 3.000.000)`,
+  );
+  check(
+    "55c prorata JAUH lebih murah daripada membeli periode penuh",
+    prorataNyata.json?.jumlah < 3_000_000,
+    `→ ${prorataNyata.json?.jumlah}`,
+  );
+  // Eksekusinya tetap terdegradasi anggun tanpa kunci Xendit — dan sekarang
+  // 503-nya BENAR, karena permintaannya memang sah.
+  const naikNyata = await owner("POST", `/api/tenants/${tenantId}/billing/change-plan`, { plan: "enterprise" });
+  check(
+    "55c naik paket yang SAH terdegradasi anggun tanpa kunci Xendit (503, bukan 400)",
+    naikNyata.status === 503,
+    `→ ${naikNyata.status} ${JSON.stringify(naikNyata.json)}`,
+  );
+  // Tidak ada baris tagihan yang tertinggal: barisnya ditulis lebih dulu
+  // (Fase 54g) hanya SESUDAH penjaga Xendit lewat, jadi penolakan 503 tidak
+  // meninggalkan apa pun di riwayat tagihan pelanggan.
+  const tagihanSesudah = await owner("GET", `/api/tenants/${tenantId}/billing`);
+  check(
+    "55c penolakan 503 tidak meninggalkan tagihan prorata menggantung",
+    (tagihanSesudah.json?.invoices ?? []).every((inv) => !String(inv.id ?? "").startsWith("upg-")),
+    `→ ${JSON.stringify((tagihanSesudah.json?.invoices ?? []).slice(0, 3))}`,
+  );
 
   // --- Fase 53c: penegakan kuota kapasitas ---------------------------------
   //

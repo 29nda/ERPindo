@@ -21,10 +21,20 @@ import { izinRute, PERMISSION_KEYS, PLAN_LIMITS, PLANS, TENANT_ROUTE_ACCESS } fr
  * ejaannya, bukan keputusannya. Yang menggantikannya menjaga hal yang benar —
  * tidak ada satu pun mekanisme penguncian modul yang boleh hidup lagi.
  *
- * Catatan untuk pembaca berikutnya: `hitungProrata` dan `changePlanSchema`
- * tetap ada di daftar tercabut. Dengan tiga paket, naik paket menjadi punya
- * arti lagi, jadi keduanya BOLEH kembali — tetapi lewat keputusan sadar yang
- * mengubah berkas ini, bukan diam-diam.
+ * FASE 55c MENGAMBIL KEPUTUSAN ITU. Catatan di sini dulu berbunyi:
+ * "`hitungProrata` dan `changePlanSchema` tetap ada di daftar tercabut. Dengan
+ * tiga paket, naik paket menjadi punya arti lagi, jadi keduanya BOLEH kembali —
+ * tetapi lewat keputusan sadar yang mengubah berkas ini, bukan diam-diam."
+ *
+ * Keduanya kembali, dan sebabnya: setelah Fase 54i membuat ketiga paket bisa
+ * dibeli, naik paket berarti membeli periode BARU penuh — sisa periode yang
+ * sudah dibayar hangus. Pelanggan tahunan yang naik di bulan kedua membuang
+ * sepuluh bulan yang sudah lunas, dan orang tidak melakukan itu.
+ *
+ * Yang TETAP tercabut adalah penguncian modul, dan itu tidak berubah sedikit
+ * pun: paket boleh berbeda kapasitas, tidak boleh berbeda modul.
+ * `BILLING_CYCLE_DAYS` juga tetap tercabut — penggantinya `HARI_SIKLUS`, dan
+ * nama lama yang hidup kembali membawa serta asumsi lamanya.
  */
 describe("pencabutan penguncian modul tetap tercabut", () => {
   const dicabut = [
@@ -34,15 +44,36 @@ describe("pencabutan penguncian modul tetap tercabut", () => {
     "planIncludesModule",
     "minPlanForModule",
     "modulesForPlan",
-    "hitungProrata",
     "BILLING_CYCLE_DAYS",
-    "changePlanSchema",
     "SINGLE_PLAN",
     "EXTRA_ENTITY_PRICE",
   ];
 
   it.each(dicabut)("`%s` tidak diekspor lagi", (nama) => {
     expect(shared).not.toHaveProperty(nama);
+  });
+
+  it("prorata kembali, dan kembalinya utuh — bukan setengah jalan (Fase 55c)", () => {
+    // Melepas kedua nama dari daftar tercabut tidak cukup: yang berbahaya
+    // adalah kembalinya SEBAGIAN — perhitungan tanpa skema yang memvalidasi
+    // paket tujuan, atau sebaliknya. Keduanya harus hidup bersama.
+    expect(shared).toHaveProperty("hitungProrata");
+    expect(shared).toHaveProperty("changePlanSchema");
+    expect(shared).toHaveProperty("HARI_SIKLUS");
+  });
+
+  it("prorata TIDAK boleh menjadi jalan belakang menuju penguncian modul", () => {
+    // Penjaga sesungguhnya berkas ini. Naik paket kini punya arti komersial,
+    // dan itu tepat keadaan yang dulu melahirkan paywall modul: begitu ada
+    // alasan menjual kenaikan, godaan mengunci modul di baliknya kembali.
+    const hasil = shared.hitungProrata({
+      dari: "starter",
+      ke: "enterprise",
+      periode: "bulanan",
+      berakhirIso: "2026-10-01T00:00:00.000Z",
+      sekarangIso: "2026-09-01T00:00:00.000Z",
+    });
+    expect(Object.keys(hasil).filter((k) => /modul|module|fitur|feature/i.test(k))).toEqual([]);
   });
 
   it("paket gratis tetap tidak ada", () => {
