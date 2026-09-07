@@ -35,7 +35,7 @@ const baca = (p: string) => readFileSync(path.join(AKAR, p), "utf8");
 const SEO = baca("apps/api/src/routes/landingSeo.ts");
 const BLOG = baca("apps/api/src/routes/blog.ts");
 const WRANGLER = baca("wrangler.jsonc");
-const WRANGLER_DEV = baca("wrangler.dev.jsonc");
+const PEMBUAT_DEV = baca("scripts/make-dev-config.mjs");
 
 /** Jalur yang didaftarkan `run_worker_first` pada sebuah berkas wrangler. */
 function workerFirst(isi: string): string[] {
@@ -63,10 +63,23 @@ describe("jalur publik sepakat di empat tempat (Fase 55d)", () => {
     expect(workerFirst(WRANGLER).length).toBeGreaterThan(5);
   });
 
-  it("kedua berkas wrangler mendaftarkan jalur yang sama persis", () => {
-    // `wrangler.dev.jsonc` dihasilkan `make-dev-config.mjs`, dan perbedaan di
-    // sini berarti apa yang diuji lokal bukan apa yang tayang.
-    expect(workerFirst(WRANGLER_DEV)).toEqual(workerFirst(WRANGLER));
+  it("config dev mewarisi run_worker_first, tidak menulis ulang daftarnya", () => {
+    /*
+     * Versi pertama uji ini MEMBACA `wrangler.dev.jsonc` dan membandingkan
+     * kedua daftarnya. CI langsung memerah dengan ENOENT: berkas itu HASIL
+     * GENERATE dan ada di `.gitignore`, jadi ia hanya ada di mesin yang sudah
+     * pernah menjalankan smoke. Uji yang lulus hanya di mesin tertentu adalah
+     * uji yang lebih buruk daripada tidak ada — dan uji-negatif saya sendiri
+     * ikut menyesatkan karena berkas itu memang ada di sini.
+     *
+     * Yang benar diperiksa adalah SEBAB paritasnya: `make-dev-config.mjs`
+     * menyalin wrangler.jsonc lalu hanya membuang binding `ai`, memperbesar
+     * pool tenant, dan membuang APP_URL. Ia tidak pernah menyentuh
+     * `run_worker_first`, dan justru itulah yang membuat kedua config selalu
+     * sepakat. Begitu ada yang menulis ulang daftarnya di sana, paritas itu
+     * hilang tanpa satu berkas pun terlihat berubah.
+     */
+    expect(PEMBUAT_DEV).not.toMatch(/run_worker_first/);
   });
 
   it("setiap halaman ber-SEO terdaftar di run_worker_first", () => {

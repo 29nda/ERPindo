@@ -79,6 +79,25 @@ Peringatan itu tidak cukup; dua cacat berlawanan arah membuktikannya.
 harus ditolaknya. Pola bintang hanya menutupi rute berparameter; diperbaiki, dan
 uji-negatifnya diulang sampai memerah pada aturan yang benar.
 
+## Gerbangnya sempat memeriksa berkas yang tidak ada di repo
+
+Versi pertama uji ini **membaca `wrangler.dev.jsonc`** dan membandingkan kedua
+daftarnya. Lokal hijau; CI langsung memerah dengan `ENOENT`.
+
+Berkas itu **hasil generate** dan ada di `.gitignore` — ia hanya ada di mesin
+yang sudah pernah menjalankan smoke. Uji yang lulus hanya di mesin tertentu
+lebih buruk daripada tidak ada, dan uji-negatif saya sendiri ikut menyesatkan
+justru karena di sini berkasnya memang ada.
+
+Yang benar diperiksa adalah **sebab** paritasnya: `make-dev-config.mjs` menyalin
+`wrangler.jsonc` lalu hanya membuang binding `ai`, memperbesar pool tenant, dan
+membuang `APP_URL`. Ia tidak pernah menyentuh `run_worker_first` — dan itulah
+yang membuat kedua config selalu sepakat. Begitu ada yang menulis ulang
+daftarnya di sana, paritas itu hilang tanpa satu berkas pun terlihat berubah.
+
+Diuji dua arah: berkas hasil generate disingkirkan (uji tetap hijau, seperti di
+CI), lalu pembuatnya disuruh menyentuh `run_worker_first` (uji memerah).
+
 ## Satu berkas hasil generate yang ternyata basi
 
 `docs/panduan/*.md` dihasilkan `scripts/export-panduan-md.mjs`. Menjalankannya
