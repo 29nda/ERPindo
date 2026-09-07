@@ -110,6 +110,22 @@ ke atas; itu juga ditolak.
 Diuji-negatif: satu beban dikembalikan ke `daysAgo(6)`, uji memerah menyebut
 posnya, lalu dipulihkan.
 
+## Satu balapan waktu yang ikut ditemukan CI
+
+Jalan pertama di CI memerah pada cek yang tidak berhubungan: *"F54 batas kredit
+dikosongkan tersimpan NULL"*. Lokal hijau dua kali pada commit yang sama.
+
+Sebabnya balapan sungguhan, bukan sekadar lambat: formulir sunting kontak diisi
+**setelah** data kontaknya tiba, jadi "terlihat" belum berarti "siap". Bila
+batas kreditnya dikosongkan lalu disimpan sebelum itu, yang terkirim adalah
+formulir setengah terisi — terminnya ikut kosong. Ceknya lalu memerah pada
+paruh yang salah, dan penyelidik berikutnya akan mengira penyimpanan batas
+kreditlah yang rusak.
+
+Diperbaiki dengan menunggu **nilainya**, bukan menambah jeda tetap: jeda tetap
+hanya memindahkan ambangnya ke runner yang lebih lambat lagi. Satu cek baru
+ditambahkan supaya kegagalan berikutnya menyebut sebab yang benar.
+
 ## Validasi
 
 | Gerbang | Hasil |
@@ -117,7 +133,7 @@ posnya, lalu dipulihkan.
 | typecheck · build · lint | lulus |
 | uji unit | **1.287** (dari 1.283) |
 | smoke | **1.351** (tidak berubah) |
-| ui-sim | **505/505** |
+| ui-sim | **506/506** (dari 505) |
 | verifikasi-demo | **DEMO MASUK AKAL ✅** (dari 2 gagal) |
 | sapu-warna · istilah · gaya | 0 pelanggaran |
 | tautan dokumen | lulus |
