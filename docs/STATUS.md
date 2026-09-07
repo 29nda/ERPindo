@@ -111,7 +111,41 @@ TER, itu pekerjaan yang perlu dokumen di tangan — dan mengaku sudah
 memeriksanya akan menjadi kebohongan yang tepat berada di tempat paling
 berbahaya, karena pelanggan yang memakai angkanya berurusan dengan kantor pajak.
 
-## Yang baru saja selesai — Fase 55b: layar yang menyebutkan datanya masih milik Anda
+## Yang baru saja selesai — Fase 55c: naik paket tanpa membuang sisa periode
+
+Sampai fase ini, pelanggan yang ingin pindah ke paket lebih besar harus
+**membeli periode baru penuh** — sisa periode yang sudah dibayar hangus.
+
+Untuk pelanggan bulanan itu berarti membuang paling banyak sebulan. Untuk
+pelanggan tahunan yang naik paket di bulan kedua, itu membuang **sepuluh bulan
+yang sudah lunas**. Orang tidak melakukan itu: mereka menunggu sampai
+perpanjangan berikutnya, atau tidak naik sama sekali. Jadi ini bukan sekadar
+ketidakadilan — ia menahan pendapatan yang sebetulnya ingin dibayarkan pelanggan.
+
+Sekarang naik paket di tengah periode **hanya membayar selisihnya**, dihitung per
+hari untuk sisa hari yang benar-benar tersisa. Contoh nyata dari pengujian: dari
+Business ke Enterprise dengan sisa 15 hari dari siklus bulanan → **Rp 750.000**,
+bukan Rp 3.000.000. Tanggal berakhir langganan tidak berubah, dan layar
+mengatakan itu sebelum apa pun ditagih.
+
+**Yang sengaja tidak ikut dihitung.** Kelebihan karyawan penggajian. Jatahnya
+memang ikut naik bersama paket (10 → 50 → 200), sehingga menghitungnya di tengah
+periode berarti mengembalikan sebagian tagihan yang sudah lunas — itu
+pengembalian dana, bukan penagihan, dan itu keputusan Anda. Kelebihan karyawan
+diselesaikan pada perpanjangan berikutnya dengan jatah paket yang baru.
+
+**Menurunkan paket tetap lewat Dukungan**, sama seperti keputusan fase
+sebelumnya: kapasitas yang sudah terpakai bisa melampaui paket yang lebih kecil.
+
+Satu hal kecil yang layak diceritakan karena bentuknya khas: saya sempat menulis
+ambang "tagihan terlalu kecil" — prorata sisa satu hari terdengar seperti angka
+receh. Lalu saya ukur: selisih per hari terkecil pada daftar harga Anda adalah
+Rp 25.000, dan sisa terkecil yang mungkin adalah satu hari. Ambangnya tidak akan
+pernah tercapai. Saya buang, karena cabang yang tidak pernah dijalani juga tidak
+pernah diuji — lalu suatu hari berjalan dengan perilaku yang tak pernah dilihat
+siapa pun.
+
+## Sebelumnya — Fase 55b: layar yang menyebutkan datanya masih milik Anda
 
 Ini fase terpendek yang pernah saya tulis, dan sebagian besarnya adalah koreksi
 atas laporan saya sendiri.
@@ -799,8 +833,8 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.291** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.351** |
+| Uji unit | 923 | **1.300** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.362** |
 | Simulasi klik di peramban nyata | 431 | **506** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
@@ -1283,7 +1317,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.351 skenario ujian end-to-end + 1.291 unit test + 506 cek simulasi UI browser nyata**, totalnya **3.148 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.362 skenario ujian end-to-end + 1.300 unit test + 506 cek simulasi UI browser nyata**, totalnya **3.168 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

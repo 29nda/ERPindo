@@ -142,6 +142,29 @@ export function SubscriptionCard() {
   const [paket, setPaket] = useState<PaidPlan>(tenant.plan as PaidPlan);
   const [periode, setPeriode] = useState<PeriodeTagihan>(PERIODE_TAGIHAN[0]);
 
+  /**
+   * Pratinjau selisih naik paket (Fase 55c).
+   *
+   * Diminta ke server, bukan dihitung di layar: rumusnya milik jalur uang, dan
+   * dua tempat yang menghitung "berapa yang harus dibayar" dengan cara
+   * berbeda adalah kelas cacat yang sudah ditemukan Fase 54b pada ambang
+   * persetujuan. Yang ditampilkan layar wajib angka yang benar-benar akan
+   * ditagih.
+   */
+  const prorata = useQuery({
+    queryKey: ["prorata", tenant.tenantId, paket, tenant.plan, tenant.subscriptionEndsAt],
+    queryFn: () => api.billingProrata(tenant.tenantId, paket),
+    enabled: isOwner && paket !== tenant.plan,
+  });
+
+  const naikPaket = useMutation({
+    mutationFn: (plan: PaidPlan) => api.billingNaikPaket(tenant.tenantId, plan),
+    onSuccess: (r) => {
+      window.location.href = r.redirectUrl;
+    },
+    onError: (e) => toast("error", (e as Error).message),
+  });
+
   const checkout = useMutation({
     mutationFn: (pilihan: { plan: PaidPlan; periode: PeriodeTagihan }) =>
       api.billingCheckout(tenant.tenantId, pilihan.plan, pilihan.periode),
@@ -277,9 +300,42 @@ export function SubscriptionCard() {
               })}
             </div>
 
+            {/* NAIK PAKET DI TENGAH PERIODE (Fase 55c).
+                Muncul hanya bila ada siklus berjalan yang tersisa. Tanpa siklus
+                — akun comped, atau yang belum pernah membayar — "naik paket
+                prorata" berarti naik paket seharga nyaris nol; server menolak
+                (400 `tanpa-siklus`) dan ui-sim sudah menjaga layar tidak sampai
+                menawarkannya sejak Fase 20k. */}
+            {prorata.data?.berlaku ? (
+              <div className="rounded-xl border border-brand-line bg-brand-surface p-3">
+                <p className="text-xs text-ink-soft">
+                  {isi(
+                    u("prorataPenjelasan"),
+                    PLAN_LIMITS[paket].label,
+                    String(prorata.data.sisaHari),
+                  )}
+                </p>
+                <p className="mt-1 text-lg font-bold tabular-nums text-ink">
+                  Rp {prorata.data.jumlah.toLocaleString("id-ID")}
+                </p>
+                <p className="mt-0.5 text-[11px] text-ink-muted">{u("prorataTanggalTetap")}</p>
+                <Button
+                  className="mt-2 h-8 w-full text-xs"
+                  variant="primary"
+                  data-testid={`ganti-paket-${paket}`}
+                  onClick={() => naikPaket.mutate(paket)}
+                  disabled={naikPaket.isPending}
+                >
+                  {naikPaket.isPending
+                    ? u("mengalihkanEllipsis")
+                    : isi(u("naikKePaket"), PLAN_LIMITS[paket].label)}
+                </Button>
+              </div>
+            ) : null}
+
             <Button
               className="h-8 w-full text-xs"
-              variant="primary"
+              variant={prorata.data?.berlaku ? "secondary" : "primary"}
               data-testid="beli-langganan"
               onClick={() => checkout.mutate({ plan: paket, periode })}
               disabled={checkout.isPending}

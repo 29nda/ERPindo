@@ -335,8 +335,30 @@ export const api = {
       `/api/tenants/${tenantId}/billing/checkout`,
       { plan, periode },
     ),
-  // Fase 30: `billingProrata` & `billingChangePlan` dicabut bersama paket
-  // bertingkat — endpoint servernya sudah tidak ada.
+  /**
+   * Pratinjau & eksekusi naik paket di tengah periode (Fase 55c).
+   *
+   * Dicabut Fase 30 bersama paket tunggal, dihidupkan kembali setelah Fase 53a
+   * mengembalikan tiga paket: tanpa ini, naik paket berarti membeli periode
+   * BARU penuh dan sisa periode yang sudah dibayar hangus.
+   */
+  billingProrata: (tenantId: string, plan: PaidPlan) =>
+    request<{
+      dari: PaidPlan;
+      ke: PaidPlan;
+      periode: PeriodeTagihan;
+      berakhirPada: string | null;
+      sisaHari: number;
+      jumlah: number;
+      berlaku: boolean;
+      alasan: "ok" | "bukan-kenaikan" | "tanpa-siklus";
+    }>("GET", `/api/tenants/${tenantId}/billing/prorata?plan=${plan}`),
+  billingNaikPaket: (tenantId: string, plan: PaidPlan) =>
+    request<{ orderId: string; redirectUrl: string; amount: number; sisaHari: number }>(
+      "POST",
+      `/api/tenants/${tenantId}/billing/change-plan`,
+      { plan },
+    ),
 
   submitFeedback: (input: FeedbackInput) => request<{ ok: true; id: string }>("POST", "/api/feedback", input),
   myFeedback: () => request<{ feedback: ApiFeedback[] }>("GET", "/api/feedback/mine"),

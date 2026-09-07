@@ -1,5 +1,13 @@
-import type { ApiSubscriptionInvoice, BillingStatus, Plan, Role, TenantStatus } from "@erpindo/shared";
-import { biayaKaryawanTambahan, checkoutSchema, hargaPaket, PLAN_LABELS, PLAN_LIMITS } from "@erpindo/shared";
+import type { ApiSubscriptionInvoice, BillingStatus, PeriodeTagihan, Plan, Role, TenantStatus } from "@erpindo/shared";
+import {
+  biayaKaryawanTambahan,
+  changePlanSchema,
+  checkoutSchema,
+  hargaPaket,
+  hitungProrata,
+  PLAN_LABELS,
+  PLAN_LIMITS,
+} from "@erpindo/shared";
 import { hitungKaryawanDiAtasJatah } from "../lib/kapasitas";
 import { Hono } from "hono";
 import type { AppEnv, Env } from "../env";
@@ -177,6 +185,8 @@ async function loadMembership(
     db_ref: string;
     trial_ends_at: string | null;
     subscription_ends_at: string | null;
+    /** Periode siklus berjalan (Fase 55c) — dasar pembagi prorata. */
+    billing_period: PeriodeTagihan;
     pending_plan: Plan | null;
     require_2fa: number;
     totp_enabled: number;
@@ -187,7 +197,7 @@ async function loadMembership(
   if (!tenantId) return null;
   const row = await c.env.DB.prepare(
     `SELECT t.id, t.status, t.plan, t.legacy_full_access, t.db_ref, t.trial_ends_at, t.subscription_ends_at,
-            t.pending_plan, t.require_2fa, u.totp_enabled, m.role
+            t.billing_period, t.pending_plan, t.require_2fa, u.totp_enabled, m.role
      FROM memberships m JOIN tenants t ON t.id = m.tenant_id JOIN users u ON u.id = m.user_id
      WHERE m.user_id = ? AND m.tenant_id = ?`,
   )
@@ -200,6 +210,7 @@ async function loadMembership(
       db_ref: string;
       trial_ends_at: string | null;
       subscription_ends_at: string | null;
+      billing_period: PeriodeTagihan;
       pending_plan: Plan | null;
       require_2fa: number;
       totp_enabled: number;
@@ -379,16 +390,143 @@ export const billingRoutes = new Hono<AppEnv>()
     return c.json({ orderId, redirectUrl, amount, periode }, 201);
   })
 
-  // --- PENCABUTAN ganti paket (Fase 30) -------------------------------------
-  //
-  // `GET /billing/prorata` (pratinjau) dan `POST /billing/change-plan` (eksekusi)
-  // dihapus bersama seluruh mesin prorata. Dengan satu paket tidak ada paket
-  // lain untuk dituju: pratinjau selalu "sama", dan eksekusinya selalu ditolak.
-  //
-  // Yang TETAP: `POST /billing/checkout` di atas — jalur beli/perpanjang
-  // langganan. Itulah satu-satunya jalur uang yang tersisa, dan ia sengaja
-  // tidak disentuh perubahan ini.
-  ;
+  /**
+   * Pratinjau prorata naik paket (Fase 55c — dihidupkan kembali).
+   *
+   * Dicabut Fase 30 bersama paket tunggal: dengan satu paket, pratinjau selalu
+   * "sama" dan eksekusinya selalu ditolak. Fase 53a mengembalikan tiga paket
+   * dan 54i membuat ketiganya bisa dibeli — tetapi naik paket masih berarti
+   * membeli periode BARU penuh, sehingga sisa periode yang sudah dibayar
+   * hangus. Untuk pelanggan tahunan yang naik di bulan kedua, itu membuang
+   * sepuluh bulan yang sudah lunas.
+   *
+   * GET, bukan POST: ia tidak mengubah apa pun, dan layar memanggilnya setiap
+   * kali pemilik memilih paket lain untuk melihat angkanya lebih dulu. Menagih
+   * tanpa memperlihatkan angkanya adalah cara tercepat kehilangan kepercayaan
+   * pada jalur uang.
+   */
+  .get("/:tenantId/billing/prorata", requireAuth, async (c) => {
+    const m = await loadMembership(c);
+    if (!m) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
+    const tolakKeamanan = keamananBilling(m.row);
+    if (tolakKeamanan) return c.json({ error: tolakKeamanan.pesan, detail: tolakKeamanan.detail }, 403);
+    const target = c.req.query("plan");
+    const parsed = changePlanSchema.safeParse({ plan: target });
+    if (!parsed.success) return c.json({ error: "Paket tidak valid." }, 400);
+    const hasil = hitungProrata({
+      dari: m.row.plan,
+      ke: parsed.data.plan,
+      periode: m.row.billing_period,
+      berakhirIso: m.row.subscription_ends_at,
+      sekarangIso: new Date().toISOString(),
+    });
+    return c.json({
+      dari: m.row.plan,
+      ke: parsed.data.plan,
+      periode: m.row.billing_period,
+      berakhirPada: m.row.subscription_ends_at,
+      ...hasil,
+    });
+  })
+
+  /**
+   * Naik paket di tengah periode: menerbitkan tagihan SELISIHNYA (Fase 55c).
+   *
+   * Barisnya ditandai `is_prorata = 1`, dan webhook sudah memperlakukan tanda
+   * itu sejak Fase 20k: paketnya naik, `subscription_ends_at` TIDAK diperpanjang.
+   * Tanpa tanda itu, tiap kenaikan paket akan memberi tenant satu periode gratis
+   * dan tidak ada laporan yang akan memperlihatkannya.
+   */
+  .post("/:tenantId/billing/change-plan", requireAuth, async (c) => {
+    const m = await loadMembership(c);
+    if (!m) return c.json({ error: "Anda bukan anggota perusahaan ini." }, 403);
+    const tolakKeamanan = keamananBilling(m.row);
+    if (tolakKeamanan) return c.json({ error: tolakKeamanan.pesan, detail: tolakKeamanan.detail }, 403);
+    if (m.row.role !== "owner") return c.json({ error: "Hanya Pemilik yang dapat mengatur langganan." }, 403);
+    const parsed = changePlanSchema.safeParse(await c.req.json().catch(() => ({})));
+    if (!parsed.success) return c.json({ error: "Paket tidak valid." }, 400);
+    const plan = parsed.data.plan;
+    const hasil = hitungProrata({
+      dari: m.row.plan,
+      ke: plan,
+      periode: m.row.billing_period,
+      berakhirIso: m.row.subscription_ends_at,
+      sekarangIso: new Date().toISOString(),
+    });
+    if (!hasil.berlaku) {
+      /*
+       * Ditolak dengan SEBABNYA, bukan 400 telanjang. Ketiga sebabnya berbeda
+       * jalan keluarnya: tanpa siklus berjalan pemilik harus membeli periode
+       * penuh lewat checkout, sedangkan penurunan paket lewat Dukungan karena
+       * kapasitas yang sudah terpakai bisa melampaui paket yang lebih kecil.
+       */
+      const pesan =
+        hasil.alasan === "tanpa-siklus"
+          ? "Belum ada periode berjalan untuk dihitung selisihnya. Beli periode penuh lewat tombol berlangganan."
+          : "Paket ini bukan kenaikan dari paket yang sedang dipakai. Menurunkan paket dilakukan lewat Dukungan.";
+      return c.json({ error: pesan, detail: hasil.alasan }, 400);
+    }
+
+    /*
+     * Penjaga Xendit SESUDAH pemeriksaan kelayakan, dan urutan itu keputusan.
+     *
+     * Kebalikannya sempat ditulis, meniru `checkout` di atas — dan cek smoke
+     * fase ini langsung memerah: pemilik yang tidak punya periode berjalan
+     * diberi tahu "pembayaran belum dikonfigurasi", padahal itu bukan sebab
+     * permintaannya ditolak. Ia akan menunggu kunci pembayaran dipasang untuk
+     * sesuatu yang tetap ditolak sesudahnya.
+     *
+     * Di `checkout` urutan itu benar karena permintaannya selalu sah; di sini
+     * tidak. Memeriksa kelayakan lebih dulu juga gratis: tidak ada panggilan
+     * keluar sebelum titik ini.
+     */
+    if (!billingConfigured(c.env)) {
+      return c.json({ error: "Pembayaran online belum dikonfigurasi. Hubungi kami untuk aktivasi." }, 503);
+    }
+
+    const user = c.get("user");
+    const orderId = `upg-${m.tenantId.slice(0, 8)}-${Date.now()}`;
+    const invoiceId = crypto.randomUUID();
+
+    // Catat dulu, baru buat kewajibannya (Fase 54g) — sama persis dengan
+    // checkout: bila Xendit dipanggil lebih dulu lalu penyimpanan gagal,
+    // pelanggan memegang tagihan hidup untuk pesanan yang tidak kita kenali.
+    await c.env.DB.prepare(
+      `INSERT INTO subscription_invoices (id, tenant_id, order_id, amount, period_months, status, plan, is_prorata, redirect_url, created_by)
+       VALUES (?, ?, ?, ?, 0, 'pending', ?, 1, NULL, ?)`,
+    )
+      .bind(invoiceId, m.tenantId, orderId, hasil.jumlah, plan, user.id)
+      .run();
+
+    const bayar = await buatInvoiceXendit(c.env, {
+      orderId,
+      amount: hasil.jumlah,
+      itemName: `Naik paket ERPindo ${PLAN_LABELS[m.row.plan]} → ${PLAN_LABELS[plan]} (sisa ${hasil.sisaHari} hari)`,
+      customerEmail: user.email,
+      customerName: user.name,
+      finishUrl: `${appOrigin(c)}/app/pengaturan`,
+    });
+    if (!bayar.ok) {
+      await c.env.DB.prepare(`UPDATE subscription_invoices SET status = 'failed' WHERE id = ?`)
+        .bind(invoiceId)
+        .run();
+      return c.json({ error: bayar.error }, 502);
+    }
+    await c.env.DB.prepare(`UPDATE subscription_invoices SET redirect_url = ? WHERE id = ?`)
+      .bind(bayar.redirectUrl, invoiceId)
+      .run();
+    await audit(c.env, {
+      action: "billing.naik_paket",
+      userId: user.id,
+      tenantId: m.tenantId,
+      detail: { orderId, dari: m.row.plan, ke: plan, jumlah: hasil.jumlah, sisaHari: hasil.sisaHari },
+      ip: clientIp(c),
+    });
+    return c.json(
+      { orderId, redirectUrl: bayar.redirectUrl, amount: hasil.jumlah, sisaHari: hasil.sisaHari },
+      201,
+    );
+  });
 
 /**
  * Status invoice Xendit yang berarti "uangnya sudah masuk".
