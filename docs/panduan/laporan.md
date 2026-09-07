@@ -10,7 +10,7 @@ Pilih periode → laporan tampil seketika. Neraca menyertakan laba berjalan sehi
 
 **Laporan yang bisa ditelusuri sampai ke jurnalnya**
 
-Laba rugi, neraca, dan arus kas disusun dari jurnal berstatus posted. Tiap angka bisa diklik sampai ke transaksi pembentuknya, jadi tidak ada baris yang tidak diketahui asalnya.
+Laba rugi, neraca, dan arus kas disusun dari jurnal yang sudah diposting. Tiap angka dapat diklik sampai ke transaksi pembentuknya, jadi tidak ada baris yang tidak diketahui asalnya.
 
 1. Laba kotor tersusun dari pendapatan dikurangi harga pokok.
 2. Angkanya dibuka untuk ditelusuri.

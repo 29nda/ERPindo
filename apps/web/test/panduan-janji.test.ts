@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GUIDE_MODULES } from "../src/pages/panduan/content";
+import { GUIDE_MODULES } from "@erpindo/shared";
 
 /**
  * Panduan tidak boleh menjanjikan hal yang sudah dibatalkan (Fase 38f).

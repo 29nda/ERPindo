@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Generate versi Markdown panduan (docs/panduan/*.md) dari konten TS di
- * apps/web/src/pages/panduan/content/ — satu sumber kebenaran, tanpa
+ * packages/shared/src/panduan/ — satu sumber kebenaran, tanpa
  * perawatan ganda. Jalankan setiap konten berubah, lalu commit hasilnya:
  *
  *   node scripts/export-panduan-md.mjs
@@ -24,7 +24,7 @@ const tmpOut = path.join(tmpdir(), `panduan-content-${Date.now()}.mjs`);
 execFileSync(
   path.join(ROOT, "node_modules/.pnpm/node_modules/esbuild/bin/esbuild"),
   [
-    "apps/web/src/pages/panduan/content/index.ts",
+    "packages/shared/src/panduan/index.ts",
     "--bundle",
     "--format=esm",
     `--outfile=${tmpOut}`,
@@ -54,7 +54,7 @@ mkdirSync(OUT_DIR, { recursive: true });
 const toc = [
   "# Panduan erpindo",
   "",
-  "> Di-generate otomatis dari `apps/web/src/pages/panduan/content/` oleh",
+  "> Di-generate otomatis dari `packages/shared/src/panduan/` oleh",
   "> `scripts/export-panduan-md.mjs` — jangan edit manual; versi web ada di `/panduan`.",
   "",
 ];

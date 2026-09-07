@@ -1,6 +1,6 @@
 /**
  * Ringkasan pengetahuan per modul untuk grounding Asisten ERPindo.
- * Diringkas dari konten panduan (apps/web/src/pages/panduan/content) —
+ * Diringkas dari konten panduan (packages/shared/src/panduan) —
  * cukup padat agar muat di prompt tanpa memboroskan token/neuron.
  */
 

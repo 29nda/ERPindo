@@ -11,11 +11,11 @@ Satu daftar untuk pelanggan dan pemasok, lengkap dengan NPWP (untuk e-Faktur), a
 
 **Satu kontak untuk pelanggan sekaligus pemasok**
 
-Kontak menyimpan NPWP, syarat pembayaran, dan batas kredit. Faktur mengambil datanya, umur piutang mengelompokkannya, dan ekspor pajak memakai NPWP yang sama.
+Kontak menyimpan NPWP, termin pembayaran, dan batas kreditnya. Faktur mengambil datanya, umur piutang mengelompokkannya, dan ekspor pajak memakai NPWP yang sama.
 
 1. Nama kontak diisi.
 2. NPWP diisi sekali di sini, bukan di tiap faktur.
 3. Kontak disimpan.
-4. Syarat pembayaran dan batas kreditnya langsung berlaku pada faktur berikutnya.
+4. Termin dan batas kreditnya langsung berlaku pada faktur berikutnya.
 
 > 💡 Kontak juga bisa diimpor massal dari CSV, sama seperti produk.

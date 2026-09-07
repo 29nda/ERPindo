@@ -4,7 +4,7 @@ import { useUi } from "../i18n/ui";
 import { ArrowLeft, ArrowRight, ExternalLink, Search } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../components/ui";
-import { GUIDE_CATEGORIES, GUIDE_MODULES, guideBySlug, type GuideModule } from "./panduan/content";
+import { GUIDE_CATEGORIES, GUIDE_MODULES, guideBySlug, type GuideModule } from "@erpindo/shared";
 import { GuideSections, iconFor } from "./panduan";
 
 /**

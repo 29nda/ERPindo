@@ -8646,6 +8646,53 @@ try {
     check(`38d ${jalur} terdaftar di sitemap.xml`, petaXml.includes(`${jalur}</loc>`));
   }
 
+  // --- Fase 55d: /panduan disajikan Worker, bukan cangkang SPA kosong --------
+  //
+  // `/panduan` terdaftar di sitemap.xml sejak lama — kita menyuruh Google
+  // mengindeksnya — tetapi tidak pernah punya rute Worker maupun pendaftaran
+  // `run_worker_first`. Perayap dan mesin penjawab yang tidak menjalankan
+  // JavaScript menerima cangkang bertajuk beranda tanpa canonical, sementara
+  // di peramban halamannya tampil sempurna. Justru itu yang membuatnya
+  // bertahan: tidak ada layar yang memperlihatkannya.
+  //
+  // Diuji di smoke, bukan ui-sim, dengan alasan yang sama seperti Fase 38d:
+  // yang diuji adalah perilaku Worker, dan ui-sim buta terhadapnya karena ia
+  // menjalankan JavaScript.
+  const panduanIdx = await fetch(`${BASE}/panduan`);
+  const panduanHtml = await panduanIdx.text();
+  check(
+    "55d /panduan: canonical menunjuk dirinya sendiri, bukan beranda",
+    panduanIdx.status === 200 && /rel="canonical" href="[^"]*\/panduan"/.test(panduanHtml),
+    `→ status=${panduanIdx.status}`,
+  );
+  check(
+    "55d /panduan memuat daftar modulnya di <noscript>, bukan cangkang kosong",
+    panduanHtml.includes("<noscript>") &&
+      panduanHtml.includes("Panduan pemakaian ERPindo") &&
+      panduanHtml.includes("Mulai Cepat"),
+    `→ noscript=${panduanHtml.includes("<noscript>")}`,
+  );
+  // Satu modul diperiksa isi dalamnya: judul, paragraf pembuka, DAN judul
+  // seksi. Halaman modul yang hanya memuat judulnya sama tidak bergunanya
+  // dengan cangkang kosong bagi mesin yang mencari jawaban.
+  const panduanModul = await fetch(`${BASE}/panduan/mulai`);
+  const modulHtml = await panduanModul.text();
+  check(
+    "55d /panduan/<modul>: canonical per modul + isi seksinya tersaji",
+    panduanModul.status === 200 &&
+      /rel="canonical" href="[^"]*\/panduan\/mulai"/.test(modulHtml) &&
+      modulHtml.includes("Mulai Cepat — panduan ERPindo") &&
+      modulHtml.includes("Daftar &amp; masuk"),
+    `→ status=${panduanModul.status} canonical=${/rel="canonical" href="[^"]*\/panduan\/mulai"/.test(modulHtml)}`,
+  );
+  check(
+    "55d tiap modul panduan diumumkan di sitemap.xml",
+    petaXml.includes("/panduan/mulai</loc>") && petaXml.includes("/panduan</loc>"),
+  );
+  // Kebalikannya, ditemukan pada audit yang sama: `/api-docs` disajikan Worker
+  // penuh sejak lama tetapi tidak pernah diumumkan ke mesin pencari.
+  check("55d /api-docs akhirnya diumumkan di sitemap.xml", petaXml.includes("/api-docs</loc>"));
+
   // Halaman hukum menyatakan dirinya draf. Diuji karena kebalikannya —
   // dokumen yang tampak final padahal masih memuat penampung identitas — akan
   // beredar ke bagian hukum calon pelanggan tanpa ada yang menyadarinya.

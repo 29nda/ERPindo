@@ -12,7 +12,7 @@ Faktur pembelian mengisi stok dengan biaya rata-rata otomatis, mendukung lot ked
 
 **Barang masuk, utang tercatat, PPN masukan siap dikreditkan**
 
-Satu penerimaan barang menambah stok, membentuk utang usaha, dan mencatat PPN masukan sekaligus — sehingga tidak ada tagihan pemasok yang baru ditemukan saat ditagih.
+Satu penerimaan barang menambah stok, membentuk utang usaha, dan mencatat PPN masukan sekaligus, sehingga tidak ada tagihan pemasok yang baru ditemukan saat ditagih.
 
 1. Barang yang benar-benar diterima dicatat, bukan yang dipesan.
 2. PPN masukan dihitung sendiri.

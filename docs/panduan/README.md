@@ -1,6 +1,6 @@
 # Panduan erpindo
 
-> Di-generate otomatis dari `apps/web/src/pages/panduan/content/` oleh
+> Di-generate otomatis dari `packages/shared/src/panduan/` oleh
 > `scripts/export-panduan-md.mjs` — jangan edit manual; versi web ada di `/panduan`.
 
 ## Dasar
