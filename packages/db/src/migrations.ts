@@ -424,6 +424,30 @@ export const CONTROL_PLANE_MIGRATIONS: Migration[] = [
       `UPDATE subscription_invoices SET plan = 'business' WHERE plan IS NOT NULL AND plan NOT IN ('starter','business','enterprise')`,
     ],
   },
+  {
+    /**
+     * Penanda tugas bulanan cron pindah dari KV ke control-plane (Fase 57a).
+     *
+     * Di KV penandanya hanya bisa dibaca SATU PER SATU, jadi tiap jalannya cron
+     * membayar satu pembacaan untuk tiap tenant yang PEKERJAANNYA SUDAH SELESAI
+     * sebelum sampai ke yang belum. Ongkos itu tumbuh seiring jumlah tenant
+     * yang sudah beres — persis kebalikan dari yang seharusnya — dan yang
+     * terdorong ke belakang antrean selalu tenant yang sama.
+     *
+     * Di sini seluruh set "sudah selesai" terbaca dalam SATU kueri, sehingga
+     * gelungnya bisa menyaring lebih dulu dan hanya menyentuh yang belum.
+     */
+    id: "0019_cron_marks",
+    statements: [
+      `CREATE TABLE cron_marks (
+        task TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        period TEXT NOT NULL,
+        done_at TEXT NOT NULL,
+        PRIMARY KEY (task, period, tenant_id)
+      )`,
+    ],
+  },
 ];
 
 /**
