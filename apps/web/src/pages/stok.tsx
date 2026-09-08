@@ -411,7 +411,7 @@ function ReorderCard() {
         lines: suggestions.map((s) => ({
           productId: s.productId,
           qty: s.suggestedQty,
-          note: `Stok ${s.qty} ≤ minimum ${s.minStock}`,
+          note: isi(u("stokUsulanBaris"), String(s.qty), String(s.minStock)),
         })),
       }),
     onSuccess: (r) => {

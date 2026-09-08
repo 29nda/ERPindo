@@ -165,7 +165,7 @@ Mode uji vs produksi Xendit dibedakan **prefiks kunci** (`xnd_development_` vs
 | `seed-demo.mjs` | Menyemai demo 6 bulan ke deployment; `SEED_PROBE=1` memeriksa kredensial + status comped **tanpa menulis apa pun** |
 | `bersihkan-tenant.mjs` | Mengosongkan DB tenant lalu baris control-plane (urutan itu mencegah slot kotor). `softtin` & `pt-demo-sejahtera` dilindungi; demo hanya bisa dihapus dengan `--izinkan-demo` |
 
-| `sapu-i18n.mjs` | Penyapu teks satu bahasa. **Glob wajib `**`** — pola `pages/*.tsx` tidak turun ke subfolder |
+| `sapu-i18n.mjs` | Penyapu teks satu bahasa. **Glob wajib `**`** — pola `pages/*.tsx` tidak turun ke subfolder. **Berambang sejak Fase 56b** (`AMBANG` di kepala berkas): utang teks layar hanya boleh turun. Kalau temuannya bukan naskah, perluas pengecualiannya dengan alasan tertulis — jangan longgarkan polanya |
 | `export-panduan-md.mjs` | Regenerasi `docs/panduan/` dari sumber panduan aplikasi |
 | `ai-probe.mjs` | Uji Workers AI terhadap deployment |
 | `audit-routes.mjs` | Memeriksa route terpasang vs yang diuji |

@@ -1,0 +1,61 @@
+// Contoh sengaja untuk uji `sapu-i18n-tidak-membungkam.test.ts` (Fase 56b).
+//
+// Berkas ini BUKAN kode yang dijalankan. Berekstensi `.txt` supaya tidak ikut
+// dikompilasi tsc maupun dilint eslint — isinya memang campuran benar dan
+// salah, dan yang diuji adalah PENYAPUnya, bukan berkas ini.
+//
+// Tiap kasus diberi nomor dan diakhiri penanda:
+//   TERTAGIH  = penyapu HARUS melaporkannya
+//   DILEWATI  = penyapu HARUS diam
+
+// 1. Nilai enum kontrak API — DILEWATI
+const jenis = "pembelian";
+const metode = "saldo_menurun";
+
+// 2. Kunci cache & nama berkas unduhan — DILEWATI
+const kunci = ["bank-recon", tenantId];
+unduh("produk.csv");
+
+// 3. Pesan galat untuk pengembang — DILEWATI
+if (!ctx) throw new Error("WorkspaceContext belum tersedia");
+
+// 4. Contoh isi berkas CSV yang ditempel pemakai — DILEWATI
+const CONTOH = "kode,debit,kredit\n1-1000,5000000,0\n2-1000,0,4000000";
+
+// 5. Sisi Inggris sebuah pasangan dwibahasa — DILEWATI
+const fitur = { id: "Pajak: PPN dan PPh final", en: "Tax: VAT and final income tax" };
+
+// 6. Nama resmi formulir DJP — DILEWATI
+const label = "SPT Masa PPN";
+
+// 7. Wilayah kerja yang padanan Inggrisnya ADA — DILEWATI
+const SECTION_EN: Record<string, string> = { "Beli & Stok": "Buy & Stock" };
+const AREAS = [{ nama: "Beli & Stok", icon: Cart }];
+
+// 8. Wilayah kerja yang padanan Inggrisnya HILANG — TERTAGIH (sebagai bolong)
+const WILAYAH = [{ nama: "Uang & Pajak", icon: Wallet }];
+
+export function Contoh() {
+  return (
+    <>
+      {/* 9. Kerangka atribut JSX di antara dua ekspresi — DILEWATI */}
+      <div
+        className={`flex ${aktif ? "gap-2" : "gap-1"}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={u("shMenuNavigasi")}
+      >
+        {/* 10. Kalimat layar biasa — TERTAGIH */}
+        <p>Faktur ini belum dibayar dan sudah lewat jatuh tempo.</p>
+      </div>
+    </>
+  );
+}
+
+// 11. Markup cetak yang MEMUAT naskah — TERTAGIH
+//     Kerangkanya dibuang, "Barang" dan "Jumlah" tetap tertagih.
+const cetak = `</div> <table><thead><tr><th>Barang</th><th class="r">Jumlah</th></tr></thead>`;
+
+// 12. Prosa berbaris banyak yang kebetulan berkoma — TERTAGIH
+//     Bentuknya mirip CSV tetapi jumlah pemisah tiap barisnya tidak sama.
+const catatan = "Simpan dulu, lalu periksa\nSetelah itu, kirim faktur, dan tunggu";
