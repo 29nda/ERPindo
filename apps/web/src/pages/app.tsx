@@ -63,6 +63,7 @@ import { createContext, useContext, useEffect, useRef, useState,  } from "react"
 import { api, ApiRequestError,  } from "../api/client";
 import { isiNode, useLang } from "../i18n";
 import { LangSwitcher } from "../i18n/LangSwitcher";
+import { judulNotifikasi, rincianNotifikasi } from "../i18n/notifikasi";
 import { dalamTenggang, sisaTenggang } from "../lib/tenggang";
 import { useUi } from "../i18n/ui";
 import {
@@ -455,8 +456,8 @@ function NotificationBell({ tenantId }: { tenantId: string }) {
                 >
                   <span className={`mt-1.5 size-2 shrink-0 rounded-full ${toneByType[n.type] ?? "bg-ink-faint"}`} aria-hidden />
                   <span>
-                    <span className="block font-medium text-ink">{n.title}</span>
-                    <span className="block text-xs text-ink-muted">{n.detail}</span>
+                    <span className="block font-medium text-ink">{judulNotifikasi(n, u)}</span>
+                    <span className="block text-xs text-ink-muted">{rincianNotifikasi(n, u)}</span>
                   </span>
                 </Link>
               ))

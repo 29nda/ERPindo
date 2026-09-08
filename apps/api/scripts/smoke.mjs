@@ -4861,12 +4861,23 @@ try {
     (notifPajak.json?.notifications ?? []).some((n) => n.type === "tenggat_pajak"),
     `→ jenis=${[...new Set((notifPajak.json?.notifications ?? []).map((n) => n.type))].join(",")}`,
   );
+  // Fase 56c: kalimat "hari libur nasional belum diperhitungkan" sekarang ada di
+  // kamus web (`notifPajakRinci`), bukan di Worker — dijaga uji unit web. Yang
+  // dijamin di sini adalah datanya, karena tanpa `jenis`, `kegiatan`, `masa`,
+  // `tanggal`, dan `sisaHari` kalimat itu tidak bisa disusun sama sekali.
   check(
-    "22e notifikasi pajak menyatakan hari libur belum diperhitungkan",
+    "22e notifikasi pajak membawa jenis, kegiatan, masa, tanggal, dan sisa hari",
     (notifPajak.json?.notifications ?? [])
       .filter((n) => n.type === "tenggat_pajak")
-      .every((n) => String(n.detail).includes("libur nasional")),
-    `→ ${JSON.stringify((notifPajak.json?.notifications ?? []).find((n) => n.type === "tenggat_pajak")?.detail)}`,
+      .every(
+        (n) =>
+          typeof n.data?.jenis === "string" &&
+          (n.data?.kegiatan === "setor" || n.data?.kegiatan === "lapor") &&
+          /^\d{4}(-\d{2})?$/.test(String(n.data?.masa)) &&
+          /^\d{4}-\d{2}-\d{2}$/.test(String(n.data?.tanggal)) &&
+          Number.isInteger(n.data?.sisaHari),
+      ),
+    `→ ${JSON.stringify((notifPajak.json?.notifications ?? []).find((n) => n.type === "tenggat_pajak")?.data)}`,
   );
 
   const kalViewer = await viewer("GET", `/api/tenants/${tenantId}/tax/calendar`);
@@ -6213,29 +6224,53 @@ try {
   check("faktur jatuh tempo lampau diposting", duOverdue.status === 201);
 
   const duNotif = await owner("GET", `/api/tenants/${tenantId}/notifications`);
+  // Fase 56c — bentuk notifikasi BERUBAH, dan ketiga cek di bawah ditulis ulang
+  // bersamanya, bukan dihapus.
+  //
+  // Sampai Fase 56b Worker mengirim kalimat Indonesia jadi (`title`, `detail`,
+  // `waText`), dan cek-cek ini memeriksa isi kalimat itu. Bentuk itulah yang
+  // membuat lonceng tidak pernah ikut berbahasa Inggris — dan yang memaksa
+  // dasbor MEMBEDAH judulnya untuk mendapatkan nomor faktur kembali. Sekarang
+  // Worker mengirim jenis + data; kalimatnya disusun web lewat kamus.
+  //
+  // Yang diperiksa di sini karena itu bukan lagi kata-katanya melainkan DATANYA
+  // — dan satu cek tambahan yang dulu mustahil: bahwa Worker tidak lagi
+  // mengirim prosa sama sekali. Cek itu yang menjaga bentuknya tidak pelan-pelan
+  // kembali.
+  const duLowStock = (duNotif.json?.notifications ?? []).filter((n) => n.type === "low_stock");
   check(
     "notifikasi stok menipis muncul (VD-003 sisa 10 ≤ ambang 15)",
-    duNotif.status === 200 && duNotif.json?.notifications?.some((n) => n.type === "low_stock" && n.detail.includes("VD-003")),
-    `→ ${JSON.stringify(duNotif.json?.notifications?.filter((n) => n.type === "low_stock"))}`,
+    duNotif.status === 200 && duLowStock.some((n) => n.data?.sku === "VD-003"),
+    `→ ${JSON.stringify(duLowStock)}`,
+  );
+  const duOverdueNotif = (duNotif.json?.notifications ?? []).find(
+    (n) => n.type === "overdue_invoice" && n.data?.invoiceNo === duOverdue.json.docNo,
+  );
+  check("notifikasi faktur lewat jatuh tempo muncul", Boolean(duOverdueNotif));
+  // Fase 15b — pengingat WhatsApp siap-kirim. Sejak Fase 56c kalimatnya disusun
+  // web, jadi yang dijamin di sini adalah bahan-bahannya: tanpa nominal berupa
+  // ANGKA (bukan untai berpemisah ribuan) pesan itu tidak bisa disusun dalam
+  // bahasa mana pun.
+  check(
+    "notifikasi jatuh tempo membawa bahan pengingat (no. faktur, nominal angka, tanggal)",
+    duOverdueNotif?.data?.invoiceNo === duOverdue.json.docNo &&
+      duOverdueNotif?.data?.outstanding === 80_000 &&
+      typeof duOverdueNotif?.data?.contactName === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(String(duOverdueNotif?.data?.dueDate)),
+    `→ ${JSON.stringify(duOverdueNotif?.data)}`,
   );
   check(
-    "notifikasi faktur lewat jatuh tempo muncul",
-    duNotif.json?.notifications?.some((n) => n.type === "overdue_invoice" && n.title.includes(duOverdue.json.docNo)),
-  );
-  // Fase 15b — pengingat WhatsApp siap-kirim menyertai notifikasi jatuh tempo.
-  const duOverdueNotif = duNotif.json?.notifications?.find(
-    (n) => n.type === "overdue_invoice" && n.title.includes(duOverdue.json.docNo),
-  );
-  check(
-    "notifikasi jatuh tempo membawa waText pengingat (memuat no. faktur + nominal)",
-    typeof duOverdueNotif?.waText === "string" &&
-      duOverdueNotif.waText.includes(duOverdue.json.docNo) &&
-      duOverdueNotif.waText.includes("80.000"),
-    `→ ${JSON.stringify(duOverdueNotif?.waText)}`,
+    "56c Worker tidak lagi mengirim kalimat jadi (title/detail/waText hilang seluruhnya)",
+    (duNotif.json?.notifications ?? []).every(
+      (n) => n.title === undefined && n.detail === undefined && n.waText === undefined,
+    ),
+    `→ ${JSON.stringify((duNotif.json?.notifications ?? []).find((n) => n.title !== undefined || n.detail !== undefined || n.waText !== undefined))}`,
   );
   check(
-    "notifikasi non-jatuh-tempo (low_stock) tanpa waText",
-    duNotif.json?.notifications?.filter((n) => n.type === "low_stock").every((n) => n.waText === undefined),
+    "56c tiap notifikasi membawa jenis, rute, dan data",
+    (duNotif.json?.notifications ?? []).every(
+      (n) => typeof n.type === "string" && typeof n.href === "string" && n.data !== null && typeof n.data === "object",
+    ),
   );
   check("count = jumlah notifikasi (konsisten)", duNotif.json?.count === duNotif.json?.notifications?.length);
   const duNotifViewer = await viewer("GET", `/api/tenants/${tenantId}/notifications`);

@@ -564,28 +564,59 @@ export type ApiPphUnifikasi = {
   belumDisetor: number;
 };
 
-/** Notifikasi operasional (lonceng di topbar) — dihitung on-demand dari data nyata. */
+/**
+ * Notifikasi operasional (lonceng di topbar) — dihitung on-demand dari data
+ * nyata.
+ *
+ * ## Kenapa berbentuk data, bukan kalimat (Fase 56c)
+ *
+ * Sampai Fase 56b tipe ini membawa `title`, `detail`, dan `waText`: kalimat
+ * Indonesia yang dirakit di Worker. Akibatnya dua hal.
+ *
+ * 1. Aplikasi ini dwibahasa, tetapi loncengnya tidak. Pengguna yang memilih
+ *    bahasa Inggris tetap membaca "Faktur INV-001 lewat jatuh tempo", karena
+ *    kalimat itu tidak pernah lewat kamus web.
+ * 2. Halaman web MEMBEDAH kalimat itu untuk mendapatkan datanya kembali —
+ *    `n.title.replace("Faktur ", "").replace(" lewat jatuh tempo", "")` —
+ *    sehingga mengubah satu kata di Worker diam-diam merusak dasbor.
+ *
+ * Jadi yang dikirim sekarang JENIS + DATA. Kalimatnya disusun di web, lewat
+ * kamus, dalam bahasa yang sedang dipakai pembacanya.
+ *
+ * Bentuknya sengaja union berdiskriminan: penyusun kalimat di
+ * `apps/web/src/i18n/notifikasi.ts` memakai `switch` yang lengkap, jadi
+ * menambah jenis notifikasi TANPA menuliskan kalimatnya tidak akan dikompilasi.
+ * Gerbangnya tsc, bukan uji yang bisa lupa ditulis.
+ */
 export type ApiNotification = {
-  type:
-    | "low_stock"
-    | "overdue_invoice"
-    | "open_ticket"
-    | "pending_approval"
-    | "crm_followup_due"
-    | "crm_stale_lead"
-    /** Tenggat lapor/setor pajak yang mendekat atau baru saja lewat (Fase 22e). */
-    | "tenggat_pajak";
-  title: string;
-  detail: string;
   /** Rute SPA yang dituju saat notifikasi diklik. */
   href: string;
-  /**
-   * Pesan pengingat siap-kirim WhatsApp (mis. faktur jatuh tempo) — bila ada,
-   * UI menampilkan tombol "Tagih (WA)" yang membuka wa.me dengan teks ini.
-   * Pengguna memilih kontak tujuan di WhatsApp (tanpa menyimpan nomor).
-   */
-  waText?: string;
-};
+} & (
+  | { type: "low_stock"; data: { name: string; sku: string; qty: number; minStock: number } }
+  | {
+      type: "overdue_invoice";
+      data: { invoiceNo: string; contactName: string; outstanding: number; dueDate: string };
+    }
+  | { type: "open_ticket"; data: { count: number } }
+  | { type: "pending_approval"; data: { count: number } }
+  | { type: "crm_followup_due"; data: { leadName: string; note: string; dueAt: string } }
+  | { type: "crm_stale_lead"; data: { count: number; hari: number } }
+  /** Tenggat lapor/setor pajak yang mendekat atau baru saja lewat (Fase 22e). */
+  | {
+      type: "tenggat_pajak";
+      data: {
+        jenis: JenisPajak;
+        kegiatan: "setor" | "lapor";
+        masa: string;
+        tanggal: string;
+        /** Negatif berarti sudah terlewat. */
+        sisaHari: number;
+      };
+    }
+);
+
+/** Jenis notifikasi — dipakai penyusun kalimat & warna penanda di lonceng. */
+export type JenisNotifikasi = ApiNotification["type"];
 
 export const warehouseSchema = z.object({
   code: z.string().trim().min(1, "Kode wajib diisi").max(20).toUpperCase(),

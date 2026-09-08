@@ -22,8 +22,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { ApiNotification } from "@erpindo/shared";
 import { api, ApiRequestError, formatDate, formatIDR } from "../api/client";
 import { isi, useLang } from "../i18n";
+import { rincianNotifikasi, waNotifikasi } from "../i18n/notifikasi";
 import { useUi, type UiKey } from "../i18n/ui";
 import { Alert, Button, Card, CardBody, CardHeader, Skeleton, useToast } from "../components/ui";
 import { useWorkspace } from "./app";
@@ -240,7 +242,7 @@ function DueInvoicesWidget({ tenantId }: { tenantId: string }) {
     queryFn: () => api.notifications(tenantId),
   });
   const overdue = (query.data?.notifications ?? [])
-    .filter((n) => n.type === "overdue_invoice")
+    .filter((n): n is Extract<ApiNotification, { type: "overdue_invoice" }> => n.type === "overdue_invoice")
     .slice(0, 5);
 
   return (
@@ -258,19 +260,24 @@ function DueInvoicesWidget({ tenantId }: { tenantId: string }) {
             {overdue.map((n, i) => (
               <li key={i} className="flex items-start justify-between gap-2">
                 <Link to="/app/penjualan" className="group block min-w-0 flex-1 text-sm">
+                  {/* Nomor fakturnya datang sebagai DATA sejak Fase 56c. Kartu
+                      ini dulu membedah judul buatan server
+                      (`n.title.replace("Faktur ", "")`) untuk mendapatkannya —
+                      mengganti satu kata di Worker diam-diam merusak kartu ini,
+                      dan tidak ada gerbang yang bisa melihatnya. */}
                   <span className="block font-medium text-ink group-hover:text-brand-ink">
-                    {n.title.replace("Faktur ", "").replace(" lewat jatuh tempo", "")}
+                    {n.data.invoiceNo}
                   </span>
                   <span className="block text-xs text-ink-muted">
-                    {n.detail}
+                    {rincianNotifikasi(n, u)}
                   </span>
                 </Link>
-                {n.waText && (
+                {waNotifikasi(n, u) && (
                   <button
                     type="button"
                     onClick={() =>
                       window.open(
-                        `https://wa.me/?text=${encodeURIComponent(n.waText!)}`,
+                        `https://wa.me/?text=${encodeURIComponent(waNotifikasi(n, u) ?? "")}`,
                         "_blank",
                         "noopener"
                       )
@@ -278,7 +285,7 @@ function DueInvoicesWidget({ tenantId }: { tenantId: string }) {
                     className="inline-flex shrink-0 items-center gap-1 rounded-md border border-ok-line px-2 py-1 text-xs font-medium text-ok-ink transition hover:bg-ok-surface"
                     title={u("dsKirimPengingatWa")}
                   >
-                    <MessageCircle className="size-3.5" aria-hidden /> Tagih (WA)
+                    <MessageCircle className="size-3.5" aria-hidden /> {u("dsTagihWa")}
                   </button>
                 )}
               </li>

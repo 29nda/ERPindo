@@ -140,7 +140,45 @@ pernah tercapai. Saya buang, karena cabang yang tidak pernah dijalani juga tidak
 pernah diuji — lalu suatu hari berjalan dengan perilaku yang tak pernah dilihat
 siapa pun.
 
-## Yang baru saja selesai — Fase 56b: angka utang bahasa yang ternyata hampir seluruhnya palsu
+## Yang baru saja selesai — Fase 56c: lonceng yang tetap berbahasa Indonesia
+
+Di kanan atas layar ada lonceng: stok menipis, faktur lewat jatuh tempo, tiket
+dukungan yang belum selesai, tenggat pajak yang mendekat. Pelanggan yang
+memindahkan aplikasinya ke bahasa Inggris **tetap membaca isinya dalam bahasa
+Indonesia** — seluruh aplikasi berganti, loncengnya tidak.
+
+Sebabnya: kalimat-kalimat itu disusun di server, bukan di aplikasi. Yang dikirim
+ke layar sudah berupa kalimat jadi, jadi tidak ada lagi yang bisa
+menerjemahkannya. Dan alat pemeriksa bahasa hanya memeriksa sisi aplikasi, jadi
+tujuh kalimat yang dibaca setiap pengguna setiap hari duduk di sana selama dua
+puluh fase tanpa satu pemeriksa pun berbunyi.
+
+Ada akibat kedua yang lebih halus. Karena datanya sudah dilebur ke dalam
+kalimat, kartu "Faktur lewat jatuh tempo" di dasbor terpaksa **membedah kalimat
+itu** untuk mendapatkan nomor fakturnya kembali. Mengganti satu kata di server
+akan merusak kartu itu diam-diam, tanpa pesan galat di mana pun.
+
+Sekarang server mengirim **datanya** — nomor faktur, nama pelanggan, nominal,
+tanggal — dan kalimatnya disusun di aplikasi, dalam bahasa yang sedang dipakai
+pembacanya. Pesan pengingat WhatsApp ikut: ia sekarang mengikuti bahasa orang
+yang menekan tombolnya.
+
+Satu hal ikut dirapikan: nama jenis pajak ("SPT Masa PPN", "PPh 21") sebelumnya
+ditulis **dua kali** — sekali di server untuk lonceng, sekali di halaman Pajak —
+tanpa apa pun yang memastikan keduanya sama. Sekarang tinggal satu.
+
+Yang menjaganya ke depan bukan hanya pemeriksaan, melainkan bentuk kodenya:
+menambah jenis notifikasi baru **tanpa menuliskan kalimatnya di kedua bahasa
+kini tidak bisa dikompilasi sama sekali.** Di atas itu ada 36 pemeriksaan baru,
+dua pemeriksaan server, dan satu pemeriksaan yang benar-benar membuka loncengnya
+di peramban dalam mode Inggris.
+
+Penghitung sisa naskah satu bahasa turun ke **nol** — dengan satu catatan yang
+sengaja ditulis di alatnya sendiri: nol berarti tidak ada sisa **di sisi
+aplikasi**. Fase ini adalah bukti bahwa sisi server bisa menyimpan naskah yang
+tidak pernah terhitung.
+
+## Sebelumnya — Fase 56b: angka utang bahasa yang ternyata hampir seluruhnya palsu
 
 Aplikasi ini dwibahasa: pelanggan bisa memindahkannya ke bahasa Inggris. Sebuah
 alat internal menghitung berapa kalimat yang **belum** punya versi Inggrisnya,
@@ -959,9 +997,9 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.325** |
-| Uji ujung-ke-ujung (smoke) | 1.173 | **1.371** |
-| Simulasi klik di peramban nyata | 431 | **507** |
+| Uji unit | 923 | **1.361** |
+| Uji ujung-ke-ujung (smoke) | 1.173 | **1.372** |
+| Simulasi klik di peramban nyata | 431 | **508** |
 
 Satu catatan kejujuran: angka utang dwibahasa yang selama ini dilaporkan 103
 ternyata **melebih-hitung 50** — sebagian besar bukan teks layar, melainkan
@@ -969,7 +1007,13 @@ kode program yang salah dibaca oleh alat pemeriksanya. Utang sesungguhnya 53.
 Angka yang salah selama berbulan-bulan membuat pekerjaan terlihat lebih
 tertinggal daripada keadaannya. Fase 50c menemukan satu lagi dari kelas yang
 sama — penanda uji `testId`, yang tidak pernah dibaca siapa pun dan justru
-rusak bila diterjemahkan — sehingga angkanya kini **52**.
+rusak bila diterjemahkan.
+
+Angka itu kini **nol** (Fase 56b–56c), dan cerita di atas ternyata berulang
+sekali lagi dengan skala yang lebih besar: dari 35 sisa terakhir, 34 bukan teks
+layar melainkan kode. Yang membedakan kali ini, alatnya diajari membedakan
+keduanya dan angkanya diberi ambang, jadi ia tidak bisa naik lagi tanpa
+terlihat. Rinciannya ada di dua bagian teratas dokumen ini.
 
 ## Sebelumnya — Fase 39: situs dibaca mesin, dan layarnya bisa dilihat
 
@@ -1443,7 +1487,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.371 skenario ujian end-to-end + 1.325 unit test + 507 cek simulasi UI browser nyata**, totalnya **3.203 pemeriksaan**. Di atas itu ada tujuh gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan lima penyapu naskah (bahasa, warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.372 skenario ujian end-to-end + 1.361 unit test + 508 cek simulasi UI browser nyata**, totalnya **3.241 pemeriksaan**. Di atas itu ada tujuh gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan lima penyapu naskah (bahasa, warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 
