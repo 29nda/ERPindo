@@ -52,11 +52,11 @@ untuk mesin pencari.
 
 ## Dua bidang database
 
-**Control-plane** (binding `DB`, D1 `erpindo-control-plane`): **17 tabel**,
-**18 migrasi** — `users`, `tenants`, `memberships`, `sessions`, `tokens`,
+**Control-plane** (binding `DB`, D1 `erpindo-control-plane`): **18 tabel**,
+**19 migrasi** — `users`, `tenants`, `memberships`, `sessions`, `tokens`,
 `subscription_invoices`, `payment_links`, `audit_logs`, `blog_posts`, `feedback`,
 `demo_requests`, `api_keys`, `webhooks`, `webhook_deliveries`, `custom_roles`,
-`drive_connections`, `oauth_states`.
+`drive_connections`, `oauth_states`, `cron_marks`.
 
 **Per tenant**: **89 tabel**, **57 migrasi** (`TENANT_SCHEMA_VERSION =
 TENANT_MIGRATIONS.length`, `packages/db/src/migrations.ts`).

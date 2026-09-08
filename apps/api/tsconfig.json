@@ -25,6 +25,7 @@
     "test/bacaSajaEkspor.test.ts",
     "test/ujiPembacaSumber.test.ts",
     "test/cronKetahanan.test.ts",
-    "test/catatSebelumTagih.test.ts"
+    "test/catatSebelumTagih.test.ts",
+    "test/cronMajuTerus.test.ts"
   ]
 }

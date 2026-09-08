@@ -208,13 +208,48 @@ function monthlyGroup(tenantId: string): number {
   return acc;
 }
 
-/** Marker idempoten tugas bulanan per tenant (KV): run yang mati di tengah
- *  akan dilanjutkan hari berikutnya tanpa mengulang tenant yang sudah beres. */
-async function monthlyDone(env: Env, task: string, tenantId: string, month: string): Promise<boolean> {
-  return Boolean(await env.RATE_KV.get(`cron:m:${task}:${tenantId}:${month}`));
+/**
+ * Penanda idempoten tugas bulanan per tenant — SATU kueri untuk seluruh set
+ * (Fase 57a).
+ *
+ * ## Kenapa tidak lagi di KV
+ *
+ * Penandanya dulu di KV, dan KV hanya bisa dibaca satu kunci per panggilan.
+ * Akibatnya tiap jalannya cron membayar satu pembacaan untuk tiap tenant yang
+ * pekerjaannya SUDAH SELESAI, sebelum sampai ke yang belum:
+ *
+ *   for (const t of dueTenants) {
+ *     if (overBudget()) break;                       // anggaran ~20 detik
+ *     if (await monthlyDone(env, "dep", t.id, …)) continue;   // 1 baca KV
+ *     …
+ *   }
+ *
+ * Ongkosnya tumbuh seiring jumlah tenant yang sudah beres — persis kebalikan
+ * dari yang seharusnya. Dan karena sapuannya tak pernah diurutkan maupun
+ * digilir, yang terdorong ke belakang antrean SELALU tenant yang sama. Begitu
+ * anggarannya habis, ekor yang sama pula yang terlewat setiap hari; jendela
+ * tugas bulanan hanya tiga hari, jadi tenant di ekor itu melewatkan bulannya
+ * sama sekali — penyusutan tak diposting, rekap tak terkirim.
+ *
+ * Sekarang set "sudah selesai" dibaca sekali per tugas, dan gelungnya menyaring
+ * SEBELUM berjalan. Yang tersisa di gelung hanyalah pekerjaan yang benar-benar
+ * belum dikerjakan, jadi tiap jalannya cron pasti memajukan keadaan.
+ */
+async function selesaiBulanan(env: Env, task: string, period: string): Promise<Set<string>> {
+  const { results } = await env.DB.prepare(
+    `SELECT tenant_id FROM cron_marks WHERE task = ? AND period = ?`,
+  )
+    .bind(task, period)
+    .all<{ tenant_id: string }>();
+  return new Set(results.map((r) => r.tenant_id));
 }
+
 async function markMonthlyDone(env: Env, task: string, tenantId: string, month: string): Promise<void> {
-  await env.RATE_KV.put(`cron:m:${task}:${tenantId}:${month}`, "1", { expirationTtl: 40 * 86_400 });
+  await env.DB.prepare(
+    `INSERT OR REPLACE INTO cron_marks (task, tenant_id, period, done_at) VALUES (?, ?, ?, ?)`,
+  )
+    .bind(task, tenantId, month, new Date().toISOString())
+    .run();
 }
 
 async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
@@ -244,6 +279,19 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
     }
   } catch (err) {
     console.error(`[cron] sapu migrasi skema tenant galat:`, err);
+  }
+
+  // Penanda lama dibuang (Fase 57a). Di KV ini gratis — tiap kunci punya TTL
+  // sendiri. Di D1 tidak ada yang membuangnya, jadi tabelnya harus disapu, dan
+  // di sinilah tempatnya: sekali per jalan, satu pernyataan, tak bergantung
+  // jumlah tenant. Ambangnya 400 hari supaya penanda tugas TAHUNAN (periodenya
+  // satu tahun buku) tidak ikut terbuang sebelum tahunnya lewat.
+  try {
+    await env.DB.prepare(`DELETE FROM cron_marks WHERE done_at < ?`)
+      .bind(new Date(Date.now() - 400 * 86_400_000).toISOString())
+      .run();
+  } catch (err) {
+    console.error(`[cron] sapu penanda lama galat:`, err);
   }
 
   const nowIso = new Date().toISOString();
@@ -448,20 +496,30 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
     const { results: tenants } = await env.DB.prepare(
       // `name` ikut ditarik sejak Fase 21b: email rekap bulanan menyebut nama
       // perusahaan, dan pemilik beberapa perusahaan harus bisa membedakannya.
-      `SELECT id, name, db_ref FROM tenants WHERE status IN ('active', 'past_due') AND db_ref <> ''`,
+      // ORDER BY (Fase 57a): tanpa urutan yang dinyatakan, urutan barisnya
+      // ditentukan mesin database — dan sapuan berbatas anggaran yang urutannya
+      // tidak pasti membuat "siapa yang terlewat" ikut tidak pasti.
+      `SELECT id, name, db_ref FROM tenants WHERE status IN ('active', 'past_due') AND db_ref <> '' ORDER BY id`,
     ).all<{ id: string; name: string; db_ref: string }>();
     // Grup 0 diproses mulai tanggal 1, grup 1 mulai tanggal 2, grup 2 tanggal 3;
     // tanggal 3 sekaligus menyapu semua yang belum bertanda (resume).
     const dueTenants = tenants.filter((t) => day >= monthlyGroup(t.id) + 1);
 
+    // Saring SEBELUM gelung, bukan di dalamnya (Fase 57a) — lihat catatan pada
+    // `selesaiBulanan`. Yang masuk gelung hanya pekerjaan yang benar-benar
+    // belum dikerjakan, jadi tiap jalannya cron pasti memajukan keadaan.
+    const depSelesai = await selesaiBulanan(env, "dep", period);
+    const depBelum = dueTenants.filter((t) => !depSelesai.has(t.id));
+
     let depTenants = 0;
-    for (const t of dueTenants) {
+    for (const t of depBelum) {
       if (overBudget()) {
-        console.log(`[cron] anggaran waktu habis — penyusutan dilanjutkan run berikutnya`);
+        console.log(
+          `[cron] anggaran waktu habis — penyusutan dilanjutkan run berikutnya (${depBelum.length - depTenants} tersisa)`,
+        );
         break;
       }
       try {
-        if (await monthlyDone(env, "dep", t.id, period)) continue;
         const db = getTenantDb(env, t.db_ref);
         const res = await runDepreciation(db, period, date, "system");
         if ("count" in res && res.count > 0) {
@@ -483,14 +541,17 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
     // 3b) Laporan terjadwal (Fase 7h): rekap penjualan bulan lalu per tenant.
     //     Idempotent (UNIQUE kind+period), aman bila cron terpicu berulang.
     const recapPeriod = previousMonth(nowIso);
+    const recapSelesai = await selesaiBulanan(env, "recap", recapPeriod);
+    const recapBelum = dueTenants.filter((t) => !recapSelesai.has(t.id));
     let recapTenants = 0;
-    for (const t of dueTenants) {
+    for (const t of recapBelum) {
       if (overBudget()) {
-        console.log(`[cron] anggaran waktu habis — rekap dilanjutkan run berikutnya`);
+        console.log(
+          `[cron] anggaran waktu habis — rekap dilanjutkan run berikutnya (${recapBelum.length - recapTenants} tersisa)`,
+        );
         break;
       }
       try {
-        if (await monthlyDone(env, "recap", t.id, recapPeriod)) continue;
         const db = getTenantDb(env, t.db_ref);
         const { payload } = await runMonthlyRecap(db, recapPeriod, null);
         recapTenants++;
@@ -532,14 +593,19 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
         `SELECT t.id, t.name, t.slug, t.db_ref FROM drive_connections dc JOIN tenants t ON t.id = dc.tenant_id
          WHERE t.db_ref <> ''`,
       ).all<{ id: string; name: string; slug: string; db_ref: string }>();
+      const driveSelesai = await selesaiBulanan(env, "drive", period);
+      const driveBelum = connected.filter(
+        (t) => day >= monthlyGroup(t.id) + 1 && !driveSelesai.has(t.id),
+      );
       let backedUp = 0;
-      for (const t of connected.filter((t) => day >= monthlyGroup(t.id) + 1)) {
+      for (const t of driveBelum) {
         if (overBudget()) {
-          console.log(`[cron] anggaran waktu habis — backup Drive dilanjutkan run berikutnya`);
+          console.log(
+            `[cron] anggaran waktu habis — backup Drive dilanjutkan run berikutnya (${driveBelum.length - backedUp} tersisa)`,
+          );
           break;
         }
         try {
-          if (await monthlyDone(env, "drive", t.id, period)) continue;
           const res = await runDriveBackup(env, { id: t.id, name: t.name, slug: t.slug, dbRef: t.db_ref });
           if (res.ok) {
             backedUp++;
@@ -559,15 +625,43 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
   //    (next_run_date / next_due_date dimajukan setelah diproses).
   const todayDate = nowIso.slice(0, 10);
   const { results: billTenants } = await env.DB.prepare(
-    `SELECT id, db_ref FROM tenants WHERE status IN ('active', 'past_due') AND db_ref <> ''`,
+    `SELECT id, db_ref FROM tenants WHERE status IN ('active', 'past_due') AND db_ref <> '' ORDER BY id`,
   ).all<{ id: string; db_ref: string }>();
+  /*
+   * GILIRAN BERPUTAR (Fase 57a).
+   *
+   * Gelung ini yang paling rawan dari keempat sapuan berbatas anggaran, dan
+   * justru yang paling tidak terlindungi. Tugas bulanan punya penanda
+   * "sudah selesai", jadi jalan berikutnya melewati yang sudah beres dan maju.
+   * Tugas harian tidak punya penanda apa pun — idempotensinya ada di lapis data
+   * (`next_run_date` dimajukan), bukan pada penanda yang bisa dilewati.
+   *
+   * Akibatnya, kalau urutannya tetap, tenant di kepala antrean mengerjakan
+   * kerja nyata setiap hari — sambungan DB tenant, penyegaran kurs, template
+   * jurnal, tagihan kontrak, work order — dan menghabiskan anggarannya, sedang
+   * ekornya tidak pernah tersentuh. Bukan tertunda: tidak pernah. Tagihan
+   * kontraknya tidak pernah terbit, jurnal berulangnya tidak pernah diposting,
+   * dan tak ada satu galat pun yang memberi tahu siapa-siapa.
+   *
+   * Titik mulainya karena itu digeser tiap hari lalu melingkar, sehingga setiap
+   * tenant bergiliran mendapat giliran awal. Ini tidak membuat anggarannya
+   * cukup — ia membuat kekurangannya dibagi rata, dan itu memang yang bisa
+   * dijanjikan sebuah anggaran.
+   */
+  const putaranHarian =
+    billTenants.length > 0 ? Math.floor(Date.now() / 86_400_000) % billTenants.length : 0;
+  const antreanHarian = [...billTenants.slice(putaranHarian), ...billTenants.slice(0, putaranHarian)];
   let billed = 0;
   let woGenerated = 0;
-  for (const t of billTenants) {
+  let harianDiproses = 0;
+  for (const t of antreanHarian) {
     if (overBudget()) {
-      console.log(`[cron] anggaran waktu habis — tugas harian dilanjutkan run berikutnya`);
+      console.log(
+        `[cron] anggaran waktu habis — tugas harian dilanjutkan run berikutnya (${antreanHarian.length - harianDiproses} tersisa, giliran bergeser besok)`,
+      );
       break;
     }
+    harianDiproses++;
     try {
       const db = getTenantDb(env, t.db_ref);
       // Kurs referensi harian (Fase 22b) — DIDAHULUKAN sebelum jurnal apa pun
@@ -628,16 +722,21 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
   if (closingAsOf) {
     const tahunBuku = closingAsOf.slice(0, 4);
     const { results: closingTenants } = await env.DB.prepare(
-      `SELECT id, db_ref FROM tenants WHERE status IN ('active', 'past_due') AND db_ref <> ''`,
+      `SELECT id, db_ref FROM tenants WHERE status IN ('active', 'past_due') AND db_ref <> '' ORDER BY id`,
     ).all<{ id: string; db_ref: string }>();
+    const closingSelesai = await selesaiBulanan(env, "closing", tahunBuku);
+    const closingBelum = closingTenants.filter((t) => !closingSelesai.has(t.id));
     let ditutup = 0;
-    for (const t of closingTenants) {
+    let closingDiproses = 0;
+    for (const t of closingBelum) {
       if (overBudget()) {
-        console.log(`[cron] anggaran waktu habis — jurnal penutup dilanjutkan run berikutnya`);
+        console.log(
+          `[cron] anggaran waktu habis — jurnal penutup dilanjutkan run berikutnya (${closingBelum.length - closingDiproses} tersisa)`,
+        );
         break;
       }
+      closingDiproses++;
       try {
-        if (await monthlyDone(env, "closing", t.id, tahunBuku)) continue;
         const res = await runYearlyClosing(getTenantDb(env, t.db_ref), closingAsOf, "system");
         if (res.status === "diposting") {
           ditutup++;
