@@ -645,7 +645,7 @@ function LeadRow({ lead, isAdmin }: { lead: ApiLead; isAdmin: boolean }) {
             {activitiesQuery.isLoading ? (
               <Spinner />
             ) : (activitiesQuery.data?.activities.length ?? 0) === 0 ? (
-              <p className="text-sm text-ink-muted">{u("belumAdaAktivitas")}</p>
+              <p className="text-sm text-ink-muted">{u("crmBelumAdaAktivitas")}</p>
             ) : (
               <ul className="space-y-1.5">
                 {activitiesQuery.data!.activities.map((a) => (

@@ -140,7 +140,41 @@ pernah tercapai. Saya buang, karena cabang yang tidak pernah dijalani juga tidak
 pernah diuji — lalu suatu hari berjalan dengan perilaku yang tak pernah dilihat
 siapa pun.
 
-## Yang baru saja selesai — Fase 55e: empat akun kontrol yang tersisa
+## Yang baru saja selesai — Fase 56a: sembilan layar kosong yang berhenti pada kata "belum"
+
+Layar kosong adalah **satu-satunya layar yang dilihat setiap pelanggan baru di
+jam pertamanya.** Sebelum ada data, seluruh aplikasi adalah layar kosong.
+
+Sembilan di antaranya berbunyi begini:
+
+> Tidak ada.
+> Belum ada transaksi.
+> Belum ada aktivitas.
+> Tidak ada permintaan.
+> Tidak ada data.
+
+Semuanya benar, dan tidak satu pun berguna. Kalimat yang berhenti pada "belum
+ada" memberi tahu apa yang tidak ada, lalu menyembunyikan satu-satunya hal yang
+sebenarnya dicari pembacanya: **apa yang harus dilakukan sekarang.**
+
+Kesembilan sekarang menyebutkannya — dari mana jurnal datang, kenapa aktivitas
+lead layak dicatat (supaya riwayatnya tidak hilang saat penanggung jawabnya
+berganti), bagaimana rekap bulanan tersusun sendiri, dan seterusnya.
+
+Tiga di antaranya bukan kabar buruk melainkan **kabar baik**: tidak ada stok yang
+menipis, tidak ada persetujuan yang tertahan. Untuk ketiganya kalimatnya tidak
+dipaksa menjadi ajakan — ia menegaskan keadaannya memang baik, lalu menyebutkan
+apa yang akan mengubahnya.
+
+Satu naskah lama menyebut **"Cron"** — kata yang tidak berarti apa pun bagi
+pemilik toko. Diganti dengan yang benar-benar dijanjikannya: rekap tersusun
+otomatis tiap awal bulan dan dikirim ke surel Pemilik.
+
+Penghitungnya turun dari sembilan ke **nol**, dan ambang yang turun tidak boleh
+naik lagi — itu satu-satunya hal yang membedakan utang yang dibayar dari utang
+yang dipindahkan.
+
+## Sebelumnya — Fase 55e: empat akun kontrol yang tersisa
 
 Laporan **Rekonsiliasi** — yang diminta akuntan tiap penutupan buku — sejak
 awalnya memeriksa tiga akun: Piutang Usaha, Utang Usaha, dan Persediaan. Catatan

@@ -784,7 +784,13 @@ export const UI = {
   perProduk: { id: "Per produk", en: "By product" },
   eksporExcel: { id: "Ekspor Excel", en: "Export Excel" },
   belumAdaPenjualan: { id: "Belum ada penjualan", en: "No sales yet" },
-  tidakAda: { id: "Tidak ada.", en: "None." },
+  // Fase 56a — empty state yang buntu: menyatakan kosong lalu berhenti.
+  // Dipakai di kedua seksi laporan Arus Kas, jadi kalimatnya sengaja tidak
+  // menyebut "penerimaan" atau "pengeluaran" — judul di atasnya sudah.
+  tidakAda: {
+    id: "Tidak ada pada periode ini. Pilih rentang tanggal lain untuk melihat periode sebelumnya.",
+    en: "None in this period. Pick a different date range to see an earlier period.",
+  },
   tidakAdaFakturPpn: {
     id: "Tidak ada faktur ber-PPN pada periode ini. Coba masa pajak lain, atau pastikan faktur sudah diposting.",
     en: "No VAT invoices in this period. Try another tax period, or check that the invoices are posted.",
@@ -805,7 +811,10 @@ export const UI = {
   noJurnal: { id: "No. Jurnal", en: "Entry no." },
   balik: { id: "Balik", en: "Reverse" },
   muatKeForm: { id: "Muat ke form", en: "Load into form" },
-  belumAdaTransaksi: { id: "Belum ada transaksi.", en: "No transactions yet." },
+  belumAdaTransaksi: {
+    id: "Belum ada jurnal pada periode ini. Catat transaksi pertama lewat menu Penjualan, Pembelian, atau Kas & Bank — neraca saldo terisi sendiri dari jurnalnya.",
+    en: "No journal entries in this period yet. Record your first transaction from Sales, Purchases, or Cash & Bank — the trial balance fills itself from those entries.",
+  },
   namaTemplate: { id: "Nama template", en: "Template name" },
   simpanSebagaiTemplate: { id: "Simpan sebagai template", en: "Save as template" },
   terbitOtomatisBulanan: { id: "Terbit otomatis tiap bulan", en: "Auto-issue monthly" },
@@ -926,7 +935,18 @@ export const UI = {
   jenisAktivitas: { id: "Jenis aktivitas", en: "Activity type" },
   catatanAktivitas: { id: "Catatan aktivitas", en: "Activity note" },
   catatanSingkat: { id: "Catatan singkat…", en: "Short note…" },
-  belumAdaAktivitas: { id: "Belum ada aktivitas.", en: "No activity yet." },
+  // Kunci `belumAdaAktivitas` dulu dipakai DUA layar dengan maksud berbeda:
+  // riwayat satu lead di CRM, dan umpan aktivitas seluruh perusahaan di dasbor.
+  // Satu kalimat untuk keduanya berarti kalimat yang tidak menolong di mana
+  // pun — dipisah pada Fase 56a.
+  crmBelumAdaAktivitas: {
+    id: "Belum ada aktivitas untuk lead ini. Catat telepon, kunjungan, atau catatan lewat tombol di atas supaya riwayatnya tidak hilang saat penanggung jawabnya berganti.",
+    en: "No activity for this lead yet. Log a call, visit, or note with the button above so the history survives a change of owner.",
+  },
+  dashBelumAdaAktivitas: {
+    id: "Belum ada aktivitas. Setiap transaksi dan perubahan yang dicatat tim muncul di sini otomatis.",
+    en: "No activity yet. Every transaction and change your team records appears here automatically.",
+  },
   catat: { id: "Catat", en: "Record" },
   tenggatOpsional: { id: "Tenggat (opsional)", en: "Due date (optional)" },
   penawaranBaru: { id: "Penawaran baru", en: "New quotation" },
@@ -1488,9 +1508,11 @@ export const UI = {
   transferAksi: { id: "Transfer", en: "Transfer" },
   totalNilaiTerfilter: { id: "Total nilai (terfilter)", en: "Total value (filtered)" },
   totalNilaiPersediaan: { id: "Total nilai persediaan", en: "Total inventory value" },
+  // Kalimat UTUH berlubang, bukan potongan yang disambung angka di JSX:
+  // potongan mengunci urutan kata Indonesia ke dalam kode (larangan Fase 33h).
   tidakAdaProdukStokKurang: {
-    id: "Tidak ada produk dengan stok ≤",
-    en: "No products with stock ≤",
+    id: "Tidak ada produk dengan stok di bawah {0}. Atur ambangnya lebih tinggi untuk melihat produk yang mulai menipis.",
+    en: "No products with stock below {0}. Raise the threshold to see items that are starting to run low.",
   },
   descTransferGudang: {
     id: "Nilai persediaan berpindah pada biaya rata-rata — tanpa jurnal.",
@@ -1685,11 +1707,18 @@ export const UI = {
     id: "Rekap penjualan bulanan yang disusun otomatis tiap awal bulan.",
     en: "A monthly sales recap built automatically at the start of each month.",
   },
+  // Dua potongan yang disambung koma di JSX, dan salah satunya menyebut "Cron"
+  // — kata yang tidak berarti apa pun bagi pemilik toko. Digabung menjadi dua
+  // kalimat utuh (Fase 56a): satu untuk yang boleh menyusun manual, satu untuk
+  // yang tidak.
   descBelumAdaRekap: {
-    id: "Belum ada rekap. Cron menyusun rekap bulan lalu tiap awal bulan",
-    en: "No recap yet. Cron builds last month's recap at the start of each month",
+    id: "Belum ada rekap. Rekap bulan lalu tersusun otomatis tiap awal bulan dan dikirim ke surel Pemilik.",
+    en: "No recap yet. Last month's recap is built automatically at the start of each month and emailed to the Owner.",
   },
-  descSusunManual: { id: ", atau susun manual di atas.", en: ", or build it manually above." },
+  descBelumAdaRekapBisaManual: {
+    id: "Belum ada rekap. Rekap bulan lalu tersusun otomatis tiap awal bulan. Susun sekarang lewat tombol di atas bila tidak ingin menunggu.",
+    en: "No recap yet. Last month's recap is built automatically at the start of each month. Build one now with the button above if you would rather not wait.",
+  },
   descRingkasanAi: {
     id: "Narasi singkat kinerja minggu ini vs minggu lalu — dihitung dari buku Anda.",
     en: "A short narrative of this week versus last — computed from your books.",
@@ -2261,7 +2290,10 @@ export const UI = {
     id: "Pembelian di atas ambang oleh non-Owner — jurnal & stok baru diproses saat disetujui.",
     en: "Above-threshold purchases by non-Owners — journal and stock are only processed once approved.",
   },
-  tidakAdaPermintaan: { id: "Tidak ada permintaan.", en: "No requests." },
+  tidakAdaPermintaan: {
+    id: "Tidak ada permintaan yang menunggu keputusan Anda. Permintaan baru muncul di sini otomatis begitu rekan mengajukannya.",
+    en: "No requests are waiting for your decision. New requests appear here automatically as soon as a colleague submits one.",
+  },
   statusMenunggu: { id: "menunggu", en: "pending" },
   statusDisetujui: { id: "disetujui", en: "approved" },
   // `statusDitolak` sudah ada sejak Fase 16 dengan isi sama — dipakai ulang.
@@ -2516,7 +2548,10 @@ export const UI = {
     en: ": missing columns (needs order no., date, SKU, qty, price).",
   },
   csvDataTakValid: { id: ": data tidak valid.", en: ": invalid data." },
-  tidakAdaData: { id: "Tidak ada data.", en: "No data." },
+  tidakAdaData: {
+    id: "Tidak ada data pada periode ini. Pilih rentang tanggal lain, atau pastikan perusahaan yang dibandingkan sudah memuat jurnal.",
+    en: "No data in this period. Pick a different date range, or make sure the companies being compared already have journal entries.",
+  },
   seimbangCentang: { id: "seimbang ✓", en: "balanced ✓" },
   // (kunci di atas sudah ada sejak Fase 16 — dipakai ulang)
   labaRugiTab: { id: "Laba Rugi", en: "Income Statement" },
@@ -2934,7 +2969,10 @@ export const UI = {
     en: "Feature suggestions, bug reports, and questions from every user.",
   },
   adFilterStatusMasukan: { id: "Filter status masukan", en: "Filter feedback by status" },
-  adBelumAdaMasukan: { id: "Belum ada masukan.", en: "No feedback yet." },
+  adBelumAdaMasukan: {
+    id: "Belum ada masukan. Masukan pelanggan muncul di sini otomatis begitu dikirim lewat menu Dukungan di dalam aplikasi.",
+    en: "No feedback yet. Customer feedback appears here automatically once it is sent from the Support menu inside the app.",
+  },
   adStatusMasukan: { id: "Status masukan", en: "Feedback status" },
   adHalamanLabel: { id: "Halaman:", en: "Page:" },
   adBalasanUntuk: { id: "Balasan untuk", en: "Reply to" },
@@ -3026,8 +3064,8 @@ export const UI = {
     en: "Statuses are reviewed by the ERPindo team.",
   },
   dkBelumAdaMasukan: {
-    id: "Belum ada masukan yang Anda kirim.",
-    en: "You have not sent any feedback yet.",
+    id: "Belum ada masukan yang Anda kirim. Tulis keluhan, usulan, atau pertanyaan di formulir di atas — balasan pengelola muncul di sini.",
+    en: "You have not sent any feedback yet. Write a complaint, suggestion, or question in the form above — our reply appears here.",
   },
   dkBalasanPengelola: { id: "Balasan pengelola:", en: "Team reply:" },
   dkToastTerimaKasih: {

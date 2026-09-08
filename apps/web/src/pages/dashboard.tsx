@@ -348,7 +348,7 @@ function ActivityFeed({ tenantId }: { tenantId: string }) {
           <Skeleton className="h-24 w-full" />
         ) : logs.length === 0 ? (
           <p className="py-4 text-center text-sm text-ink-muted">
-            {u("belumAdaAktivitas")}
+            {u("dashBelumAdaAktivitas")}
           </p>
         ) : (
           <ul className="space-y-2.5">
@@ -692,8 +692,7 @@ function ScheduledReportsWidget({ tenantId, canRun }: { tenantId: string; canRun
           <Skeleton className="h-24 w-full" />
         ) : snapshots.length === 0 ? (
           <p className="py-4 text-center text-sm text-ink-muted">
-            {u("descBelumAdaRekap")}
-            {canRun ? u("descSusunManual") : "."}
+            {canRun ? u("descBelumAdaRekapBisaManual") : u("descBelumAdaRekap")}
           </p>
         ) : (
           <ul className="space-y-2.5">
