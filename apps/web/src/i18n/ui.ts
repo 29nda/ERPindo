@@ -3950,6 +3950,83 @@ export const UI = {
   },
   mitraPenitipan: { id: "Mitra penitipan", en: "Consignment partner" },
 
+  // --- Fase 56c: naskah lonceng notifikasi ----------------------------------
+  //
+  // Sampai fase ini ketujuh kalimat ini dirakit di Worker
+  // (`apps/api/src/routes/tenants.ts`), jadi loncengnya tetap berbahasa
+  // Indonesia meski pemakai memilih Inggris — dan dasbor harus MEMBEDAH
+  // kalimatnya untuk mendapatkan nomor fakturnya kembali. Sekarang Worker
+  // mengirim data, dan kalimatnya disusun di sini.
+  notifStokMenipis: { id: "Stok menipis: {0}", en: "Low stock: {0}" },
+  notifStokMenipisRinci: {
+    id: "{0} tersisa {1}, sudah di ambang minimum {2}.",
+    en: "{0} has {1} left, at the minimum threshold of {2}.",
+  },
+  notifFakturJatuhTempo: { id: "Faktur {0} lewat jatuh tempo", en: "Invoice {0} is overdue" },
+  notifFakturJatuhTempoRinci: {
+    id: "{0}, sisa {1}, jatuh tempo {2}.",
+    en: "{0}, {1} outstanding, due {2}.",
+  },
+  notifTiketTerbuka: {
+    id: "{0} tiket dukungan belum selesai",
+    en: "{0} support tickets are still open",
+  },
+  notifTiketTerbukaRinci: {
+    id: "Ada tiket berstatus terbuka atau sedang diproses yang menunggu tindak lanjut.",
+    en: "Some tickets are open or in progress and waiting to be followed up.",
+  },
+  notifPersetujuan: {
+    id: "{0} pembelian menunggu persetujuan",
+    en: "{0} purchases are waiting for approval",
+  },
+  notifPersetujuanRinci: {
+    id: "Pengajuan pembelian di atas ambang menunggu keputusan Owner.",
+    en: "Purchase requests above the threshold are waiting for the Owner's decision.",
+  },
+  notifTindakLanjutLead: {
+    id: "Tindak lanjut lead {0} sudah jatuh tempo",
+    en: "Follow-up for lead {0} is due",
+  },
+  notifTindakLanjutLeadRinci: { id: "{0}, tenggat {1}.", en: "{0}, due {1}." },
+  notifLeadDingin: {
+    id: "{0} lead belum ditindaklanjuti lebih dari {1} hari",
+    en: "{0} leads have had no follow-up for more than {1} days",
+  },
+  notifLeadDinginRinci: {
+    id: "Lead aktif tanpa aktivitas baru. Hubungi lagi sebelum mereka mencari pemasok lain.",
+    en: "Active leads with no new activity. Reach out again before they look elsewhere.",
+  },
+  notifPajakTerlambat: {
+    id: "{0} {1} masa {2} TERLAMBAT {3} hari",
+    en: "{0} {1} for period {2} is {3} days LATE",
+  },
+  notifPajakMendatang: {
+    id: "{0} {1} masa {2}, {3} hari lagi",
+    en: "{0} {1} for period {2}, {3} days left",
+  },
+  notifPajakRinci: {
+    id: "Tenggat {0}. Hari libur nasional belum diperhitungkan, jadi tenggat sebenarnya bisa lebih lambat, tidak pernah lebih awal.",
+    en: "Deadline {0}. Public holidays are not accounted for, so the real deadline can only be later, never earlier.",
+  },
+  waPengingatJatuhTempo: {
+    id: "Halo {0}, kami ingin mengingatkan bahwa faktur {1} sebesar {2} telah jatuh tempo pada {3}. Mohon konfirmasi pembayarannya ya. Terima kasih 🙏",
+    en: "Hello {0}, this is a reminder that invoice {1} for {2} fell due on {3}. Please confirm the payment. Thank you 🙏",
+  },
+
+  // Nama jenis pajak. Dulu dipetakan DUA KALI — di Worker (judul notifikasi)
+  // dan di `pages/pajak.tsx` (tabel kalender) — tanpa apa pun yang memeriksa
+  // keduanya sepakat. Sekarang hanya di sini. Nama formulirnya resmi, jadi sama
+  // di kedua bahasa: menerjemahkannya membuat pemakai tidak menemukannya di
+  // Coretax.
+  pajakPpn: { id: "SPT Masa PPN", en: "SPT Masa PPN" },
+  pajakPph21: { id: "PPh 21", en: "PPh 21" },
+  pajakPph23: { id: "PPh 23", en: "PPh 23" },
+  pajakPph25: { id: "PPh 25", en: "PPh 25" },
+  pajakPphFinal: { id: "PPh Final UMKM", en: "PPh Final UMKM" },
+  pajakSptTahunan: { id: "SPT Tahunan", en: "SPT Tahunan" },
+  /** Label tombol pengingat WhatsApp — dulu ditulis harfiah di dashboard.tsx. */
+  dsTagihWa: { id: "Tagih (WA)", en: "Remind (WA)" },
+
   // --- Fase 56b: dua naskah terakhir yang masih dirakit di dalam kode --------
   //
   // Keduanya kalimat UTUH berlubang, bukan potongan. Catatan usulan pembelian

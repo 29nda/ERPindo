@@ -841,6 +841,35 @@ try {
     adaDashEn && tanpaDashId,
     `→ kartu=${adaDashEn} tanpaID=${tanpaDashId}`,
   );
+  // F56c — LONCENG notifikasi. Kelas teks yang paling lama luput: isinya dulu
+  // dirakit di Worker sebagai kalimat Indonesia, jadi ia tidak pernah terlihat
+  // oleh penyapu i18n (yang hanya menyapu apps/web) maupun oleh asersi dasbor
+  // di atas (loncengnya tertutup sampai diklik). Satu-satunya cara melihatnya
+  // adalah membukanya di peramban, dalam mode Inggris.
+  //
+  // Asersinya bercabang dengan sengaja: data demo boleh saja tidak punya
+  // notifikasi sama sekali, dan cek yang menuntut ada akan memerah karena
+  // alasan yang tidak ada hubungannya dengan bahasanya. Kedua cabang tetap
+  // menuntut bahasa Inggris — yang kosong pun punya kalimatnya sendiri.
+  await page.getByRole("button", { name: /Notifications/ }).first().click();
+  await page.waitForTimeout(400);
+  const loncengEn = await page.innerText("body");
+  const adaPanelEn = loncengEn.includes("Notifications");
+  const sisaIdLonceng = [
+    "lewat jatuh tempo",
+    "Stok menipis",
+    "menunggu persetujuan",
+    "tiket dukungan",
+    "belum ditindaklanjuti",
+    "Hari libur nasional",
+  ].filter((t) => loncengEn.includes(t));
+  check(
+    "F56c isi lonceng notifikasi ikut EN: judul & tiap barisnya, tanpa kalimat Indonesia dari server",
+    adaPanelEn && sisaIdLonceng.length === 0,
+    `→ panel=${adaPanelEn} sisaID=${JSON.stringify(sisaIdLonceng)}`,
+  );
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
   // Fase 16t — peta label dari packages/shared. Rute diverifikasi ke main.tsx:
   // /app/keuangan/akun. Jenis akun berasal dari ACCOUNT_TYPE_LABELS di paket
   // bersama yang tetap berbahasa Indonesia; cek ini memastikan pemetaan sisi

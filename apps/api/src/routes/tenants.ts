@@ -22,7 +22,7 @@ import {
 } from "@erpindo/shared";
 import type { SqlExecutor } from "@erpindo/db";
 import { Hono } from "hono";
-import { tenggatMasaPajak, tenggatMendatang, tenggatSptTahunan, type JenisPajak } from "@erpindo/shared";
+import { tenggatMasaPajak, tenggatMendatang, tenggatSptTahunan } from "@erpindo/shared";
 import type { AppEnv } from "../env";
 import { audit } from "../lib/audit";
 import { kirimEmail } from "../lib/mailer";
@@ -41,16 +41,6 @@ function safeParsePerms(raw: string): PermissionKey[] {
     return [];
   }
 }
-
-/** Label pendek jenis pajak untuk judul notifikasi (Fase 22e). */
-const LABEL_PAJAK: Record<JenisPajak, string> = {
-  ppn: "SPT Masa PPN",
-  pph21: "PPh 21",
-  pph23: "PPh 23",
-  pph25: "PPh 25",
-  pph_final: "PPh Final UMKM",
-  spt_tahunan: "SPT Tahunan",
-};
 
 /** Baca satu baris `settings` DB tenant (Fase 22e). */
 async function bacaSetting(db: SqlExecutor, key: string): Promise<string | null> {
@@ -500,27 +490,33 @@ export const tenantRoutes = new Hono<AppEnv>()
     for (const p of lowStock.results) {
       notifications.push({
         type: "low_stock",
-        title: `Stok menipis: ${p.name}`,
-        detail: `${p.sku} tersisa ${p.qty} (ambang ${p.min_stock}).`,
+        data: { name: p.name, sku: p.sku, qty: p.qty, minStock: p.min_stock },
         href: "/app/stok",
       });
     }
     for (const d of overdue.results) {
-      const sisa = d.outstanding.toLocaleString("id-ID");
+      // `waText` (pesan pengingat WhatsApp) dulu ikut dirakit di sini. Sekarang
+      // web yang menyusunnya dari data yang sama, lewat kamus — lihat catatan
+      // pada `ApiNotification`. Nominalnya dikirim sebagai ANGKA, bukan untai
+      // berpemisah ribuan: pemisah ribuan Indonesia dan Inggris berbeda, dan
+      // memformatnya di sini berarti memilihkan format untuk pembaca yang belum
+      // diketahui bahasanya.
       notifications.push({
         type: "overdue_invoice",
-        title: `Faktur ${d.invoice_no} lewat jatuh tempo`,
-        detail: `${d.contact_name} — sisa Rp ${sisa} (jatuh tempo ${d.due_date}).`,
+        data: {
+          invoiceNo: d.invoice_no,
+          contactName: d.contact_name,
+          outstanding: d.outstanding,
+          dueDate: d.due_date,
+        },
         href: "/app/penjualan",
-        waText: `Halo ${d.contact_name}, kami ingin mengingatkan bahwa faktur ${d.invoice_no} sebesar Rp ${sisa} telah jatuh tempo pada ${d.due_date}. Mohon konfirmasi pembayarannya ya. Terima kasih 🙏`,
       });
     }
     const openTickets = tickets.results[0]?.n ?? 0;
     if (openTickets > 0) {
       notifications.push({
         type: "open_ticket",
-        title: `${openTickets} tiket dukungan belum selesai`,
-        detail: "Ada tiket berstatus terbuka/diproses yang menunggu tindak lanjut.",
+        data: { count: openTickets },
         href: "/app/helpdesk",
       });
     }
@@ -528,25 +524,25 @@ export const tenantRoutes = new Hono<AppEnv>()
     if (pendingApprovals > 0) {
       notifications.push({
         type: "pending_approval",
-        title: `${pendingApprovals} pembelian menunggu persetujuan`,
-        detail: "Pengajuan pembelian di atas ambang menunggu keputusan Owner.",
+        data: { count: pendingApprovals },
         href: "/app/persetujuan",
       });
     }
     for (const f of dueFollowUps.results) {
       notifications.push({
         type: "crm_followup_due",
-        title: `Follow-up lead ${f.lead_name} jatuh tempo`,
-        detail: `${f.note} (tenggat ${f.due_at}).`,
+        data: { leadName: f.lead_name, note: f.note, dueAt: f.due_at },
         href: "/app/crm/leads",
       });
     }
     const stale = staleLeads.results[0]?.n ?? 0;
     if (stale > 0) {
+      // `hari` ikut dikirim, bukan ditulis "7" di kalimatnya: ambangnya ada di
+      // kueri di atas, dan kalimat yang menyebut angka lain dari kuerinya adalah
+      // kelas cacat yang tidak bisa dilihat siapa pun.
       notifications.push({
         type: "crm_stale_lead",
-        title: `${stale} lead belum di-follow-up lebih dari 7 hari`,
-        detail: "Lead aktif tanpa aktivitas baru — hubungi lagi sebelum dingin.",
+        data: { count: stale, hari: 7 },
         href: "/app/crm/leads",
       });
     }
@@ -578,15 +574,19 @@ export const tenantRoutes = new Hono<AppEnv>()
       tenggatSptTahunan(acuan.getUTCFullYear() - 1, profilPajak, today),
     ];
     for (const t of tenggatMendatang(semuaTenggat)) {
-      const label = LABEL_PAJAK[t.jenis];
-      const kegiatan = t.kegiatan === "setor" ? "Setor" : "Lapor";
+      // Label jenis pajak ("SPT Masa PPN", "PPh 21") dulu dipetakan di sini
+      // DAN di `apps/web/src/pages/pajak.tsx` — satu kebenaran di dua tempat,
+      // tanpa apa pun yang memeriksa keduanya sepakat. Sekarang hanya kode
+      // jenisnya yang dikirim, dan pemetaannya tinggal satu, di kamus web.
       notifications.push({
         type: "tenggat_pajak",
-        title:
-          t.sisaHari < 0
-            ? `${kegiatan} ${label} ${t.masa} TERLAMBAT ${-t.sisaHari} hari`
-            : `${kegiatan} ${label} ${t.masa} — ${t.sisaHari} hari lagi`,
-        detail: `Tenggat ${t.tanggal}. Hari libur nasional belum diperhitungkan, jadi tenggat sebenarnya bisa lebih lambat — tidak pernah lebih awal.`,
+        data: {
+          jenis: t.jenis,
+          kegiatan: t.kegiatan,
+          masa: t.masa,
+          tanggal: t.tanggal,
+          sisaHari: t.sisaHari,
+        },
         href: "/app/keuangan/pajak",
       });
     }

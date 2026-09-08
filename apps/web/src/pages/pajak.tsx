@@ -32,6 +32,7 @@ import {
   useToast,
 } from "../components/ui";
 import { isi } from "../i18n";
+import { KUNCI_LABEL_PAJAK } from "../i18n/notifikasi";
 import { useUi, type UiKey } from "../i18n/ui";
 import { useWorkspace } from "./app";
 
@@ -951,13 +952,12 @@ function KalenderPajakSection({ isAdmin }: { isAdmin: boolean }) {
   });
 
   const profil = kalender.data?.profil;
-  const LABEL: Record<string, string> = {
-    ppn: "SPT Masa PPN",
-    pph21: "PPh 21",
-    pph23: "PPh 23",
-    pph25: "PPh 25",
-    pph_final: "PPh Final UMKM",
-    spt_tahunan: "SPT Tahunan",
+  // Satu pemetaan untuk seluruh repo (Fase 56c). Tabel ini dulu ditulis dua
+  // kali — di sini dan di Worker untuk judul notifikasi — tanpa apa pun yang
+  // memeriksa keduanya sepakat.
+  const LABEL = (jenis: string): string => {
+    const kunci = KUNCI_LABEL_PAJAK[jenis as keyof typeof KUNCI_LABEL_PAJAK];
+    return kunci ? u(kunci) : jenis;
   };
 
   return (
@@ -1019,7 +1019,7 @@ function KalenderPajakSection({ isAdmin }: { isAdmin: boolean }) {
                 {(kalender.data?.tenggat ?? []).map((t) => (
                   <Tr key={`${t.jenis}-${t.kegiatan}-${t.masa}`}>
                     <Td label={u("kpKewajiban")}>
-                      {t.kegiatan === "setor" ? u("kpSetor") : u("kpLapor")} {LABEL[t.jenis] ?? t.jenis}
+                      {t.kegiatan === "setor" ? u("kpSetor") : u("kpLapor")} {LABEL(t.jenis)}
                     </Td>
                     <Td label={u("kpMasa")}>{t.masa}</Td>
                     <Td label={u("kpTenggat")} className="whitespace-nowrap">

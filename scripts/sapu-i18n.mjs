@@ -16,12 +16,18 @@ import { readFileSync } from "node:fs";
 /**
  * Ambang utang — lihat catatan di akhir berkas. Hanya boleh turun.
  *
- * `layar: 1` adalah `dashboard.tsx` yang membedah judul notifikasi buatan
- * server (`n.title.replace("Faktur ", "")`) untuk mengambil nomor fakturnya.
- * Itu bukan sekadar utang naskah melainkan utang bentuk data, dan diperbaiki
- * tersendiri di Fase 56c bersama seluruh lonceng notifikasi.
+ * Nol sejak Fase 56c. Satu-satunya sisa Fase 56b adalah `dashboard.tsx` yang
+ * membedah judul notifikasi buatan server untuk mengambil nomor fakturnya; itu
+ * utang BENTUK DATA, bukan naskah, dan dibayar bersama seluruh lonceng
+ * notifikasi.
+ *
+ * Nol bukan berarti selesai: penyapu ini hanya menyapu `apps/web`. Naskah yang
+ * ditulis di `apps/api` tidak pernah muncul di angkanya sama sekali — persis
+ * yang membuat lonceng notifikasi berbahasa Indonesia selama dua puluh fase
+ * tanpa satu gerbang pun berbunyi. Yang menjaga sisi itu uji
+ * `apps/web/test/notifikasi-dwibahasa.test.ts`.
  */
-const AMBANG = { layar: 1, atribut: 0 };
+const AMBANG = { layar: 0, atribut: 0 };
 
 const KUNCI = new Set(
   [...readFileSync("apps/web/src/i18n/ui.ts", "utf8").matchAll(/^ {2}([a-zA-Z0-9]+):/gm)].map(
