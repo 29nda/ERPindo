@@ -166,6 +166,15 @@ function useEntityPage<Row extends { id: string }>(entity: "products" | "contact
     placeholderData: (prev) => prev,
   });
 
+  /**
+   * Kembalikan PROMISE-nya, jangan hanya memanggilnya (Fase 56d).
+   *
+   * `invalidateQueries` selesai ketika kueri aktifnya sudah benar-benar diambil
+   * ulang. React Query menunggu promise yang dikembalikan `onSuccess`, jadi
+   * mengembalikannya membuat mutasinya tetap `isPending` — tombol Simpan tetap
+   * berputar — sampai daftarnya segar. Membiarkan promise ini menggantung
+   * berarti layar mengaku selesai sebelum datanya benar.
+   */
   const invalidate = () => queryClient.invalidateQueries({ queryKey: [entity, tenant.tenantId] });
 
   const create = useMutation({
@@ -181,10 +190,25 @@ function useEntityPage<Row extends { id: string }>(entity: "products" | "contact
   const update = useMutation({
     mutationFn: (vars: { id: string; input: Parameters<typeof api.updateItem>[3] }) =>
       api.updateItem(tenant.tenantId, entity, vars.id, vars.input),
-    onSuccess: () => {
+    /**
+     * Tutup formulirnya SESUDAH daftarnya segar, bukan sebelumnya (Fase 56d).
+     *
+     * Medan-medan formulir ini `defaultValue`, dan disemai sekali dari baris
+     * yang tertangkap ketika tombol "Ubah" diklik (`onEdit={() => setEditing(p)}`).
+     * Menutup lembarnya sebelum daftarnya diambil ulang meninggalkan jendela
+     * waktu: siapa pun yang mengeklik "Ubah" lagi di dalam jendela itu membuka
+     * formulir berisi nilai SEBELUM-simpan, dan menyimpannya lagi akan
+     * mengembalikan perubahan yang baru saja ia buat — tanpa galat, tanpa
+     * peringatan.
+     *
+     * Jendelanya beberapa ratus milidetik di jaringan sungguhan, jauh lebih
+     * lebar daripada di mesin pengembang. Ia ditemukan justru karena gerbang
+     * ui-sim memerah di CI yang lebih lambat, bukan di lokal.
+     */
+    onSuccess: async () => {
       toast("success", u("toastPerubahanTersimpan"));
+      await invalidate();
       setEditing(null);
-      invalidate();
     },
     onError: (err) => toast("error", (err as Error).message),
   });

@@ -1691,6 +1691,37 @@ try {
   check("F54 formulir sunting kontak memuat termin pembayaran & batas kredit",
     adaTermin === 1 && adaKredit === 1, `→ termin=${adaTermin} kredit=${adaKredit}`);
 
+  /*
+   * Perlambat pengambilan ULANG daftar kontak selama langkah ini (Fase 56d).
+   *
+   * Tanpa ini ceknya tidak menjaga apa pun di mesin cepat. Terbukti, bukan
+   * dikira-kira: kode yang BELUM diperbaiki dijalankan dua kali di sini dan
+   * lulus dua-duanya, karena di localhost daftarnya kembali dalam hitungan
+   * milidetik sehingga jendela basinya terlalu sempit untuk tertangkap. Cacat
+   * ini hanya pernah terlihat di CI — mesin yang kebetulan cukup lambat.
+   *
+   * Gerbang yang bergantung pada keberuntungan bukan gerbang. Jadi jendelanya
+   * dibuat sendiri: 600 ms pada GET daftar kontak, cukup lebar untuk membuat
+   * selisihnya pasti. Dengan kode lama lembarnya menutup SEBELUM daftarnya
+   * kembali, jadi membuka lagi memberi baris basi dan ceknya memerah; dengan
+   * kode baru lembarnya menunggu daftarnya segar lebih dulu.
+   *
+   * Yang dilambatkan hanya GET-nya. PUT-nya dibiarkan apa adanya supaya
+   * penantian responsnya di bawah tetap mengukur penyimpanan, bukan tundaan.
+   */
+  let tundaDaftarAktif = true;
+  const tundaDaftarKontak = async (route, request) => {
+    if (tundaDaftarAktif && request.method() === "GET") await new Promise((r) => setTimeout(r, 600));
+    try {
+      await route.continue();
+    } catch {
+      // "Route is already handled" — penangannya masih tidur ketika rutenya
+      // dilepas. Bukan kegagalan uji, dan melemparkannya justru mematikan
+      // seluruh ui-sim di tengah jalan (terjadi pada percobaan pertama).
+    }
+  };
+  await page.route("**/api/tenants/*/contacts*", tundaDaftarKontak);
+
   await page.fill("#k-termin", "30");
   await page.fill("#k-kredit", "5000000");
   const kreditPatch = page.waitForResponse((r) => r.url().includes("/contacts/") && r.request().method() === "PUT" && r.ok());
@@ -1700,32 +1731,41 @@ try {
 
   // Dikosongkan lagi: harus kembali "tanpa batas", bukan nol. Nol berarti
   // pelanggan tidak boleh berutang sama sekali — kebalikan dari yang dimaksud.
-  await tutupLembar();
   /*
-   * Tunggu DATANYA segar sebelum formulirnya dibuka lagi — bukan menunggu
-   * medannya terisi sesudah dibuka.
+   * Buka lagi SEGERA — tanpa muat ulang, tanpa jeda (Fase 56d).
    *
-   * Perbaikan sebelumnya menunggu `#k-termin` menjadi "30" sesudah lembarnya
-   * dibuka, dan bentuk itu SALAH: medan-medannya `defaultValue`, disemai
-   * sekali dari baris yang tertangkap saat tombol "Ubah" diklik
-   * (`onEdit={() => setEditing(p)}`). Kalau baris itu masih baris lama dari
-   * cache, medannya kosong SELAMANYA — pemuatan ulang data yang tiba
-   * kemudian tidak menyentuh input yang sudah terpasang. Jadi penantian itu
-   * menunggu sesuatu yang tidak akan pernah terjadi, lalu memerah setelah
-   * lima detik. Persis yang terjadi di CI 08-09.
+   * Bentuk cek ini adalah pokoknya. Medan formulir sunting `defaultValue`,
+   * disemai sekali dari baris yang tertangkap saat "Ubah" diklik
+   * (`onEdit={() => setEditing(p)}`). Selama lembarnya ditutup sebelum daftar
+   * diambil ulang, ada jendela waktu ketika membuka lagi memberi nilai
+   * SEBELUM-simpan — dan menyimpannya lagi mengembalikan perubahan yang baru
+   * saja dibuat pemakainya, tanpa galat apa pun.
    *
-   * Yang benar: pastikan simpanannya sudah terbaca ulang SEBELUM tombolnya
-   * diklik. Muat ulang halaman menghapus seluruh kelas balapan ini — daftar
-   * kontaknya dijamin diambil segar, jadi baris yang tertangkap pasti baris
-   * yang sudah tersimpan.
+   * Fase 56c sempat menyiasatinya dengan memuat ulang halaman di sini. Itu
+   * membuat ceknya hijau tanpa memperbaiki apa pun: siasat di gerbang menutupi
+   * cacat yang justru ingin dijaganya.
+   *
+   * Percobaan berikutnya mencabut muat-ulangnya tetapi tetap menutup lembarnya
+   * PAKSA dengan Escape — dan itu masih salah, terbukti karena kode yang belum
+   * diperbaiki pun lulus. Menutup paksa melangkahi persis jaminan yang hendak
+   * diuji: sejak Fase 56d lembarnya menutup DIRINYA SENDIRI, dan hanya sesudah
+   * daftarnya segar. Menekan Escape lebih dulu berarti menguji jalur yang tidak
+   * pernah ditempuh pemakai.
+   *
+   * Jadi yang ditunggu sekarang adalah lembarnya menutup sendiri. Itu bukan
+   * penantian yang lebih sabar melainkan penantian atas PRASYARAT yang benar,
+   * dan ia mengubah ceknya dari balapan menjadi jaminan.
    */
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await barisKontak.waitFor({ state: "visible", timeout: 15_000 });
+  await page.locator("[data-lembar]").waitFor({ state: "hidden", timeout: 15_000 });
   await barisKontak.getByRole("button", { name: "Ubah", exact: true }).click();
   await page.locator("#k-kredit").waitFor({ state: "visible", timeout: 10_000 });
   const terminSiap = await page.inputValue("#k-termin");
+  // Matikan tundaannya lebih dulu, baru lepas rutenya: penangan yang sedang
+  // tidur tidak boleh menahan langkah-langkah sesudah ini.
+  tundaDaftarAktif = false;
+  await page.unroute("**/api/tenants/*/contacts*", tundaDaftarKontak);
   check(
-    "F54 formulir sunting terisi nilai tersimpan sebelum disunting lagi",
+    "F56d formulir sunting dibuka lagi SEGERA sudah berisi nilai tersimpan, bukan nilai lama",
     terminSiap === "30",
     `→ termin di formulir = ${JSON.stringify(terminSiap)}`,
   );

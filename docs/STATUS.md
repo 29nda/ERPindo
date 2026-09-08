@@ -140,7 +140,39 @@ pernah tercapai. Saya buang, karena cabang yang tidak pernah dijalani juga tidak
 pernah diuji — lalu suatu hari berjalan dengan perilaku yang tak pernah dilihat
 siapa pun.
 
-## Yang baru saja selesai — Fase 56c: lonceng yang tetap berbahasa Indonesia
+## Yang baru saja selesai — Fase 56d: perubahan yang diam-diam kembali seperti semula
+
+Ini cacat yang tidak akan pernah dilaporkan pelanggan, karena ia tidak
+menampakkan apa pun yang salah.
+
+Anda mengubah termin pembayaran seorang pelanggan, menyimpannya, lalu — karena
+ada satu hal lagi yang ingin diperbaiki — menekan **Ubah** lagi. Bila itu
+dilakukan cukup cepat, formulirnya terbuka berisi nilai **sebelum** perubahan
+tadi. Menyimpannya sekali lagi mengembalikan pekerjaan Anda ke keadaan semula.
+Tidak ada pesan galat, tidak ada tanda apa pun. Yang tersimpan hanyalah nilai
+yang lama.
+
+Sebabnya sederhana: layar menutup formulirnya begitu server menjawab, tanpa
+menunggu daftar di belakangnya dibaca ulang. Selama beberapa ratus milidetik,
+daftar itu masih memuat baris lama — dan formulir yang dibuka dari baris lama
+tetap salah selamanya, karena isinya hanya diisi sekali ketika dibuka.
+
+**Jendelanya lebih lebar di jaringan sungguhan daripada di komputer pengembang.**
+Artinya cacat ini justru paling mungkin menimpa pelanggan, bukan orang yang
+membangunnya.
+
+Sekarang formulirnya tetap terbuka, dengan tombol Simpan masih berputar, sampai
+daftarnya benar-benar segar. Baru sesudah itu ia menutup. Jendelanya hilang,
+bukan dipersempit. Perbaikannya dipasang di satu tempat yang melayani ketiga
+halaman data induk sekaligus: Produk, Kontak, dan Gudang.
+
+**Bagaimana ia ketahuan.** Bukan dari pemakaian, melainkan dari mesin pemeriksa
+yang memerah — dan hanya karena mesin itu kebetulan cukup lambat hari itu.
+Karena bergantung pada keberuntungan bukan cara menjaga apa pun, pemeriksanya
+kini membuat sendiri kelambatan itu, sehingga ia akan menangkap cacat yang sama
+di komputer mana pun.
+
+## Sebelumnya — Fase 56c: lonceng yang tetap berbahasa Indonesia
 
 Di kanan atas layar ada lonceng: stok menipis, faktur lewat jatuh tempo, tiket
 dukungan yang belum selesai, tenggat pajak yang mendekat. Pelanggan yang
@@ -997,7 +1029,7 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.361** |
+| Uji unit | 923 | **1.366** |
 | Uji ujung-ke-ujung (smoke) | 1.173 | **1.372** |
 | Simulasi klik di peramban nyata | 431 | **508** |
 
@@ -1487,7 +1519,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.372 skenario ujian end-to-end + 1.361 unit test + 508 cek simulasi UI browser nyata**, totalnya **3.241 pemeriksaan**. Di atas itu ada tujuh gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan lima penyapu naskah (bahasa, warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.372 skenario ujian end-to-end + 1.366 unit test + 508 cek simulasi UI browser nyata**, totalnya **3.246 pemeriksaan**. Di atas itu ada tujuh gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan lima penyapu naskah (bahasa, warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 
