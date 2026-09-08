@@ -1701,25 +1701,28 @@ try {
   // Dikosongkan lagi: harus kembali "tanpa batas", bukan nol. Nol berarti
   // pelanggan tidak boleh berutang sama sekali — kebalikan dari yang dimaksud.
   await tutupLembar();
+  /*
+   * Tunggu DATANYA segar sebelum formulirnya dibuka lagi — bukan menunggu
+   * medannya terisi sesudah dibuka.
+   *
+   * Perbaikan sebelumnya menunggu `#k-termin` menjadi "30" sesudah lembarnya
+   * dibuka, dan bentuk itu SALAH: medan-medannya `defaultValue`, disemai
+   * sekali dari baris yang tertangkap saat tombol "Ubah" diklik
+   * (`onEdit={() => setEditing(p)}`). Kalau baris itu masih baris lama dari
+   * cache, medannya kosong SELAMANYA — pemuatan ulang data yang tiba
+   * kemudian tidak menyentuh input yang sudah terpasang. Jadi penantian itu
+   * menunggu sesuatu yang tidak akan pernah terjadi, lalu memerah setelah
+   * lima detik. Persis yang terjadi di CI 08-09.
+   *
+   * Yang benar: pastikan simpanannya sudah terbaca ulang SEBELUM tombolnya
+   * diklik. Muat ulang halaman menghapus seluruh kelas balapan ini — daftar
+   * kontaknya dijamin diambil segar, jadi baris yang tertangkap pasti baris
+   * yang sudah tersimpan.
+   */
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await barisKontak.waitFor({ state: "visible", timeout: 15_000 });
   await barisKontak.getByRole("button", { name: "Ubah", exact: true }).click();
   await page.locator("#k-kredit").waitFor({ state: "visible", timeout: 10_000 });
-  /*
-   * Tunggu formulirnya benar-benar TERISI, bukan sekadar terlihat.
-   *
-   * Medannya diisi setelah data kontaknya tiba, jadi "terlihat" belum berarti
-   * "siap". Bila `#k-kredit` dikosongkan lalu disimpan sebelum itu, yang
-   * terkirim adalah formulir setengah terisi — termin ikut kosong, dan ceknya
-   * memerah pada paruh yang salah sehingga penyelidik berikutnya mengira
-   * penyimpanan batas kreditlah yang rusak.
-   *
-   * Ini terjadi di CI (runner lebih lambat) sementara lokal selalu hijau —
-   * bentuk balapan yang paling mahal dilacak. Menunggu nilainya, bukan
-   * menambah jeda tetap: jeda tetap hanya memindahkan ambangnya.
-   */
-  for (let i = 0; i < 50; i++) {
-    if ((await page.inputValue("#k-termin")) === "30") break;
-    await page.waitForTimeout(100);
-  }
   const terminSiap = await page.inputValue("#k-termin");
   check(
     "F54 formulir sunting terisi nilai tersimpan sebelum disunting lagi",

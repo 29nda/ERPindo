@@ -119,6 +119,41 @@ Tiga lapis cek baru, masing-masing untuk hal yang tidak bisa dilihat lapis lain:
 Kedua penjaga kambuh dibuktikan bisa merah dengan mengembalikan satu medan
 `title` ke Worker; keduanya memerah, lalu hijau lagi setelah dipulihkan.
 
+## Koreksi: perbaikan F54 sebelumnya berbentuk salah
+
+CI memerahkan dua cek yang tidak ada hubungannya dengan fase ini:
+
+```
+✗ F54 formulir sunting terisi nilai tersimpan sebelum disunting lagi → termin di formulir = ""
+✗ F54 batas kredit dikosongkan tersimpan NULL (tanpa batas), bukan 0 → kredit=null termin=null
+```
+
+Cek pertama adalah cek diagnostik yang ditambahkan lebih awal justru supaya
+kegagalan semacam ini menyebut sebab yang benar, dan ia bekerja: yang rusak
+bukan penyimpanan batas kredit, melainkan formulirnya yang terbuka kosong.
+
+Menelusurinya membuktikan perbaikan sebelumnya **berbentuk salah**. Ia menunggu
+`#k-termin` menjadi `"30"` SESUDAH lembarnya dibuka. Itu tidak akan pernah
+terjadi: medannya `defaultValue`, disemai sekali dari baris yang tertangkap saat
+tombol "Ubah" diklik (`onEdit={() => setEditing(p)}`). Bila baris itu masih
+salinan lama dari cache, medannya kosong selamanya — pemuatan ulang data yang
+tiba kemudian tidak menyentuh input yang sudah terpasang. Jadi penantian itu
+menghabiskan lima detik menunggu sesuatu yang mustahil, lalu memerah.
+
+Sekarang prasyaratnya yang ditunggu, bukan akibatnya: halaman dimuat ulang
+sebelum formulirnya dibuka lagi, jadi baris yang tertangkap dijamin baris yang
+sudah tersimpan. Ini menghapus kelasnya, bukan memindahkan ambangnya — yang
+persis kesalahan percobaan sebelumnya.
+
+Perlu dicatat jujur: lokal hijau SEBELUM maupun SESUDAH perbaikan ini, jadi
+hijaunya lokal bukan buktinya. Yang menjadi alasan adalah mekanismenya yang
+dihapus.
+
+Satu pertanyaan produk tersisa dan sengaja tidak digabungkan ke sini: membuka
+lagi formulir sunting kontak tepat setelah menyimpan bisa memperlihatkan nilai
+sebelum-simpan. Itu perilaku aplikasi, bukan uji, dan pantas ditangani
+tersendiri.
+
 ## Catatan kejujuran
 
 Angka penyapu i18n sekarang **nol**, dan itu perlu dibaca dengan hati-hati.
