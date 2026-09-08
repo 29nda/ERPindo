@@ -13,6 +13,16 @@
 // Pakai: node scripts/sapu-i18n.mjs apps/web/src/pages/*.tsx
 import { readFileSync } from "node:fs";
 
+/**
+ * Ambang utang — lihat catatan di akhir berkas. Hanya boleh turun.
+ *
+ * `layar: 1` adalah `dashboard.tsx` yang membedah judul notifikasi buatan
+ * server (`n.title.replace("Faktur ", "")`) untuk mengambil nomor fakturnya.
+ * Itu bukan sekadar utang naskah melainkan utang bentuk data, dan diperbaiki
+ * tersendiri di Fase 56c bersama seluruh lonceng notifikasi.
+ */
+const AMBANG = { layar: 1, atribut: 0 };
+
 const KUNCI = new Set(
   [...readFileSync("apps/web/src/i18n/ui.ts", "utf8").matchAll(/^ {2}([a-zA-Z0-9]+):/gm)].map(
     (m) => m[1],
@@ -53,6 +63,10 @@ const NETRAL = new Set([
   "Work center", "WC-CUT", "CAB-BDG", "PRJ-01", "PRD-001",
   "00.000.000.0-000.000", "LGN-01", "BRG-001", "CAB-01", "USD", "0%",
   "1721-A1", "BPJS", "PPh 21 (TER)", "Qty", "Lot", "Menu", "Harga",
+  // Nama resmi formulir DJP (Fase 56b): dipakai apa adanya di dokumen pajak
+  // berbahasa apa pun, dan menerjemahkannya justru membuat pemakai tidak
+  // menemukan formulirnya di Coretax.
+  "SPT Masa PPN", "SPT Tahunan",
   // Nama & perusahaan contoh sengaja tetap Indonesia (keputusan 19q): pasar
   // produk ini UKM Indonesia, dan contoh yang realistis lebih menolong.
   "PT Maju Jaya", "Budi Santoso",
@@ -65,6 +79,11 @@ const isID = (s) => {
   const t = s.replace(/\s+/g, " ").trim();
   if (t.length < 3 || !/[a-zA-Z]/.test(t)) return false;
   if (KUNCI.has(t)) return false;                       // argumen u("kunci")
+  // NETRAL berarti "sama di kedua bahasa". Sejak Fase 19u daftar itu hanya
+  // dipakai saringan ATRIBUT, jadi teks yang sama persis tetap terhitung utang
+  // ketika muncul sebagai untai biasa — dua jawaban berbeda untuk satu
+  // keputusan yang sudah diambil (Fase 56b).
+  if (NETRAL.has(t)) return false;
   if (/^(https?:|\/|#)/.test(t)) return false;
   if (RE_TAILWIND.test(t) && /^[\w\s:/[\]().↔·—–-]+$/.test(t)) return false;
   return RE_ID.test(t);
@@ -176,6 +195,22 @@ function zonaTabelDwibahasa(src) {
   //    Label & seksinya sah HANYA bila padanan Inggrisnya benar-benar ada.
   if (tabelEn.length > 0) {
     for (const t of blok(/\bconst\s+([A-Z0-9_]+)\b[^=]*=\s*\[/g, "[", "]")) {
+      // 2b. Larik wilayah kerja `const AREAS = [{ nama: "Beli & Stok", … }]`
+      //     (Fase 56b). Namanya BUKAN teks mentah: ia dipakai sebagai kunci
+      //     pencarian ke `SECTION_EN` saat bahasa Inggris aktif, persis seperti
+      //     rute pada aturan 2 di bawah. Yang diperiksa tetap CAKUPANNYA —
+      //     wilayah baru yang lupa diberi padanan Inggris tetap dilaporkan
+      //     bolong, jadi ini pemeriksaan pasangan, bukan pembungkaman.
+      for (const e of t.isi.matchAll(/\{[^{}]*\bnama:\s*"([^"]+)"[^{}]*\}/g)) {
+        const a = t.a + e.index;
+        const b = a + e[0].length;
+        if (kunciEn.has(e[1])) sah.push({ a, b });
+        else
+          bolong.push({
+            baris: src.slice(0, a).split("\n").length,
+            pesan: `${e[1]} — wilayah tanpa padanan Inggris`,
+          });
+      }
       for (const e of t.isi.matchAll(/\{[^{}]*\bto:\s*"([^"]+)"[^{}]*\}/g)) {
         const label = e[0].match(/\blabel:\s*"([^"]+)"/)?.[1];
         const seksi = e[0].match(/\bsection:\s*"([^"]+)"/)?.[1];
@@ -367,12 +402,138 @@ for (const file of process.argv.slice(2)) {
   const nilaiPengenal = (awal) =>
     /\b(?:id|htmlFor|testId)\s*=\s*\{?$/.test(src.slice(Math.max(0, awal - 40), awal));
 
+  /**
+   * Pesan `throw new Error(...)` — dibaca PENGEMBANG, bukan pengguna (Fase 56b).
+   *
+   * `throw new Error("WorkspaceContext belum tersedia")` menandai kesalahan
+   * pemasangan komponen: ia meledak saat pengembangan dan tidak pernah sampai
+   * ke layar pelanggan. Menerjemahkannya berarti menaruh naskah dwibahasa di
+   * tempat yang tidak pernah dibaca siapa pun, sambil membuat pesan galat lebih
+   * sulit dicari di dalam kode.
+   */
+  const pesanPengembang = (awal) => /\bnew Error\($/.test(src.slice(Math.max(0, awal - 20), awal));
+
+  /**
+   * PENGENAL berhuruf kecil, bukan kalimat layar (Fase 56b).
+   *
+   * `"pembelian"`, `"saldo_menurun"`, `"bank-recon"`, `"produk.csv"`,
+   * `"./stok"`, `"__manual__"` — nilai enum kontrak API, kunci cache
+   * TanStack Query, nama berkas unduhan, jalur impor, dan nilai sentinel.
+   * Semuanya ikut terhitung utang hanya karena kata Indonesianya ada di
+   * kosakata penanda, padahal tak satu pun pernah sampai ke layar; beberapa
+   * (nilai enum, kunci cache) JUSTRU rusak kalau diterjemahkan — versi Inggris
+   * dan Indonesia akan memakai cache berbeda untuk data yang sama, dan filter
+   * yang mengirim `"purchase"` ke API tidak akan cocok dengan apa pun.
+   *
+   * Keputusannya sendiri bukan hal baru: saringan ATRIBUT_TAMPILAN sudah
+   * membuang `/^[a-z0-9-]+$/` sejak Fase 19t dengan alasan yang sama. Yang baru
+   * hanyalah menerapkan keputusan itu di tempat kedua ia berlaku —
+   * kelas yang sama dengan glob `pages/*.tsx` di Fase 20m: aturan yang benar,
+   * dipasang di sebagian tempat saja.
+   *
+   * Sengaja menuntut SELURUH untai berhuruf kecil tanpa spasi. Naskah layar
+   * Indonesia berbentuk kalimat: ia punya spasi, atau diawali huruf besar.
+   */
+  const nilaiPengenalKecil = (teks) =>
+    /^[.a-z0-9_][a-z0-9._/-]*$/.test(teks) && /[a-z]/.test(teks);
+
+  /**
+   * Isi template CSV: tajuk kolom dan baris contohnya (Fase 56b).
+   *
+   * `templateHeaders={["jenis","nama","satuan"]}` dan `templateExample={[…]}`
+   * adalah KONTRAK BERKAS, bukan naskah. Tajuknya dipakai pengurai impor untuk
+   * memetakan kolom, dan nilai contohnya ("tidak" pada kolom lacak_exp) memang
+   * diurai kembali oleh importirnya. Menerjemahkannya mematahkan impor CSV
+   * pelanggan yang memakai bahasa Inggris — persis kebalikan dari yang
+   * dimaksudkan.
+   */
+  const isiTemplateCsv = (awal) => {
+    const sebelum = src.slice(Math.max(0, awal - 300), awal);
+    const buka = Math.max(sebelum.lastIndexOf("templateHeaders"), sebelum.lastIndexOf("templateExample"));
+    if (buka === -1) return false;
+    const sisa = sebelum.slice(buka);
+    return (sisa.match(/\[/g)?.length ?? 0) > (sisa.match(/\]/g)?.length ?? 0);
+  };
+
+  /**
+   * Sisi INGGRIS sebuah pasangan dwibahasa (Fase 56b).
+   *
+   * `{ id: "Pajak: PPN, PPh final", en: "Tax: VAT, final income tax" }` —
+   * nilai `en:` sudah berbahasa Inggris menurut definisinya. Ia terhitung utang
+   * hanya karena memuat istilah yang juga ada di kosakata Indonesia
+   * ("e-Faktur", "Coretax", "BPJS") — nama yang memang tidak diterjemahkan di
+   * bahasa mana pun.
+   *
+   * Menghitungnya berarti penyapu menagih terjemahan atas terjemahan, dan
+   * pasangan yang SUDAH lengkap justru menaikkan utangnya.
+   */
+  const sisiInggris = (awal) => /\ben\s*:\s*$/.test(src.slice(Math.max(0, awal - 12), awal));
+
+  /**
+   * KERANGKA MARKUP dibuang, ISINYA tetap ditagih (Fase 56b).
+   *
+   * Dua sumbernya. Template literal yang merakit HTML jendela cetak, dan —
+   * lebih sering — pola teks JSX `[>}]…[<{]` yang ikut menangkap ATRIBUT yang
+   * duduk di antara dua ekspresi:
+   *
+   *   className={`… ${x}`}
+   *   role="dialog" aria-modal="true" aria-label={u("shMenuNavigasi")}
+   *
+   * Potongan di tengah itu sumber JSX, bukan sesuatu yang dibaca pemakai.
+   *
+   * Yang penting: potongan semacam ini TIDAK dilewati begitu saja. Kerangkanya
+   * dibuang lalu SISANYA dinilai ulang — karena satu potongan bisa memuat
+   * keduanya sekaligus, dan halaman cetak surat jalan adalah contohnya:
+   *
+   *   `</div> <table><thead><tr><th>Barang</th><th class="r">Jumlah</th>…`
+   *
+   * Melewati potongan itu hanya karena ia memuat `class="` akan menyembunyikan
+   * "Barang" dan "Jumlah" — naskah cetak yang betul-betul dibaca pelanggan.
+   * Sesudah kerangkanya dibuang, keduanya tetap tertagih.
+   */
+  const sisaTanpaMarkup = (teks) =>
+    teks
+      .replace(/<[^>]*>/g, " ")                        // tag utuh
+      .replace(/[A-Za-z][\w-]*=\\?"[^"]*\\?"/g, " ")   // pasangan atribut
+      .replace(/[A-Za-z][\w-]*=\s*$/, " ")             // atribut bernilai ekspresi
+      .replace(/^[^<>]*>/, " ")                        // ekor tag yang terpotong
+      .replace(/<[^<>]*$/, " ");                       // kepala tag yang terpotong
+
+  /**
+   * CONTOH ISI BERKAS CSV yang ditempelkan pemakai (Fase 56b).
+   *
+   * `"kode,debit,kredit\n1-1000,5000000,0\n…"` di halaman migrasi dan
+   * `"2026-07-01;TRSF DARI PT MAJU;5000000\n…"` di kas & bank memang tampil di
+   * layar — sebagai contoh dan placeholder — tetapi isinya KONTRAK BERKAS:
+   * tajuk kolomnya dipetakan oleh pengurai impor. Menerjemahkan `kode,debit,
+   * kredit` berarti menunjukkan contoh yang akan DITOLAK saat ditempel. Kelas
+   * yang sama dengan `isiTemplateCsv` di atas, hanya berbentuk satu untai.
+   *
+   * Dikenali dari bentuknya, bukan dari lokasinya: beberapa baris yang tiap
+   * barisnya punya jumlah pemisah `,`/`;` yang sama dan bukan nol. Prosa tidak
+   * berperilaku begitu.
+   */
+  const contohBerkasCsv = (teks) => {
+    const baris = teks.split("\n").filter((b) => b.trim() !== "");
+    if (baris.length < 2) return false;
+    for (const pemisah of [",", ";"]) {
+      const n = baris[0].split(pemisah).length - 1;
+      if (n > 0 && baris.every((b) => b.split(pemisah).length - 1 === n)) return true;
+    }
+    return false;
+  };
+
   for (const m of src.matchAll(/(?:^|[^\w])"((?:[^"\\]|\\.)*)"/gm)) {
     const akhir = m.index + m[0].length;
     const awalKutip = akhir - m[1].length - 2;
     if (kunciObjek(awalKutip, akhir)) continue;
     if (nilaiDataAttr(awalKutip)) continue;
     if (nilaiPengenal(awalKutip)) continue;
+    if (pesanPengembang(awalKutip)) continue;
+    if (isiTemplateCsv(awalKutip)) continue;
+    if (sisiInggris(awalKutip)) continue;
+    if (nilaiPengenalKecil(m[1])) continue;
+    if (contohBerkasCsv(m[1].replace(/\\n/g, "\n"))) continue;
     if (isID(m[1])) add(jenisDari(m.index, akhir), m[1], m.index);
   }
   /*
@@ -388,7 +549,8 @@ for (const file of process.argv.slice(2)) {
   for (const m of src.matchAll(/`((?:[^`\\]|\\.)*)`/gs)) {
     if (nilaiDataAttr(m.index) || nilaiPengenal(m.index)) continue;
     for (const seg of potonganStatis(m[1]))
-      if (isID(seg)) add(jenisDari(m.index, m.index + m[0].length), seg, m.index);
+      if (isID(seg) && isID(sisaTanpaMarkup(seg)) && !nilaiPengenalKecil(seg.trim()))
+        add(jenisDari(m.index, m.index + m[0].length), seg, m.index);
   }
   /**
    * Potongan yang jelas KODE, bukan teks JSX (Fase 43a).
@@ -417,10 +579,20 @@ for (const file of process.argv.slice(2)) {
     /;\s*(const|let|var|return|await|if|for|function)\b/.test(t) ||
     /=>/.test(t) ||
     /\?\./.test(t) ||
-    /[=!]==/.test(t);
+    /[=!]==/.test(t) ||
+    // Fase 56b — dua bentuk kode lain yang lolos dari pola di atas karena
+    // pemisahnya bukan titik koma melainkan kurung penutup atau baris kosong:
+    //   `}\n\nconst INVOICE_STATUS_KEY: Record<…`  → deklarasi di awal potongan
+    //   `}],\n  ["/kontak", {`                      → sisa larik yang terpotong
+    // Teks yang dibaca pemakai tidak pernah dibuka oleh kurung penutup, dan
+    // tidak pernah dibuka oleh kata kunci deklarasi. Sengaja TIDAK mencakup
+    // koma: `, berikut tagihan faktur` justru naskah layar dan wajib terhitung.
+    /^\s*[\])}]/.test(t) ||
+    /^\s*(const|let|var|function|export|import|type|interface|return)\b/.test(t);
 
   for (const m of src.matchAll(/[>}]([^<>{}]+)[<{]/gs))
-    if (!jelasKode(m[1]) && isID(m[1])) add(jenisDari(m.index, m.index + m[0].length), m[1], m.index);
+    if (!jelasKode(m[1]) && isID(m[1]) && isID(sisaTanpaMarkup(m[1])))
+      add(jenisDari(m.index, m.index + m[0].length), m[1], m.index);
 
   /**
    * Kelas buta tersendiri (ditemukan Fase 19t): teks tampilan yang duduk di
@@ -465,8 +637,36 @@ for (const file of process.argv.slice(2)) {
   for (const r of layar) console.log(`  ${String(r.baris).padStart(4)}  ${JSON.stringify(r.teks.slice(0, 95))}`);
   for (const r of atribut) console.log(`  ${String(r.baris).padStart(4)}  [atribut] ${r.teks.slice(0, 95)}`);
 }
-console.log(`\nTOTAL utang teks layar: ${totalLayar}`);
-console.log(`TOTAL teks tampilan di atribut: ${totalAtribut}`);
+console.log(`\nTOTAL utang teks layar: ${totalLayar}  (ambang ${AMBANG.layar})`);
+console.log(`TOTAL teks tampilan di atribut: ${totalAtribut}  (ambang ${AMBANG.atribut})`);
+
+// Ambang (Fase 56b) — angkanya hanya boleh TURUN.
+//
+// Sampai fase ini penyapu ini hanya MENGHITUNG. CI menjalankannya dengan
+// `> /dev/null` dan hanya peduli pada dua kelas BUG (u() harfiah, menu tanpa
+// padanan Inggris), jadi utang teks layar bisa naik tanpa ada yang tahu — dan
+// selama Fase 38 memang begitu: angkanya tercatat "tidak naik" di roadmap
+// karena kebetulan, bukan karena dijaga. Pola ambangnya menyalin
+// `sapu-warna.mjs` (Fase 31a), yang sudah membuktikan bentuk ini bekerja.
+const naik = [];
+if (totalLayar > AMBANG.layar) naik.push(`teks layar ${totalLayar} > ${AMBANG.layar}`);
+if (totalAtribut > AMBANG.atribut) naik.push(`atribut ${totalAtribut} > ${AMBANG.atribut}`);
+if (naik.length) {
+  console.error(
+    `\n✗ Utang dwibahasa NAIK: ${naik.join(", ")}.\n` +
+      `  Pakai kalimat utuh dari kamus (apps/web/src/i18n/ui.ts) lewat u("kunci"),\n` +
+      `  dan isi() untuk kalimat berlubang {0}. Kalau temuannya BUKAN teks layar\n` +
+      `  (nilai enum, kunci cache, nama berkas, penanda gerbang), perluas\n` +
+      `  pengecualian di skrip ini dengan alasan tertulis — jangan longgarkan\n` +
+      `  polanya.`,
+  );
+  process.exitCode = 1;
+} else if (totalLayar < AMBANG.layar || totalAtribut < AMBANG.atribut) {
+  console.log(
+    `\n↓ Utang berkurang. Turunkan AMBANG di scripts/sapu-i18n.mjs menjadi ` +
+      `{ layar: ${totalLayar}, atribut: ${totalAtribut} } agar tidak bisa naik lagi.`,
+  );
+}
 if (totalHarfiah > 0) {
   console.log(`TOTAL panggilan u() harfiah (BUG, bukan sekadar utang): ${totalHarfiah}`);
   process.exitCode = 1;

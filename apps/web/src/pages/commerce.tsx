@@ -1055,9 +1055,12 @@ function DocRow({
     } finally {
       setTagihBusy(false);
     }
+    // Kalimat utuh berlubang, bukan potongan yang disambung (Fase 56b): urutan
+    // kata bahasa lain tidak bisa mengikuti kalau kalimatnya dirakit di sini.
     const msg =
-      `Halo ${doc.contactName}, berikut tagihan faktur ${doc.docNo} sebesar ${formatIDR(remaining)}.` +
-      (link ? `\nBayar online: ${link}` : `\nMohon segera diselesaikan. Terima kasih.`);
+      isi(u("waTagihanFaktur"), doc.contactName, doc.docNo, formatIDR(remaining)) +
+      "\n" +
+      (link ? isi(u("waTagihanBayarOnline"), link) : u("waTagihanPenutup"));
     try {
       await navigator.clipboard?.writeText(msg);
     } catch {

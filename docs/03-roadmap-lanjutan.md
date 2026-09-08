@@ -570,5 +570,5 @@ bagian Fase 38 dan dicatat di tempatnya sendiri.
 
 | Butir | Alasan |
 | --- | --- |
-| 146 utang teks layar (`sapu-i18n`) | Angkanya tidak naik sepanjang Fase 38. Menurunkannya adalah program tersendiri: sebagian besar sisa itu ada di halaman yang belum pernah disentuh perombakan bahasa, dan mencampurnya ke sini akan membuat tiap sub-fase menyentuh berkas yang tidak ada hubungannya dengan pokoknya |
+| ~~146 utang teks layar (`sapu-i18n`)~~ | **Selesai Fase 56b** — dan alasan di kolom ini ternyata keliru. Angkanya "tidak naik" karena tidak ada yang menjaganya (CI membuang keluarannya ke `/dev/null`), dan sisanya bukan naskah yang belum disentuh melainkan nilai enum, kunci cache, nama berkas, dan potongan kerangka JSX. Penyapunya diajari membedakan keduanya, angkanya turun ke 1, dan sekarang berambang |
 | 9 `empty-state-buntu` (`sapu-gaya`) | Kesembilannya adalah keadaan kosong yang memang buntu di produknya, bukan di naskahnya — memperbaiki kalimatnya tanpa memperbaiki jalan keluarnya hanya memindahkan kebuntuan |

@@ -140,7 +140,48 @@ pernah tercapai. Saya buang, karena cabang yang tidak pernah dijalani juga tidak
 pernah diuji — lalu suatu hari berjalan dengan perilaku yang tak pernah dilihat
 siapa pun.
 
-## Yang baru saja selesai — Fase 56a: sembilan layar kosong yang berhenti pada kata "belum"
+## Yang baru saja selesai — Fase 56b: angka utang bahasa yang ternyata hampir seluruhnya palsu
+
+Aplikasi ini dwibahasa: pelanggan bisa memindahkannya ke bahasa Inggris. Sebuah
+alat internal menghitung berapa kalimat yang **belum** punya versi Inggrisnya,
+dan angkanya berhenti di **35** selama berbulan-bulan.
+
+Diperiksa satu per satu, **34 dari 35 bukan kalimat sama sekali.** Nama berkas
+unduhan (`produk.csv`), kode internal yang dikirim ke server (`pembelian`), nama
+resmi formulir pajak, contoh isi berkas CSV yang justru harus tetap apa adanya
+supaya impornya diterima, dan potongan kode. Beberapa di antaranya **justru
+rusak kalau "diterjemahkan"** — kode `pembelian` yang berubah jadi `purchase`
+membuat filternya tidak menemukan apa pun.
+
+Jadi angka itu bukan daftar pekerjaan. Ia bunyi latar.
+
+Ada masalah kedua, ke arah sebaliknya: **tidak ada yang menjaga angka itu.**
+Mesin pemeriksa menjalankan alatnya lalu membuang hasilnya, jadi kalau ada
+kalimat baru yang lupa diterjemahkan, tidak ada yang berbunyi. Catatan "angkanya
+tidak pernah naik" benar karena kebetulan.
+
+Keduanya diperbaiki. Alatnya sekarang tahu membedakan kalimat dari kode, dan
+angkanya **berambang**: naik satu pun, perubahan itu ditolak masuk.
+
+Dua kalimat yang memang utang ikut dibayar — catatan pada usulan pembelian
+otomatis, dan pesan tagihan WhatsApp ke pelanggan. Yang kedua sebelumnya dirakit
+dari potongan-potongan di dalam kode, bentuk yang membuat urutan kata bahasa
+lain mustahil diikuti.
+
+**Satu sisa, dan sengaja ditinggalkan untuk fase berikutnya.** Lonceng
+notifikasi di kanan atas — stok menipis, faktur jatuh tempo, tiket terbuka —
+kalimatnya disusun di server, bukan di aplikasi, sehingga tetap berbahasa
+Indonesia meski pelanggan memilih bahasa Inggris. Memperbaikinya berarti
+mengubah bentuk datanya, bukan sekadar naskahnya. Itu Fase 56c.
+
+Satu catatan kejujuran: menurunkan angka dari 35 ke 1 **tanpa menerjemahkan 34
+kalimat** adalah bentuk yang paling mudah disalahpahami sebagai kemajuan palsu —
+dan percobaan pertamanya memang begitu: ia sempat menyembunyikan naskah surat
+jalan yang betul-betul dicetak. Ketahuan karena alat barunya dijalankan ulang
+atas kode versi paling awal dan hasilnya dibandingkan butir demi butir. Sekarang
+pembandingan itu berjalan otomatis setiap kali kode berubah.
+
+## Sebelumnya — Fase 56a: sembilan layar kosong yang berhenti pada kata "belum"
 
 Layar kosong adalah **satu-satunya layar yang dilihat setiap pelanggan baru di
 jam pertamanya.** Sebelum ada data, seluruh aplikasi adalah layar kosong.
@@ -918,7 +959,7 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.310** |
+| Uji unit | 923 | **1.325** |
 | Uji ujung-ke-ujung (smoke) | 1.173 | **1.371** |
 | Simulasi klik di peramban nyata | 431 | **507** |
 
@@ -1402,7 +1443,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.371 skenario ujian end-to-end + 1.310 unit test + 507 cek simulasi UI browser nyata**, totalnya **3.188 pemeriksaan**. Di atas itu ada enam gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan empat penyapu naskah (warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.371 skenario ujian end-to-end + 1.325 unit test + 507 cek simulasi UI browser nyata**, totalnya **3.203 pemeriksaan**. Di atas itu ada tujuh gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan lima penyapu naskah (bahasa, warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

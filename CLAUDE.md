@@ -24,7 +24,12 @@ node scripts/ui-sim.mjs                                    # klik-tembus Chromiu
 pnpm lint                                                  # wajib di CI sejak Fase 12a
 # Penyapu i18n — glob WAJIB `**` (Fase 20m): pola `pages/*.tsx` tidak turun ke
 # subfolder, dan karena itu `pages/settings/` lolos tanpa terlihat selama
-# seluruh program dwibahasa Fase 19.
+# seluruh program dwibahasa Fase 19. BERAMBANG sejak Fase 56b (`AMBANG` di
+# kepala berkas): utang teks layar hanya boleh turun. Kalau temuannya bukan
+# naskah (nilai enum, kunci cache, nama berkas, penanda gerbang), perluas
+# pengecualiannya dengan alasan tertulis — jangan longgarkan polanya, dan
+# buktikan pengecualian itu tidak menelan naskah
+# (`apps/web/test/sapu-i18n-tidak-membungkam.test.ts`).
 shopt -s globstar && node scripts/sapu-i18n.mjs apps/web/src/pages/**/*.tsx apps/web/src/components/**/*.tsx
 # Penyapu warna (Fase 31a) — kelas literal `slate-*`/`dark:` hanya boleh TURUN.
 # Ada karena perombakan desain 17a & 18a hanya mengganti NILAI warna di satu

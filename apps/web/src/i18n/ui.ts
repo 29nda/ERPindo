@@ -3949,6 +3949,28 @@ export const UI = {
     en: "A partner location where your goods are placed. The stock stays yours until sold, so moving it there is not a sale.",
   },
   mitraPenitipan: { id: "Mitra penitipan", en: "Consignment partner" },
+
+  // --- Fase 56b: dua naskah terakhir yang masih dirakit di dalam kode --------
+  //
+  // Keduanya kalimat UTUH berlubang, bukan potongan. Catatan usulan pembelian
+  // ikut terbaca orang lain (yang menyetujuinya), dan pesan tagihan dibaca
+  // pelanggan — jadi keduanya naskah, bukan data.
+  stokUsulanBaris: {
+    id: "Stok {0} sudah di bawah minimum {1}.",
+    en: "Stock {0} is below the minimum of {1}.",
+  },
+  waTagihanFaktur: {
+    id: "Halo {0}, berikut tagihan faktur {1} sebesar {2}.",
+    en: "Hello {0}, here is the bill for invoice {1} totalling {2}.",
+  },
+  waTagihanBayarOnline: {
+    id: "Bayar online: {0}",
+    en: "Pay online: {0}",
+  },
+  waTagihanPenutup: {
+    id: "Mohon segera diselesaikan. Terima kasih.",
+    en: "Please settle it at your earliest convenience. Thank you.",
+  },
 } satisfies Record<string, Dual>;
 
 export type UiKey = keyof typeof UI;

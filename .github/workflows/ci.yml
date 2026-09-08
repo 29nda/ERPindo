@@ -89,17 +89,19 @@ jobs:
 
       # Fase 16t: menjaga kelas bug `{u("kunci")}` di dalam template literal —
       # di sana ia bukan JSX, jadi teksnya keluar harfiah ke layar/kertas
-      # (struk POS sempat tercetak dengan tulisan `{u("subtotal")}`). Skrip
-      # keluar dengan kode 1 HANYA untuk bug ini; sisa utang terjemahan cuma
-      # dilaporkan dan tidak menggagalkan CI.
+      # (struk POS sempat tercetak dengan tulisan `{u("subtotal")}`).
       # Fase 20m: glob DITURUNKAN ke subfolder. Sebelumnya `pages/*.tsx` saja,
       # sehingga `pages/settings/`, `pages/landing/`, dan `pages/panduan/` tidak
       # pernah tersapu sama sekali — 219 utang teks di halaman Pengaturan lolos
       # tanpa terlihat selama seluruh program dwibahasa Fase 19.
-      - name: Penjaga i18n (panggilan u() harfiah)
+      # Fase 56b: utang teks layar sekarang BERAMBANG, jadi ia tidak bisa naik
+      # lagi diam-diam. Keluarannya juga tidak lagi dibuang ke /dev/null —
+      # gerbang yang gagal tanpa memperlihatkan temuannya memaksa orang
+      # menjalankan ulang di mesinnya sendiri untuk tahu apa yang salah.
+      - name: Penjaga i18n (u() harfiah + ambang utang teks layar)
         run: |
           shopt -s globstar
-          node scripts/sapu-i18n.mjs apps/web/src/pages/**/*.tsx apps/web/src/components/**/*.tsx > /dev/null
+          node scripts/sapu-i18n.mjs apps/web/src/pages/**/*.tsx apps/web/src/components/**/*.tsx
         shell: bash
 
       # Fase 31a: kelas warna literal (`slate-*`, `dark:`) hanya boleh TURUN.
