@@ -776,9 +776,15 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
   // 5) Kirim antrean webhook keluar yang jatuh tempo (Fase 13h). Control-plane,
   //    satu batch — retry berjenjang menjadwalkan ulang yang gagal.
   try {
-    const wh = await runWebhookDeliveries(env, 100);
-    if (wh.delivered + wh.failed + wh.retried > 0) {
-      console.log(`[cron] webhook: ${wh.delivered} terkirim, ${wh.retried} dijadwalkan ulang, ${wh.failed} gagal permanen`);
+    // Anggaran sisa, bukan angka tetap: blok ini berjalan PALING AKHIR, jadi
+    // waktu yang tersisa baginya bergantung pada berapa lama blok sebelumnya
+    // memakai jatahnya (Fase 57b).
+    const sisaMs = Math.max(5_000, 25_000 - (Date.now() - startedMs));
+    const wh = await runWebhookDeliveries(env, 100, sisaMs);
+    if (wh.delivered + wh.failed + wh.retried + wh.ditunda > 0) {
+      console.log(
+        `[cron] webhook: ${wh.delivered} terkirim, ${wh.retried} dijadwalkan ulang, ${wh.failed} gagal permanen, ${wh.ditunda} ditunda`,
+      );
     }
   } catch (err) {
     console.error(`[cron] pengiriman webhook galat:`, err);

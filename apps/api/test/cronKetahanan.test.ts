@@ -22,9 +22,33 @@ import { describe, expect, it } from "vitest";
  * lama; empat gelung tagihan tidak. Uji ini yang membuat polanya wajib, bukan
  * sekadar kebiasaan — dan ia menemukan gelung kesepuluh pada hari ia ditulis,
  * bukan pada hari cron-nya mati.
+ *
+ * ## Perluasan Fase 57b: aturannya ikut ke tempat kerjanya
+ *
+ * Versi pertama uji ini hanya membaca `scheduled()` di `index.ts`. Itu tempat
+ * aturannya DITULIS, bukan seluruh tempat ia BERLAKU: blok kelima cron hanya
+ * satu baris panggilan (`runWebhookDeliveries`), dan gelung sebenarnya ada di
+ * `lib/webhooks.ts` — di seberang batas berkas yang parser ini berhenti di
+ * situ. Gelung itu karena itu tidak pernah tersentuh aturannya, dan memang
+ * ditemukan telanjang pada Fase 57b.
+ *
+ * Kelas yang sama dengan glob `pages/*.tsx` yang tidak turun ke subfolder
+ * (Fase 20m) dan daftar NETRAL yang hanya dihormati satu saringan (Fase 56b):
+ * aturan yang benar, ditegakkan di sebagian tempat saja, dan selisihnya tidak
+ * terlihat siapa pun. Karena itu berkas yang kerjanya DIPANGGIL cron ikut
+ * disapu di sini.
  */
 
-const SRC = join(dirname(fileURLToPath(import.meta.url)), "../src/index.ts");
+const AKAR_SRC = join(dirname(fileURLToPath(import.meta.url)), "../src");
+const SRC = join(AKAR_SRC, "index.ts");
+
+/**
+ * Berkas yang menampung kerja per-item yang dipanggil cron. Menambah pekerjaan
+ * cron ke berkas baru berarti menambahkannya ke sini pada commit yang sama —
+ * penjaga yang tidak menyapu tempat kerjanya berpindah adalah penjaga yang
+ * perlahan berhenti berarti.
+ */
+const BERKAS_KERJA_CRON = ["lib/webhooks.ts"];
 
 /** Kerja yang membuat sebuah gelung bisa gagal karena sebab di luar kendalinya. */
 const SENTUH_JARINGAN = ["env.DB", "getTenantDb", "RATE_KV", "kirimEmail", "fetch("];
@@ -34,7 +58,20 @@ type Gelung = { mulai: number; tubuhMulai: number; tubuhSelesai: number; kepala:
 /** Semua `for (… of …) {` beserta rentang tubuhnya, lewat pencocokan kurung. */
 function gelungDalam(kode: string): Gelung[] {
   const hasil: Gelung[] = [];
-  const re = /for \((?:const|let) [^)]*? of [^)]*?\) \{/g;
+  /*
+   * `[^\n]` bukan `[^)]` (Fase 57b).
+   *
+   * Pola lama berhenti pada kurung tutup pertama, jadi header yang iterabelnya
+   * berupa PANGGILAN — `for (const d of giliranAdil(results)) {` — tidak pernah
+   * cocok. Gelungnya karena itu tak terlihat, dan uji yang tidak menemukan
+   * gelung apa pun LULUS tanpa memeriksa apa pun.
+   *
+   * Itu bukan kekhawatiran teoretis: perluasan ke `lib/webhooks.ts` di fase ini
+   * mula-mula hijau justru karena cacat ini, dan baru ketahuan ketika
+   * perlindungannya sengaja dicabut dan uji-nya TETAP hijau. Karena itu tiap
+   * berkas yang disapu kini juga punya asersi jumlah gelung.
+   */
+  const re = /for \((?:const|let) [^\n]*? of [^\n]*?\) \{/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(kode)) !== null) {
     const tubuhMulai = m.index + m[0].length;
@@ -65,6 +102,54 @@ function badanScheduled(): string {
   }
   return isi.slice(buka, i);
 }
+
+/** Gelung telanjang di sebuah potongan kode, memakai aturan yang sama. */
+function gelungTelanjang(kode: string): string[] {
+  const gelung = gelungDalam(kode);
+  const telanjang: string[] = [];
+  for (const g of gelung) {
+    const tubuh = kode.slice(g.tubuhMulai, g.tubuhSelesai);
+    if (!SENTUH_JARINGAN.some((tanda) => tubuh.includes(tanda))) continue;
+    const sendiri = tubuh.includes("try {");
+    const induk = gelung.some(
+      (lain) =>
+        lain !== g &&
+        lain.tubuhMulai < g.mulai &&
+        lain.tubuhSelesai > g.tubuhSelesai &&
+        kode.slice(lain.tubuhMulai, lain.tubuhSelesai).includes("try {"),
+    );
+    if (!sendiri && !induk) telanjang.push(g.kepala.trim());
+  }
+  return telanjang;
+}
+
+describe("berkas kerja yang dipanggil cron ikut tunduk aturannya (Fase 57b)", () => {
+  /**
+   * Regresi parser, per berkas. Uji yang tidak menemukan gelung apa pun akan
+   * lulus tanpa memeriksa apa pun — dan itulah yang sempat terjadi di sini.
+   */
+  it.each(BERKAS_KERJA_CRON)("%s: parser benar-benar menemukan gelungnya", (berkas) => {
+    const kode = readFileSync(join(AKAR_SRC, berkas), "utf8");
+    const menyentuh = gelungDalam(kode).filter((g) =>
+      SENTUH_JARINGAN.some((t) => kode.slice(g.tubuhMulai, g.tubuhSelesai).includes(t)),
+    );
+    expect(
+      menyentuh.length,
+      `Tidak satu pun gelung penyentuh jaringan ditemukan di ${berkas}. Entah ` +
+        "kerjanya pindah, entah parsernya rusak — keduanya membuat penjaga ini diam.",
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it.each(BERKAS_KERJA_CRON)("%s: setiap gelung yang menyentuh jaringan terlindungi", (berkas) => {
+    const kode = readFileSync(join(AKAR_SRC, berkas), "utf8");
+    expect(
+      gelungTelanjang(kode),
+      `Gelung di ${berkas} memproses antrean tanpa try/catch. Galat pada SATU ` +
+        "item membatalkan sisa batch-nya — kelas yang sama dengan Fase 54g, " +
+        "hanya di seberang batas berkas tempat aturannya ditulis.",
+    ).toEqual([]);
+  });
+});
 
 describe("penangan cron: kegagalan satu tenant tidak membatalkan sisanya", () => {
   const badan = badanScheduled();
