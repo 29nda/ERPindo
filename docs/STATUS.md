@@ -1029,7 +1029,7 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.375** |
+| Uji unit | 923 | **1.387** |
 | Uji ujung-ke-ujung (smoke) | 1.173 | **1.372** |
 | Simulasi klik di peramban nyata | 431 | **508** |
 
@@ -1519,7 +1519,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.372 skenario ujian end-to-end + 1.375 unit test + 508 cek simulasi UI browser nyata**, totalnya **3.255 pemeriksaan**. Di atas itu ada tujuh gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan lima penyapu naskah (bahasa, warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.372 skenario ujian end-to-end + 1.387 unit test + 508 cek simulasi UI browser nyata**, totalnya **3.267 pemeriksaan**. Di atas itu ada tujuh gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan lima penyapu naskah (bahasa, warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 
