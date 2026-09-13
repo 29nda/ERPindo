@@ -546,6 +546,49 @@ export const tenantRoutes = new Hono<AppEnv>()
         href: "/app/crm/leads",
       });
     }
+    /*
+     * Faktur yang linknya SUDAH lunas tetapi bukunya belum mencatat (Fase 57d).
+     *
+     * Webhook Xendit menandai `payment_links.status = 'paid'` — dan sampai fase
+     * ini hanya itu. Tidak ada baris pembayaran, tidak ada jurnal,
+     * `invoices.paid_amount` tidak bergerak. Fakturnya karena itu tetap
+     * terhitung menunggak: ia muncul di kartu jatuh tempo, dan pengingatnya
+     * terus berjalan ke pelanggan yang sudah membayar.
+     *
+     * Pencatatannya sengaja TIDAK diotomatiskan; alasannya ada pada tipe
+     * `ApiNotification` — butuh dua keputusan akuntansi yang bukan milik
+     * program. Yang bisa dilakukan program adalah berhenti diam.
+     *
+     * Korelasinya lintas-database: `payment_links` ada di control-plane,
+     * `invoices` ada di DB tenant. Karena itu dua kueri, bukan satu join.
+     */
+    const { results: linkLunas } = await c.env.DB.prepare(
+      `SELECT invoice_id, invoice_no, amount, paid_at FROM payment_links
+        WHERE tenant_id = ? AND status = 'paid' ORDER BY paid_at DESC LIMIT 20`,
+    )
+      .bind(tenant.id)
+      .all<{ invoice_id: string; invoice_no: string; amount: number; paid_at: string | null }>();
+    if (linkLunas.length > 0) {
+      const tanda = linkLunas.map(() => "?").join(",");
+      const { results: belumLunasDiBuku } = await db
+        .prepare(
+          `SELECT id FROM invoices
+            WHERE id IN (${tanda}) AND voided_at IS NULL
+              AND total > paid_amount + returned_amount`,
+        )
+        .bind(...linkLunas.map((l) => l.invoice_id))
+        .all<{ id: string }>();
+      const perluDicatat = new Set(belumLunasDiBuku.map((r) => r.id));
+      for (const l of linkLunas) {
+        if (!perluDicatat.has(l.invoice_id)) continue;
+        notifications.push({
+          type: "tagihan_link_dibayar",
+          data: { invoiceNo: l.invoice_no, jumlah: l.amount, dibayarPada: l.paid_at ?? "" },
+          href: "/app/penjualan",
+        });
+      }
+    }
+
     // Kalender pajak (Fase 22e). Ditaruh PALING AKHIR di daftar bukan karena
     // paling tidak penting, melainkan karena urutannya tidak menentukan apa pun
     // di sini — lonceng menampilkan semuanya. Yang menentukan justru

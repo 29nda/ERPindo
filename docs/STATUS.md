@@ -140,7 +140,40 @@ pernah tercapai. Saya buang, karena cabang yang tidak pernah dijalani juga tidak
 pernah diuji — lalu suatu hari berjalan dengan perilaku yang tak pernah dilihat
 siapa pun.
 
-## Yang baru saja selesai — Fase 56d: perubahan yang diam-diam kembali seperti semula
+## Yang baru saja selesai — Fase 57d: pelanggan sudah bayar, tagihannya tetap jalan
+
+Kalau pelanggan Anda membayar lewat **link pembayaran** yang ERPindo kirimkan,
+uangnya benar-benar masuk ke akun Xendit Anda — dan ERPindo mencatat bahwa
+linknya lunas.
+
+Yang **tidak** terjadi: pembayaran itu tidak pernah masuk ke buku. Fakturnya
+tetap berstatus belum lunas, tetap muncul di kartu "Faktur lewat jatuh tempo",
+dan pengingatnya **tetap berjalan ke pelanggan yang sudah membayar**.
+
+Dokumen ini sendiri ikut salah selama itu: ia menuliskan "pembayaran online
+terkonfirmasi otomatis (webhook)". Konfirmasinya memang otomatis;
+pencatatannya tidak pernah ada. Kalimat itu sudah diperbaiki.
+
+**Sekarang ERPindo memberi tahu Anda.** Setiap faktur yang linknya sudah lunas
+tetapi bukunya belum mencatat muncul di lonceng notifikasi, lengkap dengan
+jumlah dan tanggal terimanya, supaya Anda bisa mencatatnya sekali klik dari
+halaman Penjualan.
+
+**Kenapa tidak dicatat otomatis sekalian?** Karena dua hal harus Anda putuskan
+lebih dulu, dan keduanya keputusan akuntansi, bukan keputusan program:
+
+1. **Akun mana yang menerima?** Uangnya belum ada di rekening bank Anda — ia
+   ada di saldo Xendit sampai dicairkan. Membukukannya langsung sebagai kas
+   bank akan membuat rekonsiliasi bank Anda tidak pernah cocok.
+2. **Bagaimana biaya Xendit dibukukan?** Yang Anda terima adalah jumlah
+   **bersih** setelah potongan. Mencatat jumlah bruto ke kas akan melebihkan
+   saldo Anda sebesar biaya itu, setiap transaksi.
+
+Begitu Anda memutuskan keduanya, pencatatan otomatis bisa dipasang dan
+notifikasi ini tidak akan pernah muncul lagi. Sampai saat itu, yang benar
+adalah membuat celahnya terlihat — bukan menebak jurnalnya.
+
+## Sebelumnya — Fase 56d: perubahan yang diam-diam kembali seperti semula
 
 Ini cacat yang tidak akan pernah dilaporkan pelanggan, karena ia tidak
 menampakkan apa pun yang salah.
@@ -1029,7 +1062,7 @@ boleh naik:
 
 | Pemeriksaan | Sebelum | Sekarang |
 | --- | --- | --- |
-| Uji unit | 923 | **1.399** |
+| Uji unit | 923 | **1.407** |
 | Uji ujung-ke-ujung (smoke) | 1.173 | **1.372** |
 | Simulasi klik di peramban nyata | 431 | **508** |
 
@@ -1302,7 +1335,7 @@ menomorsatukan yang jarang.
 | **Fase 11a — Buka kapasitas: auto-migrasi tenant + Infra admin** | Perusahaan lama kini **otomatis menerima pembaruan skema** (saat dibuka & lewat tugas terjadwal) — sebelumnya hanya perusahaan baru yang dapat; tab **Infra** di Admin Platform memantau mode database, versi skema, dan perusahaan yang tertinggal + tombol "Migrasi sekarang"; jalur database produksi (D1 dinamis) dimatangkan & diuji, siap dinyalakan untuk skala di atas 6 perusahaan (runbook di `docs/05-runbook-go-live.md` §6) | ✅ **Selesai** |
 | **Fase 11b — Billing langganan (Midtrans)** | ERPindo kini bisa **menarik pembayaran langganan sendiri** — buka Pengaturan → Langganan → bayar via QRIS/transfer/kartu/e-wallet; akun aktif **otomatis** setelah pembayaran terkonfirmasi (webhook terverifikasi tanda tangan), dan turun ke baca-saja saat langganan habis. Dibangun siap-pakai: aktif begitu kunci Midtrans dipasang, tanpa kunci menampilkan info. **Pemblokir launching #1 — tuntas.** | ✅ **Selesai** |
 | **Fase 11c — AI-native: Tanya Laporan** | Asisten kini punya mode **Laporan** — tanya kondisi keuangan dengan bahasa sehari-hari ("berapa laba bulan ini?", "bandingkan pendapatan bulan ini vs lalu") dan dijawab **dari buku Anda sendiri** (pendapatan/beban/laba bulan ini & lalu, saldo kas, piutang, hutang). Read-only & tidak mengarang angka — AI tak pernah mengubah data. | ✅ **Selesai** |
-| **Fase 11d — Tagih pelanggan: WhatsApp + link bayar** | Tombol **"Tagih (WA)"** di faktur penjualan menyiapkan pesan tagihan di WhatsApp (langsung jalan, tanpa kunci) + **link pembayaran online** (Midtrans, aktif begitu kunci dipasang) agar pelanggan bisa bayar via QRIS/transfer/kartu/e-wallet; pembayaran online terkonfirmasi otomatis (webhook). Perusahaan yang menunggak pun tetap boleh menagih pelanggannya. | ✅ **Selesai** |
+| **Fase 11d — Tagih pelanggan: WhatsApp + link bayar** | Tombol **"Tagih (WA)"** di faktur penjualan menyiapkan pesan tagihan di WhatsApp (langsung jalan, tanpa kunci) + **link pembayaran online** (Midtrans, aktif begitu kunci dipasang) agar pelanggan bisa bayar via QRIS/transfer/kartu/e-wallet; pembayaran online **dikonfirmasi otomatis lewat webhook, tetapi pencatatannya ke buku masih manual** — lihat catatan Fase 57d di bawah. Perusahaan yang menunggak pun tetap boleh menagih pelanggannya. | ✅ **Selesai** |
 | **Fase 11e — Pesanan Marketplace** | Menu **Marketplace** baru: ekspor pesanan dari **Shopee/Tokopedia/TikTok Shop** (CSV) lalu impor sekali klik — tiap pesanan otomatis jadi **faktur penjualan + stok keluar**. Cocokkan produk per SKU, aman diulang (pesanan yang sudah masuk dilewati). Jembatan omnichannel yang bekerja tanpa kunci API. | ✅ **Selesai** |
 | **Fase 11f — Mulai cepat + Laporan Akhir** | Halaman Produk kini punya **"Mulai cepat"**: pilih jenis usaha (Retail/F&B/Jasa/Grosir) → contoh produk & kontak terisi sekali klik. Keputusan yang masih mengikat dari fase ini terangkum di `docs/riwayat.md`. | ✅ **Selesai** |
 | **Fase 12a — Standar kode jadi gerbang wajib** | Pemeriksa kualitas kode (lint) dimodernisasi dan kini **wajib lulus** sebelum kode boleh masuk (dulu hanya pemantau); panduan kerja untuk asisten AI pengembang (`CLAUDE.md`) ditambahkan agar sesi berikutnya langsung paham aturan main repo | ✅ **Selesai** |
@@ -1519,7 +1552,7 @@ menomorsatukan yang jarang.
 58. **Siap menampung ribuan perusahaan** *(baru — Fase 30)*: dua penghalang teknis yang akan patah pada jumlah besar sudah dibereskan — pemutakhiran database pelanggan kini dicicil bertahap (dulu semuanya sekaligus, dan itu pasti gagal di tengah jalan pada ratusan pelanggan), dan pembatas laju tidak lagi memakan kuota penyimpanan yang batas gratisnya cuma 1.000 tulisan sehari.
 59. **Demo publik setahun penuh** *(baru — Fase 30)*: riwayat demo diperdalam dari 6 bulan menjadi **12 bulan**, sehingga perbandingan tahun-ke-tahun, tren setahun, dan anggaran penuh semuanya punya isi. Dilengkapi alat pemeriksa yang **mengueri** demo dan menolak menyatakannya sehat bila ada bulan yang rugi, kas negatif, atau hutang melampaui kas.
 
-Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.372 skenario ujian end-to-end + 1.399 unit test + 508 cek simulasi UI browser nyata**, totalnya **3.279 pemeriksaan**. Di atas itu ada tujuh gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan lima penyapu naskah (bahasa, warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
+Semua hal di atas **diuji otomatis oleh mesin setiap kali ada perubahan kode** — **1.372 skenario ujian end-to-end + 1.407 unit test + 508 cek simulasi UI browser nyata**, totalnya **3.287 pemeriksaan**. Di atas itu ada tujuh gerbang lagi yang juga wajib lulus: pemeriksa tipe data, pemeriksa standar kode, dan lima penyapu naskah (bahasa, warna, istilah, gaya kalimat, dan tautan dokumen). Perubahan tidak bisa masuk ke versi utama bila salah satu gagal, dan jumlah pemeriksaan hanya boleh naik — tidak pernah turun.
 
 *Angka di atas dihitung ulang dengan menjalankan gerbangnya pada 29 Agustus 2026, bukan disalin dari catatan.*
 

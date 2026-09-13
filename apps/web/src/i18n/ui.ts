@@ -4008,6 +4008,16 @@ export const UI = {
     id: "Tenggat {0}. Hari libur nasional belum diperhitungkan, jadi tenggat sebenarnya bisa lebih lambat, tidak pernah lebih awal.",
     en: "Deadline {0}. Public holidays are not accounted for, so the real deadline can only be later, never earlier.",
   },
+  // --- Fase 57d: faktur lunas lewat link, belum tercatat di buku ------------
+  notifLinkDibayar: {
+    id: "Faktur {0} sudah dibayar lewat link, belum tercatat",
+    en: "Invoice {0} was paid via link but is not recorded yet",
+  },
+  notifLinkDibayarRinci: {
+    id: "{0} diterima {1}. Catat pembayarannya supaya fakturnya tidak terus tertagih.",
+    en: "{0} received on {1}. Record the payment so the invoice stops being chased.",
+  },
+
   waPengingatJatuhTempo: {
     id: "Halo {0}, kami ingin mengingatkan bahwa faktur {1} sebesar {2} telah jatuh tempo pada {3}. Mohon konfirmasi pembayarannya ya. Terima kasih 🙏",
     en: "Hello {0}, this is a reminder that invoice {1} for {2} fell due on {3}. Please confirm the payment. Thank you 🙏",
