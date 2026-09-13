@@ -792,8 +792,26 @@ export function bacaKursReferensi(payload: unknown): HasilBacaKurs {
       diabaikan.push(k);
       continue;
     }
-    // `rates` = valas per 1 IDR → dibalik jadi Rupiah per 1 valas.
-    const perValas = Math.round(1 / nilai);
+    /*
+     * `rates` = valas per 1 IDR → dibalik jadi Rupiah per 1 valas.
+     *
+     * TIDAK dibulatkan ke bilangan bulat (diperbaiki Fase 57c). Pembulatan itu
+     * membuang ketelitian yang justru disediakan skemanya — kolom `rate`
+     * bertipe REAL — dan yang diterima formulir manualnya, yang menerima
+     * pecahan positif apa pun. Akibatnya penyegaran otomatis LEBIH KASAR
+     * daripada isian tangan yang ditimpanya:
+     *
+     *   VND  1 IDR ≈ 1,57 VND → seharusnya 0,637 Rupiah per VND
+     *                           dibulatkan jadi 1 → kelebihan nilai 57%
+     *   IRR  1 IDR ≈ 2.600 IRR → 0,000385 dibulatkan jadi 0 → ditolak,
+     *                            jadi mata uangnya tak pernah tersegarkan
+     *
+     * Enam angka penting, bukan enam desimal: yang perlu dijaga ketelitian
+     * NISBI, dan itulah yang dirusak pembulatan bilangan bulat — sepele bagi
+     * USD (~16.000), fatal bagi mata uang yang satu satuannya bernilai kurang
+     * dari satu rupiah.
+     */
+    const perValas = Number((1 / nilai).toPrecision(6));
     if (!Number.isFinite(perValas) || perValas <= 0) {
       diabaikan.push(k);
       continue;

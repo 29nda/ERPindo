@@ -27,6 +27,7 @@
     "test/cronKetahanan.test.ts",
     "test/catatSebelumTagih.test.ts",
     "test/cronMajuTerus.test.ts",
-    "test/webhookAntrean.test.ts"
+    "test/webhookAntrean.test.ts",
+    "test/kursReferensi.test.ts"
   ]
 }
