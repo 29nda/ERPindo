@@ -10,13 +10,41 @@ import { bacaKursReferensi } from "../src/accounting";
  */
 
 describe("bacaKursReferensi (Fase 22b)", () => {
+  /*
+   * DITULIS ULANG pada Fase 57c, bukan dihapus.
+   *
+   * Versi lamanya menuntut `SGD` tepat `12_005` — "1/0,0000833 dibulatkan".
+   * Angka itu memang yang dihasilkan kodenya waktu itu, tetapi pembulatan ke
+   * bilangan bulat justru cacatnya: ia membuang ketelitian yang disediakan
+   * skemanya (`rate` bertipe REAL) dan yang diterima formulir manualnya
+   * (pecahan positif apa pun), sehingga penyegaran otomatis MENIMPA angka
+   * pemilik dengan angka yang lebih kasar. Sepele bagi SGD; pada VND ia
+   * melebihkan nilai 57%, dan pada IRR ia membulatkan jadi nol lalu membuang
+   * mata uangnya sama sekali.
+   *
+   * Jadi yang dituntut sekarang bukan bilangan bulatnya melainkan NILAINYA.
+   */
   it("membalik rates (valas per IDR) jadi Rupiah per valas", () => {
     // 1 IDR = 0,0000625 USD → 1 USD = 16.000 IDR.
     const r = bacaKursReferensi({ base: "IDR", rates: { USD: 0.0000625, SGD: 0.0000833 } });
     expect(r).toMatchObject({ ok: true });
     if (!r.ok) return;
     expect(r.kurs.USD).toBe(16_000);
-    expect(r.kurs.SGD).toBe(12_005); // 1/0,0000833 dibulatkan
+    expect(r.kurs.SGD).toBeCloseTo(12_004.8, 1); // 1/0,0000833, tanpa dibulatkan
+    expect(r.diabaikan).toEqual([]);
+  });
+
+  /**
+   * Penjaga kambuh untuk cacat Fase 57c. Mata uang yang satu satuannya bernilai
+   * kurang dari satu rupiah adalah tempat pembulatan bilangan bulat berubah
+   * dari "tidak rapi" menjadi "salah".
+   */
+  it("mata uang bernilai di bawah satu rupiah tidak dibulatkan jadi 1 atau 0", () => {
+    const r = bacaKursReferensi({ base: "IDR", rates: { VND: 1.57, IRR: 2600 } });
+    expect(r).toMatchObject({ ok: true });
+    if (!r.ok) return;
+    expect(r.kurs.VND).toBeCloseTo(0.636943, 6);
+    expect(r.kurs.IRR).toBeGreaterThan(0);
     expect(r.diabaikan).toEqual([]);
   });
 

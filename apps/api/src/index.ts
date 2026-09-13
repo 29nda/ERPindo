@@ -30,7 +30,7 @@ import { commerceRoutes } from "./routes/commerce";
 import { consolidationRoutes } from "./routes/consolidation";
 import { contractRoutes, runBilling } from "./routes/contracts";
 import { crmRoutes } from "./routes/crm";
-import { currencyRoutes, segarkanKursReferensi } from "./routes/currencies";
+import { ambilKursReferensi, currencyRoutes, terapkanKursReferensi } from "./routes/currencies";
 import { financeExtraRoutes, runScheduledTemplates, runYearlyClosing } from "./routes/financeExtras";
 import { helpdeskRoutes } from "./routes/helpdesk";
 import { maintenanceRoutes, runMaintenance } from "./routes/maintenance";
@@ -651,6 +651,24 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
   const putaranHarian =
     billTenants.length > 0 ? Math.floor(Date.now() / 86_400_000) % billTenants.length : 0;
   const antreanHarian = [...billTenants.slice(putaranHarian), ...billTenants.slice(0, putaranHarian)];
+  /*
+   * Kurs referensi diambil SEKALI untuk seluruh jalan (Fase 57c).
+   *
+   * Isinya sama untuk semua tenant — hanya penulisannya yang per tenant.
+   * Sebelumnya pengambilannya duduk di dalam gelung di bawah, jadi seribu
+   * perusahaan berarti seribu permintaan identik ke penyedia yang sama setiap
+   * hari: cukup untuk dianggap penyalahgunaan dan diblokir, dan seribu
+   * kesempatan menggantung di dalam gelung yang anggarannya terbatas.
+   */
+  const kursRef = await ambilKursReferensi(env);
+  if (kursRef.status === "gagal") {
+    // Sumber kurs mati bukan alasan menghentikan tugas harian siapa pun. Kurs
+    // kemarin tetap berlaku, dan sisa tugas harian tetap jalan.
+    console.log(`[cron] kurs referensi dilewati: ${kursRef.alasan}`);
+  } else if (kursRef.status === "ok") {
+    console.log(`[cron] kurs referensi diambil: ${Object.keys(kursRef.kurs).length} mata uang`);
+  }
+
   let billed = 0;
   let woGenerated = 0;
   let harianDiproses = 0;
@@ -666,14 +684,13 @@ async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContex
       const db = getTenantDb(env, t.db_ref);
       // Kurs referensi harian (Fase 22b) — DIDAHULUKAN sebelum jurnal apa pun
       // hari ini, supaya faktur & revaluasi yang diposting cron memakai kurs
-      // hari ini, bukan kurs kemarin.
-      const kurs = await segarkanKursReferensi(env, db);
-      if (kurs.status === "gagal") {
-        // Sumber kurs mati bukan alasan menghentikan tugas harian tenant ini,
-        // apalagi tenant berikutnya. Kurs kemarin tetap berlaku.
-        console.log(`[cron] kurs referensi tenant ${t.id} dilewati: ${kurs.alasan}`);
-      } else if (kurs.status === "diperbarui" && kurs.diperbarui > 0) {
-        console.log(`[cron] ${kurs.diperbarui} kurs diperbarui untuk tenant ${t.id}`);
+      // hari ini, bukan kurs kemarin. Payload-nya sudah diambil sekali di atas
+      // (Fase 57c); yang tersisa di sini hanya penulisan ke master tenant.
+      if (kursRef.status === "ok") {
+        const kurs = await terapkanKursReferensi(db, kursRef);
+        if (kurs.diperbarui > 0) {
+          console.log(`[cron] ${kurs.diperbarui} kurs diperbarui untuk tenant ${t.id}`);
+        }
       }
       const tpl = await runScheduledTemplates(db, todayDate, "system");
       if (tpl.posted > 0) console.log(`[cron] ${tpl.posted} jurnal template diposting untuk tenant ${t.id}`);
