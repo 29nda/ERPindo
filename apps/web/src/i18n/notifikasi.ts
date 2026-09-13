@@ -48,6 +48,8 @@ export function judulNotifikasi(n: ApiNotification, u: Penerjemah): string {
       return isi(u("notifTindakLanjutLead"), n.data.leadName);
     case "crm_stale_lead":
       return isi(u("notifLeadDingin"), n.data.count, n.data.hari);
+    case "tagihan_link_dibayar":
+      return isi(u("notifLinkDibayar"), n.data.invoiceNo);
     case "tenggat_pajak": {
       const kegiatan = u(n.data.kegiatan === "setor" ? "kpSetor" : "kpLapor");
       const label = u(KUNCI_LABEL_PAJAK[n.data.jenis]);
@@ -81,6 +83,12 @@ export function rincianNotifikasi(n: ApiNotification, u: Penerjemah): string {
       return isi(u("notifTindakLanjutLeadRinci"), n.data.note, formatDate(n.data.dueAt));
     case "crm_stale_lead":
       return u("notifLeadDinginRinci");
+    case "tagihan_link_dibayar":
+      return isi(
+        u("notifLinkDibayarRinci"),
+        formatIDR(n.data.jumlah),
+        formatDate(n.data.dibayarPada),
+      );
     case "tenggat_pajak":
       return isi(u("notifPajakRinci"), formatDate(n.data.tanggal));
     default: {

@@ -601,6 +601,25 @@ export type ApiNotification = {
   | { type: "pending_approval"; data: { count: number } }
   | { type: "crm_followup_due"; data: { leadName: string; note: string; dueAt: string } }
   | { type: "crm_stale_lead"; data: { count: number; hari: number } }
+  /**
+   * Faktur yang SUDAH dibayar lewat link pembayaran tetapi belum tercatat di
+   * buku (Fase 57d).
+   *
+   * Webhook Xendit menandai `payment_links.status = 'paid'`, dan sampai fase
+   * ini hanya itu: tidak ada baris pembayaran, tidak ada jurnal, `paid_amount`
+   * faktur tidak bergerak. Akibatnya fakturnya tetap terhitung menunggak —
+   * pengingat terus berjalan ke pelanggan yang sudah membayar.
+   *
+   * Pencatatannya TIDAK diotomatiskan di sini karena butuh dua keputusan
+   * akuntansi yang bukan milik program: akun mana yang menerima, dan bagaimana
+   * biaya potongan Xendit dibukukan (yang diterima merchant adalah jumlah
+   * bersih, bukan bruto). Selama keputusan itu belum diambil, yang benar adalah
+   * membuat celahnya terlihat — bukan menebak jurnalnya.
+   */
+  | {
+      type: "tagihan_link_dibayar";
+      data: { invoiceNo: string; jumlah: number; dibayarPada: string };
+    }
   /** Tenggat lapor/setor pajak yang mendekat atau baru saja lewat (Fase 22e). */
   | {
       type: "tenggat_pajak";

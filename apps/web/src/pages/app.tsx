@@ -419,6 +419,7 @@ function NotificationBell({ tenantId }: { tenantId: string }) {
     pending_approval: "bg-brand-500",
     crm_followup_due: "bg-violet-500",
     crm_stale_lead: "bg-ink-faint",
+    tagihan_link_dibayar: "bg-ok-500",
   };
 
   return (
